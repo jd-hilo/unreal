@@ -1,18 +1,31 @@
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
+import { useTwin } from '@/store/useTwin';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signIn, signUp } = useAuth();
+  const { user, initialized, signIn, signUp } = useAuth();
+  const { checkOnboardingStatus } = useTwin();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // If user is already signed in, redirect immediately (don't wait for onboarding check)
+  useEffect(() => {
+    if (!initialized || loading) return;
+    
+    if (user) {
+      // User is signed in, let index.tsx handle routing
+      // Just redirect to index which will route properly
+      router.replace('/');
+    }
+  }, [user, initialized, loading, router]);
 
   async function handleAuth() {
     if (!email || !password) {
@@ -26,14 +39,29 @@ export default function AuthScreen() {
     try {
       if (isSignUp) {
         await signUp(email, password);
-        router.replace('/onboarding/01-now');
       } else {
         await signIn(email, password);
-        router.replace('/(tabs)/home');
+      }
+
+      // Wait a moment for state to update
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const currentUser = useAuth.getState().user;
+      
+      if (currentUser) {
+        // Clear form
+        setEmail('');
+        setPassword('');
+        
+        // Navigate to index - it will handle routing based on onboarding status
+        router.replace('/');
+        return;
+      } else {
+        setLoading(false);
+        setError('Failed to sign in. Please try again.');
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
-    } finally {
       setLoading(false);
     }
   }

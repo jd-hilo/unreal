@@ -1,38 +1,49 @@
-import { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 
 export default function Index() {
   const router = useRouter();
-  const { user, initialized } = useAuth();
-  const onboardingComplete = useTwin((state) => state.onboardingComplete);
+  const { user, initialized, loading } = useAuth();
+  const { checkOnboardingStatus } = useTwin();
+  const hasRouted = useRef(false);
 
   useEffect(() => {
-    if (!initialized) return;
+    // Prevent multiple routing attempts
+    if (hasRouted.current) return;
+    
+    // Wait for auth to finish initializing before routing
+    if (!initialized || loading) {
+      return;
+    }
+
+    hasRouted.current = true;
 
     if (!user) {
       router.replace('/auth');
-    } else if (!onboardingComplete) {
-      router.replace('/onboarding/01-now');
-    } else {
-      router.replace('/(tabs)/home');
+      return;
     }
-  }, [user, initialized, onboardingComplete]);
 
-  return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#000000" />
-    </View>
-  );
+    // Check onboarding and route
+    checkOnboardingStatus(user.id).then(() => {
+      const isComplete = useTwin.getState().onboardingComplete;
+      if (!isComplete) {
+        router.replace('/onboarding/01-now');
+      } else {
+        router.replace('/(tabs)/home');
+      }
+    }).catch(() => {
+      // If check fails, just go to home
+      router.replace('/(tabs)/home');
+    });
+  }, [user, initialized, loading]);
+
+  // Reset routing flag when user changes
+  useEffect(() => {
+    hasRouted.current = false;
+  }, [user?.id]);
+
+  return null;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-});

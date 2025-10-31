@@ -44,22 +44,44 @@ export default function NewDecisionScreen() {
     setLoading(true);
 
     try {
+      console.log('Creating decision...');
       const decision = await insertDecision(user.id, {
         question: question.trim(),
         options: validOptions,
         status: 'pending',
       });
 
+      console.log('Decision created:', decision.id);
+      console.log('Building Core Pack and Relevance Pack...');
+      
       const corePack = await buildCorePack(user.id);
       const relevancePack = await buildRelevancePack(user.id, question);
+      
+      console.log('Core pack length:', corePack.length);
+      console.log('Relevance pack length:', relevancePack.length);
+      console.log('Calling AI predictDecision...');
 
-      const prediction = await predictDecision(corePack, relevancePack, question, validOptions);
+      const prediction = await predictDecision({
+        corePack,
+        relevancePack,
+        question: question.trim(),
+        options: validOptions,
+      });
 
+      console.log('AI prediction received:', {
+        prediction: prediction.prediction,
+        probs: prediction.probs,
+        uncertainty: prediction.uncertainty,
+      });
+
+      console.log('Saving prediction to database...');
       await updateDecisionPrediction(decision.id, prediction);
 
+      console.log('Prediction saved. Navigating to result page...');
       router.push(`/decision/${decision.id}`);
     } catch (error) {
       console.error('Decision error:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       alert('Failed to process decision. Please try again.');
     } finally {
       setLoading(false);

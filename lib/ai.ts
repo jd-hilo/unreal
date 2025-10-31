@@ -8,9 +8,17 @@ import type {
   WhatIfMetrics,
 } from '@/types/database';
 
-const apiKey = Constants.expoConfig?.extra?.openaiApiKey || process.env.OPENAI_API_KEY || '';
+const apiKey = 
+  Constants.expoConfig?.extra?.openaiApiKey || 
+  process.env.EXPO_PUBLIC_OPENAI_API_KEY ||
+  process.env.OPENAI_API_KEY || 
+  '';
 
 const DEV_MODE = !apiKey;
+
+if (DEV_MODE) {
+  console.warn('⚠️ OpenAI API key not found. Set EXPO_PUBLIC_OPENAI_API_KEY in .env file');
+}
 
 let openaiInstance: any = null;
 
@@ -96,7 +104,7 @@ Extract:
 - needs flags (array of strings) for missing but important clarifiers, e.g., needs.city, needs.role_start_date, needs.relationship_years.
 - summary (3–6 sentences) capturing who they are & what matters.
 
-Return:
+Return JSON:
 
 {
   "core_json": {...},
@@ -182,7 +190,7 @@ export async function generateClarifiers(
   const userPrompt = `Profile: ${JSON.stringify(profileCoreJson)}
 Needs: ${JSON.stringify(needs)}
 
-Return:
+Return JSON:
 
 {
   "questions": [
@@ -214,19 +222,42 @@ Return:
   }
 }
 
-export async function predictDecision(
-  corePack: string,
-  relevancePack: string,
-  question: string,
-  options: string[]
-): Promise<DecisionPrediction> {
+export async function predictDecision({
+  corePack,
+  relevancePack,
+  question,
+  options,
+}: {
+  corePack: string;
+  relevancePack: string;
+  question: string;
+  options: string[];
+}): Promise<DecisionPrediction> {
+  console.log('=== PREDICT DECISION CALLED ===');
+  console.log('DEV_MODE:', DEV_MODE);
+  console.log('Question:', question);
+  console.log('Options:', options);
+  console.log('Core Pack length:', corePack.length);
+  console.log('Relevance Pack length:', relevancePack.length);
+  
   if (DEV_MODE) {
+    console.warn('⚠️ DEV_MODE: Using mock prediction (no API key configured)');
     return mockDecisionPrediction(options);
   }
 
+  console.log('Calling OpenAI API...');
   const openai = getOpenAI();
 
-  const systemPrompt = `You are the user's digital twin. Use the Core Pack for identity and values. Use only facts from the Relevance Pack when helpful. Output calibrated probabilities for each option (sum≈1), a short rationale, top factors considered, and an uncertainty (0–1 lower is better).`;
+  const systemPrompt = `You are the user's digital twin.
+
+Use the Core Pack for identity, personality, values, and decision tendencies.
+
+Use only facts from the Relevance Pack when they help answer the question.
+
+Return calibrated probabilities for each option (summing to ~1), a concise rationale (2–4 sentences),
+top factors considered, and an uncertainty score (0–1, lower = more confident).
+
+Keep tone reflective, human, and emotionally grounded — not mechanical.`;
 
   const userPrompt = `Core Pack:
 
@@ -239,33 +270,60 @@ ${relevancePack}
 Question:
 
 ${question}
-Options: ${JSON.stringify(options)}
 
-Return:
+Options:
+
+${JSON.stringify(options)}
+
+RETURN JSON
 
 {
-  "prediction": "<one of the options>",
-  "probs": {"<opt1>": 0.34, "<opt2>": 0.66},
-  "rationale": "Short 2-4 sentence why.",
-  "factors": ["relationship:partner_4y_supportive","values:growth>stability","decision_style:test-small"],
+  "prediction": "<one_of_options>",
+  "probs": {"<opt1>":0.34,"<opt2>":0.66},
+  "rationale": "2–4 sentences.",
+  "factors": ["values:freedom", "relationship:partner_4y_supportive", "decision_style:test-small"],
   "uncertainty": 0.27
 }`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.4,
+      temperature: 0.2,
     });
 
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error('No response from AI');
 
-    return JSON.parse(content) as DecisionPrediction;
+    console.log('Raw AI response:', content.substring(0, 500));
+    const parsed = JSON.parse(content) as DecisionPrediction;
+    
+    console.log('Parsed prediction:', {
+      prediction: parsed.prediction,
+      probs: parsed.probs,
+      rationale: parsed.rationale?.substring(0, 100),
+      factors: parsed.factors,
+      uncertainty: parsed.uncertainty,
+    });
+    
+    // Ensure probabilities sum to ~1 and are properly formatted
+    const probSum = Object.values(parsed.probs || {}).reduce((sum, val) => sum + (val as number), 0);
+    if (Math.abs(probSum - 1.0) > 0.01) {
+      console.warn('Probabilities did not sum to 1, normalizing:', probSum);
+      // Normalize probabilities if they don't sum to 1
+      const normalizedProbs: Record<string, number> = {};
+      Object.entries(parsed.probs || {}).forEach(([key, val]) => {
+        normalizedProbs[key] = (val as number) / probSum;
+      });
+      parsed.probs = normalizedProbs;
+    }
+    
+    console.log('Final prediction:', parsed);
+    return parsed;
   } catch (error) {
     console.error('Decision prediction error:', error);
     throw error;
@@ -295,7 +353,7 @@ ${policy}
 
 Horizon: ${horizonDays}
 
-Return:
+Return JSON:
 
 {
   "deltas": {
@@ -350,7 +408,7 @@ Counterfactual prompt:
 
 ${userText}
 
-Return:
+Return JSON:
 
 {
   "metrics": {
@@ -496,4 +554,110 @@ function mockWhatIf(): { metrics: WhatIfMetrics; summary: string } {
     summary:
       'In this alternate timeline, you would likely have higher financial security but lower personal freedom and relationship satisfaction. Your current path appears to prioritize personal fulfillment over purely financial metrics.',
   };
+}
+
+export async function generateSuggestions({
+  question,
+  options,
+  currentProbs,
+  factors,
+  corePackSummary,
+}: {
+  question: string;
+  options: string[];
+  currentProbs: Record<string, number>;
+  factors: string[];
+  corePackSummary: string;
+}): Promise<{
+  suggestions: Array<{
+    label: string;
+    probs: Record<string, number>;
+    delta: string;
+  }>;
+}> {
+  if (DEV_MODE) {
+    return {
+      suggestions: [
+        {
+          label: 'Make new role fully remote',
+          probs: { [options[0]]: 0.58, [options[1] || options[0]]: 0.42 },
+          delta: '+21% to switch',
+        },
+        {
+          label: '+ $15k salary',
+          probs: { [options[0]]: 0.61, [options[1] || options[0]]: 0.39 },
+          delta: '+24% to switch',
+        },
+      ],
+    };
+  }
+
+  const openai = getOpenAI();
+
+  const systemPrompt = `Generate 3-5 realistic, actionable tweaks that could change the decision probabilities.
+Each tweak should be:
+- Small and realistic (not fantasy)
+- Actionable (compensation, flexibility, title, team, location, etc.)
+- Contextually relevant to the decision question
+
+For each suggestion, predict how probabilities would shift.`;
+
+  const userPrompt = `Decision Question: ${question}
+Options: ${JSON.stringify(options)}
+Current Probabilities: ${JSON.stringify(currentProbs)}
+Key Factors: ${factors.join(', ')}
+User Context: ${corePackSummary}
+
+Generate 3-5 realistic tweaks. For each, return:
+- label: short description (e.g., "Make new role fully remote", "+ $15k salary")
+- probs: updated probabilities for each option
+- delta: one-line description of the change (e.g., "+21% to switch")
+
+Return JSON:
+{
+  "suggestions": [
+    {
+      "label": "...",
+      "probs": {"option1": 0.58, "option2": 0.42},
+      "delta": "+21% to switch"
+    }
+  ]
+}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.5,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('No response from AI');
+
+    const parsed = JSON.parse(content);
+    
+    // Ensure probabilities sum to 1 for each suggestion
+    if (parsed.suggestions) {
+      parsed.suggestions = parsed.suggestions.map((s: any) => {
+        if (s.probs) {
+          const sum = Object.values(s.probs as Record<string, number>).reduce((a: number, b: number) => a + b, 0);
+          if (sum > 0) {
+            s.probs = Object.fromEntries(
+              Object.entries(s.probs).map(([k, v]) => [k, (v as number) / sum])
+            );
+          }
+        }
+        return s;
+      });
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error('Suggestions generation error:', error);
+    throw error;
+  }
 }

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { embedText } from './ai';
 import type {
   CoreJsonData,
   RelationshipExtraction,
@@ -134,6 +135,16 @@ export async function insertDecision(
     status?: 'draft' | 'pending' | 'completed';
   }
 ) {
+  // Compute embedding for the decision (question + options combined)
+  let embedding: number[] | null = null;
+  try {
+    const decisionText = `${payload.question} ${payload.options.join(' ')}`;
+    embedding = await embedText(decisionText);
+  } catch (error) {
+    console.warn('Failed to compute decision embedding:', error);
+    // Continue without embedding
+  }
+
   const { data, error } = await supabase
     .from('decisions')
     .insert({
@@ -142,6 +153,7 @@ export async function insertDecision(
       options: payload.options as any,
       context_summary: payload.context_summary || null,
       status: payload.status || 'pending',
+      decision_embedding: embedding as any,
     } as any)
     .select()
     .single();
@@ -151,15 +163,46 @@ export async function insertDecision(
 }
 
 export async function updateDecisionPrediction(decisionId: string, prediction: DecisionPrediction) {
+  // If embedding doesn't exist yet, compute it
+  const decision = await getDecision(decisionId);
+  let embedding = (decision?.decision_embedding as number[]) || null;
+  
+  if (!embedding && decision) {
+    try {
+      const decisionText = `${decision.question} ${(decision.options || []).join(' ')}`;
+      embedding = await embedText(decisionText);
+    } catch (error) {
+      console.warn('Failed to compute decision embedding on update:', error);
+    }
+  }
+
+  const updatePayload: any = {
+    prediction: prediction as any,
+    status: 'completed',
+  };
+  
+  if (embedding) {
+    updatePayload.decision_embedding = embedding as any;
+  }
+
   const { data, error } = await supabase
     .from('decisions')
-    .update({ prediction: prediction as any, status: 'completed' } as any)
+    .update(updatePayload)
     .eq('id', decisionId)
     .select()
     .single();
 
   if (error) throw error;
   return data;
+}
+
+/**
+ * Save decision result (alias for updateDecisionPrediction for consistency)
+ * @param decisionId - Decision ID to update
+ * @param result - DecisionPrediction result to save
+ */
+export async function saveDecisionResult(decisionId: string, result: DecisionPrediction) {
+  return updateDecisionPrediction(decisionId, result);
 }
 
 export async function getDecisions(userId: string, limit = 10) {
@@ -279,4 +322,103 @@ export async function getJournals(userId: string, limit = 30) {
 
   if (error) throw error;
   return data || [];
+}
+
+// Onboarding helpers
+export async function saveOnboardingResponse(
+  userId: string,
+  step: string,
+  response: string
+) {
+  // Get existing profile or create one
+  const profile = await getProfile(userId);
+  const currentCoreJson = (profile?.core_json as CoreJsonData) || {};
+
+  // Store onboarding responses in core_json
+  const onboardingData = currentCoreJson.onboarding_responses || {};
+  onboardingData[step] = response;
+
+  const updatedCoreJson: CoreJsonData = {
+    ...currentCoreJson,
+    onboarding_responses: onboardingData,
+  };
+
+  // Upsert profile with onboarding data
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        user_id: userId,
+        core_json: updatedCoreJson as any,
+      } as any,
+      { onConflict: 'user_id' }
+    )
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function completeOnboarding(
+  userId: string,
+  onboardingData: {
+    university?: string;
+    hometown?: string;
+    [key: string]: any;
+  }
+) {
+  const profile = await getProfile(userId);
+  const currentCoreJson = (profile?.core_json as CoreJsonData) || {};
+  const onboardingResponses = currentCoreJson.onboarding_responses || {};
+
+  // Mark onboarding as complete in core_json
+  const updatedCoreJson: CoreJsonData = {
+    ...currentCoreJson,
+    onboarding_responses: {
+      ...onboardingResponses,
+      ...onboardingData,
+    },
+    onboarding_complete: true,
+  };
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        user_id: userId,
+        core_json: updatedCoreJson as any,
+        university: onboardingData.university || null,
+        hometown: onboardingData.hometown || null,
+      } as any,
+      { onConflict: 'user_id' }
+    )
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function isOnboardingComplete(userId: string): Promise<boolean> {
+  const profile = await getProfile(userId);
+  if (!profile) return false;
+  
+  const coreJson = profile.core_json as CoreJsonData;
+  return coreJson?.onboarding_complete === true;
+}
+
+/**
+ * Update user's privacy setting for contributing to community insights
+ */
+export async function updateContributeToInsights(userId: string, enabled: boolean) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ contribute_to_insights: enabled } as any)
+    .eq('user_id', userId)
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
 }

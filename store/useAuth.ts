@@ -32,8 +32,9 @@ export const useAuth = create<AuthState>((set) => ({
 
     if (error) throw error;
 
+    // Ensure session and user are set immediately
     if (data.session) {
-      set({ session: data.session, user: data.user });
+      set({ session: data.session, user: data.session.user || data.user });
     }
   },
 
@@ -45,7 +46,10 @@ export const useAuth = create<AuthState>((set) => ({
 
     if (error) throw error;
 
-    set({ session: data.session, user: data.user });
+    // Ensure session and user are set immediately
+    if (data.session) {
+      set({ session: data.session, user: data.session.user || data.user });
+    }
   },
 
   signOut: async () => {
@@ -58,10 +62,12 @@ export const useAuth = create<AuthState>((set) => ({
   initialize: async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('Auth initialized, session exists:', !!session);
       set({ session, user: session?.user || null, loading: false, initialized: true });
 
-      supabase.auth.onAuthStateChange((_event, session) => {
-        set({ session, user: session?.user || null });
+      supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state changed:', event, 'has session:', !!session);
+        set({ session, user: session?.user || null, loading: false });
       });
     } catch (error) {
       console.error('Auth initialization error:', error);

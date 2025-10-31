@@ -10,7 +10,7 @@ import { Card, CardTitle, CardContent } from '@/components/Card';
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
-  const onboardingComplete = useTwin((state) => state.onboardingComplete);
+  const { onboardingComplete, checkOnboardingStatus } = useTwin();
   const [userName, setUserName] = useState('there');
   const [recentDecisions, setRecentDecisions] = useState<any[]>([]);
 
@@ -20,13 +20,16 @@ export default function HomeScreen() {
       return;
     }
 
-    if (!onboardingComplete) {
-      router.replace('/onboarding/01-now');
-      return;
-    }
-
-    loadData();
-  }, [user, onboardingComplete]);
+    // Check onboarding status from database
+    checkOnboardingStatus(user.id).then(() => {
+      const isComplete = useTwin.getState().onboardingComplete;
+      if (!isComplete) {
+        router.replace('/onboarding/01-now');
+        return;
+      }
+      loadData();
+    });
+  }, [user, router, checkOnboardingStatus]);
 
   async function loadData() {
     if (!user) return;
