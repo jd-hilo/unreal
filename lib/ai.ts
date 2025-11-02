@@ -594,32 +594,41 @@ export async function generateSuggestions({
 
   const openai = getOpenAI();
 
-  const systemPrompt = `Generate 3-5 realistic, actionable tweaks that could change the decision probabilities.
-Each tweak should be:
-- Small and realistic (not fantasy)
-- Actionable (compensation, flexibility, title, team, location, etc.)
-- Contextually relevant to the decision question
+  const systemPrompt = `You are analyzing a specific decision and generating realistic "what-if" scenarios that could change the outcome.
 
-For each suggestion, predict how probabilities would shift.`;
+Rules:
+- Each suggestion must be DIRECTLY relevant to the exact decision question being asked
+- Tweaks should be small, realistic changes to the specific situation (not fantasy scenarios)
+- Focus on actionable variables within the decision context (compensation, timing, conditions, responsibilities, etc.)
+- Predict how each tweak would shift the probabilities based on the user's values and factors
+- Keep suggestions grounded in the real decision at hand`;
 
-  const userPrompt = `Decision Question: ${question}
-Options: ${JSON.stringify(options)}
-Current Probabilities: ${JSON.stringify(currentProbs)}
-Key Factors: ${factors.join(', ')}
-User Context: ${corePackSummary}
+  const userPrompt = `I'm helping someone decide: "${question}"
 
-Generate 3-5 realistic tweaks. For each, return:
-- label: short description (e.g., "Make new role fully remote", "+ $15k salary")
-- probs: updated probabilities for each option
-- delta: one-line description of the change (e.g., "+21% to switch")
+Their options are: ${JSON.stringify(options)}
+
+Current probabilities based on who they are: ${JSON.stringify(currentProbs)}
+
+Key factors influencing their decision: ${factors.join(', ')}
+
+User's values and context: ${corePackSummary}
+
+Generate 3-5 realistic tweaks SPECIFIC TO THIS DECISION that could change the probabilities. 
+
+Examples of GOOD suggestions for different decision types:
+- Job decision: "If salary was $X higher", "If role was fully remote", "If team was larger/smaller"
+- Relationship decision: "If they moved closer", "If commitment timeline was different"
+- Purchase decision: "If price was X% lower", "If warranty was longer"
+
+For THIS decision ("${question}"), generate contextual tweaks that make sense for the OPTIONS provided.
 
 Return JSON:
 {
   "suggestions": [
     {
-      "label": "...",
-      "probs": {"option1": 0.58, "option2": 0.42},
-      "delta": "+21% to switch"
+      "label": "Specific, actionable tweak relevant to the decision",
+      "probs": {"${options[0]}": 0.XX, "${options[1] || 'option2'}": 0.XX},
+      "delta": "Brief description of probability change"
     }
   ]
 }`;

@@ -80,9 +80,10 @@ export async function getDecisionSuggestions(
   }>;
 } | null> {
   try {
-    // Build short core pack summary
+    // Build core pack with full context for better decision-specific suggestions
     const corePack = await buildCorePack(userId);
-    const corePackSummary = corePack.substring(0, 500); // Keep it short
+    // Use more context (1500 chars) to better understand the user's situation and decision
+    const corePackSummary = corePack.substring(0, 1500);
 
     // Use OpenAI to generate suggestions
     const { generateSuggestions } = await import('./ai');

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Input } from '@/components/Input';
@@ -10,6 +10,28 @@ export default function OnboardingStep1() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [text, setText] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadExistingData();
+  }, [user]);
+
+  async function loadExistingData() {
+    if (!user) return;
+    
+    try {
+      const { getProfile } = await import('@/lib/storage');
+      const profile = await getProfile(user.id);
+      const existingResponse = profile?.core_json?.onboarding_responses?.['01-now'];
+      if (existingResponse) {
+        setText(existingResponse);
+      }
+    } catch (error) {
+      console.error('Failed to load existing data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleNext() {
     if (user && text.trim()) {
@@ -20,6 +42,10 @@ export default function OnboardingStep1() {
       }
     }
     router.push('/onboarding/02-path');
+  }
+
+  function handleBack() {
+    router.back();
   }
 
   return (

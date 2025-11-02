@@ -20,6 +20,8 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="decision" />
         <Stack.Screen name="whatif" />
+        <Stack.Screen name="relationships" />
+        <Stack.Screen name="journal" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

@@ -98,6 +98,45 @@ export async function getRelationships(userId: string) {
   return data || [];
 }
 
+export async function getRelationship(id: string) {
+  const { data, error } = await supabase
+    .from('relationships')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateRelationship(id: string, updates: {
+  name?: string;
+  relationship_type?: string;
+  years_known?: number | null;
+  contact_frequency?: string | null;
+  influence?: number | null;
+  location?: string | null;
+}) {
+  const { data, error } = await supabase
+    .from('relationships')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteRelationship(id: string) {
+  const { error } = await supabase
+    .from('relationships')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
 export async function upsertCareerEntries(userId: string, entries: CareerExtraction[]) {
   const dbEntries = entries.map((entry) => ({
     user_id: userId,
@@ -322,6 +361,26 @@ export async function getJournals(userId: string, limit = 30) {
 
   if (error) throw error;
   return data || [];
+}
+
+export async function getJournal(id: string) {
+  const { data, error } = await supabase
+    .from('journals')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteJournal(id: string) {
+  const { error } = await supabase
+    .from('journals')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
 }
 
 // Onboarding helpers

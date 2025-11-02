@@ -249,7 +249,10 @@ export default function DecisionResultScreen() {
   }
 
   const prediction = decision.prediction;
-  const confidence = prediction ? (1 - prediction.uncertainty) * 100 : 0;
+  // Confidence should match the highest probability percentage
+  const confidence = prediction && prediction.probs 
+    ? Math.max(...Object.values(prediction.probs as Record<string, number>)) * 100 
+    : 0;
 
   return (
     <View style={styles.container}>
