@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
@@ -6,8 +6,11 @@ import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen } from 'lucide-react-native';
+import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen, Compass } from 'lucide-react-native';
 import { getProfile, getTodayJournal, getRelationships } from '@/lib/storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 interface ProfileCard {
   id: string;
@@ -163,170 +166,266 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Your Profile</Text>
-
-      <Card style={styles.progressCard} variant="elevated">
-        <Text style={styles.progressTitle}>Twin's Understanding</Text>
-        <ProgressBar progress={totalProgress} />
-        <Text style={styles.progressSubtitle}>
-          {completedCount} of {cards.length} sections complete • Tap any card to edit
-        </Text>
-      </Card>
-
-      {/* Highlighted Journal Card */}
-      <TouchableOpacity
-        style={[
-          styles.journalHighlight,
-          journalComplete && styles.journalHighlightComplete
-        ]}
-        onPress={() => router.push('/journal' as any)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.journalIcon}>
-          {journalComplete ? (
-            <CheckCircle2 size={28} color="#10B981" />
-          ) : (
-            <BookOpen size={28} color="#000000" />
-          )}
-        </View>
-        <View style={styles.journalContent}>
-          <Text style={styles.journalTitle}>Daily Journal</Text>
-          <Text style={styles.journalSubtitle}>
-            {journalComplete 
-              ? "Today's journal complete! View or edit anytime"
-              : "Journal your days and help your twin understand you"
-            }
-          </Text>
-        </View>
-        <ChevronRight size={24} color={journalComplete ? "#10B981" : "#000000"} />
-      </TouchableOpacity>
-
-      <View style={styles.cards}>
-        {cards.map((card) => (
-          <TouchableOpacity
-            key={card.id}
-            style={styles.card}
-            onPress={() => handleCardPress(card)}
-            activeOpacity={0.7}
+    <View style={styles.screen}>
+      <View style={styles.backgroundGradient}>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
           >
-            <View style={styles.cardIcon}>
-              {card.completed ? (
-                <CheckCircle2 size={24} color="#10B981" />
-              ) : (
-                <Circle size={24} color="#D1D5DB" />
-              )}
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{card.title}</Text>
-              <Text style={styles.cardSubtitle} numberOfLines={2}>
-                {card.subtitle}
-              </Text>
-            </View>
-            <View style={styles.cardAction}>
-              {card.completed ? (
-                <Edit3 size={20} color="#666666" />
-              ) : (
-                <ChevronRight size={20} color="#666666" />
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
+            <Text style={styles.title}>Your Profile</Text>
 
-      <View style={styles.settings}>
-        <Text style={styles.settingsTitle}>Settings</Text>
-
-        <Card style={styles.settingCard}>
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Premium</Text>
+            {/* Twin's Understanding Card */}
             <TouchableOpacity
-              style={[styles.toggle, isPremium && styles.toggleActive]}
-              onPress={() => setPremium(!isPremium)}
+              style={styles.progressCard}
+              activeOpacity={0.85}
             >
-              <View style={[styles.toggleThumb, isPremium && styles.toggleThumbActive]} />
+              <LinearGradient
+                colors={['rgba(15, 10, 30, 0.95)', 'rgba(25, 15, 45, 0.9)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.progressCardInner}
+              >
+                <View style={styles.progressHeader}>
+                  <View style={styles.compassIcon}>
+                    <Compass size={24} color="#B795FF" strokeWidth={2} />
+                  </View>
+                  <Text style={styles.progressTitle}>Twin's Understanding</Text>
+                </View>
+                <View style={styles.gradientProgressBar}>
+                  <LinearGradient
+                    colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[styles.progressFill, { width: `${totalProgress}%` }]}
+                  />
+                </View>
+                <Text style={styles.progressSubtitle}>
+                  {completedCount} of {cards.length} sections complete • {totalProgress}%
+                </Text>
+              </LinearGradient>
             </TouchableOpacity>
-          </View>
-        </Card>
 
-        <Button
-          title="Sign Out"
-          onPress={handleSignOut}
-          variant="outline"
-          size="medium"
-          style={styles.signOutButton}
-        />
+            {/* Mannequin head between cards */}
+            <View style={styles.mannequinContainer}>
+              <Image 
+                source={require('@/app/profileman.png')}
+                style={styles.mannequinImage}
+                resizeMode="contain"
+              />
+            </View>
+
+            {/* Daily Journal Card */}
+            <TouchableOpacity
+              style={styles.journalCard}
+              onPress={() => router.push('/journal' as any)}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['rgba(15, 10, 30, 0.95)', 'rgba(25, 15, 45, 0.9)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.journalCardInner}
+              >
+                <View style={styles.journalRow}>
+                  <View style={styles.journalIconContainer}>
+                    <BookOpen size={24} color="#B795FF" strokeWidth={2} />
+                  </View>
+                  <View style={styles.journalContent}>
+                    <Text style={styles.journalTitle}>Daily Journal</Text>
+                    <Text style={styles.journalSubtitle}>
+                      {journalComplete 
+                        ? "Today's journal complete"
+                        : "Journal your days and help your twin understand you"
+                      }
+                    </Text>
+                  </View>
+                  <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Profile sections */}
+            <View style={styles.cards}>
+              {cards.slice(0, 4).map((card) => (
+                <TouchableOpacity
+                  key={card.id}
+                  style={styles.card}
+                  onPress={() => handleCardPress(card)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.cardIconContainer}>
+                    {card.completed ? (
+                      <CheckCircle2 size={20} color="#B795FF" strokeWidth={2.5} />
+                    ) : (
+                      <Circle size={20} color="rgba(150, 150, 150, 0.6)" strokeWidth={2} />
+                    )}
+                  </View>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle}>{card.title}</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={2}>
+                      {card.subtitle}
+                    </Text>
+                  </View>
+                  <View style={styles.cardAction}>
+                    <Edit3 size={18} color="rgba(150, 150, 150, 0.6)" />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              onPress={handleSignOut}
+              style={styles.signOutButton}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#000000',
+  },
+  backgroundGradient: {
+    flex: 1,
+    backgroundColor: '#0C0C10',
+  },
+  mannequinContainer: {
+    alignSelf: 'center',
+    marginVertical: -50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mannequinImage: {
+    width: 260,
+    height: 260,
+    opacity: 1,
+  },
+  mannequinGlow: {
+    position: 'absolute',
+    bottom: 20,
+    width: 140,
+    height: 100,
+    borderRadius: 70,
+    backgroundColor: '#6E3DF0',
+    opacity: 0.35,
+    shadowColor: '#6E3DF0',
+    shadowOpacity: 0.9,
+    shadowRadius: 50,
+    elevation: 15,
+  },
+  gradientProgressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginVertical: 12,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
-    padding: 24,
-    paddingTop: 60,
+    padding: 20,
     paddingBottom: 100,
   },
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 24,
+    textAlign: 'center',
+    fontFamily: 'Inter-SemiBold',
   },
   progressCard: {
-    marginBottom: 32,
+    marginBottom: 24,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  progressCardInner: {
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderRadius: 24,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  compassIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(110, 61, 240, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   progressTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
-    marginBottom: 16,
+    color: '#FFFFFF',
+    fontFamily: 'Inter-SemiBold',
   },
   progressSubtitle: {
-    fontSize: 14,
-    color: '#666666',
+    fontSize: 13,
+    color: 'rgba(200, 200, 200, 0.75)',
     marginTop: 12,
   },
-  journalHighlight: {
+  journalCard: {
+    marginBottom: 32,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  journalCardInner: {
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderRadius: 24,
+  },
+  journalRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF9E6',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 32,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    gap: 16,
+    gap: 14,
   },
-  journalHighlightComplete: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#10B981',
-  },
-  journalIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
+  journalIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(110, 61, 240, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   journalContent: {
     flex: 1,
-    gap: 4,
   },
   journalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#000000',
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+    fontFamily: 'Inter-SemiBold',
   },
   journalSubtitle: {
-    fontSize: 14,
-    color: '#666666',
-    lineHeight: 20,
+    fontSize: 13,
+    color: 'rgba(200, 200, 200, 0.75)',
+    lineHeight: 18,
   },
   cards: {
     gap: 12,
@@ -335,31 +434,34 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
     borderRadius: 16,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    gap: 12,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    gap: 14,
   },
-  cardIcon: {
+  cardIconContainer: {
     width: 24,
     height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardContent: {
     flex: 1,
     gap: 4,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 2,
+    fontFamily: 'Inter-SemiBold',
   },
   cardSubtitle: {
-    fontSize: 14,
-    color: '#666666',
-    lineHeight: 20,
+    fontSize: 13,
+    color: 'rgba(200, 200, 200, 0.75)',
+    lineHeight: 18,
   },
   cardAction: {
     width: 24,
@@ -367,49 +469,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  settings: {
-    gap: 16,
-  },
-  settingsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 8,
-  },
-  settingCard: {
-    padding: 16,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
-  },
-  toggle: {
-    width: 52,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E5E5E5',
-    padding: 2,
-    justifyContent: 'center',
-  },
-  toggleActive: {
-    backgroundColor: '#000000',
-  },
-  toggleThumb: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-  },
-  toggleThumbActive: {
-    alignSelf: 'flex-end',
-  },
   signOutButton: {
     marginTop: 16,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  signOutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

@@ -55,4 +55,62 @@ export function StarGradientIcon({ size = 20 }: IconProps) {
   );
 }
 
+export function HomeGradientIcon({ size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Defs>
+        <SvgLinearGradient id="homeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor="#C5B3FF" />
+          <Stop offset="100%" stopColor="#8A5CFF" />
+        </SvgLinearGradient>
+      </Defs>
+      <Path
+        d="M3 9.5L12 3L21 9.5V20C21 20.55 20.55 21 20 21H4C3.45 21 3 20.55 3 20V9.5Z"
+        fill="none"
+        stroke="url(#homeGrad)"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M9 21V12H15V21"
+        fill="none"
+        stroke="url(#homeGrad)"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function UserGradientIcon({ size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Defs>
+        <SvgLinearGradient id="userGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor="#C5B3FF" />
+          <Stop offset="100%" stopColor="#8A5CFF" />
+        </SvgLinearGradient>
+      </Defs>
+      <Circle
+        cx="12"
+        cy="8"
+        r="4"
+        fill="none"
+        stroke="url(#userGrad)"
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M6 21C6 17.134 8.686 14 12 14C15.314 14 18 17.134 18 21"
+        fill="none"
+        stroke="url(#userGrad)"
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 

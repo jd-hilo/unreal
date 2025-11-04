@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/store/useAuth';
@@ -113,8 +113,15 @@ export default function HomeScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.backgroundGradient}>
+        {/* Mannequin head in background */}
+        <Image 
+          source={require('@/app/man.png')}
+          style={styles.mannequinImage}
+          resizeMode="contain"
+        />
+        
         <StatusBar style="light" />
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.content}
@@ -224,14 +231,19 @@ export default function HomeScreen() {
                     }}
                     disabled={!echo.route}
                   >
-                    <View style={styles.echoCard}>
+                    <LinearGradient
+                      colors={['#17161F', 'rgba(23, 22, 31, 0)']}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
+                      style={styles.echoCard}
+                    >
                       <Text style={styles.echoTitle} numberOfLines={1}>
                         {echo.title}
                       </Text>
                       <Text style={styles.echoMeta} numberOfLines={1}>
                         {echo.subtitle}
                       </Text>
-                    </View>
+                    </LinearGradient>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -251,6 +263,15 @@ const styles = StyleSheet.create({
   backgroundGradient: {
     flex: 1,
     backgroundColor: '#0C0C10',
+  },
+  mannequinImage: {
+    position: 'absolute',
+    right: -50,
+    bottom: 0,
+    width: 300,
+    height: 300,
+    opacity: 0.35,
+    zIndex: 0,
   },
   glowContainer: {
     position: 'absolute',
@@ -434,7 +455,6 @@ const styles = StyleSheet.create({
     padding: 18,
     minHeight: 100,
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(128, 128, 128, 0.15)',
   },
   echoTitle: {
     fontSize: 15,

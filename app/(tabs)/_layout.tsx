@@ -1,7 +1,9 @@
 import { Tabs } from 'expo-router';
 import { Home, User } from 'lucide-react-native';
+import { HomeGradientIcon, UserGradientIcon } from '@/components/GradientIcons';
 import { BlurView } from 'expo-blur';
-import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Conditionally import liquid-glass only on iOS
 let LiquidGlassView: any;
@@ -24,59 +26,73 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#FFFFFF',
-        tabBarInactiveTintColor: 'rgba(255,255,255,0.6)',
+        tabBarInactiveTintColor: 'rgba(150, 150, 150, 0.8)',
+        sceneStyle: { backgroundColor: '#0C0C10' },
+        sceneContainerStyle: { backgroundColor: 'transparent' },
         tabBarStyle: {
           backgroundColor: 'transparent',
           borderTopWidth: 0,
-          paddingTop: 6,
-          paddingBottom: 10,
-          height: 64,
-          position: 'absolute',
-          left: 16,
-          right: 16,
-          bottom: 12,
-          borderRadius: 18,
-          overflow: 'hidden',
+          paddingTop: 8,
+          paddingBottom: 12,
+          height: 70,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
+          marginTop: 4,
         },
-        tabBarBackground: () => {
-          // Use liquid glass on iOS 26+ with native build, otherwise use BlurView
-          if (isLiquidGlassSupported && LiquidGlassView) {
-            return (
-              <LiquidGlassView
-                style={StyleSheet.absoluteFill}
-                interactive
-                effect="regular"
-                tintColor="rgba(59, 37, 109, 0.3)"
-              />
-            );
-          }
-          
-          return (
-            <BlurView 
-              tint="dark" 
-              intensity={80} 
-              style={StyleSheet.absoluteFill} 
+        tabBarItemStyle: {
+          paddingVertical: 4,
+        },
+        tabBarBackground: () => (
+          <View 
+            style={{
+              ...StyleSheet.absoluteFillObject,
+              overflow: 'hidden',
+            }}
+          >
+            <View 
+              style={{
+                ...StyleSheet.absoluteFillObject,
+                backgroundColor: '#0D0E12',
+              }}
             />
-          );
-        },
+            <View 
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 1,
+                backgroundColor: 'rgba(17, 19, 24, 0.9)',
+              }}
+            />
+          </View>
+        ),
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
           title: 'Home',
-          tabBarIcon: ({ size, color }) => <Home size={size} color={color} />,
+          tabBarIcon: ({ focused, size }) => 
+            focused ? (
+              <HomeGradientIcon size={size} />
+            ) : (
+              <Home size={size} color="rgba(150, 150, 150, 0.8)" />
+            ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ size, color }) => <User size={size} color={color} />,
+          tabBarIcon: ({ focused, size }) => 
+            focused ? (
+              <UserGradientIcon size={size} />
+            ) : (
+              <User size={size} color="rgba(150, 150, 150, 0.8)" />
+            ),
         }}
       />
     </Tabs>
