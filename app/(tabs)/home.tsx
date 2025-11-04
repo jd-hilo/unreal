@@ -5,6 +5,7 @@ import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile } from '@/lib/storage';
 import { Compass, Sparkles } from 'lucide-react-native';
+import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -111,22 +112,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
-      <LinearGradient
-        colors={['#0C0C10', '#0B0B0F']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.backgroundGradient}
-      >
-        {/* Purple glow effect */}
-        <View style={styles.glowContainer}>
-          <LinearGradient
-            colors={['rgba(110, 61, 240, 0.15)', 'transparent', 'transparent']}
-            start={{ x: 0.5, y: 0.3 }}
-            end={{ x: 0.5, y: 1 }}
-            style={styles.glowEffect}
-          />
-        </View>
-
+      <View style={styles.backgroundGradient}>
         <StatusBar style="light" />
         <SafeAreaView style={styles.safeArea}>
           <ScrollView
@@ -146,34 +132,25 @@ export default function HomeScreen() {
                 activeOpacity={0.85}
               >
                 <View style={styles.cardWrapperPrimary}>
-                  {/* Gradient border - neon purple top-left to dark purple bottom-right */}
+                  {/* Gradient border - reversed from What If (dark purple top-left to neon purple bottom-right) */}
                   <LinearGradient
-                    colors={['#9D5CFF', '#4A2870', '#1A0F2E']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                    colors={['#1A0F2E', '#4A2870', '#3B256D']}
+                    start={{ x: 1, y: 1 }}
+                    end={{ x: 0, y: 0 }}
                     style={styles.cardBorder}
                   >
                     <LinearGradient
                       colors={['rgba(10, 5, 20, 0.98)', 'rgba(20, 10, 35, 0.95)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
+                      start={{ x: 1, y: 1 }}
+                      end={{ x: 0, y: 0 }}
                       style={styles.actionCard}
                     >
                       <View style={styles.cardContentRow}>
                         <View style={styles.iconCircleContainer}>
-                          {/* Neon purple drop-shadow glow */}
-                          <View style={styles.iconGlowPrimary} />
-                          {/* Gradient ring around the icon */}
-                          <LinearGradient
-                            colors={["#B77CFF", "#5A2DAE"]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.iconRing}
-                          >
-                            <View style={styles.iconCirclePrimary}>
-                              <Compass size={20} color="#D8C9FF" strokeWidth={2.6} />
-                            </View>
-                          </LinearGradient>
+                          {/* Icon without background container */}
+                          <View style={styles.iconRotate}>
+                            <CompassGradientIcon size={40} />
+                          </View>
                         </View>
                         <View style={styles.cardTextContainer}>
                           <Text style={[styles.actionTitlePrimary, styles.actionTitlePrimaryTight]}>What Should{"\n"}I Choose?</Text>
@@ -196,7 +173,7 @@ export default function HomeScreen() {
                 <View style={styles.cardWrapperSecondary}>
                   {/* Gradient border - dark purple top-left to neon purple bottom-right */}
                   <LinearGradient
-                    colors={['#1A0F2E', '#4A2870', '#9D5CFF']}
+                    colors={['#1A0F2E', '#4A2870', '#3B256D']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.cardBorder}
@@ -209,10 +186,8 @@ export default function HomeScreen() {
                     >
                       <View style={styles.cardContentRow}>
                         <View style={styles.iconCircleContainer}>
-                          {/* Icon glow effect */}
-                          <View style={styles.iconGlow} />
-                          <View style={styles.iconCircle}>
-                            <Sparkles size={20} color="#E8DCFF" strokeWidth={2.5} />
+                          <View>
+                            <StarGradientIcon size={40} />
                           </View>
                         </View>
                         <View style={styles.cardTextContainer}>
@@ -249,26 +224,21 @@ export default function HomeScreen() {
                     }}
                     disabled={!echo.route}
                   >
-                    <LinearGradient
-                      colors={['rgba(25, 18, 40, 0.85)', 'rgba(35, 25, 55, 0.8)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.echoCard}
-                    >
+                    <View style={styles.echoCard}>
                       <Text style={styles.echoTitle} numberOfLines={1}>
                         {echo.title}
                       </Text>
                       <Text style={styles.echoMeta} numberOfLines={1}>
                         {echo.subtitle}
                       </Text>
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
           </ScrollView>
         </SafeAreaView>
-      </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -280,6 +250,7 @@ const styles = StyleSheet.create({
   },
   backgroundGradient: {
     flex: 1,
+    backgroundColor: '#0C0C10',
   },
   glowContainer: {
     position: 'absolute',
@@ -336,23 +307,28 @@ const styles = StyleSheet.create({
   cardContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
   },
   cardTextContainer: {
     flex: 1,
   },
   iconCircleContainer: {
     position: 'relative',
-    width: 52,
-    height: 52,
+    width: 76,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconRotate: {
+    transform: [{ rotate: '30deg' }],
   },
   iconGlow: {
     position: 'absolute',
     top: 0,
     left: 0,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#9D5CFF',
     shadowColor: '#9D5CFF',
     shadowOffset: {
@@ -368,9 +344,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#B77CFF',
     shadowColor: '#B77CFF',
     shadowOffset: { width: 0, height: 0 },
@@ -389,7 +365,7 @@ const styles = StyleSheet.create({
   iconCirclePrimary: {
     flex: 1,
     borderRadius: 24,
-    backgroundColor: '#1A0F2E',
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -398,7 +374,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#3A1E5F',
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
@@ -458,6 +434,7 @@ const styles = StyleSheet.create({
     padding: 18,
     minHeight: 100,
     justifyContent: 'space-between',
+    backgroundColor: 'rgba(128, 128, 128, 0.15)',
   },
   echoTitle: {
     fontSize: 15,
