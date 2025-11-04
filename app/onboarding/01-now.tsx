@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Input } from '@/components/Input';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { saveOnboardingResponse } from '@/lib/storage';
 
@@ -51,29 +51,64 @@ export default function OnboardingStep1() {
   return (
     <OnboardingScreen
       title="Where are you in life right now?"
-      progress={14}
+      subtitle="Help your AI twin understand your current situation"
+      progress={25}
       onNext={handleNext}
+      canContinue={text.trim().length > 0}
     >
-      <View style={styles.container}>
+      <View style={styles.inputCard}>
         <Input
-          placeholder="Tell me about your current situation..."
+          placeholder="E.g., I'm a software engineer at a tech startup, recently moved to a new city, and thinking about my career direction..."
           value={text}
           onChangeText={setText}
           multiline
           numberOfLines={8}
           textAlignVertical="top"
           style={styles.input}
+          containerStyle={styles.inputContainer}
+          returnKeyType="done"
+          blurOnSubmit={true}
         />
+      </View>
+      
+      <View style={styles.helperCard}>
+        <Text style={styles.helperText}>
+          🎤 Tip: We recommend using voice transcription on your keyboard for easier input
+        </Text>
       </View>
     </OnboardingScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: 16,
+  inputCard: {
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderRadius: 16,
+    padding: 16,
+  },
+  inputContainer: {
+    marginBottom: 0,
   },
   input: {
-    minHeight: 150,
+    minHeight: 160,
+  },
+  helperCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(183, 149, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.2)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+    gap: 8,
+  },
+  helperText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(200, 200, 200, 0.85)',
   },
 });

@@ -7,8 +7,12 @@ interface InputProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export function Input({ label, error, containerStyle, ...props }: InputProps) {
+export function Input({ label, error, containerStyle, style, returnKeyType, blurOnSubmit, multiline, ...props }: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
+
+  // Use explicit returnKeyType if provided, otherwise use smart defaults
+  const finalReturnKeyType = returnKeyType !== undefined ? returnKeyType : (multiline ? 'default' : 'done');
+  const finalBlurOnSubmit = blurOnSubmit !== undefined ? blurOnSubmit : !multiline;
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -16,10 +20,16 @@ export function Input({ label, error, containerStyle, ...props }: InputProps) {
       <TextInput
         style={[
           styles.input,
+          style,
           isFocused && styles.input_focused,
           error && styles.input_error,
+          { color: '#FFFFFF' }, // Ensure text is always white
         ]}
-        placeholderTextColor="#999999"
+        placeholderTextColor="rgba(150, 150, 150, 0.6)"
+        returnKeyType={finalReturnKeyType}
+        blurOnSubmit={finalBlurOnSubmit}
+        multiline={multiline}
+        enablesReturnKeyAutomatically={true}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         {...props}
@@ -36,21 +46,21 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
     borderWidth: 1.5,
-    borderColor: '#E5E5E5',
+    borderColor: 'rgba(59, 37, 109, 0.4)',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#000000',
+    color: '#FFFFFF',
   },
   input_focused: {
-    borderColor: '#000000',
+    borderColor: '#B795FF',
   },
   input_error: {
     borderColor: '#EF4444',

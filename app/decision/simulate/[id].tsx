@@ -1,11 +1,11 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { getDecision } from '@/lib/storage';
 import { generateTimelineSimulation } from '@/lib/ai';
 import { buildCorePack } from '@/lib/relevance';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Zap, Brain } from 'lucide-react-native';
 import type { TimelineSimulation } from '@/types/database';
 
 export default function SimulationScreen() {
@@ -17,6 +17,9 @@ export default function SimulationScreen() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string>('');
+  const [loadingPhase, setLoadingPhase] = useState(0);
+  const [simulatedPaths, setSimulatedPaths] = useState(0);
+  const [probabilitiesCalculated, setProbabilitiesCalculated] = useState(0);
 
   useEffect(() => {
     if (user && id) {
@@ -52,6 +55,22 @@ export default function SimulationScreen() {
     }
 
     setGenerating(true);
+    
+    // Start loading animation sequence
+    setLoadingPhase(0);
+    setSimulatedPaths(1000000);
+    setProbabilitiesCalculated(1000000);
+    
+    // Animate loading phases - show 1 message every 2 seconds
+    const phaseInterval = setInterval(() => {
+      setLoadingPhase(prev => (prev + 1) % 4);
+    }, 2000);
+    
+    // Animate counters - increment by 1 every 2 milliseconds, up to 5 million
+    const counterInterval = setInterval(() => {
+      setSimulatedPaths(prev => Math.min(prev + 1, 5000000));
+      setProbabilitiesCalculated(prev => Math.min(prev + 1, 5000000));
+    }, 2);
 
     try {
       const corePack = await buildCorePack(user.id);
@@ -67,6 +86,8 @@ export default function SimulationScreen() {
       console.error('Timeline simulation error:', error);
       alert('Failed to generate timeline simulation');
     } finally {
+      clearInterval(phaseInterval);
+      clearInterval(counterInterval);
       setGenerating(false);
       setLoading(false);
     }
@@ -81,19 +102,66 @@ export default function SimulationScreen() {
   }
 
   if (loading || generating) {
+    const loadingMessages = [
+      { text: 'Constructing timeline matrix', icon: Brain },
+      { text: 'Simulating parallel futures', icon: Sparkles },
+      { text: 'Calculating probability waves', icon: Zap },
+      { text: 'Weaving reality threads', icon: Sparkles },
+    ];
+    
+    const currentMessage = loadingMessages[loadingPhase];
+    const Icon = currentMessage.icon;
+    
     return (
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color="#000000" />
+            <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.title}>Life Trajectory</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000000" />
-          <Text style={styles.loadingText}>
-            {generating ? 'Generating your life trajectory...' : 'Loading...'}
-          </Text>
+          <View style={styles.loadingContent}>
+            {/* Animated icon */}
+            <View style={styles.loadingIconContainer}>
+              <View style={styles.loadingIconGlow} />
+              <Icon size={48} color="#B795FF" />
+            </View>
+            
+            {/* Main loading message */}
+            <Text style={styles.loadingMainText}>{currentMessage.text}</Text>
+            
+            {/* Stats grid */}
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <Text style={styles.statNumber}>
+                  {simulatedPaths.toLocaleString()}
+                </Text>
+                <Text style={styles.statLabel}>Paths Simulated</Text>
+              </View>
+              
+              <View style={styles.statCard}>
+                <Text style={styles.statNumber}>
+                  {probabilitiesCalculated.toLocaleString()}
+                </Text>
+                <Text style={styles.statLabel}>Probabilities Calculated</Text>
+              </View>
+            </View>
+            
+            {/* Progress dots */}
+            <View style={styles.progressDots}>
+              {[0, 1, 2, 3].map((i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.progressDot,
+                    loadingPhase === i && styles.progressDotActive
+                  ]}
+                />
+              ))}
+            </View>
+            
+          </View>
         </View>
       </View>
     );
@@ -104,7 +172,7 @@ export default function SimulationScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color="#000000" />
+            <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.title}>Life Trajectory</Text>
         </View>
@@ -120,17 +188,17 @@ export default function SimulationScreen() {
     : JSON.parse(decision.options || '[]');
 
   const timelineData = timeline ? [
-    { period: '1 Year', events: timeline.one_year, color: '#3B82F6' },
-    { period: '3 Years', events: timeline.three_year, color: '#10B981' },
-    { period: '5 Years', events: timeline.five_year, color: '#F59E0B' },
-    { period: '10 Years', events: timeline.ten_year, color: '#8B5CF6' },
+    { period: '1 Year', events: timeline.one_year, color: '#C4B5FD' },
+    { period: '3 Years', events: timeline.three_year, color: '#A78BFA' },
+    { period: '5 Years', events: timeline.five_year, color: '#8B5CF6' },
+    { period: '10 Years', events: timeline.ten_year, color: '#6D28D9' },
   ] : [];
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#000000" />
+          <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.title}>Life Trajectory</Text>
       </View>
@@ -146,7 +214,6 @@ export default function SimulationScreen() {
           <Text style={styles.optionsLabel}>Explore Each Option:</Text>
           <View style={styles.optionsGrid}>
             {options.map((option: string) => {
-              const isRecommended = option === decision.prediction?.prediction;
               return (
                 <TouchableOpacity
                   key={option}
@@ -165,11 +232,6 @@ export default function SimulationScreen() {
                   ]}>
                     {option}
                   </Text>
-                  {isRecommended && (
-                    <View style={styles.recommendedBadge}>
-                      <Text style={styles.recommendedBadgeText}>AI Pick</Text>
-                    </View>
-                  )}
                 </TouchableOpacity>
               );
             })}
@@ -179,7 +241,7 @@ export default function SimulationScreen() {
         {/* Loading State for Regeneration */}
         {generating && (
           <View style={styles.regeneratingContainer}>
-            <ActivityIndicator size="small" color="#000000" />
+            <ActivityIndicator size="small" color="#B795FF" />
             <Text style={styles.regeneratingText}>Generating timeline for "{selectedOption}"...</Text>
           </View>
         )}
@@ -223,7 +285,7 @@ export default function SimulationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#0C0C10',
   },
   header: {
     flexDirection: 'row',
@@ -231,9 +293,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
     gap: 16,
   },
   backButton: {
@@ -245,7 +307,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
     flex: 1,
   },
   content: {
@@ -260,11 +322,98 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
+  },
+  loadingContent: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 32,
+  },
+  loadingIconContainer: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingIconGlow: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#B795FF',
+    opacity: 0.2,
+  },
+  loadingMainText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  statsGrid: {
+    flexDirection: 'row',
     gap: 16,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  statCard: {
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    minWidth: 150,
+    flex: 1,
+    maxWidth: 180,
+  },
+  statNumber: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#B795FF',
+    marginBottom: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(200, 200, 200, 0.75)',
+    textAlign: 'center',
+  },
+  progressDots: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(183, 149, 255, 0.3)',
+  },
+  progressDotActive: {
+    backgroundColor: '#B795FF',
+    width: 24,
+  },
+  animatedBarsContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 150,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+    gap: 4,
+    opacity: 0.3,
+  },
+  animatedBar: {
+    flex: 1,
+    backgroundColor: '#B795FF',
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
   },
   loadingText: {
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   errorContainer: {
     flex: 1,
@@ -274,7 +423,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   contextSection: {
     marginBottom: 16,
@@ -282,7 +431,7 @@ const styles = StyleSheet.create({
   question: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     lineHeight: 28,
   },
   optionsSection: {
@@ -293,7 +442,7 @@ const styles = StyleSheet.create({
   optionsLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     marginBottom: 16,
     marginTop: 4,
   },
@@ -308,12 +457,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#E5E5E5',
-    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
   },
   optionButtonSelected: {
-    borderColor: '#000000',
-    backgroundColor: '#000000',
+    borderColor: '#B795FF',
+    backgroundColor: 'rgba(59, 37, 109, 0.3)',
   },
   optionButtonDisabled: {
     opacity: 0.5,
@@ -321,7 +470,7 @@ const styles = StyleSheet.create({
   optionButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#374151',
+    color: 'rgba(200, 200, 200, 0.85)',
   },
   optionButtonTextSelected: {
     color: '#FFFFFF',
@@ -353,13 +502,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     paddingVertical: 20,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
     borderRadius: 12,
     marginBottom: 16,
   },
   regeneratingText: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   timelineContainer: {
     gap: 32,
@@ -383,7 +534,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
     borderRadius: 8,
     marginBottom: 8,
     gap: 16,
@@ -391,7 +544,7 @@ const styles = StyleSheet.create({
   eventTime: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#999999',
+    color: 'rgba(200, 200, 200, 0.75)',
     width: 70,
     paddingTop: 2,
   },
@@ -402,17 +555,17 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     lineHeight: 20,
   },
   eventDescription: {
     fontSize: 13,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     lineHeight: 19,
   },
   generationNote: {
     fontSize: 13,
-    color: '#999999',
+    color: 'rgba(200, 200, 200, 0.75)',
     lineHeight: 20,
     textAlign: 'center',
     fontStyle: 'italic',

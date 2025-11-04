@@ -4,10 +4,11 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, ChevronRight, Lightbulb, GraduationCap, MapPin, Briefcase } from 'lucide-react-native';
 import { insertWhatIf } from '@/lib/storage';
 import { runWhatIf } from '@/lib/ai';
 import { getProfile } from '@/lib/storage';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function NewWhatIfScreen() {
   const router = useRouter();
@@ -42,68 +43,133 @@ export default function NewWhatIfScreen() {
     }
   }
 
+  const canSubmit = whatIfText.trim();
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#000000" />
+          <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.title}>What if?</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>What If?</Text>
+          <Text style={styles.subtitle}>Explore alternate realities</Text>
+        </View>
       </View>
 
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.description}>
-          Explore how your life might be different if you had made a different choice
-        </Text>
+        {/* Scenario Input */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Your scenario</Text>
+          <View style={styles.scenarioCard}>
+            <Input
+              placeholder="E.g., What if I had studied engineering instead of business?"
+              value={whatIfText}
+              onChangeText={setWhatIfText}
+              multiline
+              numberOfLines={5}
+              style={styles.scenarioInput}
+              containerStyle={styles.inputContainer}
+            />
+          </View>
+        </View>
 
-        <Input
-          label="What would you like to explore?"
-          placeholder="What if I had gone to a different university?&#10;What if I had taken that job offer?&#10;What if I had moved to a different city?"
-          value={whatIfText}
-          onChangeText={setWhatIfText}
-          multiline
-          numberOfLines={6}
-          style={styles.input}
-        />
+        {/* Example Scenarios */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Lightbulb size={18} color="#B795FF" />
+            <Text style={styles.sectionLabel}>Try these examples</Text>
+          </View>
 
-        <View style={styles.examples}>
-          <Text style={styles.examplesTitle}>Examples:</Text>
-          <TouchableOpacity
-            style={styles.exampleChip}
-            onPress={() => setWhatIfText('What if I had studied engineering instead?')}
-          >
-            <Text style={styles.exampleText}>Different major</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.exampleChip}
-            onPress={() => setWhatIfText('What if I had stayed in my hometown?')}
-          >
-            <Text style={styles.exampleText}>Different location</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.exampleChip}
-            onPress={() => setWhatIfText('What if I had started my own business?')}
-          >
-            <Text style={styles.exampleText}>Career path</Text>
-          </TouchableOpacity>
+          <View style={styles.examplesGrid}>
+            <TouchableOpacity
+              style={styles.exampleCard}
+              onPress={() => setWhatIfText('What if I had studied engineering instead of my current major?')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.exampleIcon}>
+                <GraduationCap size={20} color="#B795FF" />
+              </View>
+              <View style={styles.exampleContent}>
+                <Text style={styles.exampleTitle}>Different major</Text>
+                <Text style={styles.exampleDesc}>Academic path</Text>
+              </View>
+              <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.exampleCard}
+              onPress={() => setWhatIfText('What if I had stayed in my hometown instead of moving?')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.exampleIcon}>
+                <MapPin size={20} color="#B795FF" />
+              </View>
+              <View style={styles.exampleContent}>
+                <Text style={styles.exampleTitle}>Different location</Text>
+                <Text style={styles.exampleDesc}>Where you live</Text>
+              </View>
+              <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.exampleCard}
+              onPress={() => setWhatIfText('What if I had started my own business instead of working a corporate job?')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.exampleIcon}>
+                <Briefcase size={20} color="#B795FF" />
+              </View>
+              <View style={styles.exampleContent}>
+                <Text style={styles.exampleTitle}>Career path</Text>
+                <Text style={styles.exampleDesc}>Professional choice</Text>
+              </View>
+              <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Helper Card */}
+        <View style={styles.helperCard}>
+          <Text style={styles.helperText}>
+            🔮 Your AI twin will analyze how this alternate choice would have affected your happiness, relationships, career, and overall life trajectory.
+          </Text>
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Button
-          title="Explore Timeline"
+      {/* Floating Action Button */}
+      <View style={styles.floatingButtonContainer}>
+        <TouchableOpacity
           onPress={handleSubmit}
-          loading={loading}
-          disabled={!whatIfText.trim()}
-          size="large"
-        />
+          disabled={!canSubmit || loading}
+          activeOpacity={0.9}
+          style={[
+            styles.floatingButton,
+            (!canSubmit || loading) && styles.floatingButtonDisabled
+          ]}
+        >
+          <LinearGradient
+            colors={canSubmit && !loading ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.floatingButtonGradient}
+          >
+            <Sparkles size={22} color="#FFFFFF" />
+            <Text style={styles.floatingButtonText}>
+              {loading ? 'Exploring...' : 'Explore Timeline'}
+            </Text>
+            {!loading && <ChevronRight size={20} color="#FFFFFF" />}
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -112,15 +178,18 @@ export default function NewWhatIfScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: 20,
+    paddingBottom: 24,
     gap: 16,
+    backgroundColor: '#0C0C10',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
   backButton: {
     width: 40,
@@ -128,53 +197,136 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#000000',
+  headerContent: {
     flex: 1,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   content: {
     flex: 1,
   },
   contentContainer: {
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingTop: 24,
+    paddingBottom: 120,
   },
-  description: {
-    fontSize: 16,
-    color: '#666666',
-    lineHeight: 24,
-    marginBottom: 24,
+  section: {
+    marginBottom: 32,
   },
-  input: {
-    minHeight: 150,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
   },
-  examples: {
-    marginTop: 24,
-  },
-  examplesTitle: {
-    fontSize: 14,
+  sectionLabel: {
+    fontSize: 17,
     fontWeight: '600',
-    color: '#666666',
-    marginBottom: 12,
+    color: '#FFFFFF',
   },
-  exampleChip: {
-    backgroundColor: '#F5F5F5',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  scenarioCard: {
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderRadius: 16,
+    padding: 16,
+  },
+  inputContainer: {
+    marginBottom: 0,
+  },
+  scenarioInput: {
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  examplesGrid: {
+    gap: 12,
+  },
+  exampleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  exampleIcon: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    marginBottom: 8,
-    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(183, 149, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  exampleText: {
+  exampleContent: {
+    flex: 1,
+  },
+  exampleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  exampleDesc: {
+    fontSize: 13,
+    color: 'rgba(200, 200, 200, 0.6)',
+  },
+  helperCard: {
+    backgroundColor: 'rgba(183, 149, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.2)',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 8,
+  },
+  helperText: {
     fontSize: 14,
-    color: '#000000',
+    lineHeight: 20,
+    color: 'rgba(200, 200, 200, 0.85)',
   },
-  footer: {
-    padding: 24,
+  floatingButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingTop: 16,
     paddingBottom: 40,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
+    backgroundColor: '#0C0C10',
+  },
+  floatingButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#B795FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  floatingButtonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  floatingButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+  },
+  floatingButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

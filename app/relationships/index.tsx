@@ -343,32 +343,32 @@ export default function RelationshipsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#0C0C10',
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
   backButton: {
     marginBottom: 16,
   },
   backText: {
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   content: {
     flex: 1,
@@ -387,12 +387,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -402,18 +402,18 @@ const styles = StyleSheet.create({
   relationshipCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
     gap: 12,
   },
   relationshipIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -424,16 +424,16 @@ const styles = StyleSheet.create({
   relationshipName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   relationshipType: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     textTransform: 'capitalize',
   },
   relationshipLocation: {
     fontSize: 12,
-    color: '#999999',
+    color: 'rgba(150, 150, 150, 0.6)',
   },
   influenceBadge: {
     backgroundColor: '#F3F4F6',
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   influenceText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#374151',
+    color: 'rgba(200, 200, 200, 0.85)',
   },
   footer: {
     position: 'absolute',
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
     borderTopWidth: 1,
     borderTopColor: '#E5E5E5',
   },
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
@@ -473,12 +473,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   modalScroll: {
     flex: 1,
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   modalSectionLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   modalOptionsGrid: {
@@ -506,8 +506,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    backgroundColor: '#0C0C10',
   },
   modalOptionSelected: {
     borderColor: '#000000',
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   modalOptionText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   modalOptionTextSelected: {
     color: '#FFFFFF',
@@ -530,8 +530,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    backgroundColor: '#0C0C10',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   modalSliderButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   modalSliderButtonTextActive: {
     color: '#FFFFFF',

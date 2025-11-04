@@ -168,16 +168,6 @@ export default function JournalScreen() {
           </View>
         )}
       </ScrollView>
-
-      <View style={styles.footer}>
-        <Button
-          title={todayJournal ? "View Today's Entry" : "New Journal Entry"}
-          onPress={handleAddJournal}
-          icon={todayJournal ? undefined : <Plus size={20} color="#FFFFFF" />}
-          size="large"
-          variant={todayJournal ? "outline" : "primary"}
-        />
-      </View>
     </View>
   );
 }
@@ -185,45 +175,45 @@ export default function JournalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#0C0C10',
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
   backButton: {
     marginBottom: 16,
   },
   backText: {
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   content: {
     flex: 1,
   },
   contentContainer: {
     padding: 24,
-    paddingBottom: 100,
+    paddingBottom: 40,
     gap: 24,
   },
   todayCard: {
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
   },
   todayIcon: {
     marginBottom: 12,
@@ -240,12 +230,12 @@ const styles = StyleSheet.create({
   todayTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   todayText: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -262,12 +252,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -277,24 +267,24 @@ const styles = StyleSheet.create({
   listTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   journalCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
     gap: 12,
   },
   journalIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -310,15 +300,15 @@ const styles = StyleSheet.create({
   journalDate: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   journalMood: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   journalPreview: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     lineHeight: 20,
   },
   footer: {
@@ -327,9 +317,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 24,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
+    backgroundColor: '#0C0C10',
   },
 });
 

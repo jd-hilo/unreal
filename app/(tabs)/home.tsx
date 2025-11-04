@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile } from '@/lib/storage';
@@ -18,6 +18,10 @@ export default function HomeScreen() {
   const [userName, setUserName] = useState('there');
   const [recentDecisions, setRecentDecisions] = useState<any[]>([]);
   const [isLoadingDecisions, setIsLoadingDecisions] = useState(true);
+  
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     if (!user) {
@@ -63,6 +67,20 @@ export default function HomeScreen() {
       console.error('Failed to load data:', error);
     } finally {
       setIsLoadingDecisions(false);
+      
+      // Trigger fade-in animation after data loads
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
   }
 
@@ -122,8 +140,11 @@ export default function HomeScreen() {
         
         <StatusBar style="light" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-          <ScrollView
-            style={styles.scrollView}
+          <Animated.ScrollView
+            style={[styles.scrollView, { 
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }]}
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
@@ -237,10 +258,10 @@ export default function HomeScreen() {
                       end={{ x: 1, y: 0.5 }}
                       style={styles.echoCard}
                     >
-                      <Text style={styles.echoTitle} numberOfLines={1}>
+                      <Text style={styles.echoTitle} numberOfLines={3}>
                         {echo.title}
                       </Text>
-                      <Text style={styles.echoMeta} numberOfLines={1}>
+                      <Text style={styles.echoMeta} numberOfLines={2}>
                         {echo.subtitle}
                       </Text>
                     </LinearGradient>
@@ -248,7 +269,7 @@ export default function HomeScreen() {
                 ))}
               </ScrollView>
             </View>
-          </ScrollView>
+          </Animated.ScrollView>
         </SafeAreaView>
       </View>
     </View>
@@ -448,19 +469,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   echoCardWrapper: {
-    width: 180,
+    width: 220,
   },
   echoCard: {
     borderRadius: 20,
-    padding: 18,
-    minHeight: 100,
+    padding: 20,
+    minHeight: 140,
     justifyContent: 'space-between',
   },
   echoTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 10,
+    lineHeight: 22,
   },
   echoMeta: {
     fontSize: 12,

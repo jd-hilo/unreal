@@ -303,15 +303,17 @@ Options:
 
 ${JSON.stringify(options)}
 
-RETURN JSON
+RETURN JSON with probabilities that sum to 1.0 based on YOUR actual analysis (don't copy these example numbers):
 
 {
   "prediction": "<one_of_options>",
-  "probs": {"<opt1>":0.34,"<opt2>":0.66},
-  "rationale": "2–4 sentences.",
+  "probs": {"<option1>": 0.XX, "<option2>": 0.XX},
+  "rationale": "2–4 sentences explaining your reasoning.",
   "factors": ["values:freedom", "relationship:partner_4y_supportive", "decision_style:test-small"],
-  "uncertainty": 0.27
-}`;
+  "uncertainty": 0.XX
+}
+
+IMPORTANT: Generate probabilities based on the actual user context and decision - do NOT use 0.66 or 0.34 unless they truly reflect your analysis.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -556,7 +558,14 @@ export async function runWhatIf(
 
   const openai = getOpenAI();
 
-  const systemPrompt = `Generate a counterfactual trajectory as if the alternate event occurred, then compare to current baseline. Provide simple metrics and a human summary.`;
+  const systemPrompt = `You are analyzing alternate life trajectories. Generate realistic metrics comparing the user's CURRENT reality to an ALTERNATE reality where they made different choices. 
+
+IMPORTANT: 
+- Base the "current" values on their actual baseline summary
+- Generate the "alternate" values based on how that specific counterfactual would have changed things
+- Values should be on a scale of 0-10
+- Make meaningful differences - avoid tiny changes unless truly warranted
+- Consider second-order effects (e.g., better job = more money but maybe less freedom)`;
 
   const userPrompt = `Current baseline summary:
 
@@ -566,18 +575,24 @@ Counterfactual prompt:
 
 ${userText}
 
-Return JSON:
+Analyze how this alternate choice would have affected their life across 5 dimensions. For each metric, provide:
+- "current": Their actual current state (0-10 scale based on baseline)
+- "alternate": Where they'd likely be if they'd made the alternate choice (0-10 scale)
+
+Return JSON (do NOT copy these example numbers - generate based on actual analysis):
 
 {
   "metrics": {
-    "happiness": {"current":7.4,"alternate":6.9},
-    "money": {"current":6.8,"alternate":7.3},
-    "relationship": {"current":8.1,"alternate":7.2},
-    "freedom": {"current":8.7,"alternate":6.8},
-    "growth": {"current":8.3,"alternate":7.4}
+    "happiness": {"current": X.X, "alternate": X.X},
+    "money": {"current": X.X, "alternate": X.X},
+    "relationship": {"current": X.X, "alternate": X.X},
+    "freedom": {"current": X.X, "alternate": X.X},
+    "growth": {"current": X.X, "alternate": X.X}
   },
-  "summary": "One paragraph comparison."
-}`;
+  "summary": "One paragraph comparing the two trajectories and explaining key differences."
+}
+
+CRITICAL: Generate values based on YOUR analysis of the baseline and counterfactual, not the example format above.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -587,13 +602,17 @@ Return JSON:
         { role: 'user', content: userPrompt },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.5,
+      temperature: 0.6,
     });
 
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error('No response from AI');
 
-    return JSON.parse(content);
+    console.log('What-If AI response:', content);
+    const parsed = JSON.parse(content);
+    console.log('Parsed metrics:', parsed.metrics);
+    
+    return parsed;
   } catch (error) {
     console.error('What-if error:', error);
     throw error;

@@ -5,6 +5,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface ProgressBarProps {
   progress: number;
@@ -31,7 +32,14 @@ export function ProgressBar({ progress, showLabel = true, height = 8 }: Progress
   return (
     <View style={styles.container}>
       <View style={[styles.track, { height }]}>
-        <Animated.View style={[styles.fill, { height }, animatedStyle]} />
+        <Animated.View style={[{ height, borderRadius: 100, overflow: 'hidden' }, animatedStyle]}>
+          <LinearGradient
+            colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
       </View>
       {showLabel && (
         <Text style={styles.label}>{Math.round(progress)}%</Text>
@@ -48,18 +56,17 @@ const styles = StyleSheet.create({
   },
   track: {
     flex: 1,
-    backgroundColor: '#E5E5E5',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 100,
     overflow: 'hidden',
   },
   fill: {
-    backgroundColor: '#000000',
     borderRadius: 100,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     minWidth: 45,
   },
 });

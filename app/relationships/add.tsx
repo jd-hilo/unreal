@@ -1,9 +1,11 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useAuth } from '@/store/useAuth';
+import { useTwin } from '@/store/useTwin';
 import { supabase } from '@/lib/supabase';
 import { mineRelationships } from '@/lib/ai';
+import { completeOnboarding } from '@/lib/storage';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { Sparkles, CheckCircle2, Circle } from 'lucide-react-native';
@@ -30,7 +32,10 @@ interface ExtractedRelationship {
 
 export default function AddRelationshipScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const isOnboarding = params.onboarding === 'true';
   const user = useAuth((state) => state.user);
+  const { setOnboardingComplete } = useTwin();
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
   
   // AI Mode
@@ -122,10 +127,29 @@ export default function AddRelationshipScreen() {
 
       if (saveError) throw saveError;
 
-      router.back();
+      if (isOnboarding) {
+        await completeOnboarding(user.id, {});
+        setOnboardingComplete(true);
+        router.replace('/(tabs)/home');
+      } else {
+        router.back();
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to save relationships');
       setSaving(false);
+    }
+  }
+  
+  async function handleSkip() {
+    if (!user || !isOnboarding) return;
+    
+    try {
+      await completeOnboarding(user.id, {});
+      setOnboardingComplete(true);
+      router.replace('/(tabs)/home');
+    } catch (err: any) {
+      console.error('Failed to complete onboarding:', err);
+      setError('Failed to complete onboarding');
     }
   }
 
@@ -153,7 +177,13 @@ export default function AddRelationshipScreen() {
 
       if (saveError) throw saveError;
 
-      router.back();
+      if (isOnboarding) {
+        await completeOnboarding(user.id, {});
+        setOnboardingComplete(true);
+        router.replace('/(tabs)/home');
+      } else {
+        router.back();
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to save relationship');
       setSaving(false);
@@ -163,10 +193,15 @@ export default function AddRelationshipScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>← Cancel</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Add Relationships</Text>
+        {!isOnboarding && (
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Text style={styles.backText}>← Cancel</Text>
+          </TouchableOpacity>
+        )}
+        <Text style={styles.title}>{isOnboarding ? 'Who influences your decisions?' : 'Add Relationships'}</Text>
+        {isOnboarding && (
+          <Text style={styles.subtitle}>Add key people in your life (optional)</Text>
+        )}
         
         {/* Mode Toggle */}
         <View style={styles.modeToggle}>
@@ -327,6 +362,11 @@ export default function AddRelationshipScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
+        {isOnboarding && (
+          <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
+            <Text style={styles.skipText}>Skip for now</Text>
+          </TouchableOpacity>
+        )}
         {mode === 'ai' ? (
           extracted.length === 0 ? (
             <Button
@@ -346,7 +386,7 @@ export default function AddRelationshipScreen() {
                 style={{ flex: 1 }}
               />
               <Button
-                title={`Add ${extracted.filter(r => r.selected).length}`}
+                title={isOnboarding ? 'Continue' : `Add ${extracted.filter(r => r.selected).length}`}
                 onPress={handleSaveExtracted}
                 loading={saving}
                 size="large"
@@ -356,7 +396,7 @@ export default function AddRelationshipScreen() {
           )
         ) : (
           <Button
-            title="Save Relationship"
+            title={isOnboarding ? 'Continue' : 'Save Relationship'}
             onPress={handleSave}
             loading={saving}
             size="large"
@@ -370,28 +410,43 @@ export default function AddRelationshipScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#0C0C10',
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
   backButton: {
     marginBottom: 16,
   },
   backText: {
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: 'rgba(200, 200, 200, 0.75)',
     marginBottom: 16,
+  },
+  skipButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  skipText: {
+    fontSize: 16,
+    color: 'rgba(200, 200, 200, 0.75)',
+    fontWeight: '600',
   },
   modeToggle: {
     flexDirection: 'row',
@@ -406,8 +461,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    backgroundColor: '#0C0C10',
     gap: 6,
   },
   modeButtonActive: {
@@ -417,7 +472,7 @@ const styles = StyleSheet.create({
   modeButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   modeButtonTextActive: {
     color: '#FFFFFF',
@@ -436,12 +491,12 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   sectionHelp: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     marginBottom: 12,
   },
   optionsGrid: {
@@ -454,8 +509,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    backgroundColor: '#0C0C10',
   },
   optionSelected: {
     borderColor: '#000000',
@@ -464,7 +519,7 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   optionTextSelected: {
     color: '#FFFFFF',
@@ -478,7 +533,7 @@ const styles = StyleSheet.create({
   },
   sliderLabel: {
     fontSize: 12,
-    color: '#999999',
+    color: 'rgba(150, 150, 150, 0.6)',
   },
   sliderTrack: {
     height: 4,
@@ -499,8 +554,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    backgroundColor: '#0C0C10',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -511,7 +566,7 @@ const styles = StyleSheet.create({
   sliderButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   sliderButtonTextActive: {
     color: '#FFFFFF',
@@ -523,7 +578,7 @@ const styles = StyleSheet.create({
   },
   aiInstructions: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     lineHeight: 20,
     marginBottom: 8,
   },
@@ -533,7 +588,7 @@ const styles = StyleSheet.create({
   extractedTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 12,
   },
   extractedList: {
@@ -542,11 +597,11 @@ const styles = StyleSheet.create({
   extractedCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
     borderRadius: 16,
     padding: 16,
     borderWidth: 2,
-    borderColor: '#E5E5E5',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
     gap: 12,
   },
   extractedCardSelected: {
@@ -564,11 +619,11 @@ const styles = StyleSheet.create({
   extractedName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   extractedDetails: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     textTransform: 'capitalize',
   },
   footer: {
@@ -577,7 +632,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
     borderTopWidth: 1,
     borderTopColor: '#E5E5E5',
   },

@@ -40,27 +40,27 @@ export function CardContent({ children }: CardContentProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
   },
   card_elevated: {
-    shadowColor: '#000',
+    shadowColor: '#6E3DF0',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
   },
   title: {
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
-    color: '#000000',
+    color: '#FFFFFF',
   },
   content: {
     marginTop: 4,

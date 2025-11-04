@@ -249,7 +249,7 @@ export default function ProfileScreen() {
 
             {/* Profile sections */}
             <View style={styles.cards}>
-              {cards.slice(0, 4).map((card) => (
+              {cards.map((card) => (
                 <TouchableOpacity
                   key={card.id}
                   style={styles.card}

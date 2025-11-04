@@ -71,7 +71,7 @@ export default function WhatIfResultScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#000000" />
+          <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.title}>What If Result</Text>
       </View>
@@ -142,7 +142,7 @@ export default function WhatIfResultScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
   },
   header: {
     flexDirection: 'row',
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
     flex: 1,
   },
   content: {
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   question: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 32,
     lineHeight: 28,
   },
@@ -187,6 +187,9 @@ const styles = StyleSheet.create({
   metricCard: {
     width: '48%',
     padding: 16,
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
   },
   metricHeader: {
     flexDirection: 'row',
@@ -197,7 +200,7 @@ const styles = StyleSheet.create({
   metricName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   metricValues: {
     flexDirection: 'row',
@@ -209,13 +212,13 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontSize: 12,
-    color: '#999999',
+    color: 'rgba(200, 200, 200, 0.75)',
     marginBottom: 4,
   },
   metricNumber: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   metricDiff: {
     fontSize: 16,
@@ -223,19 +226,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   summary: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
     padding: 20,
     borderRadius: 16,
   },
   summaryTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 12,
   },
   summaryText: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#333333',
+    color: 'rgba(200, 200, 200, 0.85)',
   },
 });

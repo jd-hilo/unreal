@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Animated, TouchableOpacity } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
@@ -15,6 +15,26 @@ export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Animation values
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const subtitleOpacity = useRef(new Animated.Value(0)).current;
+
+  // Fade in animations
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(titleOpacity, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(subtitleOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   // If user is already signed in, redirect immediately (don't wait for onboarding check)
   useEffect(() => {
@@ -72,10 +92,12 @@ export default function AuthScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>Welcome to Twin</Text>
-        <Text style={styles.subtitle}>
-          Your digital twin for better decisions
-        </Text>
+        <Animated.Text style={[styles.title, { opacity: titleOpacity }]}>
+          unreal
+        </Animated.Text>
+        <Animated.Text style={[styles.subtitle, { opacity: subtitleOpacity }]}>
+          Simulate your life.
+        </Animated.Text>
 
         <View style={styles.form}>
           <Input
@@ -105,16 +127,17 @@ export default function AuthScreen() {
             style={styles.button}
           />
 
-          <Button
-            title={isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+          <TouchableOpacity
             onPress={() => {
               setIsSignUp(!isSignUp);
               setError('');
             }}
-            variant="outline"
-            size="medium"
             style={styles.toggleButton}
-          />
+          >
+            <Text style={styles.toggleText}>
+              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -124,7 +147,7 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
   },
   content: {
     flex: 1,
@@ -132,17 +155,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 48,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+    letterSpacing: -1,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666666',
+    fontSize: 18,
+    color: 'rgba(200, 200, 200, 0.85)',
     textAlign: 'center',
     marginBottom: 48,
+    fontWeight: '500',
   },
   form: {
     gap: 8,
@@ -156,6 +181,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   toggleButton: {
-    marginTop: 16,
+    marginTop: 20,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  toggleText: {
+    fontSize: 14,
+    color: 'rgba(200, 200, 200, 0.85)',
+    fontWeight: '500',
   },
 });

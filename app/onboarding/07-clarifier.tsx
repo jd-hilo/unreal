@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     marginBottom: 8,
   },
 });

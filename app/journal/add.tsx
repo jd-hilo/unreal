@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/store/useAuth';
@@ -67,7 +67,11 @@ export default function AddJournalScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>← Cancel</Text>
@@ -86,6 +90,7 @@ export default function AddJournalScreen() {
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>How are you feeling?</Text>
@@ -149,39 +154,39 @@ export default function AddJournalScreen() {
           disabled={mood === null}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#0C0C10',
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
   backButton: {
     marginBottom: 16,
   },
   backText: {
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   content: {
     flex: 1,
@@ -197,7 +202,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   moodsGrid: {
     flexDirection: 'row',
@@ -209,8 +214,8 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#E5E5E5',
-    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    backgroundColor: '#0C0C10',
     padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -218,24 +223,24 @@ const styles = StyleSheet.create({
   },
   moodOptionSelected: {
     borderWidth: 2,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
   },
   moodIconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   moodLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     textAlign: 'center',
   },
   moodLabelSelected: {
-    color: '#000000',
+    color: '#FFFFFF',
   },
   textInput: {
     minHeight: 200,
@@ -251,9 +256,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 24,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
+    backgroundColor: '#0C0C10',
   },
 });
 

@@ -9,6 +9,7 @@ import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
 import { Card, CardContent } from '@/components/Card';
 import { ArrowLeft, Sparkles } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function DecisionResultScreen() {
   const router = useRouter();
@@ -149,12 +150,12 @@ export default function DecisionResultScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color="#000000" />
+            <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.title}>Decision Result</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000000" />
+          <ActivityIndicator size="large" color="#B795FF" />
           <Text style={styles.loadingText}>
             {predicting ? 'Generating prediction...' : 'Loading...'}
           </Text>
@@ -181,7 +182,7 @@ export default function DecisionResultScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#000000" />
+          <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.title}>Decision Result</Text>
       </View>
@@ -229,12 +230,17 @@ export default function DecisionResultScreen() {
                     <View key={option} style={styles.optionRow}>
                       <Text style={styles.optionName}>{option}</Text>
                       <View style={styles.probContainer}>
-                        <View
-                          style={[
-                            styles.probBar,
-                            { width: `${(prob as number) * 100}%` },
-                          ]}
-                        />
+                        <View style={styles.probBarBackground}>
+                          <LinearGradient
+                            colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={[
+                              styles.probBar,
+                              { width: `${(prob as number) * 100}%` },
+                            ]}
+                          />
+                        </View>
                         <Text style={styles.probText}>
                           {((prob as number) * 100).toFixed(0)}%
                         </Text>
@@ -260,11 +266,11 @@ export default function DecisionResultScreen() {
             {decision.prediction && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Sparkles size={20} color="#000000" />
+                  <Sparkles size={20} color="#B795FF" />
                   <Text style={styles.sectionTitle}>If things were different…</Text>
                 </View>
                 {loadingSuggestions ? (
-                  <ActivityIndicator size="small" color="#666666" style={styles.sectionLoader} />
+                  <ActivityIndicator size="small" color="#B795FF" style={styles.sectionLoader} />
                 ) : suggestions?.suggestions ? (
                   <View style={styles.suggestionsContainer}>
                     {suggestions.suggestions.map((suggestion: any, index: number) => (
@@ -303,17 +309,6 @@ export default function DecisionResultScreen() {
               </View>
             )}
 
-            {user && (
-              <Button
-                title="Regenerate Prediction"
-                onPress={() => generatePrediction(decision)}
-                loading={predicting}
-                variant="outline"
-                size="medium"
-                style={styles.regenerateButton}
-              />
-            )}
-
             <Button
               title="Simulate"
               onPress={handleSimulate}
@@ -331,7 +326,7 @@ export default function DecisionResultScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0C0C10',
   },
   header: {
     flexDirection: 'row',
@@ -350,7 +345,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
     flex: 1,
   },
   content: {
@@ -363,23 +358,25 @@ const styles = StyleSheet.create({
   question: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 24,
   },
   predictionCard: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
     marginBottom: 32,
   },
   predictionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     marginBottom: 8,
   },
   predictionValue: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   confidence: {
@@ -393,13 +390,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 12,
   },
   rationale: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#333333',
+    color: 'rgba(200, 200, 200, 0.85)',
   },
   optionRow: {
     marginBottom: 16,
@@ -407,28 +404,35 @@ const styles = StyleSheet.create({
   optionName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   probContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
+  },
+  probBarBackground: {
+    flex: 1,
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   probBar: {
-    height: 8,
-    backgroundColor: '#000000',
+    height: '100%',
     borderRadius: 4,
   },
   probText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     minWidth: 40,
   },
   factor: {
     fontSize: 15,
-    color: '#333333',
+    color: 'rgba(200, 200, 200, 0.85)',
     marginBottom: 8,
     lineHeight: 22,
   },
@@ -445,7 +449,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   noPredictionContainer: {
     padding: 32,
@@ -453,7 +457,7 @@ const styles = StyleSheet.create({
   },
   noPredictionText: {
     fontSize: 16,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -478,11 +482,13 @@ const styles = StyleSheet.create({
   },
   aggregateSubtext: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     marginBottom: 8,
   },
   groupCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
@@ -490,7 +496,7 @@ const styles = StyleSheet.create({
   groupLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 12,
   },
   groupProbRow: {
@@ -501,17 +507,17 @@ const styles = StyleSheet.create({
   },
   groupOption: {
     fontSize: 14,
-    color: '#333333',
+    color: 'rgba(200, 200, 200, 0.85)',
     flex: 1,
   },
   groupProb: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   consensusChip: {
     alignSelf: 'flex-start',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'rgba(59, 37, 109, 0.4)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -520,22 +526,24 @@ const styles = StyleSheet.create({
   consensusText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   suggestionsContainer: {
     gap: 12,
   },
   suggestionCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
     padding: 16,
     borderRadius: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#000000',
+    borderLeftColor: '#B795FF',
   },
   suggestionLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     marginBottom: 12,
   },
   suggestionProbs: {
@@ -549,13 +557,13 @@ const styles = StyleSheet.create({
   },
   suggestionOption: {
     fontSize: 14,
-    color: '#333333',
+    color: 'rgba(200, 200, 200, 0.85)',
     flex: 1,
   },
   suggestionProb: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
     minWidth: 40,
   },
   suggestionDelta: {
@@ -564,13 +572,13 @@ const styles = StyleSheet.create({
   },
   suggestionDeltaText: {
     fontSize: 13,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     marginTop: 8,
     fontStyle: 'italic',
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#666666',
+    color: 'rgba(200, 200, 200, 0.75)',
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 16,
