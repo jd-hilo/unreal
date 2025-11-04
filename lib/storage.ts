@@ -363,6 +363,26 @@ export async function getJournals(userId: string, limit = 30) {
   return data || [];
 }
 
+export async function getTodayJournal(userId: string) {
+  // Get start and end of today in UTC
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+  const { data, error } = await supabase
+    .from('journals')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('created_at', startOfDay.toISOString())
+    .lt('created_at', endOfDay.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function getJournal(id: string) {
   const { data, error } = await supabase
     .from('journals')

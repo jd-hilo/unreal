@@ -1,10 +1,12 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { supabase } from '@/lib/supabase';
+import { mineRelationships } from '@/lib/ai';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
+import { Sparkles, CheckCircle2, Circle } from 'lucide-react-native';
 
 const RELATIONSHIP_TYPES = [
   'Partner', 'Spouse', 'Family', 'Friend', 'Mentor', 
@@ -15,17 +17,117 @@ const CONTACT_FREQUENCIES = [
   'Daily', 'Weekly', 'Monthly', 'Rarely'
 ];
 
+interface ExtractedRelationship {
+  name: string;
+  relationship_type: string;
+  duration?: string;
+  contact_frequency?: string;
+  influence?: number;
+  location?: string;
+  sentiment?: string;
+  selected: boolean;
+}
+
 export default function AddRelationshipScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
+  const [mode, setMode] = useState<'ai' | 'manual'>('ai');
+  
+  // AI Mode
+  const [paragraph, setParagraph] = useState('');
+  const [extracting, setExtracting] = useState(false);
+  const [extracted, setExtracted] = useState<ExtractedRelationship[]>([]);
+  
+  // Manual Mode
   const [name, setName] = useState('');
   const [relationshipType, setRelationshipType] = useState('');
   const [yearsKnown, setYearsKnown] = useState('');
   const [contactFrequency, setContactFrequency] = useState('');
   const [location, setLocation] = useState('');
-  const [influence, setInfluence] = useState('50');
+  
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  async function handleExtract() {
+    if (!paragraph.trim()) {
+      setError('Please write about your relationships');
+      return;
+    }
+
+    setExtracting(true);
+    setError('');
+
+    try {
+      const results = await mineRelationships(paragraph);
+      
+      // Ensure results is an array
+      const resultsArray = Array.isArray(results) ? results : [];
+      
+      if (resultsArray.length === 0) {
+        setError('No relationships found. Try providing more details about people in your life.');
+        setExtracting(false);
+        return;
+      }
+      
+      const formatted = resultsArray.map(r => ({
+        name: r.name || 'Unknown',
+        relationship_type: r.relationship_type || 'friend',
+        duration: r.duration,
+        contact_frequency: r.contact_frequency,
+        influence: r.influence,
+        location: r.location,
+        sentiment: r.sentiment,
+        selected: true,
+      }));
+      setExtracted(formatted);
+    } catch (err: any) {
+      setError(err.message || 'Failed to extract relationships');
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  function toggleSelection(index: number) {
+    setExtracted(prev => prev.map((rel, i) => 
+      i === index ? { ...rel, selected: !rel.selected } : rel
+    ));
+  }
+
+  async function handleSaveExtracted() {
+    if (!user) return;
+    
+    const selected = extracted.filter(r => r.selected);
+    if (selected.length === 0) {
+      setError('Please select at least one relationship');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+
+    try {
+      const toInsert = selected.map(r => ({
+        user_id: user.id,
+        name: r.name,
+        relationship_type: r.relationship_type.toLowerCase(),
+        years_known: r.duration ? parseFloat(r.duration) : null,
+        contact_frequency: r.contact_frequency?.toLowerCase() || null,
+        location: r.location || null,
+        influence: 0.5, // Default influence
+      }));
+
+      const { error: saveError } = await supabase
+        .from('relationships')
+        .insert(toInsert as any);
+
+      if (saveError) throw saveError;
+
+      router.back();
+    } catch (err: any) {
+      setError(err.message || 'Failed to save relationships');
+      setSaving(false);
+    }
+  }
 
   async function handleSave() {
     if (!user || !name.trim() || !relationshipType) {
@@ -46,7 +148,7 @@ export default function AddRelationshipScreen() {
           years_known: yearsKnown ? parseFloat(yearsKnown) : null,
           contact_frequency: contactFrequency.toLowerCase() || null,
           location: location.trim() || null,
-          influence: parseFloat(influence) / 100,
+          influence: 0.5, // Default influence
         });
 
       if (saveError) throw saveError;
@@ -64,7 +166,28 @@ export default function AddRelationshipScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>← Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Add Relationship</Text>
+        <Text style={styles.title}>Add Relationships</Text>
+        
+        {/* Mode Toggle */}
+        <View style={styles.modeToggle}>
+          <TouchableOpacity
+            style={[styles.modeButton, mode === 'ai' && styles.modeButtonActive]}
+            onPress={() => setMode('ai')}
+          >
+            <Sparkles size={16} color={mode === 'ai' ? '#FFFFFF' : '#666666'} />
+            <Text style={[styles.modeButtonText, mode === 'ai' && styles.modeButtonTextActive]}>
+              AI Extract
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeButton, mode === 'manual' && styles.modeButtonActive]}
+            onPress={() => setMode('manual')}
+          >
+            <Text style={[styles.modeButtonText, mode === 'manual' && styles.modeButtonTextActive]}>
+              Manual
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView 
@@ -72,6 +195,63 @@ export default function AddRelationshipScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
+        {mode === 'ai' ? (
+          <>
+            {extracted.length === 0 ? (
+              <>
+                <Text style={styles.aiInstructions}>
+                  Write a paragraph about the people in your life and AI will extract them for you.
+                </Text>
+                <Input
+                  placeholder="E.g., My partner Sarah has been with me for 5 years in NYC. My best friend Mike from college lives in SF and we talk weekly. My mentor Jane helped shape my career..."
+                  value={paragraph}
+                  onChangeText={setParagraph}
+                  multiline
+                  numberOfLines={10}
+                  textAlignVertical="top"
+                  style={styles.paragraphInput}
+                />
+                {error && <Text style={styles.error}>{error}</Text>}
+              </>
+            ) : (
+              <>
+                <Text style={styles.extractedTitle}>
+                  Select relationships to add ({extracted.filter(r => r.selected).length} selected)
+                </Text>
+                <View style={styles.extractedList}>
+                  {extracted.map((rel, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.extractedCard,
+                        rel.selected && styles.extractedCardSelected
+                      ]}
+                      onPress={() => toggleSelection(index)}
+                    >
+                      <View style={styles.extractedIcon}>
+                        {rel.selected ? (
+                          <CheckCircle2 size={24} color="#10B981" />
+                        ) : (
+                          <Circle size={24} color="#D1D5DB" />
+                        )}
+                      </View>
+                      <View style={styles.extractedContent}>
+                        <Text style={styles.extractedName}>{rel.name}</Text>
+                        <Text style={styles.extractedDetails}>
+                          {rel.relationship_type}
+                          {rel.duration && ` • ${rel.duration} years`}
+                          {rel.location && ` • ${rel.location}`}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {error && <Text style={styles.error}>{error}</Text>}
+              </>
+            )}
+          </>
+        ) : (
+          <>
         <Input
           label="Name *"
           placeholder="Their name"
@@ -141,58 +321,47 @@ export default function AddRelationshipScreen() {
           onChangeText={setLocation}
         />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
-            Influence on Decisions: {influence}%
-          </Text>
-          <Text style={styles.sectionHelp}>
-            How much does this person influence your major decisions?
-          </Text>
-          <View style={styles.sliderContainer}>
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabel}>0%</Text>
-              <Text style={styles.sliderLabel}>100%</Text>
-            </View>
-            <View style={styles.sliderTrack}>
-              <View 
-                style={[
-                  styles.sliderFill, 
-                  { width: `${influence}%` }
-                ]} 
-              />
-            </View>
-            <View style={styles.sliderButtons}>
-              {[0, 25, 50, 75, 100].map((val) => (
-                <TouchableOpacity
-                  key={val}
-                  style={[
-                    styles.sliderButton,
-                    influence === String(val) && styles.sliderButtonActive
-                  ]}
-                  onPress={() => setInfluence(String(val))}
-                >
-                  <Text style={[
-                    styles.sliderButtonText,
-                    influence === String(val) && styles.sliderButtonTextActive
-                  ]}>
-                    {val}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-
         {error && <Text style={styles.error}>{error}</Text>}
+          </>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button
-          title="Save Relationship"
-          onPress={handleSave}
-          loading={saving}
-          size="large"
-        />
+        {mode === 'ai' ? (
+          extracted.length === 0 ? (
+            <Button
+              title="Extract Relationships"
+              onPress={handleExtract}
+              loading={extracting}
+              size="large"
+              icon={<Sparkles size={20} color="#FFFFFF" />}
+            />
+          ) : (
+            <View style={styles.footerButtons}>
+              <Button
+                title="Back"
+                onPress={() => setExtracted([])}
+                variant="outline"
+                size="large"
+                style={{ flex: 1 }}
+              />
+              <Button
+                title={`Add ${extracted.filter(r => r.selected).length}`}
+                onPress={handleSaveExtracted}
+                loading={saving}
+                size="large"
+                style={{ flex: 1 }}
+              />
+            </View>
+          )
+        ) : (
+          <Button
+            title="Save Relationship"
+            onPress={handleSave}
+            loading={saving}
+            size="large"
+          />
+        )}
       </View>
     </View>
   );
@@ -222,6 +391,36 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     color: '#000000',
+    marginBottom: 16,
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    backgroundColor: '#FFFFFF',
+    gap: 6,
+  },
+  modeButtonActive: {
+    borderColor: '#000000',
+    backgroundColor: '#000000',
+  },
+  modeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666666',
+  },
+  modeButtonTextActive: {
+    color: '#FFFFFF',
   },
   content: {
     flex: 1,
@@ -322,6 +521,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+  aiInstructions: {
+    fontSize: 14,
+    color: '#666666',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  paragraphInput: {
+    minHeight: 200,
+  },
+  extractedTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 12,
+  },
+  extractedList: {
+    gap: 12,
+  },
+  extractedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    gap: 12,
+  },
+  extractedCardSelected: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  extractedIcon: {
+    width: 24,
+    height: 24,
+  },
+  extractedContent: {
+    flex: 1,
+    gap: 4,
+  },
+  extractedName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  extractedDetails: {
+    fontSize: 14,
+    color: '#666666',
+    textTransform: 'capitalize',
+  },
   footer: {
     position: 'absolute',
     bottom: 0,
@@ -332,5 +581,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E5E5E5',
   },
+  footerButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
 });
+
 

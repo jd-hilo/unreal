@@ -6,8 +6,8 @@ import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { CheckCircle2, Circle, Edit3, ChevronRight } from 'lucide-react-native';
-import { getProfile } from '@/lib/storage';
+import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen } from 'lucide-react-native';
+import { getProfile, getTodayJournal, getRelationships } from '@/lib/storage';
 
 interface ProfileCard {
   id: string;
@@ -25,6 +25,8 @@ export default function ProfileScreen() {
   const { isPremium, setPremium } = useTwin();
   const [profileData, setProfileData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [journalComplete, setJournalComplete] = useState(false);
+  const [hasRelationships, setHasRelationships] = useState(false);
 
   // Reload profile data when screen comes into focus
   useFocusEffect(
@@ -41,8 +43,14 @@ export default function ProfileScreen() {
     if (!user) return;
     
     try {
-      const profile = await getProfile(user.id);
+      const [profile, todayJournal, relationships] = await Promise.all([
+        getProfile(user.id),
+        getTodayJournal(user.id),
+        getRelationships(user.id)
+      ]);
       setProfileData(profile);
+      setJournalComplete(!!todayJournal);
+      setHasRelationships(relationships && relationships.length > 0);
     } catch (error) {
       console.error('Failed to load profile:', error);
     } finally {
@@ -126,16 +134,11 @@ export default function ProfileScreen() {
     {
       id: 'relationships',
       title: 'Relationships',
-      subtitle: 'Add people who influence your decisions',
+      subtitle: hasRelationships 
+        ? 'Manage your relationships'
+        : 'Add people who influence your decisions',
       route: '/relationships',
-      completed: false,
-    },
-    {
-      id: 'journal',
-      title: 'Daily Journal',
-      subtitle: 'Track your mood and thoughts',
-      route: '/journal',
-      completed: false,
+      completed: hasRelationships,
     },
   ];
 
@@ -170,6 +173,34 @@ export default function ProfileScreen() {
           {completedCount} of {cards.length} sections complete • Tap any card to edit
         </Text>
       </Card>
+
+      {/* Highlighted Journal Card */}
+      <TouchableOpacity
+        style={[
+          styles.journalHighlight,
+          journalComplete && styles.journalHighlightComplete
+        ]}
+        onPress={() => router.push('/journal' as any)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.journalIcon}>
+          {journalComplete ? (
+            <CheckCircle2 size={28} color="#10B981" />
+          ) : (
+            <BookOpen size={28} color="#000000" />
+          )}
+        </View>
+        <View style={styles.journalContent}>
+          <Text style={styles.journalTitle}>Daily Journal</Text>
+          <Text style={styles.journalSubtitle}>
+            {journalComplete 
+              ? "Today's journal complete! View or edit anytime"
+              : "Journal your days and help your twin understand you"
+            }
+          </Text>
+        </View>
+        <ChevronRight size={24} color={journalComplete ? "#10B981" : "#000000"} />
+      </TouchableOpacity>
 
       <View style={styles.cards}>
         {cards.map((card) => (
@@ -259,6 +290,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666666',
     marginTop: 12,
+  },
+  journalHighlight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF9E6',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 32,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    gap: 16,
+  },
+  journalHighlightComplete: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#10B981',
+  },
+  journalIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  journalContent: {
+    flex: 1,
+    gap: 4,
+  },
+  journalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  journalSubtitle: {
+    fontSize: 14,
+    color: '#666666',
+    lineHeight: 20,
   },
   cards: {
     gap: 12,

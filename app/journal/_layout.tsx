@@ -4,3 +4,7 @@ export default function JournalLayout() {
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
+
+
+
+

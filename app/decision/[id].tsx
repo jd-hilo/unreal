@@ -2,28 +2,22 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
-import { useTwin } from '@/store/useTwin';
-import { getDecision, getSimulation, insertSimulation, updateDecisionPrediction } from '@/lib/storage';
-import { simulateOutcome, predictDecision } from '@/lib/ai';
+import { getDecision, updateDecisionPrediction } from '@/lib/storage';
+import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
 import { Card, CardContent } from '@/components/Card';
-import { ArrowLeft, TrendingUp, TrendingDown, Users, Sparkles } from 'lucide-react-native';
+import { ArrowLeft, Sparkles } from 'lucide-react-native';
 
 export default function DecisionResultScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const user = useAuth((state) => state.user);
-  const isPremium = useTwin((state) => state.isPremium);
   const [decision, setDecision] = useState<any>(null);
-  const [simulation, setSimulation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [predicting, setPredicting] = useState(false);
-  const [simulating, setSimulating] = useState(false);
-  const [aggregateData, setAggregateData] = useState<any>(null);
   const [suggestions, setSuggestions] = useState<any>(null);
-  const [loadingAggregate, setLoadingAggregate] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   useEffect(() => {
@@ -33,9 +27,8 @@ export default function DecisionResultScreen() {
   }, [id, user]);
 
   useEffect(() => {
-    // Lazy-load aggregate data and suggestions after decision loads
+    // Lazy-load suggestions after decision loads
     if (decision && decision.prediction && user) {
-      loadAggregateData();
       loadSuggestions();
     }
   }, [decision?.id, decision?.prediction]);
@@ -52,9 +45,6 @@ export default function DecisionResultScreen() {
       }
 
       setDecision(decisionData);
-
-      const simulationData = await getSimulation(id);
-      setSimulation(simulationData);
 
       // Always generate prediction on result screen if decision is not a draft
       // This ensures AI is called when viewing the result
@@ -112,8 +102,7 @@ export default function DecisionResultScreen() {
       setDecision(updatedDecision);
       console.log('Prediction saved and decision updated');
       
-      // Reload aggregate and suggestions after new prediction
-      loadAggregateData();
+      // Reload suggestions after new prediction
       loadSuggestions();
     } catch (error) {
       console.error('Failed to generate prediction:', error);
@@ -121,23 +110,6 @@ export default function DecisionResultScreen() {
       alert('Failed to generate prediction. Please try again.');
     } finally {
       setPredicting(false);
-    }
-  }
-
-  async function loadAggregateData() {
-    if (!decision?.id || !user) return;
-    
-    setLoadingAggregate(true);
-    try {
-      const { getDecisionAggregate } = await import('@/lib/decisionsApi');
-      const data = await getDecisionAggregate(decision.id, user.id);
-      if (data) {
-        setAggregateData(data);
-      }
-    } catch (error) {
-      console.error('Failed to load aggregate data:', error);
-    } finally {
-      setLoadingAggregate(false);
     }
   }
 
@@ -165,60 +137,11 @@ export default function DecisionResultScreen() {
     }
   }
 
-  function formatGroupLabel(key: string): string {
-    if (key === 'global') return 'All Users';
-    if (key.startsWith('age_')) {
-      const age = key.replace('age_', '').replace('_', '-');
-      return `Age ${age}`;
-    }
-    if (key.endsWith('_roles') || key.endsWith('_users')) {
-      return key.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
-    }
-    return key.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
-  }
-
-  function getConsensusLabel(score: number): string {
-    if (score >= 0.7) return 'High';
-    if (score >= 0.4) return 'Moderate';
-    return 'Low';
-  }
-
   async function handleSimulate() {
-    if (!user || !decision || !isPremium) {
-      alert('Simulation is a premium feature');
-      return;
-    }
-
-    setSimulating(true);
-
-    try {
-      const corePack = await buildCorePack(user.id);
-      const prediction = decision.prediction;
-
-      const scenario = await simulateOutcome(
-        corePack,
-        prediction.prediction,
-        90
-      );
-
-      const scenarios = {
-        [prediction.prediction]: scenario,
-      };
-
-      const simulationData = await insertSimulation(
-        user.id,
-        decision.id,
-        scenarios,
-        scenario.notes
-      );
-
-      setSimulation(simulationData);
-    } catch (error) {
-      console.error('Simulation error:', error);
-      alert('Failed to run simulation');
-    } finally {
-      setSimulating(false);
-    }
+    if (!user || !decision) return;
+    
+    // Navigate to simulation page
+    router.push(`/decision/simulate/${decision.id}` as any);
   }
 
   if (loading || predicting) {
@@ -333,47 +256,6 @@ export default function DecisionResultScreen() {
               </View>
             )}
 
-            {/* How Others Decided Section */}
-            {decision.prediction && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Users size={20} color="#000000" />
-                  <Text style={styles.sectionTitle}>How Others Decided</Text>
-                </View>
-                {loadingAggregate ? (
-                  <ActivityIndicator size="small" color="#666666" style={styles.sectionLoader} />
-                ) : aggregateData ? (
-                  <View style={styles.aggregateContainer}>
-                    <Text style={styles.aggregateSubtext}>
-                      Based on {aggregateData.sample_size || 0} similar decisions from people like you.
-                    </Text>
-                    {Object.entries(aggregateData.groups || {}).map(([groupKey, groupData]: [string, any]) => (
-                      <View key={groupKey} style={styles.groupCard}>
-                        <Text style={styles.groupLabel}>{formatGroupLabel(groupKey)}</Text>
-                        {groupData.probs && Object.entries(groupData.probs).map(([option, prob]: [string, any]) => (
-                          <View key={option} style={styles.groupProbRow}>
-                            <Text style={styles.groupOption}>{option}</Text>
-                            <Text style={styles.groupProb}>{(prob * 100).toFixed(0)}%</Text>
-                          </View>
-                        ))}
-                      </View>
-                    ))}
-                    {aggregateData.consensus_score && (
-                      <View style={styles.consensusChip}>
-                        <Text style={styles.consensusText}>
-                          Consensus: {getConsensusLabel(aggregateData.consensus_score)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  <Text style={styles.emptyStateText}>
-                    Not enough similar decisions yet — check back soon.
-                  </Text>
-                )}
-              </View>
-            )}
-
             {/* If things were different Section */}
             {decision.prediction && (
               <View style={styles.section}>
@@ -432,55 +314,13 @@ export default function DecisionResultScreen() {
               />
             )}
 
-            {!simulation && (
-              <Button
-                title={isPremium ? 'Simulate 90 Days' : 'Upgrade to Simulate'}
-                onPress={handleSimulate}
-                variant={isPremium ? 'primary' : 'outline'}
-                size="large"
-                loading={simulating}
-                style={styles.simulateButton}
-              />
-            )}
-
-            {simulation && simulation.scenarios && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>90-Day Simulation</Text>
-                {Object.entries(simulation.scenarios).map(([option, scenario]: [string, any]) => (
-                  <View key={option}>
-                    <Text style={styles.scenarioTitle}>{option}</Text>
-                    <View style={styles.metrics}>
-                      {Object.entries(scenario.deltas).map(([metric, delta]: [string, any]) => (
-                        <View key={metric} style={styles.metricCard}>
-                          <View style={styles.metricHeader}>
-                            {delta > 0 ? (
-                              <TrendingUp size={20} color="#10B981" />
-                            ) : (
-                              <TrendingDown size={20} color="#EF4444" />
-                            )}
-                            <Text style={styles.metricName}>
-                              {metric.charAt(0).toUpperCase() + metric.slice(1)}
-                            </Text>
-                          </View>
-                          <Text
-                            style={[
-                              styles.metricValue,
-                              { color: delta > 0 ? '#10B981' : '#EF4444' },
-                            ]}
-                          >
-                            {delta > 0 ? '+' : ''}
-                            {delta.toFixed(1)}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                    {scenario.notes && (
-                      <Text style={styles.notes}>{scenario.notes}</Text>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
+            <Button
+              title="Simulate"
+              onPress={handleSimulate}
+              variant="primary"
+              size="large"
+              style={styles.simulateButton}
+            />
           </>
         )}
       </ScrollView>
@@ -595,43 +435,6 @@ const styles = StyleSheet.create({
   simulateButton: {
     marginTop: 16,
     marginBottom: 32,
-  },
-  scenarioTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 16,
-  },
-  metrics: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 16,
-  },
-  metricCard: {
-    width: '48%',
-    backgroundColor: '#F9FAFB',
-    padding: 16,
-    borderRadius: 12,
-  },
-  metricHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  metricName: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  metricValue: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  notes: {
-    fontSize: 15,
-    color: '#666666',
-    lineHeight: 22,
   },
   loadingContainer: {
     flex: 1,

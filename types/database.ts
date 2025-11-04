@@ -269,6 +269,19 @@ export interface SimulationScenario {
   notes: string;
 }
 
+export interface TimelineEvent {
+  time: string;
+  title: string;
+  description: string;
+}
+
+export interface TimelineSimulation {
+  one_year: TimelineEvent[];
+  three_year: TimelineEvent[];
+  five_year: TimelineEvent[];
+  ten_year: TimelineEvent[];
+}
+
 export interface WhatIfMetrics {
   happiness?: { current: number; alternate: number };
   money?: { current: number; alternate: number };

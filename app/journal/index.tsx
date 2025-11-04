@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
-import { getJournals } from '@/lib/storage';
+import { getJournals, getTodayJournal } from '@/lib/storage';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Plus, BookOpen, Smile, Meh, Frown } from 'lucide-react-native';
@@ -19,6 +19,7 @@ export default function JournalScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [journals, setJournals] = useState<Journal[]>([]);
+  const [todayJournal, setTodayJournal] = useState<Journal | null>(null);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
@@ -31,8 +32,12 @@ export default function JournalScreen() {
     if (!user) return;
     
     try {
-      const data = await getJournals(user.id);
+      const [data, today] = await Promise.all([
+        getJournals(user.id),
+        getTodayJournal(user.id)
+      ]);
       setJournals(data as Journal[]);
+      setTodayJournal(today as Journal | null);
     } catch (error) {
       console.error('Failed to load journals:', error);
     } finally {
@@ -58,18 +63,17 @@ export default function JournalScreen() {
   }
 
   function handleAddJournal() {
-    router.push('/journal/add' as any);
+    if (todayJournal) {
+      // If there's already a journal for today, view it instead
+      router.push(`/journal/${todayJournal.id}` as any);
+    } else {
+      router.push('/journal/add' as any);
+    }
   }
 
   function handleViewJournal(id: string) {
     router.push(`/journal/${id}` as any);
   }
-
-  const todayJournal = journals.find(j => {
-    const journalDate = new Date(j.created_at);
-    const today = new Date();
-    return journalDate.toDateString() === today.toDateString();
-  });
 
   return (
     <View style={styles.container}>
@@ -88,21 +92,40 @@ export default function JournalScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {!todayJournal && (
-          <Card style={styles.todayCard}>
-            <BookOpen size={32} color="#666666" style={styles.todayIcon} />
-            <Text style={styles.todayTitle}>How are you feeling today?</Text>
-            <Text style={styles.todayText}>
-              Take a moment to journal about your day
-            </Text>
-            <Button
-              title="Journal Today"
-              onPress={handleAddJournal}
-              size="medium"
-              style={styles.todayButton}
-            />
-          </Card>
-        )}
+        <Card style={styles.todayCard}>
+          {todayJournal ? (
+            <>
+              <View style={styles.todayComplete}>
+                {getMoodEmoji(todayJournal.mood)}
+              </View>
+              <Text style={styles.todayTitle}>Today's journal complete!</Text>
+              <Text style={styles.todayText}>
+                {getMoodLabel(todayJournal.mood)}
+              </Text>
+              <Button
+                title="View Today's Entry"
+                onPress={handleAddJournal}
+                size="medium"
+                variant="outline"
+                style={styles.todayButton}
+              />
+            </>
+          ) : (
+            <>
+              <BookOpen size={32} color="#666666" style={styles.todayIcon} />
+              <Text style={styles.todayTitle}>How are you feeling today?</Text>
+              <Text style={styles.todayText}>
+                Take a moment to journal about your day
+              </Text>
+              <Button
+                title="Journal Today"
+                onPress={handleAddJournal}
+                size="medium"
+                style={styles.todayButton}
+              />
+            </>
+          )}
+        </Card>
 
         {journals.length === 0 && !loading ? (
           <Card style={styles.emptyCard}>
@@ -148,10 +171,11 @@ export default function JournalScreen() {
 
       <View style={styles.footer}>
         <Button
-          title="New Journal Entry"
+          title={todayJournal ? "View Today's Entry" : "New Journal Entry"}
           onPress={handleAddJournal}
-          icon={<Plus size={20} color="#FFFFFF" />}
+          icon={todayJournal ? undefined : <Plus size={20} color="#FFFFFF" />}
           size="large"
+          variant={todayJournal ? "outline" : "primary"}
         />
       </View>
     </View>
@@ -202,6 +226,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   todayIcon: {
+    marginBottom: 12,
+  },
+  todayComplete: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F0FDF4',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
   },
   todayTitle: {
@@ -299,4 +332,5 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E5E5',
   },
 });
+
 

@@ -6,6 +6,7 @@ import type {
   DecisionPrediction,
   SimulationScenario,
   WhatIfMetrics,
+  TimelineSimulation,
 } from '@/types/database';
 
 const apiKey = 
@@ -143,15 +144,28 @@ export async function mineRelationships(transcript: string): Promise<Relationshi
 
   const openai = getOpenAI();
 
-  const systemPrompt = `Extract ongoing relationships from the text. Be conservative; only include people that affect decisions.`;
+  const systemPrompt = `Extract ALL relationships mentioned in the text. Include every person discussed. Be thorough and comprehensive.`;
 
   const userPrompt = `${transcript}
 
-Return JSON array:
+Extract ALL people mentioned in the text above. For each person, provide:
+- name: their name
+- relationship_type: one of: partner, spouse, family, friend, mentor, coworker, boss, or other
+- duration: how long they've known them (e.g., "5 years", "2", etc.) 
+- contact_frequency: how often they talk (daily, weekly, monthly, rarely)
+- influence: 0-1 scale of how much they influence decisions (0.5 if unknown)
+- location: where they live
+- sentiment: positive, neutral, or negative
 
-[
-  {"name":"Maya","relationship_type":"partner","duration":"4 years","contact_frequency":"daily","influence":0.9,"location":"Florida","sentiment":"positive"}
-]`;
+Return JSON object with ALL relationships:
+
+{
+  "relationships": [
+    {"name":"Sarah","relationship_type":"partner","duration":"5","contact_frequency":"daily","influence":0.9,"location":"NYC","sentiment":"positive"},
+    {"name":"Mike","relationship_type":"friend","duration":"10","contact_frequency":"weekly","influence":0.6,"location":"SF","sentiment":"positive"},
+    {"name":"Jane","relationship_type":"mentor","duration":"3","contact_frequency":"monthly","influence":0.8,"location":"Boston","sentiment":"positive"}
+  ]
+}`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -168,7 +182,21 @@ Return JSON array:
     if (!content) throw new Error('No response from AI');
 
     const parsed = JSON.parse(content);
-    return (parsed.relationships || parsed) as RelationshipExtraction[];
+    
+    // Extract array from response - could be wrapped in various ways
+    let relationships = parsed.relationships || parsed.data || parsed;
+    
+    // If it's an object but not an array, try to convert it to array
+    if (!Array.isArray(relationships)) {
+      if (typeof relationships === 'object' && relationships !== null) {
+        // Try to get array values from object
+        relationships = Object.values(relationships).filter(v => typeof v === 'object');
+      } else {
+        relationships = [];
+      }
+    }
+    
+    return relationships as RelationshipExtraction[];
   } catch (error) {
     console.error('Relationship mining error:', error);
     throw error;
@@ -386,6 +414,136 @@ Return JSON:
     console.error('Simulation error:', error);
     throw error;
   }
+}
+
+export async function generateTimelineSimulation(
+  corePack: string,
+  decision: string,
+  chosenOption: string
+): Promise<TimelineSimulation> {
+  if (DEV_MODE) {
+    return mockTimelineSimulation();
+  }
+
+  const openai = getOpenAI();
+
+  const systemPrompt = `You are a life trajectory simulator. Generate HYPER-SPECIFIC, concrete events with real details. Use actual numbers, specific places, named scenarios. Avoid generic statements.`;
+
+  const userPrompt = `User Context:
+
+${corePack}
+
+Decision Made:
+${decision}
+
+Chosen Option:
+${chosenOption}
+
+Generate a simple timeline of 5 HYPER-SPECIFIC events for each horizon (1 year, 3 years, 5 years, 10 years).
+
+CRITICAL: Be HYPER-SPECIFIC with concrete details:
+- Exact numbers ($X saved, X% growth, X hours per week, X people)
+- Generic locations (coffee shop, downtown, convention center, office) - NO brand names
+- Named people when relevant (can be hypothetical: "colleague Alex", "friend Jamie")
+- Concrete activities (meeting, trip, project launch, purchase, move)
+- Precise timeframes (Month 3, Week 2, Year 1.5)
+- SHORT descriptions (1-2 sentences ONLY, prefer single sentence)
+
+GOOD examples (specific but no brands):
+- "Save $2,400 in high-yield savings account at 4.5% APY"
+- "Move to 2BR apartment downtown for $2,200/mo, 8 min walk to work"
+- "Lead team of 4 on major product launch, earn $15K performance bonus"
+- "Meet potential mentor at industry conference, exchange contact info, follow up Tuesday"
+
+BAD examples:
+- Generic: "Professional growth continues" or "Financial situation improves"
+- Brand names: "Open Marcus savings account" or "Buy Starbucks franchise"
+
+Return JSON:
+
+{
+  "one_year": [
+    {"time": "Month 2", "title": "Save $3,200 in High-Yield Account", "description": "Open savings account at 4.5% APY. Automate $800/mo deposits every payday."},
+    {"time": "Month 5", "title": "Coffee Meeting With Industry Contact", "description": "Meet mentor contact introduced by college friend. 45-minute conversation leads to job referral."},
+    {"time": "Month 8", "title": "Finish Online Course, 84 Hours", "description": "Complete certification program. Final project scores 94/100. Add credential to profile."},
+    {"time": "Month 10", "title": "Sign Lease on $2,400/mo Apt", "description": "Move to new place 12 minutes from work. Commute drops from 75 to 12 minutes each way."},
+    {"time": "Year 1", "title": "Performance Review: $6,500 Bonus", "description": "Annual review results in 'Exceeds' rating. Receive $6,500 bonus and 4% salary increase to $87,400."}
+  ],
+  "three_year": [
+    {"time": "Year 1.5", "title": "Promotion to $112K Base Salary", "description": "Promoted to senior role managing 2 direct reports. Base salary increases from $87K to $112K plus new equity grant."},
+    {"time": "Year 2", "title": "7-Day International Trip, $2,800", "description": "Book flights for $640, accommodation $890 for week. First international solo trip fully paid in cash."},
+    {"time": "Year 2.5", "title": "Launch Side Consulting Practice", "description": "Start weekend consulting work. First client contract: $3,500 for 20 hours over 4 weeks."},
+    {"time": "Year 2.8", "title": "Move In Together, Split $2,600", "description": "Partner moves into your 2BR. You each pay $1,300/mo vs $2,400 solo, saving $1,100/mo combined."},
+    {"time": "Year 3", "title": "Investment Portfolio Hits $67K", "description": "Balances: $38K in 401k, $21K in index funds, $8K emergency fund. Compound growth accelerating."}
+  ],
+  "five_year": [
+    {"time": "Year 3.5", "title": "Present at Industry Conference, 220 People", "description": "Deliver 30-minute talk at convention center. 37 connection requests, 4 job inquiries follow."},
+    {"time": "Year 4", "title": "Buy $38K Electric Vehicle", "description": "Finance $32K over 5 years at 5.2% APR. Payment $605/mo, save $140/mo on fuel costs."},
+    {"time": "Year 4.5", "title": "Host Family Dinner for 12", "description": "Thanksgiving at your place for first time. Cook dinner, serve at 6pm. Dad says 'You made it.'"},
+    {"time": "Year 4.8", "title": "Complete Half Marathon in 1:58:42", "description": "Finish city half marathon after 14-week training plan. Beat goal by 8 minutes. Lost 15 lbs since starting."},
+    {"time": "Year 5", "title": "Accept $165K Offer at Growth Company", "description": "New job: Director role at 45-person startup. $140K base + $25K equity. Start date: March 15."}
+  ],
+  "ten_year": [
+    {"time": "Year 6.5", "title": "$85K Down Payment on $475K Home", "description": "Close on 2BR/2BA property. Mortgage $2,850/mo at 6.1%. Build equity vs renting."},
+    {"time": "Year 7.5", "title": "Consulting Revenue: $95K/Year", "description": "Side practice nets $7,900/mo with 6 retainer clients. Hire assistant for $1,800/mo to handle admin."},
+    {"time": "Year 8.5", "title": "10-Week International Sabbatical", "description": "Take July-Sept unpaid leave. Budget $16,500 for multi-country trip. Return with 200+ photos and fresh energy."},
+    {"time": "Year 9", "title": "Mentor 4 People Through Program", "description": "Official mentor in company program. Meet mentees bi-weekly for coffee. One mentee gets promoted within 8 months."},
+    {"time": "Year 10", "title": "Net Worth Reaches $380K", "description": "Assets: $165K home equity, $125K in retirement, $55K brokerage, $35K cash. Average monthly expenses: $4,200."}
+  ]
+}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('No response from AI');
+
+    return JSON.parse(content) as TimelineSimulation;
+  } catch (error) {
+    console.error('Timeline simulation error:', error);
+    throw error;
+  }
+}
+
+function mockTimelineSimulation(): TimelineSimulation {
+  return {
+    one_year: [
+      { time: "Month 2", title: "Save $1,800 Emergency Fund", description: "Deposit $450 bi-weekly into high-yield savings at 4.3% APY. Account balance reaches $1,800." },
+      { time: "Month 5", title: "Networking Event Downtown", description: "Attend tech meetup with 45 people. Exchange cards with 3 founders, follow up with coffee next week." },
+      { time: "Month 8", title: "Complete Online Course, 62 Hours", description: "Finish certification program. Build portfolio project: task manager app with 847 lines of code." },
+      { time: "Month 10", title: "Lease Sedan, $385/mo", description: "Trade in old vehicle for certified pre-owned newer model. 36-month lease, 12K miles/year allowance." },
+      { time: "Year 1", title: "Bonus Check: $4,200 After Tax", description: "Year-end performance bonus deposits Dec 15. Transfer $3,000 to index funds, spend $1,200 on gifts." }
+    ],
+    three_year: [
+      { time: "Year 1.5", title: "Salary Bump to $95K", description: "Promotion from associate to senior associate. Base increases from $82K to $95K, vesting schedule resets." },
+      { time: "Year 2", title: "Weekend Trip Out of State, $1,650", description: "Fly budget airline $280, accommodation $420 for 3 nights. Attend 2 concerts, explore local restaurants." },
+      { time: "Year 2.5", title: "Freelance Client Pays $5,500", description: "Complete 3-month contract building website. Work 8 hours/week remotely. Client renews for Phase 2." },
+      { time: "Year 2.8", title: "Sign Joint Lease, $2,200/mo", description: "Move to larger apartment with partner. You pay $1,100 each, includes parking spot and gym access." },
+      { time: "Year 3", title: "401k Balance Crosses $52K", description: "Contributions: $19.5K/year, employer match $5.8K, market gains $8.2K. Portfolio: 80% stocks, 20% bonds." }
+    ],
+    five_year: [
+      { time: "Year 3.5", title: "Speak to 180 at State Conference", description: "Keynote slot 10:30am Saturday. Presentation runs 35 minutes plus Q&A. 4 media mentions in industry blogs." },
+      { time: "Year 4", title: "Purchase Electric Car for $32K", description: "Buy outright with savings. Charging costs $45/mo vs $220 gas. Resale value holds at 78%." },
+      { time: "Year 4.5", title: "Host Engagement Party, 28 Guests", description: "Announce engagement at your place. Catering costs $680. Champagne toast at 8pm." },
+      { time: "Year 4.8", title: "Run Marathon in 4:12:18", description: "City marathon finish: 26.2 miles. Training plan: 18 weeks, peak mileage 45 mi/week. Lost 22 lbs total." },
+      { time: "Year 5", title: "Accept VP Role at $185K + Equity", description: "Join 120-person company as VP. $155K salary, $30K stock/year, 0.4% equity. Manage team of 8." }
+    ],
+    ten_year: [
+      { time: "Year 6.5", title: "Close on $520K House, 3BR/2BA", description: "Buy property in desirable neighborhood. Put down $104K (20%), mortgage $3,280/mo at 5.8% for 30 years." },
+      { time: "Year 7.5", title: "Consulting Income: $142K/Year", description: "11 active clients paying $1,800-$3,200/mo retainers. Total monthly revenue $11,800, net after costs $9,500." },
+      { time: "Year 8.5", title: "3-Month International Sabbatical", description: "Visit multiple countries Sept-Dec. Budget $22,000 total. Document journey with 1,800+ photos." },
+      { time: "Year 9", title: "Mentor 6 Emerging Leaders", description: "Run bi-weekly 1-on-1s with mentees. 3 get promoted within 12 months. Start monthly group dinner series." },
+      { time: "Year 10", title: "Net Worth Hits $625K", description: "Breakdown: $245K home equity, $215K retirement accounts, $105K brokerage, $60K cash. Debt: $12K car loan only." }
+    ]
+  };
 }
 
 export async function runWhatIf(

@@ -12,3 +12,7 @@ WHERE decision_embedding IS NOT NULL;
 ALTER TABLE profiles 
 ADD COLUMN IF NOT EXISTS contribute_to_insights boolean DEFAULT true;
 
+
+
+
+

@@ -1,11 +1,22 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { getRelationships } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { Plus, Users, Heart, Briefcase, GraduationCap, UserCircle } from 'lucide-react-native';
+import { Input } from '@/components/Input';
+import { Plus, Users, Heart, Briefcase, GraduationCap, UserCircle, X, Trash2 } from 'lucide-react-native';
+
+const RELATIONSHIP_TYPES = [
+  'Partner', 'Spouse', 'Family', 'Friend', 'Mentor', 
+  'Coworker', 'Boss', 'Other'
+];
+
+const CONTACT_FREQUENCIES = [
+  'Daily', 'Weekly', 'Monthly', 'Rarely'
+];
 
 interface Relationship {
   id: string;
@@ -22,6 +33,22 @@ export default function RelationshipsScreen() {
   const user = useAuth((state) => state.user);
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedRel, setSelectedRel] = useState<Relationship | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editType, setEditType] = useState('');
+  const [editYears, setEditYears] = useState('');
+  const [editFrequency, setEditFrequency] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Reload relationships when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadRelationships();
+    }, [user])
+  );
 
   useEffect(() => {
     loadRelationships();
@@ -63,8 +90,79 @@ export default function RelationshipsScreen() {
     router.push('/relationships/add' as any);
   }
 
-  function handleEditRelationship(id: string) {
-    router.push(`/relationships/${id}` as any);
+  function handleEditRelationship(rel: Relationship) {
+    setSelectedRel(rel);
+    setEditName(rel.name);
+    // Capitalize first letter to match options
+    setEditType(rel.relationship_type.charAt(0).toUpperCase() + rel.relationship_type.slice(1));
+    setEditYears(rel.years_known?.toString() || '');
+    // Capitalize first letter to match options
+    setEditFrequency(rel.contact_frequency ? rel.contact_frequency.charAt(0).toUpperCase() + rel.contact_frequency.slice(1) : '');
+    setEditLocation(rel.location || '');
+    setModalVisible(true);
+  }
+
+  async function handleUpdate() {
+    if (!selectedRel || !user) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('relationships')
+        .update({
+          name: editName,
+          relationship_type: editType.toLowerCase(),
+          years_known: editYears ? parseFloat(editYears) : null,
+          contact_frequency: editFrequency.toLowerCase() || null,
+          location: editLocation || null,
+        })
+        .eq('id', selectedRel.id);
+
+      if (error) throw error;
+
+      setModalVisible(false);
+      loadRelationships();
+    } catch (error) {
+      console.error('Failed to update relationship:', error);
+      Alert.alert('Error', 'Failed to update relationship');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!selectedRel || !user) return;
+
+    Alert.alert(
+      'Delete Relationship',
+      `Are you sure you want to delete ${selectedRel.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              const { error } = await supabase
+                .from('relationships')
+                .delete()
+                .eq('id', selectedRel.id);
+
+              if (error) throw error;
+
+              setModalVisible(false);
+              loadRelationships();
+            } catch (error) {
+              console.error('Failed to delete relationship:', error);
+              Alert.alert('Error', 'Failed to delete relationship');
+            } finally {
+              setDeleting(false);
+            }
+          }
+        }
+      ]
+    );
   }
 
   return (
@@ -98,7 +196,7 @@ export default function RelationshipsScreen() {
               <TouchableOpacity
                 key={rel.id}
                 style={styles.relationshipCard}
-                onPress={() => handleEditRelationship(rel.id)}
+                onPress={() => handleEditRelationship(rel)}
                 activeOpacity={0.7}
               >
                 <View style={styles.relationshipIcon}>
@@ -114,13 +212,6 @@ export default function RelationshipsScreen() {
                     <Text style={styles.relationshipLocation}>{rel.location}</Text>
                   )}
                 </View>
-                {rel.influence !== null && (
-                  <View style={styles.influenceBadge}>
-                    <Text style={styles.influenceText}>
-                      {Math.round(rel.influence * 100)}%
-                    </Text>
-                  </View>
-                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -135,6 +226,116 @@ export default function RelationshipsScreen() {
           size="large"
         />
       </View>
+
+      {/* Edit Modal */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Relationship</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <X size={24} color="#000000" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Input
+                label="Name"
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Their name"
+              />
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionLabel}>Relationship Type</Text>
+                <View style={styles.modalOptionsGrid}>
+                  {RELATIONSHIP_TYPES.map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.modalOption,
+                        editType === type && styles.modalOptionSelected
+                      ]}
+                      onPress={() => setEditType(type)}
+                    >
+                      <Text style={[
+                        styles.modalOptionText,
+                        editType === type && styles.modalOptionTextSelected
+                      ]}>
+                        {type}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <Input
+                label="Years Known"
+                value={editYears}
+                onChangeText={setEditYears}
+                placeholder="How many years?"
+                keyboardType="numeric"
+              />
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionLabel}>Contact Frequency</Text>
+                <View style={styles.modalOptionsGrid}>
+                  {CONTACT_FREQUENCIES.map((freq) => (
+                    <TouchableOpacity
+                      key={freq}
+                      style={[
+                        styles.modalOption,
+                        editFrequency === freq && styles.modalOptionSelected
+                      ]}
+                      onPress={() => setEditFrequency(freq)}
+                    >
+                      <Text style={[
+                        styles.modalOptionText,
+                        editFrequency === freq && styles.modalOptionTextSelected
+                      ]}>
+                        {freq}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <Input
+                label="Location"
+                value={editLocation}
+                onChangeText={setEditLocation}
+                placeholder="Where they live"
+              />
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <Button
+                title="Delete"
+                onPress={handleDelete}
+                loading={deleting}
+                variant="outline"
+                icon={<Trash2 size={20} color="#EF4444" />}
+                style={styles.deleteButton}
+              />
+              <Button
+                title="Save Changes"
+                onPress={handleUpdate}
+                loading={saving}
+                style={styles.saveButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -255,5 +456,110 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E5E5E5',
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    padding: 24,
+    gap: 24,
+  },
+  modalSection: {
+    gap: 8,
+  },
+  modalSectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 8,
+  },
+  modalOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  modalOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    backgroundColor: '#FFFFFF',
+  },
+  modalOptionSelected: {
+    borderColor: '#000000',
+    backgroundColor: '#000000',
+  },
+  modalOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666666',
+  },
+  modalOptionTextSelected: {
+    color: '#FFFFFF',
+  },
+  modalSliderButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalSliderButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSliderButtonActive: {
+    borderColor: '#000000',
+    backgroundColor: '#000000',
+  },
+  modalSliderButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666666',
+  },
+  modalSliderButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 24,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+  },
+  deleteButton: {
+    flex: 1,
+  },
+  saveButton: {
+    flex: 2,
+  },
 });
+
 

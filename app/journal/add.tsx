@@ -1,8 +1,8 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/store/useAuth';
-import { insertJournal } from '@/lib/storage';
+import { insertJournal, getTodayJournal } from '@/lib/storage';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { Smile, Meh, Frown, SmilePlus, Angry } from 'lucide-react-native';
@@ -23,6 +23,25 @@ export default function AddJournalScreen() {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    // Check if there's already a journal for today
+    async function checkTodayJournal() {
+      if (!user) return;
+      
+      try {
+        const todayJournal = await getTodayJournal(user.id);
+        if (todayJournal) {
+          // Redirect to view the existing journal
+          router.replace(`/journal/${todayJournal.id}` as any);
+        }
+      } catch (error) {
+        console.error('Failed to check today journal:', error);
+      }
+    }
+    
+    checkTodayJournal();
+  }, [user]);
 
   async function handleSave() {
     if (!user) {
@@ -237,4 +256,5 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E5E5',
   },
 });
+
 
