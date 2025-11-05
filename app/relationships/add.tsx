@@ -132,7 +132,7 @@ export default function AddRelationshipScreen() {
         setOnboardingComplete(true);
         router.replace('/(tabs)/home');
       } else {
-        router.back();
+      router.back();
       }
     } catch (err: any) {
       setError(err.message || 'Failed to save relationships');
@@ -182,7 +182,7 @@ export default function AddRelationshipScreen() {
         setOnboardingComplete(true);
         router.replace('/(tabs)/home');
       } else {
-        router.back();
+      router.back();
       }
     } catch (err: any) {
       setError(err.message || 'Failed to save relationship');
@@ -194,9 +194,9 @@ export default function AddRelationshipScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         {!isOnboarding && (
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>← Cancel</Text>
-          </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backText}>← Cancel</Text>
+        </TouchableOpacity>
         )}
         <Text style={styles.title}>{isOnboarding ? 'Who influences your decisions?' : 'Add Relationships'}</Text>
         {isOnboarding && (

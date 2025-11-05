@@ -71,11 +71,11 @@ export default function NewWhatIfScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Your scenario</Text>
           <View style={styles.scenarioCard}>
-            <Input
+        <Input
               placeholder="E.g., What if I had studied engineering instead of business?"
-              value={whatIfText}
-              onChangeText={setWhatIfText}
-              multiline
+          value={whatIfText}
+          onChangeText={setWhatIfText}
+          multiline
               numberOfLines={5}
               style={styles.scenarioInput}
               containerStyle={styles.inputContainer}
@@ -91,11 +91,11 @@ export default function NewWhatIfScreen() {
           </View>
 
           <View style={styles.examplesGrid}>
-            <TouchableOpacity
+          <TouchableOpacity
               style={styles.exampleCard}
               onPress={() => setWhatIfText('What if I had studied engineering instead of my current major?')}
               activeOpacity={0.7}
-            >
+          >
               <View style={styles.exampleIcon}>
                 <GraduationCap size={20} color="#B795FF" />
               </View>
@@ -104,13 +104,13 @@ export default function NewWhatIfScreen() {
                 <Text style={styles.exampleDesc}>Academic path</Text>
               </View>
               <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
-            </TouchableOpacity>
+          </TouchableOpacity>
 
-            <TouchableOpacity
+          <TouchableOpacity
               style={styles.exampleCard}
               onPress={() => setWhatIfText('What if I had stayed in my hometown instead of moving?')}
               activeOpacity={0.7}
-            >
+          >
               <View style={styles.exampleIcon}>
                 <MapPin size={20} color="#B795FF" />
               </View>
@@ -119,13 +119,13 @@ export default function NewWhatIfScreen() {
                 <Text style={styles.exampleDesc}>Where you live</Text>
               </View>
               <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
-            </TouchableOpacity>
+          </TouchableOpacity>
 
-            <TouchableOpacity
+          <TouchableOpacity
               style={styles.exampleCard}
               onPress={() => setWhatIfText('What if I had started my own business instead of working a corporate job?')}
               activeOpacity={0.7}
-            >
+          >
               <View style={styles.exampleIcon}>
                 <Briefcase size={20} color="#B795FF" />
               </View>
@@ -134,7 +134,7 @@ export default function NewWhatIfScreen() {
                 <Text style={styles.exampleDesc}>Professional choice</Text>
               </View>
               <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
-            </TouchableOpacity>
+          </TouchableOpacity>
           </View>
         </View>
 

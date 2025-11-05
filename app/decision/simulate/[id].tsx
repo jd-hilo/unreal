@@ -143,7 +143,7 @@ export default function SimulationScreen() {
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>
                   {probabilitiesCalculated.toLocaleString()}
-                </Text>
+          </Text>
                 <Text style={styles.statLabel}>Probabilities Calculated</Text>
               </View>
             </View>

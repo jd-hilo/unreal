@@ -118,13 +118,13 @@ export default function NewDecisionScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>What's your decision?</Text>
           <View style={styles.questionCard}>
-            <Input
+        <Input
               placeholder="E.g., Should I take the new job offer?"
-              value={question}
-              onChangeText={setQuestion}
-              multiline
+          value={question}
+          onChangeText={setQuestion}
+          multiline
               numberOfLines={4}
-              style={styles.questionInput}
+          style={styles.questionInput}
               containerStyle={styles.inputContainer}
             />
           </View>
@@ -138,35 +138,35 @@ export default function NewDecisionScreen() {
           </View>
 
           <View style={styles.optionsContainer}>
-            {options.map((option, index) => (
+        {options.map((option, index) => (
               <View key={index} style={styles.optionCard}>
                 <View style={styles.optionNumber}>
                   <Text style={styles.optionNumberText}>{index + 1}</Text>
                 </View>
-                <Input
+            <Input
                   placeholder={index === 0 ? "Accept the job" : index === 1 ? "Stay at current job" : `Option ${index + 1}`}
-                  value={option}
-                  onChangeText={(value) => updateOption(index, value)}
+              value={option}
+              onChangeText={(value) => updateOption(index, value)}
                   containerStyle={styles.optionInputContainer}
                   style={styles.optionInput}
-                />
-                {options.length > 2 && (
-                  <TouchableOpacity
-                    onPress={() => removeOption(index)}
-                    style={styles.removeButton}
-                  >
+            />
+            {options.length > 2 && (
+              <TouchableOpacity
+                onPress={() => removeOption(index)}
+                style={styles.removeButton}
+              >
                     <View style={styles.removeButtonInner}>
                       <X size={16} color="rgba(200, 200, 200, 0.75)" />
                     </View>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
           </View>
 
-          {options.length < 4 && (
+        {options.length < 4 && (
             <TouchableOpacity
-              onPress={addOption}
+            onPress={addOption}
               style={styles.addOptionButton}
               activeOpacity={0.7}
             >

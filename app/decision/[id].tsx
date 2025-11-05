@@ -235,11 +235,11 @@ export default function DecisionResultScreen() {
                             colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
-                            style={[
-                              styles.probBar,
-                              { width: `${(prob as number) * 100}%` },
-                            ]}
-                          />
+                          style={[
+                            styles.probBar,
+                            { width: `${(prob as number) * 100}%` },
+                          ]}
+                        />
                         </View>
                         <Text style={styles.probText}>
                           {((prob as number) * 100).toFixed(0)}%
