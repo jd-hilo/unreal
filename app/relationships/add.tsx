@@ -633,8 +633,6 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 24,
     backgroundColor: '#0C0C10',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
   },
   footerButtons: {
     flexDirection: 'row',

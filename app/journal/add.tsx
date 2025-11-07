@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, InputAccessoryView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { insertJournal, getTodayJournal } from '@/lib/storage';
 import { Input } from '@/components/Input';
@@ -19,6 +19,8 @@ const MOODS = [
 export default function AddJournalScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
+  const scrollRef = useRef<ScrollView>(null);
+  const accessoryId = 'journalInputAccessory';
   const [mood, setMood] = useState<number | null>(null);
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
@@ -42,6 +44,7 @@ export default function AddJournalScreen() {
     
     checkTodayJournal();
   }, [user]);
+
 
   async function handleSave() {
     if (!user) {
@@ -67,11 +70,7 @@ export default function AddJournalScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
-    >
+    <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>← Cancel</Text>
@@ -86,12 +85,19 @@ export default function AddJournalScreen() {
         </Text>
       </View>
 
-      <ScrollView 
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingContainer}
+        behavior="padding"
+        keyboardVerticalOffset={90}
       >
+        <ScrollView 
+          ref={scrollRef}
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustsScrollIndicatorInsets={false}
+        >
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>How are you feeling?</Text>
           <View style={styles.moodsGrid}>
@@ -129,6 +135,8 @@ export default function AddJournalScreen() {
           </View>
         </View>
 
+        {error && <Text style={styles.error}>{error}</Text>}
+
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>What's on your mind?</Text>
           <Input
@@ -139,22 +147,52 @@ export default function AddJournalScreen() {
             numberOfLines={12}
             textAlignVertical="top"
             style={styles.textInput}
+            inputAccessoryViewID={accessoryId}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollRef.current?.scrollToEnd({ animated: true });
+              }, 300);
+            }}
           />
         </View>
 
-        {error && <Text style={styles.error}>{error}</Text>}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-      <View style={styles.footer}>
-        <Button
-          title="Save Journal Entry"
-          onPress={handleSave}
-          loading={saving}
-          size="large"
-          disabled={mood === null}
-        />
-      </View>
-    </KeyboardAvoidingView>
+      {Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID={accessoryId}>
+          <View style={styles.accessoryBar}>
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={mood === null || saving}
+              style={[
+                styles.accessorySubmitButton,
+                (mood === null || saving) && styles.accessorySubmitButtonDisabled
+              ]}
+            >
+              <Text style={[
+                styles.accessorySubmitText,
+                (mood === null || saving) && styles.accessorySubmitTextDisabled
+              ]}>
+                {saving ? 'Saving...' : 'Submit'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
+      )}
+
+      {Platform.OS !== 'ios' && (
+        <View style={styles.footer}>
+          <Button
+            title="Save Journal Entry"
+            onPress={handleSave}
+            loading={saving}
+            size="large"
+            disabled={mood === null}
+          />
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -170,6 +208,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(59, 37, 109, 0.2)',
+  },
+  keyboardAvoidingContainer: {
+    flex: 1,
   },
   backButton: {
     marginBottom: 16,
@@ -193,8 +234,9 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 24,
-    paddingBottom: 120,
+    paddingBottom: 40,
     gap: 32,
+    flexGrow: 1,
   },
   section: {
     gap: 16,
@@ -257,6 +299,31 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 24,
     backgroundColor: '#0C0C10',
+  },
+  accessoryBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#0C0C10',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(59, 37, 109, 0.3)',
+  },
+  accessorySubmitButton: {
+    backgroundColor: '#B795FF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  accessorySubmitButtonDisabled: {
+    backgroundColor: 'rgba(59, 37, 109, 0.5)',
+  },
+  accessorySubmitText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  accessorySubmitTextDisabled: {
+    color: 'rgba(200, 200, 200, 0.5)',
   },
 });
 

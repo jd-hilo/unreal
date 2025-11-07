@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Animated, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Animated, TouchableOpacity, Linking, Image } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
@@ -92,9 +92,13 @@ export default function AuthScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.content}>
-        <Animated.Text style={[styles.title, { opacity: titleOpacity }]}>
-          unreal
-        </Animated.Text>
+        <Animated.View style={{ opacity: titleOpacity }}>
+          <Image
+            source={require('@/assets/images/unreallogo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </Animated.View>
         <Animated.Text style={[styles.subtitle, { opacity: subtitleOpacity }]}>
           Simulate your life.
         </Animated.Text>
@@ -117,28 +121,44 @@ export default function AuthScreen() {
             secureTextEntry
           />
 
-          {error && <Text style={styles.error}>{error}</Text>}
-
-          <Button
-            title={isSignUp ? 'Sign Up' : 'Sign In'}
-            onPress={handleAuth}
-            loading={loading}
-            size="large"
-            style={styles.button}
-          />
-
-          <TouchableOpacity
-            onPress={() => {
-              setIsSignUp(!isSignUp);
-              setError('');
-            }}
-            style={styles.toggleButton}
-          >
-            <Text style={styles.toggleText}>
-              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+          {isSignUp && (
+            <Text style={styles.termsText}>
+              By continuing to sign up you agree to our{' '}
+              <Text
+                style={styles.linkText}
+                onPress={() =>
+                  Linking.openURL('https://pastoral-supply-662.notion.site/Terms-of-Service-unreal-2a32cec59ddf80aca5e3ec91fdf8e529?source=copy_link')
+                }
+              >
+                Terms of Service
+              </Text>
+              .
             </Text>
-          </TouchableOpacity>
+          )}
+
+          {error && <Text style={styles.error}>{error}</Text>}
         </View>
+      </View>
+ 
+      <View style={styles.footer}>
+        <Button
+          title={isSignUp ? 'Sign Up' : 'Sign In'}
+          onPress={handleAuth}
+          loading={loading}
+          size="large"
+          style={styles.button}
+        />
+        <TouchableOpacity
+          onPress={() => {
+            setIsSignUp(!isSignUp);
+            setError('');
+          }}
+          style={styles.toggleButton}
+        >
+          <Text style={styles.toggleText}>
+            {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+          </Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -148,6 +168,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0C0C10',
+  },
+  logo: {
+    height: 48,
+    width: 200,
+    alignSelf: 'center',
+    marginBottom: 12,
   },
   content: {
     flex: 1,
@@ -181,7 +207,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   toggleButton: {
-    marginTop: 20,
+    marginTop: 5,
     alignItems: 'center',
     paddingVertical: 8,
   },
@@ -189,5 +215,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(200, 200, 200, 0.85)',
     fontWeight: '500',
+  },
+  termsText: {
+    fontSize: 12,
+    color: 'rgba(200, 200, 200, 0.75)',
+    marginTop: 6,
+    lineHeight: 16,
+  },
+  linkText: {
+    color: '#B795FF',
+    textDecorationLine: 'underline',
+    fontWeight: '600',
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 24,
+    backgroundColor: '#0C0C10',
+    gap: 8,
   },
 });

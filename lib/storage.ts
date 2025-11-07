@@ -501,3 +501,34 @@ export async function updateContributeToInsights(userId: string, enabled: boolea
   if (error) throw error;
   return data;
 }
+
+/**
+ * Delete all user-owned data from application tables.
+ * Note: Deleting the auth user requires a server-side admin function;
+ * this client method only removes app data scoped by user_id.
+ */
+export async function deleteAccountData(userId: string): Promise<void> {
+  // Order matters for foreign keys: delete children before parent rows
+  const tablesInDeleteOrder = [
+    'decisions',
+    'simulations',
+    'what_if',
+    'journals',
+    'relationships',
+    'career_entries',
+    // profiles last
+  ];
+
+  for (const table of tablesInDeleteOrder) {
+    const { error } = await supabase.from(table).delete().eq('user_id', userId);
+    if (error) {
+      // Log and continue to attempt best-effort cleanup
+      console.warn(`Failed to delete from ${table}:`, error.message);
+    }
+  }
+
+  const { error: profileError } = await supabase.from('profiles').delete().eq('user_id', userId);
+  if (profileError) {
+    console.warn('Failed to delete profile row:', profileError.message);
+  }
+}

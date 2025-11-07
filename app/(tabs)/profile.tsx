@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
@@ -7,7 +7,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen, Compass } from 'lucide-react-native';
-import { getProfile, getTodayJournal, getRelationships } from '@/lib/storage';
+import { getProfile, getTodayJournal, getRelationships, deleteAccountData } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -165,6 +165,31 @@ export default function ProfileScreen() {
     }
   }
 
+  async function handleDeleteAccount() {
+    if (!user) return;
+    Alert.alert(
+      'Delete Account',
+      'This will permanently remove your data. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccountData(user.id);
+              await signOut();
+              router.replace('/auth');
+            } catch (error) {
+              console.error('Delete account error:', error);
+              Alert.alert('Error', 'Failed to delete account. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.backgroundGradient}>
@@ -282,6 +307,14 @@ export default function ProfileScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleDeleteAccount}
+              style={styles.deleteButton}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.deleteText}>Delete Account</Text>
             </TouchableOpacity>
           </ScrollView>
         </SafeAreaView>
@@ -483,5 +516,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  deleteButton: {
+    marginTop: 12,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  deleteText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#EF4444',
   },
 });

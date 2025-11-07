@@ -453,8 +453,6 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 24,
     backgroundColor: '#0C0C10',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
   },
   modalOverlay: {
     flex: 1,
@@ -551,8 +549,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 24,
     gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
   },
   deleteButton: {
     flex: 1,
