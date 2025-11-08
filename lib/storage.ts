@@ -38,6 +38,7 @@ export async function upsertProfileCore(
 export async function updateProfileFields(
   userId: string,
   fields: {
+    first_name?: string;
     hometown?: string;
     family_relationship?: 'supportive' | 'strained' | 'mixed' | 'unknown';
     university?: string;
@@ -442,6 +443,7 @@ export async function saveOnboardingResponse(
 export async function completeOnboarding(
   userId: string,
   onboardingData: {
+    first_name?: string;
     university?: string;
     hometown?: string;
     [key: string]: any;
@@ -467,6 +469,7 @@ export async function completeOnboarding(
       {
         user_id: userId,
         core_json: updatedCoreJson as any,
+        first_name: onboardingData.first_name || null,
         university: onboardingData.university || null,
         hometown: onboardingData.hometown || null,
       } as any,

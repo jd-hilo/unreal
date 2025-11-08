@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 export default function OnboardingLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="00-name" />
       <Stack.Screen name="01-now" />
       <Stack.Screen name="02-path" />
       <Stack.Screen name="03-values" />

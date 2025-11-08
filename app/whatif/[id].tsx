@@ -1,18 +1,69 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Card } from '@/components/Card';
-import { ArrowLeft, TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Weight, Heart, DollarSign, MapPin, Smile, Coffee } from 'lucide-react-native';
 
 export default function WhatIfResultScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const [whatIf, setWhatIf] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Floating animations for biometrics
+  const floatAnim1 = useRef(new Animated.Value(0)).current;
+  const floatAnim2 = useRef(new Animated.Value(0)).current;
+  const floatAnim3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadWhatIf();
+    
+    // Start floating animations
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim1, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim1, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+    
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim2, {
+          toValue: 1,
+          duration: 4000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim2, {
+          toValue: 0,
+          duration: 4000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+    
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim3, {
+          toValue: 1,
+          duration: 3500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim3, {
+          toValue: 0,
+          duration: 3500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
   }, [id]);
 
   async function loadWhatIf() {
@@ -134,6 +185,73 @@ export default function WhatIfResultScreen() {
             <Text style={styles.summaryText}>{whatIf.summary}</Text>
           </View>
         )}
+
+        {whatIf.biometrics && (
+          <View style={styles.biometricsSection}>
+            <Text style={styles.biometricsTitle}>Life Changes</Text>
+            <View style={styles.biometricsContainer}>
+              <Image 
+                source={require('@/app/profileman.png')}
+                style={styles.profileManImage}
+                resizeMode="contain"
+              />
+              
+              {whatIf.biometrics.weight && (
+                <Animated.View style={[styles.biometricBubble, styles.bubble1, {
+                  transform: [{ translateY: floatAnim1.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }) }]
+                }]}>
+                  <Weight size={16} color="#B795FF" />
+                  <Text style={styles.biometricText}>{whatIf.biometrics.weight.change}</Text>
+                </Animated.View>
+              )}
+              
+              {whatIf.biometrics.relationshipStatus && (
+                <Animated.View style={[styles.biometricBubble, styles.bubble2, {
+                  transform: [{ translateY: floatAnim2.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) }]
+                }]}>
+                  <Heart size={16} color="#EF4444" />
+                  <Text style={styles.biometricText}>{whatIf.biometrics.relationshipStatus.alternate}</Text>
+                </Animated.View>
+              )}
+              
+              {whatIf.biometrics.netWorth && (
+                <Animated.View style={[styles.biometricBubble, styles.bubble3, {
+                  transform: [{ translateY: floatAnim3.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }]
+                }]}>
+                  <DollarSign size={16} color="#10B981" />
+                  <Text style={styles.biometricText}>{whatIf.biometrics.netWorth.percentChange}</Text>
+                </Animated.View>
+              )}
+              
+              {whatIf.biometrics.location && (
+                <Animated.View style={[styles.biometricBubble, styles.bubble4, {
+                  transform: [{ translateY: floatAnim1.interpolate({ inputRange: [0, 1], outputRange: [0, -15] }) }]
+                }]}>
+                  <MapPin size={16} color="#F59E0B" />
+                  <Text style={styles.biometricText} numberOfLines={1}>{whatIf.biometrics.location.alternate.split(',')[0]}</Text>
+                </Animated.View>
+              )}
+              
+              {whatIf.biometrics.hobby && (
+                <Animated.View style={[styles.biometricBubble, styles.bubble5, {
+                  transform: [{ translateY: floatAnim2.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }) }]
+                }]}>
+                  <Coffee size={16} color="#8B5CF6" />
+                  <Text style={styles.biometricText}>{whatIf.biometrics.hobby.alternate}</Text>
+                </Animated.View>
+              )}
+              
+              {whatIf.biometrics.mood && (
+                <Animated.View style={[styles.biometricBubble, styles.bubble6, {
+                  transform: [{ translateY: floatAnim3.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) }]
+                }]}>
+                  <Smile size={16} color="#34D399" />
+                  <Text style={styles.biometricText}>{whatIf.biometrics.mood.alternate}</Text>
+                </Animated.View>
+              )}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -242,5 +360,74 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: 'rgba(200, 200, 200, 0.85)',
+  },
+  biometricsSection: {
+    marginTop: 32,
+    marginBottom: 20,
+  },
+  biometricsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  biometricsContainer: {
+    position: 'relative',
+    height: 300,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileManImage: {
+    width: 180,
+    height: 180,
+    opacity: 0.4,
+  },
+  biometricBubble: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(20, 18, 30, 0.9)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    shadowColor: '#B795FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  bubble1: {
+    top: 20,
+    left: 20,
+  },
+  bubble2: {
+    top: 40,
+    right: 15,
+  },
+  bubble3: {
+    top: 120,
+    left: 10,
+  },
+  bubble4: {
+    top: 140,
+    right: 10,
+  },
+  bubble5: {
+    bottom: 80,
+    left: 25,
+  },
+  bubble6: {
+    bottom: 70,
+    right: 20,
+  },
+  biometricText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    maxWidth: 100,
   },
 });

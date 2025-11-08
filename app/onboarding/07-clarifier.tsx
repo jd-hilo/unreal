@@ -55,7 +55,7 @@ export default function OnboardingStep7() {
   return (
     <OnboardingScreen
       title="Just a few quick details"
-      progress={100}
+      progress={87.5}
       onNext={handleComplete}
       nextLabel="Get Started"
     >

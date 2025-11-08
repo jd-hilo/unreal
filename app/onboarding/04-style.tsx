@@ -42,7 +42,7 @@ export default function OnboardingStep4() {
   return (
     <OnboardingScreen
       title="How do you usually make big decisions?"
-      progress={56}
+      progress={50}
       onNext={handleNext}
     >
       <View style={styles.container}>

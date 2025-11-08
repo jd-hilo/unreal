@@ -250,6 +250,75 @@ Return JSON:
   }
 }
 
+export async function deriveDecisionOptions(question: string): Promise<string[]> {
+  if (DEV_MODE) {
+    // Mock implementation for dev mode
+    if (question.toLowerCase().includes('should i') || question.toLowerCase().includes('should you')) {
+      return ['Yes', 'No'];
+    }
+    return ['Option A', 'Option B', 'Option C'];
+  }
+
+  const openai = getOpenAI();
+
+  const systemPrompt = `You are an AI that extracts or generates decision options from a question.
+
+Rules:
+1. If the question is yes/no ("Should I...?"), return ["Yes", "No"]
+2. If the question explicitly mentions options (e.g., "X or Y"), extract them
+3. If the question is open-ended, generate 2-4 reasonable, specific options
+4. Keep options concise (2-6 words each)
+5. Make options actionable and mutually exclusive
+
+Examples:
+Q: "Should I take the new job offer?"
+A: ["Yes", "No"]
+
+Q: "Should I move to NYC or stay in SF?"
+A: ["Move to NYC", "Stay in SF"]
+
+Q: "What should I do about my career?"
+A: ["Stay in current role", "Look for new opportunities", "Start own business", "Take a break/sabbatical"]`;
+
+  const userPrompt = `Question: "${question}"
+
+Return ONLY a JSON object with an "options" array. No other text.
+
+{
+  "options": ["option1", "option2", ...]
+}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('No response from AI');
+
+    const parsed = JSON.parse(content);
+    const options = parsed.options || [];
+    
+    // Ensure we have at least 2 options
+    if (options.length < 2) {
+      return ['Yes', 'No'];
+    }
+    
+    // Cap at 4 options
+    return options.slice(0, 4);
+  } catch (error) {
+    console.error('Option derivation error:', error);
+    // Fallback to yes/no
+    return ['Yes', 'No'];
+  }
+}
+
 export async function predictDecision({
   corePack,
   relevancePack,
@@ -285,7 +354,9 @@ Use only facts from the Relevance Pack when they help answer the question.
 Return calibrated probabilities for each option (summing to ~1), a concise rationale (2–4 sentences),
 top factors considered, and an uncertainty score (0–1, lower = more confident).
 
-Keep tone reflective, human, and emotionally grounded — not mechanical.`;
+Keep tone reflective, human, and emotionally grounded — not mechanical.
+
+CRITICAL: Write all text in SECOND PERSON (you/your), never third person. Address the user directly.`;
 
   const userPrompt = `Core Pack:
 
@@ -308,12 +379,14 @@ RETURN JSON with probabilities that sum to 1.0 based on YOUR actual analysis (do
 {
   "prediction": "<one_of_options>",
   "probs": {"<option1>": 0.XX, "<option2>": 0.XX},
-  "rationale": "2–4 sentences explaining your reasoning.",
+  "rationale": "2–4 sentences explaining your reasoning in SECOND PERSON (you/your).",
   "factors": ["values:freedom", "relationship:partner_4y_supportive", "decision_style:test-small"],
   "uncertainty": 0.XX
 }
 
-IMPORTANT: Generate probabilities based on the actual user context and decision - do NOT use 0.66 or 0.34 unless they truly reflect your analysis.`;
+IMPORTANT: 
+- Generate probabilities based on the actual user context and decision - do NOT use 0.66 or 0.34 unless they truly reflect your analysis
+- Write rationale in SECOND PERSON: "You tend to...", "Your values suggest...", never "They" or "The user"
 
   try {
     const response = await openai.chat.completions.create({
@@ -429,7 +502,9 @@ export async function generateTimelineSimulation(
 
   const openai = getOpenAI();
 
-  const systemPrompt = `You are a life trajectory simulator. Generate HYPER-SPECIFIC, concrete events with real details. Use actual numbers, specific places, named scenarios. Avoid generic statements.`;
+  const systemPrompt = `You are a life trajectory simulator. Generate HYPER-SPECIFIC, concrete events with real details. Use actual numbers, specific places, named scenarios. Avoid generic statements.
+
+CRITICAL: Write ALL events in SECOND PERSON (you/your). The user is living this timeline.`;
 
   const userPrompt = `User Context:
 
@@ -441,9 +516,15 @@ ${decision}
 Chosen Option:
 ${chosenOption}
 
-Generate a simple timeline of 5 HYPER-SPECIFIC events for each horizon (1 year, 3 years, 5 years, 10 years).
+Generate a timeline of 5 HYPER-SPECIFIC events for each horizon (1 year, 3 years, 5 years, 10 years).
 
-CRITICAL: Be HYPER-SPECIFIC with concrete details:
+CRITICAL REQUIREMENTS:
+1. DECISION RELEVANCE: Most events should DIRECTLY result from choosing "${chosenOption}" for the decision "${decision}"
+2. CURRENT LIFESTYLE: Incorporate relevant facts from the User Context (their job, location, relationships, values)
+3. CAUSAL CHAIN: Show how this decision creates a cascade of specific life changes
+4. BALANCE: 60-70% of events should be decision-specific, 30-40% natural life progression
+
+Be HYPER-SPECIFIC with concrete details:
 - Exact numbers ($X saved, X% growth, X hours per week, X people)
 - Generic locations (coffee shop, downtown, convention center, office) - NO brand names
 - Named people when relevant (can be hypothetical: "colleague Alex", "friend Jamie")
@@ -451,46 +532,47 @@ CRITICAL: Be HYPER-SPECIFIC with concrete details:
 - Precise timeframes (Month 3, Week 2, Year 1.5)
 - SHORT descriptions (1-2 sentences ONLY, prefer single sentence)
 
-GOOD examples (specific but no brands):
-- "Save $2,400 in high-yield savings account at 4.5% APY"
-- "Move to 2BR apartment downtown for $2,200/mo, 8 min walk to work"
-- "Lead team of 4 on major product launch, earn $15K performance bonus"
-- "Meet potential mentor at industry conference, exchange contact info, follow up Tuesday"
+GOOD examples (specific, second person, no brands):
+- "You save $2,400 in high-yield savings account at 4.5% APY"
+- "You move to 2BR apartment downtown for $2,200/mo, 8 min walk to work"
+- "You lead team of 4 on major product launch, earn $15K performance bonus"
+- "You meet potential mentor at industry conference, exchange contact info, follow up Tuesday"
 
 BAD examples:
 - Generic: "Professional growth continues" or "Financial situation improves"
 - Brand names: "Open Marcus savings account" or "Buy Starbucks franchise"
+- Third person: "User saves money" or "They move to new apartment"
 
 Return JSON:
 
 {
   "one_year": [
-    {"time": "Month 2", "title": "Save $3,200 in High-Yield Account", "description": "Open savings account at 4.5% APY. Automate $800/mo deposits every payday."},
-    {"time": "Month 5", "title": "Coffee Meeting With Industry Contact", "description": "Meet mentor contact introduced by college friend. 45-minute conversation leads to job referral."},
-    {"time": "Month 8", "title": "Finish Online Course, 84 Hours", "description": "Complete certification program. Final project scores 94/100. Add credential to profile."},
-    {"time": "Month 10", "title": "Sign Lease on $2,400/mo Apt", "description": "Move to new place 12 minutes from work. Commute drops from 75 to 12 minutes each way."},
-    {"time": "Year 1", "title": "Performance Review: $6,500 Bonus", "description": "Annual review results in 'Exceeds' rating. Receive $6,500 bonus and 4% salary increase to $87,400."}
+    {"time": "Month 2", "title": "Save $3,200 in High-Yield Account", "description": "You open savings account at 4.5% APY. Automate $800/mo deposits every payday."},
+    {"time": "Month 5", "title": "Coffee Meeting With Industry Contact", "description": "You meet mentor contact introduced by college friend. 45-minute conversation leads to job referral."},
+    {"time": "Month 8", "title": "Finish Online Course, 84 Hours", "description": "You complete certification program. Final project scores 94/100. Add credential to profile."},
+    {"time": "Month 10", "title": "Sign Lease on $2,400/mo Apt", "description": "You move to new place 12 minutes from work. Commute drops from 75 to 12 minutes each way."},
+    {"time": "Year 1", "title": "Performance Review: $6,500 Bonus", "description": "Your annual review results in 'Exceeds' rating. You receive $6,500 bonus and 4% salary increase to $87,400."}
   ],
   "three_year": [
-    {"time": "Year 1.5", "title": "Promotion to $112K Base Salary", "description": "Promoted to senior role managing 2 direct reports. Base salary increases from $87K to $112K plus new equity grant."},
-    {"time": "Year 2", "title": "7-Day International Trip, $2,800", "description": "Book flights for $640, accommodation $890 for week. First international solo trip fully paid in cash."},
-    {"time": "Year 2.5", "title": "Launch Side Consulting Practice", "description": "Start weekend consulting work. First client contract: $3,500 for 20 hours over 4 weeks."},
-    {"time": "Year 2.8", "title": "Move In Together, Split $2,600", "description": "Partner moves into your 2BR. You each pay $1,300/mo vs $2,400 solo, saving $1,100/mo combined."},
-    {"time": "Year 3", "title": "Investment Portfolio Hits $67K", "description": "Balances: $38K in 401k, $21K in index funds, $8K emergency fund. Compound growth accelerating."}
+    {"time": "Year 1.5", "title": "Promotion to $112K Base Salary", "description": "You're promoted to senior role managing 2 direct reports. Base salary increases from $87K to $112K plus new equity grant."},
+    {"time": "Year 2", "title": "7-Day International Trip, $2,800", "description": "You book flights for $640, accommodation $890 for week. First international solo trip fully paid in cash."},
+    {"time": "Year 2.5", "title": "Launch Side Consulting Practice", "description": "You start weekend consulting work. First client contract: $3,500 for 20 hours over 4 weeks."},
+    {"time": "Year 2.8", "title": "Move In Together, Split $2,600", "description": "Your partner moves into your 2BR. You each pay $1,300/mo vs $2,400 solo, saving $1,100/mo combined."},
+    {"time": "Year 3", "title": "Investment Portfolio Hits $67K", "description": "Your balances: $38K in 401k, $21K in index funds, $8K emergency fund. Compound growth accelerating."}
   ],
   "five_year": [
-    {"time": "Year 3.5", "title": "Present at Industry Conference, 220 People", "description": "Deliver 30-minute talk at convention center. 37 connection requests, 4 job inquiries follow."},
-    {"time": "Year 4", "title": "Buy $38K Electric Vehicle", "description": "Finance $32K over 5 years at 5.2% APR. Payment $605/mo, save $140/mo on fuel costs."},
-    {"time": "Year 4.5", "title": "Host Family Dinner for 12", "description": "Thanksgiving at your place for first time. Cook dinner, serve at 6pm. Dad says 'You made it.'"},
-    {"time": "Year 4.8", "title": "Complete Half Marathon in 1:58:42", "description": "Finish city half marathon after 14-week training plan. Beat goal by 8 minutes. Lost 15 lbs since starting."},
-    {"time": "Year 5", "title": "Accept $165K Offer at Growth Company", "description": "New job: Director role at 45-person startup. $140K base + $25K equity. Start date: March 15."}
+    {"time": "Year 3.5", "title": "Present at Industry Conference, 220 People", "description": "You deliver 30-minute talk at convention center. 37 connection requests, 4 job inquiries follow."},
+    {"time": "Year 4", "title": "Buy $38K Electric Vehicle", "description": "You finance $32K over 5 years at 5.2% APR. Payment $605/mo, save $140/mo on fuel costs."},
+    {"time": "Year 4.5", "title": "Host Family Dinner for 12", "description": "Thanksgiving at your place for first time. You cook dinner, serve at 6pm. Dad says 'You made it.'"},
+    {"time": "Year 4.8", "title": "Complete Half Marathon in 1:58:42", "description": "You finish city half marathon after 14-week training plan. Beat goal by 8 minutes. Lost 15 lbs since starting."},
+    {"time": "Year 5", "title": "Accept $165K Offer at Growth Company", "description": "Your new job: Director role at 45-person startup. $140K base + $25K equity. Start date: March 15."}
   ],
   "ten_year": [
-    {"time": "Year 6.5", "title": "$85K Down Payment on $475K Home", "description": "Close on 2BR/2BA property. Mortgage $2,850/mo at 6.1%. Build equity vs renting."},
-    {"time": "Year 7.5", "title": "Consulting Revenue: $95K/Year", "description": "Side practice nets $7,900/mo with 6 retainer clients. Hire assistant for $1,800/mo to handle admin."},
-    {"time": "Year 8.5", "title": "10-Week International Sabbatical", "description": "Take July-Sept unpaid leave. Budget $16,500 for multi-country trip. Return with 200+ photos and fresh energy."},
-    {"time": "Year 9", "title": "Mentor 4 People Through Program", "description": "Official mentor in company program. Meet mentees bi-weekly for coffee. One mentee gets promoted within 8 months."},
-    {"time": "Year 10", "title": "Net Worth Reaches $380K", "description": "Assets: $165K home equity, $125K in retirement, $55K brokerage, $35K cash. Average monthly expenses: $4,200."}
+    {"time": "Year 6.5", "title": "$85K Down Payment on $475K Home", "description": "You close on 2BR/2BA property. Mortgage $2,850/mo at 6.1%. Build equity vs renting."},
+    {"time": "Year 7.5", "title": "Consulting Revenue: $95K/Year", "description": "Your side practice nets $7,900/mo with 6 retainer clients. You hire assistant for $1,800/mo to handle admin."},
+    {"time": "Year 8.5", "title": "10-Week International Sabbatical", "description": "You take July-Sept unpaid leave. Budget $16,500 for multi-country trip. Return with 200+ photos and fresh energy."},
+    {"time": "Year 9", "title": "Mentor 4 People Through Program", "description": "You're official mentor in company program. Meet mentees bi-weekly for coffee. One mentee gets promoted within 8 months."},
+    {"time": "Year 10", "title": "Net Worth Reaches $380K", "description": "Your assets: $165K home equity, $125K in retirement, $55K brokerage, $35K cash. Average monthly expenses: $4,200."}
   ]
 }`;
 
@@ -518,32 +600,32 @@ Return JSON:
 function mockTimelineSimulation(): TimelineSimulation {
   return {
     one_year: [
-      { time: "Month 2", title: "Save $1,800 Emergency Fund", description: "Deposit $450 bi-weekly into high-yield savings at 4.3% APY. Account balance reaches $1,800." },
-      { time: "Month 5", title: "Networking Event Downtown", description: "Attend tech meetup with 45 people. Exchange cards with 3 founders, follow up with coffee next week." },
-      { time: "Month 8", title: "Complete Online Course, 62 Hours", description: "Finish certification program. Build portfolio project: task manager app with 847 lines of code." },
-      { time: "Month 10", title: "Lease Sedan, $385/mo", description: "Trade in old vehicle for certified pre-owned newer model. 36-month lease, 12K miles/year allowance." },
-      { time: "Year 1", title: "Bonus Check: $4,200 After Tax", description: "Year-end performance bonus deposits Dec 15. Transfer $3,000 to index funds, spend $1,200 on gifts." }
+      { time: "Month 2", title: "Save $1,800 Emergency Fund", description: "You deposit $450 bi-weekly into high-yield savings at 4.3% APY. Account balance reaches $1,800." },
+      { time: "Month 5", title: "Networking Event Downtown", description: "You attend tech meetup with 45 people. Exchange cards with 3 founders, follow up with coffee next week." },
+      { time: "Month 8", title: "Complete Online Course, 62 Hours", description: "You finish certification program. Build portfolio project: task manager app with 847 lines of code." },
+      { time: "Month 10", title: "Lease Sedan, $385/mo", description: "You trade in old vehicle for certified pre-owned newer model. 36-month lease, 12K miles/year allowance." },
+      { time: "Year 1", title: "Bonus Check: $4,200 After Tax", description: "Your year-end performance bonus deposits Dec 15. You transfer $3,000 to index funds, spend $1,200 on gifts." }
     ],
     three_year: [
-      { time: "Year 1.5", title: "Salary Bump to $95K", description: "Promotion from associate to senior associate. Base increases from $82K to $95K, vesting schedule resets." },
-      { time: "Year 2", title: "Weekend Trip Out of State, $1,650", description: "Fly budget airline $280, accommodation $420 for 3 nights. Attend 2 concerts, explore local restaurants." },
-      { time: "Year 2.5", title: "Freelance Client Pays $5,500", description: "Complete 3-month contract building website. Work 8 hours/week remotely. Client renews for Phase 2." },
-      { time: "Year 2.8", title: "Sign Joint Lease, $2,200/mo", description: "Move to larger apartment with partner. You pay $1,100 each, includes parking spot and gym access." },
-      { time: "Year 3", title: "401k Balance Crosses $52K", description: "Contributions: $19.5K/year, employer match $5.8K, market gains $8.2K. Portfolio: 80% stocks, 20% bonds." }
+      { time: "Year 1.5", title: "Salary Bump to $95K", description: "You get promoted from associate to senior associate. Base increases from $82K to $95K, vesting schedule resets." },
+      { time: "Year 2", title: "Weekend Trip Out of State, $1,650", description: "You fly budget airline $280, accommodation $420 for 3 nights. Attend 2 concerts, explore local restaurants." },
+      { time: "Year 2.5", title: "Freelance Client Pays $5,500", description: "You complete 3-month contract building website. Work 8 hours/week remotely. Client renews for Phase 2." },
+      { time: "Year 2.8", title: "Sign Joint Lease, $2,200/mo", description: "You move to larger apartment with partner. You each pay $1,100, includes parking spot and gym access." },
+      { time: "Year 3", title: "401k Balance Crosses $52K", description: "Your contributions: $19.5K/year, employer match $5.8K, market gains $8.2K. Portfolio: 80% stocks, 20% bonds." }
     ],
     five_year: [
-      { time: "Year 3.5", title: "Speak to 180 at State Conference", description: "Keynote slot 10:30am Saturday. Presentation runs 35 minutes plus Q&A. 4 media mentions in industry blogs." },
-      { time: "Year 4", title: "Purchase Electric Car for $32K", description: "Buy outright with savings. Charging costs $45/mo vs $220 gas. Resale value holds at 78%." },
-      { time: "Year 4.5", title: "Host Engagement Party, 28 Guests", description: "Announce engagement at your place. Catering costs $680. Champagne toast at 8pm." },
-      { time: "Year 4.8", title: "Run Marathon in 4:12:18", description: "City marathon finish: 26.2 miles. Training plan: 18 weeks, peak mileage 45 mi/week. Lost 22 lbs total." },
-      { time: "Year 5", title: "Accept VP Role at $185K + Equity", description: "Join 120-person company as VP. $155K salary, $30K stock/year, 0.4% equity. Manage team of 8." }
+      { time: "Year 3.5", title: "Speak to 180 at State Conference", description: "You get keynote slot 10:30am Saturday. Presentation runs 35 minutes plus Q&A. 4 media mentions in industry blogs." },
+      { time: "Year 4", title: "Purchase Electric Car for $32K", description: "You buy outright with savings. Charging costs $45/mo vs $220 gas. Resale value holds at 78%." },
+      { time: "Year 4.5", title: "Host Engagement Party, 28 Guests", description: "You announce engagement at your place. Catering costs $680. Champagne toast at 8pm." },
+      { time: "Year 4.8", title: "Run Marathon in 4:12:18", description: "You finish city marathon: 26.2 miles. Training plan: 18 weeks, peak mileage 45 mi/week. Lost 22 lbs total." },
+      { time: "Year 5", title: "Accept VP Role at $185K + Equity", description: "You join 120-person company as VP. $155K salary, $30K stock/year, 0.4% equity. Manage team of 8." }
     ],
     ten_year: [
-      { time: "Year 6.5", title: "Close on $520K House, 3BR/2BA", description: "Buy property in desirable neighborhood. Put down $104K (20%), mortgage $3,280/mo at 5.8% for 30 years." },
-      { time: "Year 7.5", title: "Consulting Income: $142K/Year", description: "11 active clients paying $1,800-$3,200/mo retainers. Total monthly revenue $11,800, net after costs $9,500." },
-      { time: "Year 8.5", title: "3-Month International Sabbatical", description: "Visit multiple countries Sept-Dec. Budget $22,000 total. Document journey with 1,800+ photos." },
-      { time: "Year 9", title: "Mentor 6 Emerging Leaders", description: "Run bi-weekly 1-on-1s with mentees. 3 get promoted within 12 months. Start monthly group dinner series." },
-      { time: "Year 10", title: "Net Worth Hits $625K", description: "Breakdown: $245K home equity, $215K retirement accounts, $105K brokerage, $60K cash. Debt: $12K car loan only." }
+      { time: "Year 6.5", title: "Close on $520K House, 3BR/2BA", description: "You buy property in desirable neighborhood. Put down $104K (20%), mortgage $3,280/mo at 5.8% for 30 years." },
+      { time: "Year 7.5", title: "Consulting Income: $142K/Year", description: "Your 11 active clients pay $1,800-$3,200/mo retainers. Total monthly revenue $11,800, net after costs $9,500." },
+      { time: "Year 8.5", title: "3-Month International Sabbatical", description: "You visit multiple countries Sept-Dec. Budget $22,000 total. Document journey with 1,800+ photos." },
+      { time: "Year 9", title: "Mentor 6 Emerging Leaders", description: "You run bi-weekly 1-on-1s with mentees. 3 get promoted within 12 months. You start monthly group dinner series." },
+      { time: "Year 10", title: "Net Worth Hits $625K", description: "Your breakdown: $245K home equity, $215K retirement accounts, $105K brokerage, $60K cash. Debt: $12K car loan only." }
     ]
   };
 }
@@ -551,7 +633,7 @@ function mockTimelineSimulation(): TimelineSimulation {
 export async function runWhatIf(
   baselineSummary: string,
   userText: string
-): Promise<{ metrics: WhatIfMetrics; summary: string }> {
+): Promise<{ metrics: WhatIfMetrics; summary: string; biometrics?: any }> {
   if (DEV_MODE) {
     return mockWhatIf();
   }
@@ -565,7 +647,8 @@ IMPORTANT:
 - Generate the "alternate" values based on how that specific counterfactual would have changed things
 - Values should be on a scale of 0-10
 - Make meaningful differences - avoid tiny changes unless truly warranted
-- Consider second-order effects (e.g., better job = more money but maybe less freedom)`;
+- Consider second-order effects (e.g., better job = more money but maybe less freedom)
+- Include specific biometric predictions`;
 
   const userPrompt = `Current baseline summary:
 
@@ -575,9 +658,7 @@ Counterfactual prompt:
 
 ${userText}
 
-Analyze how this alternate choice would have affected their life across 5 dimensions. For each metric, provide:
-- "current": Their actual current state (0-10 scale based on baseline)
-- "alternate": Where they'd likely be if they'd made the alternate choice (0-10 scale)
+Analyze how this alternate choice would have affected their life across 5 dimensions AND specific biometrics.
 
 Return JSON (do NOT copy these example numbers - generate based on actual analysis):
 
@@ -589,7 +670,15 @@ Return JSON (do NOT copy these example numbers - generate based on actual analys
     "freedom": {"current": X.X, "alternate": X.X},
     "growth": {"current": X.X, "alternate": X.X}
   },
-  "summary": "One paragraph comparing the two trajectories and explaining key differences."
+  "biometrics": {
+    "weight": {"current": "Xkg", "alternate": "Xkg", "change": "+X kg or -X kg"},
+    "relationshipStatus": {"current": "single/dating/partnered/married", "alternate": "..."},
+    "netWorth": {"current": "$XXk", "alternate": "$XXk", "percentChange": "+X% or -X%"},
+    "location": {"current": "City, State", "alternate": "City, State"},
+    "hobby": {"current": "hobby name", "alternate": "hobby name"},
+    "mood": {"current": "typical mood", "alternate": "typical mood"}
+  },
+  "summary": "One paragraph in SECOND PERSON (you/your) comparing the two trajectories and explaining key differences."
 }
 
 CRITICAL: Generate values based on YOUR analysis of the baseline and counterfactual, not the example format above.`;
@@ -698,7 +787,7 @@ function mockDecisionPrediction(options: string[]): DecisionPrediction {
     prediction: options[0],
     probs,
     rationale:
-      'Based on your core values and past decision patterns, this option aligns best with your long-term goals.',
+      'Based on your core values and past decision patterns, you tend to prioritize long-term growth over short-term comfort. Your analytical approach suggests this option aligns best with your goals.',
     factors: ['values:growth', 'relationship:supportive', 'decision_style:analytical'],
     uncertainty: 0.3,
   };
@@ -719,7 +808,7 @@ function mockSimulation(): SimulationScenario {
   };
 }
 
-function mockWhatIf(): { metrics: WhatIfMetrics; summary: string } {
+function mockWhatIf(): { metrics: WhatIfMetrics; summary: string; biometrics: any } {
   return {
     metrics: {
       happiness: { current: 7.2, alternate: 6.8 },
@@ -728,8 +817,16 @@ function mockWhatIf(): { metrics: WhatIfMetrics; summary: string } {
       freedom: { current: 7.5, alternate: 6.5 },
       growth: { current: 7.8, alternate: 7.2 },
     },
+    biometrics: {
+      weight: { current: "75kg", alternate: "80kg", change: "+5 kg" },
+      relationshipStatus: { current: "partnered", alternate: "single" },
+      netWorth: { current: "$45k", alternate: "$85k", percentChange: "+89%" },
+      location: { current: "San Francisco, CA", alternate: "New York, NY" },
+      hobby: { current: "hiking", alternate: "photography" },
+      mood: { current: "content", alternate: "stressed" }
+    },
     summary:
-      'In this alternate timeline, you would likely have higher financial security but lower personal freedom and relationship satisfaction. Your current path appears to prioritize personal fulfillment over purely financial metrics.',
+      'In this alternate timeline, you would likely have higher financial security but lower personal freedom and relationship satisfaction. Your current path prioritizes personal fulfillment over purely financial metrics, which aligns with your core values.',
   };
 }
 

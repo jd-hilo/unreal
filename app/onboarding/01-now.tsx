@@ -52,7 +52,7 @@ export default function OnboardingStep1() {
     <OnboardingScreen
       title="Where are you in life right now?"
       subtitle="Help your AI twin understand your current situation"
-      progress={25}
+      progress={12.5}
       onNext={handleNext}
       canContinue={text.trim().length > 0}
     >

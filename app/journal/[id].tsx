@@ -107,7 +107,7 @@ export default function ViewJournalScreen() {
           {format(new Date(journal.created_at), 'MMMM d, yyyy')}
         </Text>
         <Text style={styles.subtitle}>
-          {format(new Date(journal.created_at), 'EEEE')}
+          {format(new Date(journal.created_at), 'EEEE • ' + format(new Date(journal.created_at), 'h:mm a'))}
         </Text>
       </View>
 
@@ -116,30 +116,37 @@ export default function ViewJournalScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        <Card style={styles.moodCard}>
-          <View style={styles.moodIcon}>
+        <View style={styles.moodCard}>
+          <View style={styles.moodIconContainer}>
             {getMoodEmoji(journal.mood)}
           </View>
           <Text style={styles.moodLabel}>
             {getMoodLabel(journal.mood)}
           </Text>
-        </Card>
+        </View>
 
         {journal.text && (
-          <Card style={styles.textCard}>
+          <View style={styles.textCard}>
             <Text style={styles.text}>{journal.text}</Text>
-          </Card>
+            <View style={styles.textMeta}>
+              <Text style={styles.wordCount}>
+                {journal.text.split(/\s+/).filter(Boolean).length} words
+              </Text>
+            </View>
+          </View>
         )}
 
-        <Button
-          title="Delete Entry"
+        <TouchableOpacity
           onPress={handleDelete}
-          loading={deleting}
-          variant="outline"
-          size="medium"
-          icon={<Trash2 size={18} color="#EF4444" />}
-          style={styles.deleteButton}
-        />
+          disabled={deleting}
+          style={[styles.deleteButton, deleting && styles.deleteButtonDisabled]}
+          activeOpacity={0.7}
+        >
+          <Trash2 size={18} color="#EF4444" />
+          <Text style={styles.deleteButtonText}>
+            {deleting ? 'Deleting...' : 'Delete Entry'}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -169,41 +176,83 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: 0.3,
   },
   subtitle: {
-    fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    fontSize: 15,
+    color: 'rgba(200, 200, 200, 0.7)',
+    letterSpacing: 0.2,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
     padding: 24,
-    gap: 24,
+    gap: 28,
   },
   moodCard: {
     alignItems: 'center',
-    padding: 24,
+    padding: 28,
+    backgroundColor: 'rgba(20, 18, 30, 0.5)',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
   },
-  moodIcon: {
-    marginBottom: 12,
+  moodIconContainer: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: 'rgba(10, 8, 15, 0.6)',
+    borderRadius: 32,
   },
   moodLabel: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
   textCard: {
-    padding: 24,
+    padding: 26,
+    backgroundColor: 'rgba(20, 18, 30, 0.4)',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(59, 37, 109, 0.25)',
   },
   text: {
-    fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.85)',
-    lineHeight: 24,
+    fontSize: 17,
+    color: 'rgba(220, 220, 220, 0.9)',
+    lineHeight: 28,
+    letterSpacing: 0.2,
+  },
+  textMeta: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(59, 37, 109, 0.2)',
+  },
+  wordCount: {
+    fontSize: 13,
+    color: 'rgba(200, 200, 200, 0.5)',
   },
   deleteButton: {
-    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 8,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+  },
+  deleteButtonDisabled: {
+    opacity: 0.5,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#EF4444',
   },
 });
 

@@ -42,7 +42,7 @@ export default function OnboardingStep6() {
   return (
     <OnboardingScreen
       title="When things get hard, how do you usually react?"
-      progress={84}
+      progress={75}
       onNext={handleNext}
     >
       <View style={styles.container}>

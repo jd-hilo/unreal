@@ -6,6 +6,7 @@ export interface Database {
       profiles: {
         Row: {
           user_id: string;
+          first_name: string | null;
           hometown: string | null;
           family_relationship: 'supportive' | 'strained' | 'mixed' | 'unknown' | null;
           university: string | null;
@@ -20,6 +21,7 @@ export interface Database {
         };
         Insert: {
           user_id: string;
+          first_name?: string | null;
           hometown?: string | null;
           family_relationship?: 'supportive' | 'strained' | 'mixed' | 'unknown' | null;
           university?: string | null;
@@ -34,6 +36,7 @@ export interface Database {
         };
         Update: {
           user_id?: string;
+          first_name?: string | null;
           hometown?: string | null;
           family_relationship?: 'supportive' | 'strained' | 'mixed' | 'unknown' | null;
           university?: string | null;
@@ -288,6 +291,15 @@ export interface WhatIfMetrics {
   relationship?: { current: number; alternate: number };
   freedom?: { current: number; alternate: number };
   growth?: { current: number; alternate: number };
+}
+
+export interface WhatIfBiometrics {
+  weight?: { current: string; alternate: string; change: string };
+  relationshipStatus?: { current: string; alternate: string };
+  netWorth?: { current: string; alternate: string; percentChange: string };
+  location?: { current: string; alternate: string };
+  hobby?: { current: string; alternate: string };
+  mood?: { current: string; alternate: string };
 }
 
 export interface RelationshipExtraction {

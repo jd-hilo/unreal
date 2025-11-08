@@ -43,7 +43,7 @@ export default function OnboardingStep2() {
     <OnboardingScreen
       title="How did you get here?"
       subtitle="Tell your twin about your life journey so far"
-      progress={50}
+      progress={25}
       onNext={handleNext}
       canContinue={text.trim().length > 0}
     >

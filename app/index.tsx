@@ -29,7 +29,7 @@ export default function Index() {
     checkOnboardingStatus(user.id).then(() => {
       const isComplete = useTwin.getState().onboardingComplete;
       if (!isComplete) {
-        router.replace('/onboarding/01-now');
+        router.replace('/onboarding/00-name');
       } else {
         router.replace('/(tabs)/home');
       }

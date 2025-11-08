@@ -42,7 +42,7 @@ export default function OnboardingStep5() {
   return (
     <OnboardingScreen
       title="Walk me through a typical day"
-      progress={70}
+      progress={62.5}
       onNext={handleNext}
     >
       <View style={styles.container}>

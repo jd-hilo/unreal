@@ -1,15 +1,17 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile } from '@/lib/storage';
-import { Compass, Sparkles } from 'lucide-react-native';
+import { getDecisions, getProfile, getWhatIfs } from '@/lib/storage';
+import { Compass, Sparkles, Zap } from 'lucide-react-native';
 import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { formatDistanceToNow } from 'date-fns';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as StoreReview from 'expo-store-review';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -17,6 +19,7 @@ export default function HomeScreen() {
   const { checkOnboardingStatus } = useTwin();
   const [userName, setUserName] = useState('there');
   const [recentDecisions, setRecentDecisions] = useState<any[]>([]);
+  const [recentWhatIfs, setRecentWhatIfs] = useState<any[]>([]);
   const [isLoadingDecisions, setIsLoadingDecisions] = useState(true);
   
   // Animation values
@@ -34,7 +37,7 @@ export default function HomeScreen() {
       .then(() => {
         const isComplete = useTwin.getState().onboardingComplete;
         if (!isComplete) {
-          router.replace('/onboarding/01-now');
+          router.replace('/onboarding/00-name');
           return;
         }
         loadData();
@@ -50,7 +53,7 @@ export default function HomeScreen() {
 
     try {
       const profile = await getProfile(user.id);
-      const profileName = profile?.core_json?.name || profile?.core_json?.primary_role;
+      const profileName = profile?.first_name || profile?.core_json?.name || profile?.core_json?.primary_role;
       const metadataName = (user.user_metadata as any)?.full_name || (user.user_metadata as any)?.name;
 
       if (profileName) {
@@ -61,8 +64,15 @@ export default function HomeScreen() {
         setUserName(user.email.split('@')[0]);
       }
 
-      const decisions = await getDecisions(user.id, 3);
+      const [decisions, whatIfs] = await Promise.all([
+        getDecisions(user.id, 5),
+        getWhatIfs(user.id, 5)
+      ]);
       setRecentDecisions(decisions);
+      setRecentWhatIfs(whatIfs);
+      
+      // Check if we should show rating prompt
+      await checkAndShowRatingPrompt();
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -84,6 +94,34 @@ export default function HomeScreen() {
     }
   }
 
+  async function checkAndShowRatingPrompt() {
+    if (Platform.OS !== 'ios') return;
+
+    try {
+      // Check if rating has been requested before
+      const hasRequestedRating = await AsyncStorage.getItem('hasRequestedRating');
+      if (hasRequestedRating) return;
+
+      // Check if this is first visit after onboarding
+      const isFirstVisit = await AsyncStorage.getItem('isFirstHomeVisit');
+      if (isFirstVisit !== null) return; // Not first visit
+
+      // Mark as first visit completed
+      await AsyncStorage.setItem('isFirstHomeVisit', 'true');
+
+      // Wait 3 seconds before showing rating prompt
+      setTimeout(async () => {
+        const isAvailable = await StoreReview.hasAction();
+        if (isAvailable) {
+          await StoreReview.requestReview();
+          await AsyncStorage.setItem('hasRequestedRating', 'true');
+        }
+      }, 3000);
+    } catch (error) {
+      console.warn('Failed to show rating prompt:', error);
+    }
+  }
+
   function getRelativeUpdate(dateInput?: string | null) {
     if (!dateInput) return 'Tap to revisit';
 
@@ -100,31 +138,52 @@ export default function HomeScreen() {
     }
   }
 
-  const echoEntries = recentDecisions.length
-    ? recentDecisions.map((decision) => ({
-        id: decision.id,
-        title: decision.question || 'Untitled Echo',
-        subtitle: getRelativeUpdate(decision.updated_at || decision.created_at),
-        detail: decision?.prediction?.prediction || 'Revisit this path.',
-        route: `/decision/${decision.id}` as const,
-        isPlaceholder: false,
-      }))
+  // Merge decisions and what-ifs, sort by date
+  const allEchoes = [
+    ...recentDecisions.map((decision) => ({
+      id: decision.id,
+      type: 'decision' as const,
+      title: decision.question || 'Untitled Decision',
+      subtitle: getRelativeUpdate(decision.updated_at || decision.created_at),
+      detail: decision?.prediction?.prediction || 'Revisit this path.',
+      route: `/decision/${decision.id}` as const,
+      isPlaceholder: false,
+      timestamp: new Date(decision.updated_at || decision.created_at).getTime(),
+    })),
+    ...recentWhatIfs.map((whatIf) => ({
+      id: whatIf.id,
+      type: 'whatif' as const,
+      title: whatIf.payload?.question || 'What If Scenario',
+      subtitle: getRelativeUpdate(whatIf.created_at),
+      detail: 'Explore alternate reality',
+      route: `/whatif/${whatIf.id}` as const,
+      isPlaceholder: false,
+      timestamp: new Date(whatIf.created_at).getTime(),
+    }))
+  ].sort((a, b) => b.timestamp - a.timestamp).slice(0, 6);
+
+  const echoEntries = allEchoes.length > 0
+    ? allEchoes
     : [
         {
           id: 'echo-job-offer-placeholder',
+          type: 'decision' as const,
           title: 'Job Offer',
           subtitle: 'Last visited 2 days ago',
           detail: 'Compare the paths you saved.',
           isPlaceholder: true,
           route: undefined as string | undefined,
+          timestamp: 0,
         },
         {
           id: 'echo-career-placeholder',
+          type: 'decision' as const,
           title: 'Career Path',
           subtitle: '3 outcomes simulated',
           detail: 'Hop back into your futures.',
           isPlaceholder: true,
           route: undefined as string | undefined,
+          timestamp: 0,
         },
       ];
 
@@ -258,6 +317,15 @@ export default function HomeScreen() {
                       end={{ x: 1, y: 0.5 }}
                       style={styles.echoCard}
                     >
+                      {!echo.isPlaceholder && (
+                        <View style={styles.echoTypeBadge}>
+                          {echo.type === 'whatif' ? (
+                            <Sparkles size={12} color="#B795FF" />
+                          ) : (
+                            <Compass size={12} color="#8A5CFF" />
+                          )}
+                        </View>
+                      )}
                       <Text style={styles.echoTitle} numberOfLines={3}>
                         {echo.title}
                       </Text>
@@ -476,6 +544,20 @@ const styles = StyleSheet.create({
     padding: 20,
     minHeight: 140,
     justifyContent: 'space-between',
+    position: 'relative',
+  },
+  echoTypeBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(183, 149, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
   },
   echoTitle: {
     fontSize: 16,
@@ -483,6 +565,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 10,
     lineHeight: 22,
+    paddingRight: 36,
   },
   echoMeta: {
     fontSize: 12,

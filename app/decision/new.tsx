@@ -1,11 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Animated } from 'react-native';
-import { useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
-import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
-import { X, Plus, ArrowLeft, Sparkles, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, ChevronRight } from 'lucide-react-native';
 import { insertDecision, updateDecisionPrediction } from '@/lib/storage';
 import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
@@ -15,32 +13,32 @@ export default function NewDecisionScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [question, setQuestion] = useState('');
-  const [options, setOptions] = useState(['', '']);
+  const [derivedOptions, setDerivedOptions] = useState<string[]>([]);
+  const [isDerivingOptions, setIsDerivingOptions] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showDerivedOptions, setShowDerivedOptions] = useState(false);
 
-  function addOption() {
-    if (options.length < 4) {
-      setOptions([...options, '']);
+  async function handleDeriveOptions() {
+    if (!question.trim()) return;
+
+    setIsDerivingOptions(true);
+    setShowDerivedOptions(false);
+
+    try {
+      const { deriveDecisionOptions } = await import('@/lib/ai');
+      const options = await deriveDecisionOptions(question.trim());
+      setDerivedOptions(options);
+      setShowDerivedOptions(true);
+    } catch (error) {
+      console.error('Option derivation error:', error);
+      alert('Failed to analyze your question. Please try again.');
+    } finally {
+      setIsDerivingOptions(false);
     }
-  }
-
-  function removeOption(index: number) {
-    if (options.length > 2) {
-      setOptions(options.filter((_, i) => i !== index));
-    }
-  }
-
-  function updateOption(index: number, value: string) {
-    const newOptions = [...options];
-    newOptions[index] = value;
-    setOptions(newOptions);
   }
 
   async function handleSubmit() {
-    if (!user || !question.trim()) return;
-
-    const validOptions = options.filter((opt) => opt.trim());
-    if (validOptions.length < 2) return;
+    if (!user || !question.trim() || derivedOptions.length < 2) return;
 
     setLoading(true);
 
@@ -48,7 +46,7 @@ export default function NewDecisionScreen() {
       console.log('Creating decision...');
       const decision = await insertDecision(user.id, {
         question: question.trim(),
-        options: validOptions,
+        options: derivedOptions,
         status: 'pending',
       });
 
@@ -66,7 +64,7 @@ export default function NewDecisionScreen() {
         corePack,
         relevancePack,
         question: question.trim(),
-        options: validOptions,
+        options: derivedOptions,
       });
 
       console.log('AI prediction received:', {
@@ -89,8 +87,8 @@ export default function NewDecisionScreen() {
     }
   }
 
-  const validOptions = options.filter((o) => o.trim());
-  const canSubmit = question.trim() && validOptions.length >= 2;
+  const canAnalyze = question.trim().length > 10 && !isDerivingOptions;
+  const canSubmit = derivedOptions.length >= 2 && !loading;
 
   return (
     <KeyboardAvoidingView
@@ -118,70 +116,73 @@ export default function NewDecisionScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>What's your decision?</Text>
           <View style={styles.questionCard}>
-        <Input
-              placeholder="E.g., Should I take the new job offer?"
-          value={question}
-          onChangeText={setQuestion}
-          multiline
+            <Input
+              placeholder="E.g., Should I take the new job offer? or What should I do about my career?"
+              value={question}
+              onChangeText={(text) => {
+                setQuestion(text);
+                setShowDerivedOptions(false);
+                setDerivedOptions([]);
+              }}
+              multiline
               numberOfLines={4}
-          style={styles.questionInput}
+              style={styles.questionInput}
               containerStyle={styles.inputContainer}
             />
           </View>
-        </View>
-
-        {/* Options Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionLabel}>Your options</Text>
-            <Text style={styles.sectionHint}>{validOptions.length} of 4</Text>
-          </View>
-
-          <View style={styles.optionsContainer}>
-        {options.map((option, index) => (
-              <View key={index} style={styles.optionCard}>
-                <View style={styles.optionNumber}>
-                  <Text style={styles.optionNumberText}>{index + 1}</Text>
-                </View>
-            <Input
-                  placeholder={index === 0 ? "Accept the job" : index === 1 ? "Stay at current job" : `Option ${index + 1}`}
-              value={option}
-              onChangeText={(value) => updateOption(index, value)}
-                  containerStyle={styles.optionInputContainer}
-                  style={styles.optionInput}
-            />
-            {options.length > 2 && (
-              <TouchableOpacity
-                onPress={() => removeOption(index)}
-                style={styles.removeButton}
-              >
-                    <View style={styles.removeButtonInner}>
-                      <X size={16} color="rgba(200, 200, 200, 0.75)" />
-                    </View>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
-          </View>
-
-        {options.length < 4 && (
+          
+          {!showDerivedOptions && (
             <TouchableOpacity
-            onPress={addOption}
-              style={styles.addOptionButton}
+              onPress={handleDeriveOptions}
+              disabled={!canAnalyze}
+              style={[
+                styles.analyzeButton,
+                !canAnalyze && styles.analyzeButtonDisabled
+              ]}
               activeOpacity={0.7}
             >
-              <View style={styles.addOptionIcon}>
-                <Plus size={20} color="#B795FF" />
-              </View>
-              <Text style={styles.addOptionText}>Add another option</Text>
+              <Sparkles size={20} color={canAnalyze ? "#B795FF" : "rgba(183, 149, 255, 0.5)"} />
+              <Text style={[
+                styles.analyzeButtonText,
+                !canAnalyze && styles.analyzeButtonTextDisabled
+              ]}>
+                {isDerivingOptions ? 'Analyzing...' : 'Analyze Question'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
 
+        {/* Derived Options Section */}
+        {showDerivedOptions && derivedOptions.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>Your options</Text>
+              <TouchableOpacity onPress={handleDeriveOptions}>
+                <Text style={styles.refreshText}>↻ Regenerate</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.optionsContainer}>
+              {derivedOptions.map((option, index) => (
+                <View key={index} style={styles.optionCard}>
+                  <View style={styles.optionNumber}>
+                    <Text style={styles.optionNumberText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.optionTextContainer}>
+                    <Text style={styles.optionText}>{option}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Helper Text */}
         <View style={styles.helperCard}>
           <Text style={styles.helperText}>
-            💡 Add at least 2 options. Your Twin will analyze each path based on your values, goals, and past decisions.
+            {!showDerivedOptions 
+              ? '✨ AI will automatically understand your question and identify the options for you'
+              : '💡 Your Twin will analyze each path based on your values, goals, and past decisions'}
           </Text>
         </View>
       </ScrollView>
@@ -290,6 +291,35 @@ const styles = StyleSheet.create({
     minHeight: 100,
     textAlignVertical: 'top',
   },
+  analyzeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(183, 149, 255, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(183, 149, 255, 0.4)',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 12,
+    gap: 8,
+  },
+  analyzeButtonDisabled: {
+    backgroundColor: 'rgba(59, 37, 109, 0.2)',
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+  },
+  analyzeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#B795FF',
+  },
+  analyzeButtonTextDisabled: {
+    color: 'rgba(183, 149, 255, 0.5)',
+  },
+  refreshText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#B795FF',
+  },
   optionsContainer: {
     gap: 12,
   },
@@ -316,51 +346,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#B795FF',
   },
-  optionInputContainer: {
+  optionTextContainer: {
     flex: 1,
-    marginBottom: 0,
   },
-  optionInput: {
-    minHeight: 20,
-  },
-  removeButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeButtonInner: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(59, 37, 109, 0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addOptionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 8,
-    gap: 8,
-  },
-  addOptionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(183, 149, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addOptionText: {
+  optionText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#B795FF',
+    color: '#FFFFFF',
+    lineHeight: 22,
   },
   helperCard: {
     backgroundColor: 'rgba(183, 149, 255, 0.1)',
