@@ -1,13 +1,14 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Image } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
-import { ArrowLeft, Sparkles, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { insertDecision, updateDecisionPrediction } from '@/lib/storage';
 import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
 export default function NewDecisionScreen() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function NewDecisionScreen() {
   const [showDerivedOptions, setShowDerivedOptions] = useState(false);
 
   async function handleDeriveOptions() {
+    Keyboard.dismiss();
     if (!question.trim()) return;
 
     setIsDerivingOptions(true);
@@ -38,6 +40,8 @@ export default function NewDecisionScreen() {
   }
 
   async function handleSubmit() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Keyboard.dismiss();
     if (!user || !question.trim() || derivedOptions.length < 2) return;
 
     setLoading(true);
@@ -116,17 +120,17 @@ export default function NewDecisionScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>What's your decision?</Text>
           <View style={styles.questionCard}>
-            <Input
+        <Input
               placeholder="E.g., Should I take the new job offer? or What should I do about my career?"
-              value={question}
+          value={question}
               onChangeText={(text) => {
                 setQuestion(text);
                 setShowDerivedOptions(false);
                 setDerivedOptions([]);
               }}
-              multiline
+          multiline
               numberOfLines={4}
-              style={styles.questionInput}
+          style={styles.questionInput}
               containerStyle={styles.inputContainer}
             />
           </View>
@@ -141,12 +145,11 @@ export default function NewDecisionScreen() {
               ]}
               activeOpacity={0.7}
             >
-              <Sparkles size={20} color={canAnalyze ? "#B795FF" : "rgba(183, 149, 255, 0.5)"} />
               <Text style={[
                 styles.analyzeButtonText,
                 !canAnalyze && styles.analyzeButtonTextDisabled
               ]}>
-                {isDerivingOptions ? 'Analyzing...' : 'Analyze Question'}
+                {isDerivingOptions ? 'Generating...' : 'Generate Options'}
               </Text>
             </TouchableOpacity>
           )}
@@ -154,28 +157,28 @@ export default function NewDecisionScreen() {
 
         {/* Derived Options Section */}
         {showDerivedOptions && derivedOptions.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>Your options</Text>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>Your options</Text>
               <TouchableOpacity onPress={handleDeriveOptions}>
                 <Text style={styles.refreshText}>↻ Regenerate</Text>
               </TouchableOpacity>
-            </View>
+          </View>
 
-            <View style={styles.optionsContainer}>
+          <View style={styles.optionsContainer}>
               {derivedOptions.map((option, index) => (
-                <View key={index} style={styles.optionCard}>
-                  <View style={styles.optionNumber}>
-                    <Text style={styles.optionNumberText}>{index + 1}</Text>
-                  </View>
+              <View key={index} style={styles.optionCard}>
+                <View style={styles.optionNumber}>
+                  <Text style={styles.optionNumberText}>{index + 1}</Text>
+                </View>
                   <View style={styles.optionTextContainer}>
                     <Text style={styles.optionText}>{option}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
+                    </View>
           </View>
-        )}
+        ))}
+          </View>
+              </View>
+          )}
 
         {/* Helper Text */}
         <View style={styles.helperCard}>
@@ -204,9 +207,13 @@ export default function NewDecisionScreen() {
             end={{ x: 1, y: 0 }}
             style={styles.floatingButtonGradient}
           >
-            <Sparkles size={22} color="#FFFFFF" />
+            <Image 
+              source={require('@/assets/images/cube.png')}
+              style={styles.cubeIcon}
+              resizeMode="contain"
+            />
             <Text style={styles.floatingButtonText}>
-              {loading ? 'Analyzing...' : 'Get AI Prediction'}
+              {loading ? 'Asking...' : 'Ask My Twin'}
             </Text>
             {!loading && <ChevronRight size={20} color="#FFFFFF" />}
           </LinearGradient>
@@ -226,7 +233,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: 24,
+    paddingBottom: 21,
     gap: 16,
     backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
@@ -245,7 +252,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 0,
   },
   subtitle: {
     fontSize: 15,
@@ -256,11 +263,11 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 21,
     paddingBottom: 120,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 48,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -272,6 +279,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#FFFFFF',
+    marginBottom: 12,
   },
   sectionHint: {
     fontSize: 14,
@@ -292,7 +300,6 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   analyzeButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(183, 149, 255, 0.15)',
@@ -301,7 +308,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     marginTop: 12,
-    gap: 8,
   },
   analyzeButtonDisabled: {
     backgroundColor: 'rgba(59, 37, 109, 0.2)',
@@ -403,5 +409,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  cubeIcon: {
+    width: 22,
+    height: 22,
   },
 });

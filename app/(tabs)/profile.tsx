@@ -6,7 +6,7 @@ import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen, Compass } from 'lucide-react-native';
+import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen } from 'lucide-react-native';
 import { getProfile, getTodayJournal, getRelationships, deleteAccountData } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -64,6 +64,9 @@ export default function ProfileScreen() {
   const onboardingResponses = profileData?.core_json?.onboarding_responses || {};
   const university = profileData?.university || onboardingResponses.university;
   const hometown = profileData?.hometown || onboardingResponses.hometown;
+  const currentLocation = profileData?.current_location;
+  const netWorth = profileData?.net_worth;
+  const politicalViews = profileData?.political_views;
 
   const cards: ProfileCard[] = [
     {
@@ -72,7 +75,7 @@ export default function ProfileScreen() {
       subtitle: onboardingResponses['01-now'] 
         ? onboardingResponses['01-now'].substring(0, 50) + '...'
         : 'Where are you in life right now?',
-      onboardingStep: '/onboarding/01-now',
+      route: '/profile/edit-lifesituation' as any,
       completed: !!onboardingResponses['01-now'],
     },
     {
@@ -81,7 +84,7 @@ export default function ProfileScreen() {
       subtitle: onboardingResponses['02-path']
         ? onboardingResponses['02-path'].substring(0, 50) + '...'
         : 'How did you get here?',
-      onboardingStep: '/onboarding/02-path',
+      route: '/profile/edit-lifejourney' as any,
       completed: !!onboardingResponses['02-path'],
     },
     {
@@ -90,7 +93,7 @@ export default function ProfileScreen() {
       subtitle: onboardingResponses['03-values']
         ? onboardingResponses['03-values'].substring(0, 50) + '...'
         : 'What matters most to you?',
-      onboardingStep: '/onboarding/03-values',
+      route: '/profile/edit-values' as any,
       completed: !!onboardingResponses['03-values'],
     },
     {
@@ -99,7 +102,7 @@ export default function ProfileScreen() {
       subtitle: onboardingResponses['04-style']
         ? onboardingResponses['04-style'].substring(0, 50) + '...'
         : 'How do you usually make big decisions?',
-      onboardingStep: '/onboarding/04-style',
+      route: '/profile/edit-decisionstyle' as any,
       completed: !!onboardingResponses['04-style'],
     },
     {
@@ -108,7 +111,7 @@ export default function ProfileScreen() {
       subtitle: onboardingResponses['05-day']
         ? onboardingResponses['05-day'].substring(0, 50) + '...'
         : 'Walk me through a typical day',
-      onboardingStep: '/onboarding/05-day',
+      route: '/profile/edit-typicalday' as any,
       completed: !!onboardingResponses['05-day'],
     },
     {
@@ -117,22 +120,43 @@ export default function ProfileScreen() {
       subtitle: onboardingResponses['06-stress']
         ? onboardingResponses['06-stress'].substring(0, 50) + '...'
         : 'When things get hard, how do you react?',
-      onboardingStep: '/onboarding/06-stress',
+      route: '/profile/edit-stress' as any,
       completed: !!onboardingResponses['06-stress'],
     },
     {
       id: 'university',
       title: 'Education',
       subtitle: university || 'Add your university',
-      onboardingStep: '/onboarding/07-clarifier',
+      route: '/profile/edit-university' as any,
       completed: !!university,
     },
     {
       id: 'hometown',
       title: 'Hometown',
       subtitle: hometown || 'Where did you grow up?',
-      onboardingStep: '/onboarding/07-clarifier',
+      route: '/profile/edit-hometown' as any,
       completed: !!hometown,
+    },
+    {
+      id: 'current_location',
+      title: 'Current Location',
+      subtitle: currentLocation || 'Where do you live now?',
+      route: '/profile/edit-location' as any,
+      completed: !!currentLocation,
+    },
+    {
+      id: 'net_worth',
+      title: 'Net Worth',
+      subtitle: netWorth || 'Your approximate net worth',
+      route: '/profile/edit-networth' as any,
+      completed: !!netWorth,
+    },
+    {
+      id: 'political_views',
+      title: 'Political Views',
+      subtitle: politicalViews || 'Your political perspective',
+      route: '/profile/edit-politics' as any,
+      completed: !!politicalViews,
     },
     {
       id: 'relationships',
@@ -200,7 +224,7 @@ export default function ProfileScreen() {
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.title}>Your Profile</Text>
+            <Text style={styles.title}>Your Digital Twin</Text>
 
             {/* Twin's Understanding Card */}
             <TouchableOpacity
@@ -215,7 +239,11 @@ export default function ProfileScreen() {
               >
                 <View style={styles.progressHeader}>
                   <View style={styles.compassIcon}>
-                    <Compass size={24} color="#B795FF" strokeWidth={2} />
+                    <Image 
+                      source={require('@/assets/images/cube.png')}
+                      style={styles.cubeIcon}
+                      resizeMode="contain"
+                    />
                   </View>
                   <Text style={styles.progressTitle}>Twin's Understanding</Text>
                 </View>
@@ -409,6 +437,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(110, 61, 240, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cubeIcon: {
+    width: 24,
+    height: 24,
   },
   progressTitle: {
     fontSize: 18,

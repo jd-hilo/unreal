@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile, getWhatIfs } from '@/lib/storage';
+import { getDecisions, getProfile, getWhatIfs, getRelationships } from '@/lib/storage';
 import { Compass, Sparkles, Zap } from 'lucide-react-native';
 import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { formatDistanceToNow } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as StoreReview from 'expo-store-review';
+import * as Haptics from 'expo-haptics';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function HomeScreen() {
   const [recentDecisions, setRecentDecisions] = useState<any[]>([]);
   const [recentWhatIfs, setRecentWhatIfs] = useState<any[]>([]);
   const [isLoadingDecisions, setIsLoadingDecisions] = useState(true);
+  const [profileProgress, setProfileProgress] = useState(100); // Default to 100 to hide initially
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -64,12 +66,41 @@ export default function HomeScreen() {
         setUserName(user.email.split('@')[0]);
       }
 
-      const [decisions, whatIfs] = await Promise.all([
+      const [decisions, whatIfs, relationships] = await Promise.all([
         getDecisions(user.id, 5),
-        getWhatIfs(user.id, 5)
+        getWhatIfs(user.id, 5),
+        getRelationships(user.id)
       ]);
       setRecentDecisions(decisions);
       setRecentWhatIfs(whatIfs);
+      
+      // Calculate profile progress
+      if (profile) {
+        const onboardingResponses = profile?.core_json?.onboarding_responses || {};
+        const university = profile?.university || onboardingResponses.university;
+        const hometown = profile?.hometown || onboardingResponses.hometown;
+        const hasRelationships = relationships && relationships.length > 0;
+        
+        // Count completed sections (same logic as profile page)
+        const completedSections = [
+          onboardingResponses['01-now'],
+          onboardingResponses['02-path'],
+          onboardingResponses['03-values'],
+          onboardingResponses['04-style'],
+          onboardingResponses['05-day'],
+          onboardingResponses['06-stress'],
+          university,
+          hometown,
+          profile?.current_location,
+          profile?.net_worth,
+          profile?.political_views,
+          hasRelationships
+        ].filter(Boolean).length;
+        
+        const totalSections = 12;
+        const progress = Math.round((completedSections / totalSections) * 100);
+        setProfileProgress(progress);
+      }
       
       // Check if we should show rating prompt
       await checkAndShowRatingPrompt();
@@ -141,13 +172,13 @@ export default function HomeScreen() {
   // Merge decisions and what-ifs, sort by date
   const allEchoes = [
     ...recentDecisions.map((decision) => ({
-      id: decision.id,
+        id: decision.id,
       type: 'decision' as const,
       title: decision.question || 'Untitled Decision',
-      subtitle: getRelativeUpdate(decision.updated_at || decision.created_at),
-      detail: decision?.prediction?.prediction || 'Revisit this path.',
-      route: `/decision/${decision.id}` as const,
-      isPlaceholder: false,
+        subtitle: getRelativeUpdate(decision.updated_at || decision.created_at),
+        detail: decision?.prediction?.prediction || 'Revisit this path.',
+        route: `/decision/${decision.id}` as const,
+        isPlaceholder: false,
       timestamp: new Date(decision.updated_at || decision.created_at).getTime(),
     })),
     ...recentWhatIfs.map((whatIf) => ({
@@ -209,13 +240,43 @@ export default function HomeScreen() {
           >
             <View style={styles.header}>
               <Text style={styles.greeting}>Welcome back,</Text>
-              <Text style={styles.subheading}>Let's explore your next decision.</Text>
+              <Text style={styles.userName}>{userName}</Text>
             </View>
+
+            {/* Twin's Understanding Progress Bar - Only show if not complete */}
+            {profileProgress < 100 && (
+              <TouchableOpacity
+                onPress={() => router.push('/(tabs)/profile')}
+                activeOpacity={0.85}
+                style={styles.progressBarContainer}
+              >
+                <View style={styles.progressBarHeader}>
+                  <Image 
+                    source={require('@/assets/images/cube.png')}
+                    style={styles.progressCubeIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.progressBarText}>Twin's Understanding</Text>
+                  <Text style={styles.progressPercentage}>{profileProgress}%</Text>
+                </View>
+                <View style={styles.thinProgressBar}>
+                  <LinearGradient
+                    colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[styles.thinProgressFill, { width: `${profileProgress}%` }]}
+                  />
+                </View>
+              </TouchableOpacity>
+            )}
 
             <View style={styles.actions}>
               {/* What Should I Choose Card */}
               <TouchableOpacity
-                onPress={() => router.push('/decision/new')}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/decision/new');
+                }}
                 activeOpacity={0.85}
               >
                 <View style={styles.cardWrapperPrimary}>
@@ -254,7 +315,10 @@ export default function HomeScreen() {
 
               {/* What If Card */}
               <TouchableOpacity
-                onPress={() => router.push('/whatif/new')}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/whatif/new');
+                }}
                 activeOpacity={0.85}
               >
                 <View style={styles.cardWrapperSecondary}>
@@ -273,7 +337,7 @@ export default function HomeScreen() {
                     >
                       <View style={styles.cardContentRow}>
                         <View style={styles.iconCircleContainer}>
-                          <View>
+                          <View style={{ marginTop: -5 }}>
                             <StarGradientIcon size={40} />
                           </View>
                         </View>
@@ -391,8 +455,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.3,
-    marginBottom: 8,
+    marginBottom: 0,
     fontFamily: 'Inter-SemiBold',
+  },
+  userName: {
+    fontSize: 28,
+    fontWeight: '400',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+    marginBottom: 0,
   },
   subheading: {
     fontSize: 15,
@@ -413,6 +484,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: 22,
     minHeight: 130,
+    justifyContent: 'center',
   },
   cardContentRow: {
     flexDirection: 'row',
@@ -577,5 +649,44 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(220, 220, 220, 0.7)',
     lineHeight: 16,
+  },
+  progressBarContainer: {
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+  },
+  progressBarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  progressCubeIcon: {
+    width: 20,
+    height: 20,
+  },
+  progressBarText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  progressPercentage: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#B795FF',
+  },
+  thinProgressBar: {
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  thinProgressFill: {
+    height: '100%',
+    borderRadius: 3,
   },
 });

@@ -157,21 +157,21 @@ export default function AddJournalScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Reflect on your day</Text>
           <View style={styles.textInputCard}>
-            <Input
+          <Input
               placeholder={PLACEHOLDER_PROMPTS[placeholderIndex]}
-              value={text}
-              onChangeText={setText}
-              multiline
+            value={text}
+            onChangeText={setText}
+            multiline
               numberOfLines={14}
-              textAlignVertical="top"
-              style={styles.textInput}
-              inputAccessoryViewID={accessoryId}
-              onFocus={() => {
-                setTimeout(() => {
-                  scrollRef.current?.scrollToEnd({ animated: true });
-                }, 300);
-              }}
-            />
+            textAlignVertical="top"
+            style={styles.textInput}
+            inputAccessoryViewID={accessoryId}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollRef.current?.scrollToEnd({ animated: true });
+              }, 300);
+            }}
+          />
             {text.length > 0 && (
               <Text style={styles.charCount}>{text.length} characters</Text>
             )}

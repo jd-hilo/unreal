@@ -90,31 +90,33 @@ export async function extractFromTranscript(transcript: string): Promise<LifeExt
 
   const openai = getOpenAI();
 
-  const systemPrompt = `You are an expert at transforming user life narratives into concise key facts and a short reasoning summary. Output strict JSON and a separate summary.`;
+  const systemPrompt = 'You are an expert at transforming user life narratives into concise key facts and a short reasoning summary. Output strict JSON and a separate summary.';
 
-  const userPrompt = `Text:
-
-${transcript}
-
-Extract:
-- core_json (only minimal facts relevant to identity & work/life):
-  - possible keys: age_range, city, country, primary_role, job_sentiment, employment_type, side_projects, motivation.
-- values_json (array) if they explicitly list values.
-- relationships (array): items with {name_or_label, relationship_type, years_known_or_unknown, contact_frequency_or_unknown, influence_guess_0_1, location_or_unknown, sentiment} whenever people are mentioned.
-- career_snippets (array): {title, company, start_date_or_unknown, end_date_or_unknown, satisfaction_1_5_or_unknown} if present.
-- needs flags (array of strings) for missing but important clarifiers, e.g., needs.city, needs.role_start_date, needs.relationship_years.
-- summary (3–6 sentences) capturing who they are & what matters.
-
-Return JSON:
-
-{
-  "core_json": {...},
-  "values_json": ["..."],
-  "relationships": [...],
-  "career_snippets": [...],
-  "needs": ["needs.city", "needs.relationship_years"],
-  "summary": "..."
-}`;
+  const userPrompt = [
+    'Text:',
+    '',
+    transcript,
+    '',
+    'Extract:',
+    '- core_json (only minimal facts relevant to identity & work/life):',
+    '  - possible keys: age_range, city, country, primary_role, job_sentiment, employment_type, side_projects, motivation.',
+    '- values_json (array) if they explicitly list values.',
+    '- relationships (array): items with {name_or_label, relationship_type, years_known_or_unknown, contact_frequency_or_unknown, influence_guess_0_1, location_or_unknown, sentiment} whenever people are mentioned.',
+    '- career_snippets (array): {title, company, start_date_or_unknown, end_date_or_unknown, satisfaction_1_5_or_unknown} if present.',
+    '- needs flags (array of strings) for missing but important clarifiers, e.g., needs.city, needs.role_start_date, needs.relationship_years.',
+    '- summary (3–6 sentences) capturing who they are & what matters.',
+    '',
+    'Return JSON:',
+    '',
+    '{',
+    '  "core_json": {...},',
+    '  "values_json": ["..."],',
+    '  "relationships": [...],',
+    '  "career_snippets": [...],',
+    '  "needs": ["needs.city", "needs.relationship_years"],',
+    '  "summary": "..."',
+    '}',
+  ].join('\n');
 
   try {
     const response = await openai.chat.completions.create({
@@ -144,28 +146,30 @@ export async function mineRelationships(transcript: string): Promise<Relationshi
 
   const openai = getOpenAI();
 
-  const systemPrompt = `Extract ALL relationships mentioned in the text. Include every person discussed. Be thorough and comprehensive.`;
+  const systemPrompt = 'Extract ALL relationships mentioned in the text. Include every person discussed. Be thorough and comprehensive.';
 
-  const userPrompt = `${transcript}
-
-Extract ALL people mentioned in the text above. For each person, provide:
-- name: their name
-- relationship_type: one of: partner, spouse, family, friend, mentor, coworker, boss, or other
-- duration: how long they've known them (e.g., "5 years", "2", etc.) 
-- contact_frequency: how often they talk (daily, weekly, monthly, rarely)
-- influence: 0-1 scale of how much they influence decisions (0.5 if unknown)
-- location: where they live
-- sentiment: positive, neutral, or negative
-
-Return JSON object with ALL relationships:
-
-{
-  "relationships": [
-    {"name":"Sarah","relationship_type":"partner","duration":"5","contact_frequency":"daily","influence":0.9,"location":"NYC","sentiment":"positive"},
-    {"name":"Mike","relationship_type":"friend","duration":"10","contact_frequency":"weekly","influence":0.6,"location":"SF","sentiment":"positive"},
-    {"name":"Jane","relationship_type":"mentor","duration":"3","contact_frequency":"monthly","influence":0.8,"location":"Boston","sentiment":"positive"}
-  ]
-}`;
+  const userPrompt = [
+    transcript,
+    '',
+    'Extract ALL people mentioned in the text above. For each person, provide:',
+    '- name: their name',
+    '- relationship_type: one of: partner, spouse, family, friend, mentor, coworker, boss, or other',
+    "- duration: how long they've known them (e.g., \"5 years\", \"2\", etc.)",
+    '- contact_frequency: how often they talk (daily, weekly, monthly, rarely)',
+    "- influence: 0-1 scale of how much they influence decisions (0.5 if unknown)",
+    '- location: where they live',
+    '- sentiment: positive, neutral, or negative',
+    '',
+    'Return JSON object with ALL relationships:',
+    '',
+    '{',
+    '  "relationships": [',
+    '    {"name":"Sarah","relationship_type":"partner","duration":"5","contact_frequency":"daily","influence":0.9,"location":"NYC","sentiment":"positive"},',
+    '    {"name":"Mike","relationship_type":"friend","duration":"10","contact_frequency":"weekly","influence":0.6,"location":"SF","sentiment":"positive"},',
+    '    {"name":"Jane","relationship_type":"mentor","duration":"3","contact_frequency":"monthly","influence":0.8,"location":"Boston","sentiment":"positive"}',
+    '  ]',
+    '}',
+  ].join('\n');
 
   try {
     const response = await openai.chat.completions.create({
@@ -213,20 +217,22 @@ export async function generateClarifiers(
 
   const openai = getOpenAI();
 
-  const systemPrompt = `Given the current profile object and needs flags, generate up to 3 quick follow-up questions. Prefer chips, sliders, or short pickers.`;
+  const systemPrompt = 'Given the current profile object and needs flags, generate up to 3 quick follow-up questions. Prefer chips, sliders, or short pickers.';
 
-  const userPrompt = `Profile: ${JSON.stringify(profileCoreJson)}
-Needs: ${JSON.stringify(needs)}
-
-Return JSON:
-
-{
-  "questions": [
-    {"id":"q1","type":"picker-month-year","label":"When did you start your current role?"},
-    {"id":"q2","type":"slider-years","label":"How long have you known Sam?"},
-    {"id":"q3","type":"city-autocomplete","label":"What city are you in now?"}
-  ]
-}`;
+  const userPrompt = [
+    `Profile: ${JSON.stringify(profileCoreJson)}`,
+    `Needs: ${JSON.stringify(needs)}`,
+    '',
+    'Return JSON:',
+    '',
+    '{',
+    '  "questions": [',
+    '    {"id":"q1","type":"picker-month-year","label":"When did you start your current role?"},',
+    '    {"id":"q2","type":"slider-years","label":"How long have you known Sam?"},',
+    '    {"id":"q3","type":"city-autocomplete","label":"What city are you in now?"}',
+    '  ]',
+    '}',
+  ].join('\n');
 
   try {
     const response = await openai.chat.completions.create({
@@ -261,32 +267,36 @@ export async function deriveDecisionOptions(question: string): Promise<string[]>
 
   const openai = getOpenAI();
 
-  const systemPrompt = `You are an AI that extracts or generates decision options from a question.
+  const systemPrompt = [
+    'You are an AI that extracts or generates decision options from a question.',
+    '',
+    'Rules:',
+    '1. If the question is yes/no ("Should I...?"), return ["Yes", "No"]',
+    '2. If the question explicitly mentions options (e.g., "X or Y"), extract them',
+    '3. If the question is open-ended, generate 2-4 reasonable, specific options',
+    '4. Keep options concise (2-6 words each)',
+    '5. Make options actionable and mutually exclusive',
+    '',
+    'Examples:',
+    'Q: "Should I take the new job offer?"',
+    'A: ["Yes", "No"]',
+    '',
+    'Q: "Should I move to NYC or stay in SF?"',
+    'A: ["Move to NYC", "Stay in SF"]',
+    '',
+    'Q: "What should I do about my career?"',
+    'A: ["Stay in current role", "Look for new opportunities", "Start own business", "Take a break/sabbatical"]',
+  ].join('\n');
 
-Rules:
-1. If the question is yes/no ("Should I...?"), return ["Yes", "No"]
-2. If the question explicitly mentions options (e.g., "X or Y"), extract them
-3. If the question is open-ended, generate 2-4 reasonable, specific options
-4. Keep options concise (2-6 words each)
-5. Make options actionable and mutually exclusive
-
-Examples:
-Q: "Should I take the new job offer?"
-A: ["Yes", "No"]
-
-Q: "Should I move to NYC or stay in SF?"
-A: ["Move to NYC", "Stay in SF"]
-
-Q: "What should I do about my career?"
-A: ["Stay in current role", "Look for new opportunities", "Start own business", "Take a break/sabbatical"]`;
-
-  const userPrompt = `Question: "${question}"
-
-Return ONLY a JSON object with an "options" array. No other text.
-
-{
-  "options": ["option1", "option2", ...]
-}`;
+  const userPrompt = [
+    `Question: "${question}"`,
+    '',
+    'Return ONLY a JSON object with an "options" array. No other text.',
+    '',
+    '{',
+    '  "options": ["option1", "option2", ...]',
+    '}',
+  ].join('\n');
 
   try {
     const response = await openai.chat.completions.create({
@@ -345,48 +355,52 @@ export async function predictDecision({
   console.log('Calling OpenAI API...');
   const openai = getOpenAI();
 
-  const systemPrompt = `You are the user's digital twin.
+  const systemPrompt = [
+    "You are the user's digital twin.",
+    '',
+    'Use the Core Pack for identity, personality, values, and decision tendencies.',
+    '',
+    'Use only facts from the Relevance Pack when they help answer the question.',
+    '',
+    'Return calibrated probabilities for each option (summing to ~1), a concise rationale (2–4 sentences),',
+    'top factors considered, and an uncertainty score (0–1, lower = more confident).',
+    '',
+    'Keep tone reflective, human, and emotionally grounded — not mechanical.',
+    '',
+    'CRITICAL: Write all text in SECOND PERSON (you/your), never third person. Address the user directly.',
+  ].join('\n');
 
-Use the Core Pack for identity, personality, values, and decision tendencies.
-
-Use only facts from the Relevance Pack when they help answer the question.
-
-Return calibrated probabilities for each option (summing to ~1), a concise rationale (2–4 sentences),
-top factors considered, and an uncertainty score (0–1, lower = more confident).
-
-Keep tone reflective, human, and emotionally grounded — not mechanical.
-
-CRITICAL: Write all text in SECOND PERSON (you/your), never third person. Address the user directly.`;
-
-  const userPrompt = `Core Pack:
-
-${corePack}
-
-Relevance Pack:
-
-${relevancePack}
-
-Question:
-
-${question}
-
-Options:
-
-${JSON.stringify(options)}
-
-RETURN JSON with probabilities that sum to 1.0 based on YOUR actual analysis (don't copy these example numbers):
-
-{
-  "prediction": "<one_of_options>",
-  "probs": {"<option1>": 0.XX, "<option2>": 0.XX},
-  "rationale": "2–4 sentences explaining your reasoning in SECOND PERSON (you/your).",
-  "factors": ["values:freedom", "relationship:partner_4y_supportive", "decision_style:test-small"],
-  "uncertainty": 0.XX
-}
-
-IMPORTANT: 
-- Generate probabilities based on the actual user context and decision - do NOT use 0.66 or 0.34 unless they truly reflect your analysis
-- Write rationale in SECOND PERSON: "You tend to...", "Your values suggest...", never "They" or "The user"
+  const userPrompt = [
+    'Core Pack:',
+    '',
+    corePack,
+    '',
+    'Relevance Pack:',
+    '',
+    relevancePack,
+    '',
+    'Question:',
+    '',
+    question,
+    '',
+    'Options:',
+    '',
+    JSON.stringify(options),
+    '',
+    "RETURN JSON with probabilities that sum to 1.0 based on YOUR actual analysis (don't copy these example numbers):",
+    '',
+    '{',
+    '  "prediction": "<one_of_options>",',
+    '  "probs": {"<option1>": 0.XX, "<option2>": 0.XX},',
+    '  "rationale": "2–4 sentences explaining your reasoning in SECOND PERSON (you/your).",',
+    '  "factors": ["values:freedom", "relationship:partner_4y_supportive", "decision_style:test-small"],',
+    '  "uncertainty": 0.XX',
+    '}',
+    '',
+    'IMPORTANT:',
+    '- Generate probabilities based on the actual user context and decision - do NOT use 0.66 or 0.34 unless they truly reflect your analysis',
+    '- Write rationale in SECOND PERSON: "You tend to...", "Your values suggest...", never "They" or "The user"',
+  ].join('\n');
 
   try {
     const response = await openai.chat.completions.create({
@@ -444,31 +458,26 @@ export async function simulateOutcome(
 
   const openai = getOpenAI();
 
-  const systemPrompt = `Simulate the user's likely state trajectory under the chosen policy. Use simple rules for energy/sleep/work/social/money. Return deltas vs baseline for: happiness, money, relationship, freedom, growth, and brief risk_notes.`;
+  const systemPrompt = "Simulate the user's likely state trajectory under the chosen policy. Use simple rules for energy/sleep/work/social/money. Return deltas vs baseline for: happiness, money, relationship, freedom, growth, and brief risk_notes.";
 
-  const userPrompt = `Core Pack:
-
-${corePack}
-
-Policy:
-
-${policy}
-
-Horizon: ${horizonDays}
-
-Return JSON:
-
-{
-  "deltas": {
-    "happiness": -0.5,
-    "money": +0.5,
-    "relationship": -0.9,
-    "freedom": -1.9,
-    "growth": -0.9
-  },
-  "risk_notes": ["Commute reduces side-project hours; watch sleep <6.5h"],
-  "notes": "One brief paragraph."
-}`;
+  const userPrompt =
+    'Core Pack:\n\n' +
+    corePack +
+    '\n\nPolicy:\n\n' +
+    policy +
+    '\n\nHorizon: ' + horizonDays + '\n\n' +
+    'Return JSON:\n\n' +
+    '{\n' +
+    '  "deltas": {\n' +
+    '    "happiness": -0.5,\n' +
+    '    "money": +0.5,\n' +
+    '    "relationship": -0.9,\n' +
+    '    "freedom": -1.9,\n' +
+    '    "growth": -0.9\n' +
+    '  },\n' +
+    '  "risk_notes": ["Commute reduces side-project hours; watch sleep <6.5h"],\n' +
+    '  "notes": "One brief paragraph."\n' +
+    '}';
 
   try {
     const response = await openai.chat.completions.create({
@@ -502,79 +511,71 @@ export async function generateTimelineSimulation(
 
   const openai = getOpenAI();
 
-  const systemPrompt = `You are a life trajectory simulator. Generate HYPER-SPECIFIC, concrete events with real details. Use actual numbers, specific places, named scenarios. Avoid generic statements.
+  const systemPrompt =
+    'You are a life trajectory simulator. Generate HYPER-SPECIFIC, concrete events with real details. ' +
+    'Use actual numbers, specific places, named scenarios. Avoid generic statements.\n\n' +
+    'CRITICAL: Write ALL events in SECOND PERSON (you/your). The user is living this timeline.';
 
-CRITICAL: Write ALL events in SECOND PERSON (you/your). The user is living this timeline.`;
-
-  const userPrompt = `User Context:
-
-${corePack}
-
-Decision Made:
-${decision}
-
-Chosen Option:
-${chosenOption}
-
-Generate a timeline of 5 HYPER-SPECIFIC events for each horizon (1 year, 3 years, 5 years, 10 years).
-
-CRITICAL REQUIREMENTS:
-1. DECISION RELEVANCE: Most events should DIRECTLY result from choosing "${chosenOption}" for the decision "${decision}"
-2. CURRENT LIFESTYLE: Incorporate relevant facts from the User Context (their job, location, relationships, values)
-3. CAUSAL CHAIN: Show how this decision creates a cascade of specific life changes
-4. BALANCE: 60-70% of events should be decision-specific, 30-40% natural life progression
-
-Be HYPER-SPECIFIC with concrete details:
-- Exact numbers ($X saved, X% growth, X hours per week, X people)
-- Generic locations (coffee shop, downtown, convention center, office) - NO brand names
-- Named people when relevant (can be hypothetical: "colleague Alex", "friend Jamie")
-- Concrete activities (meeting, trip, project launch, purchase, move)
-- Precise timeframes (Month 3, Week 2, Year 1.5)
-- SHORT descriptions (1-2 sentences ONLY, prefer single sentence)
-
-GOOD examples (specific, second person, no brands):
-- "You save $2,400 in high-yield savings account at 4.5% APY"
-- "You move to 2BR apartment downtown for $2,200/mo, 8 min walk to work"
-- "You lead team of 4 on major product launch, earn $15K performance bonus"
-- "You meet potential mentor at industry conference, exchange contact info, follow up Tuesday"
-
-BAD examples:
-- Generic: "Professional growth continues" or "Financial situation improves"
-- Brand names: "Open Marcus savings account" or "Buy Starbucks franchise"
-- Third person: "User saves money" or "They move to new apartment"
-
-Return JSON:
-
-{
-  "one_year": [
-    {"time": "Month 2", "title": "Save $3,200 in High-Yield Account", "description": "You open savings account at 4.5% APY. Automate $800/mo deposits every payday."},
-    {"time": "Month 5", "title": "Coffee Meeting With Industry Contact", "description": "You meet mentor contact introduced by college friend. 45-minute conversation leads to job referral."},
-    {"time": "Month 8", "title": "Finish Online Course, 84 Hours", "description": "You complete certification program. Final project scores 94/100. Add credential to profile."},
-    {"time": "Month 10", "title": "Sign Lease on $2,400/mo Apt", "description": "You move to new place 12 minutes from work. Commute drops from 75 to 12 minutes each way."},
-    {"time": "Year 1", "title": "Performance Review: $6,500 Bonus", "description": "Your annual review results in 'Exceeds' rating. You receive $6,500 bonus and 4% salary increase to $87,400."}
-  ],
-  "three_year": [
-    {"time": "Year 1.5", "title": "Promotion to $112K Base Salary", "description": "You're promoted to senior role managing 2 direct reports. Base salary increases from $87K to $112K plus new equity grant."},
-    {"time": "Year 2", "title": "7-Day International Trip, $2,800", "description": "You book flights for $640, accommodation $890 for week. First international solo trip fully paid in cash."},
-    {"time": "Year 2.5", "title": "Launch Side Consulting Practice", "description": "You start weekend consulting work. First client contract: $3,500 for 20 hours over 4 weeks."},
-    {"time": "Year 2.8", "title": "Move In Together, Split $2,600", "description": "Your partner moves into your 2BR. You each pay $1,300/mo vs $2,400 solo, saving $1,100/mo combined."},
-    {"time": "Year 3", "title": "Investment Portfolio Hits $67K", "description": "Your balances: $38K in 401k, $21K in index funds, $8K emergency fund. Compound growth accelerating."}
-  ],
-  "five_year": [
-    {"time": "Year 3.5", "title": "Present at Industry Conference, 220 People", "description": "You deliver 30-minute talk at convention center. 37 connection requests, 4 job inquiries follow."},
-    {"time": "Year 4", "title": "Buy $38K Electric Vehicle", "description": "You finance $32K over 5 years at 5.2% APR. Payment $605/mo, save $140/mo on fuel costs."},
-    {"time": "Year 4.5", "title": "Host Family Dinner for 12", "description": "Thanksgiving at your place for first time. You cook dinner, serve at 6pm. Dad says 'You made it.'"},
-    {"time": "Year 4.8", "title": "Complete Half Marathon in 1:58:42", "description": "You finish city half marathon after 14-week training plan. Beat goal by 8 minutes. Lost 15 lbs since starting."},
-    {"time": "Year 5", "title": "Accept $165K Offer at Growth Company", "description": "Your new job: Director role at 45-person startup. $140K base + $25K equity. Start date: March 15."}
-  ],
-  "ten_year": [
-    {"time": "Year 6.5", "title": "$85K Down Payment on $475K Home", "description": "You close on 2BR/2BA property. Mortgage $2,850/mo at 6.1%. Build equity vs renting."},
-    {"time": "Year 7.5", "title": "Consulting Revenue: $95K/Year", "description": "Your side practice nets $7,900/mo with 6 retainer clients. You hire assistant for $1,800/mo to handle admin."},
-    {"time": "Year 8.5", "title": "10-Week International Sabbatical", "description": "You take July-Sept unpaid leave. Budget $16,500 for multi-country trip. Return with 200+ photos and fresh energy."},
-    {"time": "Year 9", "title": "Mentor 4 People Through Program", "description": "You're official mentor in company program. Meet mentees bi-weekly for coffee. One mentee gets promoted within 8 months."},
-    {"time": "Year 10", "title": "Net Worth Reaches $380K", "description": "Your assets: $165K home equity, $125K in retirement, $55K brokerage, $35K cash. Average monthly expenses: $4,200."}
-  ]
-}`;
+  const userPrompt =
+    'User Context:\n\n' +
+    corePack +
+    '\n\nDecision Made:\n' +
+    decision +
+    '\n\nChosen Option:\n' +
+    chosenOption +
+    '\n\nGenerate a timeline of 5 HYPER-SPECIFIC events for each horizon (1 year, 3 years, 5 years, 10 years).\n\n' +
+    'CRITICAL REQUIREMENTS:\n' +
+    '1. DECISION RELEVANCE: Most events should DIRECTLY result from choosing "' + chosenOption + '" for the decision "' + decision + '"\n' +
+    '2. CURRENT LIFESTYLE: Incorporate relevant facts from the User Context (their job, location, relationships, values)\n' +
+    '3. CAUSAL CHAIN: Show how this decision creates a cascade of specific life changes\n' +
+    '4. BALANCE: 60-70% of events should be decision-specific, 30-40% natural life progression\n\n' +
+    'Be HYPER-SPECIFIC with concrete details:\n' +
+    '- Exact numbers ($X saved, X% growth, X hours per week, X people)\n' +
+    '- Generic locations (coffee shop, downtown, convention center, office) - NO brand names\n' +
+    '- Named people when relevant (can be hypothetical: "colleague Alex", "friend Jamie")\n' +
+    '- Concrete activities (meeting, trip, project launch, purchase, move)\n' +
+    '- Precise timeframes (Month 3, Week 2, Year 1.5)\n' +
+    '- SHORT descriptions (1-2 sentences ONLY, prefer single sentence)\n\n' +
+    'GOOD examples (specific, second person, no brands):\n' +
+    '- "You save $2,400 in high-yield savings account at 4.5% APY"\n' +
+    '- "You move to 2BR apartment downtown for $2,200/mo, 8 min walk to work"\n' +
+    '- "You lead team of 4 on major product launch, earn $15K performance bonus"\n' +
+    '- "You meet potential mentor at industry conference, exchange contact info, follow up Tuesday"\n\n' +
+    'BAD examples:\n' +
+    '- Generic: "Professional growth continues" or "Financial situation improves"\n' +
+    '- Brand names: "Open Marcus savings account" or "Buy Starbucks franchise"\n' +
+    '- Third person: "User saves money" or "They move to new apartment"\n\n' +
+    'Return JSON:\n\n' +
+    '{\n' +
+    '  "one_year": [\n' +
+    '    {"time": "Month 2", "title": "Save $3,200 in High-Yield Account", "description": "You open savings account at 4.5% APY. Automate $800/mo deposits every payday."},\n' +
+    '    {"time": "Month 5", "title": "Coffee Meeting With Industry Contact", "description": "You meet mentor contact introduced by college friend. 45-minute conversation leads to job referral."},\n' +
+    '    {"time": "Month 8", "title": "Finish Online Course, 84 Hours", "description": "You complete certification program. Final project scores 94/100. Add credential to profile."},\n' +
+    '    {"time": "Month 10", "title": "Sign Lease on $2,400/mo Apt", "description": "You move to new place 12 minutes from work. Commute drops from 75 to 12 minutes each way."},\n' +
+    '    {"time": "Year 1", "title": "Performance Review: $6,500 Bonus", "description": "Your annual review results in Exceeds rating. You receive $6,500 bonus and 4% salary increase to $87,400."}\n' +
+    '  ],\n' +
+    '  "three_year": [\n' +
+    '    {"time": "Year 1.5", "title": "Promotion to $112K Base Salary", "description": "You are promoted to senior role managing 2 direct reports. Base salary increases from $87K to $112K plus new equity grant."},\n' +
+    '    {"time": "Year 2", "title": "7-Day International Trip, $2,800", "description": "You book flights for $640, accommodation $890 for week. First international solo trip fully paid in cash."},\n' +
+    '    {"time": "Year 2.5", "title": "Launch Side Consulting Practice", "description": "You start weekend consulting work. First client contract: $3,500 for 20 hours over 4 weeks."},\n' +
+    '    {"time": "Year 2.8", "title": "Move In Together, Split $2,600", "description": "Your partner moves into your 2BR. You each pay $1,300/mo vs $2,400 solo, saving $1,100/mo combined."},\n' +
+    '    {"time": "Year 3", "title": "Investment Portfolio Hits $67K", "description": "Your balances: $38K in 401k, $21K in index funds, $8K emergency fund. Compound growth accelerating."}\n' +
+    '  ],\n' +
+    '  "five_year": [\n' +
+    '    {"time": "Year 3.5", "title": "Present at Industry Conference, 220 People", "description": "You deliver 30-minute talk at convention center. 37 connection requests, 4 job inquiries follow."},\n' +
+    '    {"time": "Year 4", "title": "Buy $38K Electric Vehicle", "description": "You finance $32K over 5 years at 5.2% APR. Payment $605/mo, save $140/mo on fuel costs."},\n' +
+    '    {"time": "Year 4.5", "title": "Host Family Dinner for 12", "description": "Thanksgiving at your place for first time. You cook dinner, serve at 6pm. Dad says You made it."},\n' +
+    '    {"time": "Year 4.8", "title": "Complete Half Marathon in 1:58:42", "description": "You finish city half marathon after 14-week training plan. Beat goal by 8 minutes. Lost 15 lbs since starting."},\n' +
+    '    {"time": "Year 5", "title": "Accept $165K Offer at Growth Company", "description": "Your new job: Director role at 45-person startup. $140K base + $25K equity. Start date: March 15."}\n' +
+    '  ],\n' +
+    '  "ten_year": [\n' +
+    '    {"time": "Year 6.5", "title": "$85K Down Payment on $475K Home", "description": "You close on 2BR/2BA property. Mortgage $2,850/mo at 6.1%. Build equity vs renting."},\n' +
+    '    {"time": "Year 7.5", "title": "Consulting Revenue: $95K/Year", "description": "Your side practice nets $7,900/mo with 6 retainer clients. You hire assistant for $1,800/mo to handle admin."},\n' +
+    '    {"time": "Year 8.5", "title": "10-Week International Sabbatical", "description": "You take July-Sept unpaid leave. Budget $16,500 for multi-country trip. Return with 200+ photos and fresh energy."},\n' +
+    '    {"time": "Year 9", "title": "Mentor 4 People Through Program", "description": "You become official mentor in company program. Meet mentees bi-weekly for coffee. One mentee gets promoted within 8 months."},\n' +
+    '    {"time": "Year 10", "title": "Net Worth Reaches $380K", "description": "Your assets: $165K home equity, $125K in retirement, $55K brokerage, $35K cash. Average monthly expenses: $4,200."}\n' +
+    '  ]\n' +
+    '}';
 
   try {
     const response = await openai.chat.completions.create({
@@ -640,48 +641,49 @@ export async function runWhatIf(
 
   const openai = getOpenAI();
 
-  const systemPrompt = `You are analyzing alternate life trajectories. Generate realistic metrics comparing the user's CURRENT reality to an ALTERNATE reality where they made different choices. 
+  const systemPrompt =
+    "You are analyzing alternate life trajectories. Generate realistic metrics comparing the user's CURRENT reality to an ALTERNATE reality where they made different choices.\n\n" +
+    'IMPORTANT:\n' +
+    '- Base the "current" values on their actual baseline summary\n' +
+    '- Generate the "alternate" values based on how that specific counterfactual would have changed things\n' +
+    '- Values should be on a scale of 0-10\n' +
+    '- Make meaningful differences - avoid tiny changes unless truly warranted\n' +
+    '- Consider second-order effects (e.g., better job = more money but maybe less freedom)\n' +
+    '- Include specific biometric predictions';
 
-IMPORTANT: 
-- Base the "current" values on their actual baseline summary
-- Generate the "alternate" values based on how that specific counterfactual would have changed things
-- Values should be on a scale of 0-10
-- Make meaningful differences - avoid tiny changes unless truly warranted
-- Consider second-order effects (e.g., better job = more money but maybe less freedom)
-- Include specific biometric predictions`;
-
-  const userPrompt = `Current baseline summary:
-
-${baselineSummary}
-
-Counterfactual prompt:
-
-${userText}
-
-Analyze how this alternate choice would have affected their life across 5 dimensions AND specific biometrics.
-
-Return JSON (do NOT copy these example numbers - generate based on actual analysis):
-
-{
-  "metrics": {
-    "happiness": {"current": X.X, "alternate": X.X},
-    "money": {"current": X.X, "alternate": X.X},
-    "relationship": {"current": X.X, "alternate": X.X},
-    "freedom": {"current": X.X, "alternate": X.X},
-    "growth": {"current": X.X, "alternate": X.X}
-  },
-  "biometrics": {
-    "weight": {"current": "Xkg", "alternate": "Xkg", "change": "+X kg or -X kg"},
-    "relationshipStatus": {"current": "single/dating/partnered/married", "alternate": "..."},
-    "netWorth": {"current": "$XXk", "alternate": "$XXk", "percentChange": "+X% or -X%"},
-    "location": {"current": "City, State", "alternate": "City, State"},
-    "hobby": {"current": "hobby name", "alternate": "hobby name"},
-    "mood": {"current": "typical mood", "alternate": "typical mood"}
-  },
-  "summary": "One paragraph in SECOND PERSON (you/your) comparing the two trajectories and explaining key differences."
-}
-
-CRITICAL: Generate values based on YOUR analysis of the baseline and counterfactual, not the example format above.`;
+  const userPrompt =
+    'Current baseline summary:\n\n' +
+    baselineSummary +
+    '\n\nCounterfactual prompt:\n\n' +
+    userText +
+    '\n\nAnalyze how this alternate choice would have affected their life across 5 dimensions AND specific biometrics.\n\n' +
+    'CRITICAL INSTRUCTIONS FOR BIOMETRICS:\n' +
+    '- DO NOT use placeholder text like "City, State" or "hobby name"\n' +
+    '- For "current" values: Extract ACTUAL current information from the baseline summary above\n' +
+    '- Current location: Find the EXACT city/state mentioned in their baseline (search for "Location:", "city", geographic references, or places mentioned)\n' +
+    '- Current relationship status: Extract from baseline summary (single/dating/partnered/married/etc)\n' +
+    '- Current weight, mood, hobby: Infer reasonable estimates from baseline if mentioned, otherwise omit that biometric\n' +
+    '- For "alternate" values: Predict how these would realistically change based on the counterfactual scenario\n' +
+    '- If you cannot find current data for a biometric field, OMIT that field entirely from the response\n\n' +
+    'Return JSON with this structure:\n\n' +
+    '{\n' +
+    '  "metrics": {\n' +
+    '    "happiness": {"current": 7.2, "alternate": 8.5},\n' +
+    '    "money": {"current": 6.0, "alternate": 7.5},\n' +
+    '    "relationship": {"current": 8.0, "alternate": 7.0},\n' +
+    '    "freedom": {"current": 5.5, "alternate": 8.0},\n' +
+    '    "growth": {"current": 7.0, "alternate": 9.0}\n' +
+    '  },\n' +
+    '  "biometrics": {\n' +
+    '    "relationshipStatus": {"current": "single", "alternate": "dating"},\n' +
+    '    "netWorth": {"current": "$45k", "alternate": "$78k", "percentChange": "+73%"},\n' +
+    '    "location": {"current": "Austin, TX", "alternate": "San Francisco, CA"},\n' +
+    '    "hobby": {"current": "running", "alternate": "rock climbing"},\n' +
+    '    "mood": {"current": "stressed", "alternate": "energized"}\n' +
+    '  },\n' +
+    '  "summary": "One paragraph in SECOND PERSON (you/your) comparing the two trajectories and explaining key differences."\n' +
+    '}\n\n' +
+    'IMPORTANT: The example above shows the format and realistic data - analyze the baseline to generate your own specific values. Use REAL city names from the baseline, not placeholders.';
 
   try {
     const response = await openai.chat.completions.create({
@@ -700,6 +702,7 @@ CRITICAL: Generate values based on YOUR analysis of the baseline and counterfact
     console.log('What-If AI response:', content);
     const parsed = JSON.parse(content);
     console.log('Parsed metrics:', parsed.metrics);
+    console.log('Parsed biometrics:', parsed.biometrics);
     
     return parsed;
   } catch (error) {
@@ -868,44 +871,48 @@ export async function generateSuggestions({
 
   const openai = getOpenAI();
 
-  const systemPrompt = `You are analyzing a specific decision and generating realistic "what-if" scenarios that could change the outcome.
+  const systemPrompt = [
+    'You are analyzing a specific decision and generating realistic "what-if" scenarios that could change the outcome.',
+    '',
+    'Rules:',
+    '- Each suggestion must be DIRECTLY relevant to the exact decision question being asked',
+    '- Tweaks should be small, realistic changes to the specific situation (not fantasy scenarios)',
+    "- Focus on actionable variables within the decision context (compensation, timing, conditions, responsibilities, etc.)",
+    "- Predict how each tweak would shift the probabilities based on the user's values and factors",
+    '- Keep suggestions grounded in the real decision at hand',
+  ].join('\n');
 
-Rules:
-- Each suggestion must be DIRECTLY relevant to the exact decision question being asked
-- Tweaks should be small, realistic changes to the specific situation (not fantasy scenarios)
-- Focus on actionable variables within the decision context (compensation, timing, conditions, responsibilities, etc.)
-- Predict how each tweak would shift the probabilities based on the user's values and factors
-- Keep suggestions grounded in the real decision at hand`;
-
-  const userPrompt = `I'm helping someone decide: "${question}"
-
-Their options are: ${JSON.stringify(options)}
-
-Current probabilities based on who they are: ${JSON.stringify(currentProbs)}
-
-Key factors influencing their decision: ${factors.join(', ')}
-
-User's values and context: ${corePackSummary}
-
-Generate 3-5 realistic tweaks SPECIFIC TO THIS DECISION that could change the probabilities. 
-
-Examples of GOOD suggestions for different decision types:
-- Job decision: "If salary was $X higher", "If role was fully remote", "If team was larger/smaller"
-- Relationship decision: "If they moved closer", "If commitment timeline was different"
-- Purchase decision: "If price was X% lower", "If warranty was longer"
-
-For THIS decision ("${question}"), generate contextual tweaks that make sense for the OPTIONS provided.
-
-Return JSON:
-{
-  "suggestions": [
-    {
-      "label": "Specific, actionable tweak relevant to the decision",
-      "probs": {"${options[0]}": 0.XX, "${options[1] || 'option2'}": 0.XX},
-      "delta": "Brief description of probability change"
-    }
-  ]
-}`;
+  const userPrompt = [
+    `I'm helping someone decide: "${question}"`,
+    '',
+    `Their options are: ${JSON.stringify(options)}`,
+    '',
+    `Current probabilities based on who they are: ${JSON.stringify(currentProbs)}`,
+    '',
+    `Key factors influencing their decision: ${factors.join(', ')}`,
+    '',
+    `User's values and context: ${corePackSummary}`,
+    '',
+    'Generate 3-5 realistic tweaks SPECIFIC TO THIS DECISION that could change the probabilities.',
+    '',
+    'Examples of GOOD suggestions for different decision types:',
+    '- Job decision: "If salary was $X higher", "If role was fully remote", "If team was larger/smaller"',
+    '- Relationship decision: "If they moved closer", "If commitment timeline was different"',
+    '- Purchase decision: "If price was X% lower", "If warranty was longer"',
+    '',
+    `For THIS decision ("${question}"), generate contextual tweaks that make sense for the OPTIONS provided.`,
+    '',
+    'Return JSON:',
+    '{',
+    '  "suggestions": [',
+    '    {',
+    '      "label": "Specific, actionable tweak relevant to the decision",',
+    `      "probs": {"${options[0]}": 0.XX, "${options[1] || 'option2'}": 0.XX},`,
+    '      "delta": "Brief description of probability change"',
+    '    }',
+    '  ]',
+    '}',
+  ].join('\n');
 
   try {
     const response = await openai.chat.completions.create({

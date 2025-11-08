@@ -1,14 +1,15 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
-import { ArrowLeft, Sparkles, ChevronRight, Lightbulb, GraduationCap, MapPin, Briefcase } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, Lightbulb, GraduationCap, MapPin, Briefcase } from 'lucide-react-native';
 import { insertWhatIf } from '@/lib/storage';
 import { runWhatIf } from '@/lib/ai';
 import { getProfile } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
 export default function NewWhatIfScreen() {
   const router = useRouter();
@@ -19,11 +20,19 @@ export default function NewWhatIfScreen() {
   async function handleSubmit() {
     if (!user || !whatIfText.trim()) return;
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoading(true);
 
     try {
       const profile = await getProfile(user.id);
       const baselineSummary = profile?.narrative_summary || 'No profile data available';
+      
+      // Debug: Log what baseline summary is being sent to AI
+      console.log('===== WHAT-IF DEBUG =====');
+      console.log('Profile city from core_json:', profile?.core_json?.city);
+      console.log('Baseline summary being sent to AI:');
+      console.log(baselineSummary);
+      console.log('========================');
 
       const result = await runWhatIf(baselineSummary, whatIfText);
 
@@ -32,6 +41,7 @@ export default function NewWhatIfScreen() {
         payload: { question: whatIfText },
         metrics: result.metrics,
         summary: result.summary,
+        biometrics: result.biometrics,
       });
 
       router.push(`/whatif/${whatIfData.id}`);
@@ -163,7 +173,11 @@ export default function NewWhatIfScreen() {
             end={{ x: 1, y: 0 }}
             style={styles.floatingButtonGradient}
           >
-            <Sparkles size={22} color="#FFFFFF" />
+            <Image 
+              source={require('@/assets/images/cube.png')}
+              style={styles.cubeIcon}
+              resizeMode="contain"
+            />
             <Text style={styles.floatingButtonText}>
               {loading ? 'Exploring...' : 'Explore Timeline'}
             </Text>
@@ -231,6 +245,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#FFFFFF',
+    marginBottom: 12,
   },
   scenarioCard: {
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
@@ -328,5 +343,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  cubeIcon: {
+    width: 22,
+    height: 22,
   },
 });

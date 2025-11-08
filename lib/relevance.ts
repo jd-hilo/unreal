@@ -15,12 +15,15 @@ export async function buildCorePack(userId: string): Promise<string> {
 
   sections.push('IDENTITY SNAPSHOT');
   if (profile.core_json?.age_range) sections.push(`Age: ${profile.core_json.age_range}`);
+  if (profile.current_location) sections.push(`Current Location: ${profile.current_location}`);
   if (profile.core_json?.city) sections.push(`Location: ${profile.core_json.city}, ${profile.core_json.country || ''}`);
   if (profile.core_json?.primary_role) sections.push(`Role: ${profile.core_json.primary_role}`);
   if (profile.core_json?.employment_type) sections.push(`Employment: ${profile.core_json.employment_type}`);
   if (profile.hometown) sections.push(`Hometown: ${profile.hometown}`);
   if (profile.university) sections.push(`University: ${profile.university}`);
   if (profile.major) sections.push(`Major: ${profile.major}`);
+  if (profile.net_worth) sections.push(`Net Worth: ${profile.net_worth}`);
+  if (profile.political_views) sections.push(`Political Views: ${profile.political_views}`);
 
   // Include onboarding responses if available
   if (profile.core_json?.onboarding_responses) {

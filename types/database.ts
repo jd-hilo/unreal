@@ -12,6 +12,9 @@ export interface Database {
           university: string | null;
           major: string | null;
           career_entrypoint: string | null;
+          current_location: string | null;
+          net_worth: string | null;
+          political_views: string | null;
           core_json: CoreJsonData;
           values_json: string[];
           narrative_summary: string | null;
@@ -27,6 +30,9 @@ export interface Database {
           university?: string | null;
           major?: string | null;
           career_entrypoint?: string | null;
+          current_location?: string | null;
+          net_worth?: string | null;
+          political_views?: string | null;
           core_json?: CoreJsonData;
           values_json?: string[];
           narrative_summary?: string | null;
@@ -42,6 +48,9 @@ export interface Database {
           university?: string | null;
           major?: string | null;
           career_entrypoint?: string | null;
+          current_location?: string | null;
+          net_worth?: string | null;
+          political_views?: string | null;
           core_json?: CoreJsonData;
           values_json?: string[];
           narrative_summary?: string | null;

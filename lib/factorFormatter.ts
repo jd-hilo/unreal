@@ -38,17 +38,35 @@ export function formatFactor(factor: string): string {
       case 'financial':
         return `Financial factors (${value}) play a role in this decision.`;
       
+      case 'recent_mood':
+        return `Recent mood: ${value.replace(/_/g, ' ')}`;
+      
+      case 'stress_level':
+        return `Current stress level: ${value.replace(/_/g, ' ')}`;
+      
+      case 'life_stage':
+        return `Life stage: ${value.replace(/_/g, ' ')}`;
+      
+      case 'motivation':
+        return `Motivation: ${value.replace(/_/g, ' ')}`;
+      
       default:
-        // Generic format
-        return `${category.charAt(0).toUpperCase() + category.slice(1)}: ${value.replace(/_/g, ' ')}`;
+        // Generic format - convert underscores to spaces and capitalize properly
+        const formattedCategory = category.replace(/_/g, ' ')
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        const formattedValue = value.replace(/_/g, ' ');
+        return `${formattedCategory}: ${formattedValue}`;
     }
   }
   
   // If it's already a sentence or doesn't match patterns, return as-is
-  // But ensure it's capitalized
+  // But ensure it's capitalized and replace underscores
   if (factor.length > 0) {
-    return factor.charAt(0).toUpperCase() + factor.slice(1) + 
-           (factor.endsWith('.') ? '' : '.');
+    const cleaned = factor.replace(/_/g, ' ');
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1) + 
+           (cleaned.endsWith('.') ? '' : '.');
   }
   
   return factor;

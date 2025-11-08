@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated } from 'react-native';
-import { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Card } from '@/components/Card';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, Weight, Heart, DollarSign, MapPin, Smile, Coffee } from 'lucide-react-native';
 
 export default function WhatIfResultScreen() {
@@ -10,60 +11,9 @@ export default function WhatIfResultScreen() {
   const { id } = useLocalSearchParams();
   const [whatIf, setWhatIf] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Floating animations for biometrics
-  const floatAnim1 = useRef(new Animated.Value(0)).current;
-  const floatAnim2 = useRef(new Animated.Value(0)).current;
-  const floatAnim3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadWhatIf();
-    
-    // Start floating animations
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatAnim1, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatAnim1, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-    
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatAnim2, {
-          toValue: 1,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatAnim2, {
-          toValue: 0,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-    
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatAnim3, {
-          toValue: 1,
-          duration: 3500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatAnim3, {
-          toValue: 0,
-          duration: 3500,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
   }, [id]);
 
   async function loadWhatIf() {
@@ -103,6 +53,95 @@ export default function WhatIfResultScreen() {
 
   const metrics = whatIf.metrics || {};
   const metricNames = ['happiness', 'money', 'relationship', 'freedom', 'growth'];
+  const biometricsData = whatIf.biometrics || {};
+
+  type BiometricEntry = {
+    key: string;
+    label: string;
+    icon: JSX.Element;
+    primary?: string;
+    secondary?: string;
+    detail?: string;
+  };
+
+  const biometricsEntries: BiometricEntry[] = [];
+
+  // Helper function to capitalize first letter
+  const capitalize = (str: string) => {
+    if (!str || str === '—') return str;
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  // Order: Relationship, Net Worth, Weight, Location, Hobby, Mood
+  if (biometricsData.relationshipStatus) {
+    biometricsEntries.push({
+      key: 'relationshipStatus',
+      label: 'Relationship Status',
+      icon: <Heart size={18} color="#EF4444" />,
+      primary: capitalize(biometricsData.relationshipStatus.alternate || biometricsData.relationshipStatus.current || '—'),
+      secondary: biometricsData.relationshipStatus.current ? `Current: ${capitalize(biometricsData.relationshipStatus.current)}` : undefined,
+    });
+  }
+
+  if (biometricsData.netWorth) {
+    biometricsEntries.push({
+      key: 'netWorth',
+      label: 'Net Worth',
+      icon: <DollarSign size={18} color="#10B981" />,
+      primary: biometricsData.netWorth.alternate || biometricsData.netWorth.current || '—',
+      secondary: biometricsData.netWorth.current ? `Current: ${biometricsData.netWorth.current}` : undefined,
+      detail: biometricsData.netWorth.percentChange,
+    });
+  }
+
+  if (biometricsData.weight) {
+    biometricsEntries.push({
+      key: 'weight',
+      label: 'Weight',
+      icon: <Weight size={18} color="#B795FF" />,
+      primary: biometricsData.weight.alternate || biometricsData.weight.current || '—',
+      secondary: biometricsData.weight.current ? `Current: ${biometricsData.weight.current}` : undefined,
+      detail: biometricsData.weight.change,
+    });
+  }
+
+  if (biometricsData.location) {
+    biometricsEntries.push({
+      key: 'location',
+      label: 'Location',
+      icon: <MapPin size={18} color="#F59E0B" />,
+      primary: biometricsData.location.alternate || biometricsData.location.current || '—',
+      secondary: biometricsData.location.current ? `Current: ${biometricsData.location.current}` : undefined,
+    });
+  }
+
+  if (biometricsData.hobby) {
+    biometricsEntries.push({
+      key: 'hobby',
+      label: 'Hobby',
+      icon: <Coffee size={18} color="#8B5CF6" />,
+      primary: capitalize(biometricsData.hobby.alternate || biometricsData.hobby.current || '—'),
+      secondary: biometricsData.hobby.current ? `Current: ${capitalize(biometricsData.hobby.current)}` : undefined,
+    });
+  }
+
+  if (biometricsData.mood) {
+    biometricsEntries.push({
+      key: 'mood',
+      label: 'Mood',
+      icon: <Smile size={18} color="#34D399" />,
+      primary: capitalize(biometricsData.mood.alternate || biometricsData.mood.current || '—'),
+      secondary: biometricsData.mood.current ? `Current: ${capitalize(biometricsData.mood.current)}` : undefined,
+    });
+  }
+
+  function getDetailStyle(detail?: string) {
+    if (!detail) return styles.biometricDetail;
+    const trimmed = detail.trim();
+    if (trimmed.startsWith('+')) return [styles.biometricDetail, styles.biometricDetailPositive];
+    if (trimmed.startsWith('-')) return [styles.biometricDetail, styles.biometricDetailNegative];
+    return styles.biometricDetail;
+  }
 
   function getMetricIcon(current: number, alternate: number) {
     const diff = alternate - current;
@@ -188,67 +227,52 @@ export default function WhatIfResultScreen() {
 
         {whatIf.biometrics && (
           <View style={styles.biometricsSection}>
-            <Text style={styles.biometricsTitle}>Life Changes</Text>
-            <View style={styles.biometricsContainer}>
+            <View style={styles.biometricsCardWrapper}>
               <Image 
                 source={require('@/app/profileman.png')}
-                style={styles.profileManImage}
+                style={styles.biometricsHeadImage}
                 resizeMode="contain"
               />
-              
-              {whatIf.biometrics.weight && (
-                <Animated.View style={[styles.biometricBubble, styles.bubble1, {
-                  transform: [{ translateY: floatAnim1.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }) }]
-                }]}>
-                  <Weight size={16} color="#B795FF" />
-                  <Text style={styles.biometricText}>{whatIf.biometrics.weight.change}</Text>
-                </Animated.View>
-              )}
-              
-              {whatIf.biometrics.relationshipStatus && (
-                <Animated.View style={[styles.biometricBubble, styles.bubble2, {
-                  transform: [{ translateY: floatAnim2.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) }]
-                }]}>
-                  <Heart size={16} color="#EF4444" />
-                  <Text style={styles.biometricText}>{whatIf.biometrics.relationshipStatus.alternate}</Text>
-                </Animated.View>
-              )}
-              
-              {whatIf.biometrics.netWorth && (
-                <Animated.View style={[styles.biometricBubble, styles.bubble3, {
-                  transform: [{ translateY: floatAnim3.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }]
-                }]}>
-                  <DollarSign size={16} color="#10B981" />
-                  <Text style={styles.biometricText}>{whatIf.biometrics.netWorth.percentChange}</Text>
-                </Animated.View>
-              )}
-              
-              {whatIf.biometrics.location && (
-                <Animated.View style={[styles.biometricBubble, styles.bubble4, {
-                  transform: [{ translateY: floatAnim1.interpolate({ inputRange: [0, 1], outputRange: [0, -15] }) }]
-                }]}>
-                  <MapPin size={16} color="#F59E0B" />
-                  <Text style={styles.biometricText} numberOfLines={1}>{whatIf.biometrics.location.alternate.split(',')[0]}</Text>
-                </Animated.View>
-              )}
-              
-              {whatIf.biometrics.hobby && (
-                <Animated.View style={[styles.biometricBubble, styles.bubble5, {
-                  transform: [{ translateY: floatAnim2.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }) }]
-                }]}>
-                  <Coffee size={16} color="#8B5CF6" />
-                  <Text style={styles.biometricText}>{whatIf.biometrics.hobby.alternate}</Text>
-                </Animated.View>
-              )}
-              
-              {whatIf.biometrics.mood && (
-                <Animated.View style={[styles.biometricBubble, styles.bubble6, {
-                  transform: [{ translateY: floatAnim3.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) }]
-                }]}>
-                  <Smile size={16} color="#34D399" />
-                  <Text style={styles.biometricText}>{whatIf.biometrics.mood.alternate}</Text>
-                </Animated.View>
-              )}
+              <LinearGradient
+                colors={['rgba(15, 10, 30, 0.95)', 'rgba(25, 15, 45, 0.9)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.biometricsCard}
+              >
+                <Text style={styles.biometricsTitle}>Bio Metrics</Text>
+
+                <View style={styles.biometricsCardContent}>
+                  {biometricsEntries.length === 0 && (
+                    <Text style={styles.biometricEmptyText}>No biometric changes available.</Text>
+                  )}
+
+                  {biometricsEntries.map((item, index) => (
+                    <View
+                      key={item.key}
+                      style={[
+                        styles.biometricRow,
+                        index !== biometricsEntries.length - 1 && styles.biometricRowDivider,
+                      ]}
+                    >
+                      <View style={styles.biometricIcon}>
+                        {item.icon}
+                      </View>
+                      <View style={styles.biometricContent}>
+                        <Text style={styles.biometricLabel}>{item.label}</Text>
+                        {item.primary && (
+                          <Text style={styles.biometricPrimary}>{item.primary}</Text>
+                        )}
+                        {item.secondary && (
+                          <Text style={styles.biometricSecondary}>{item.secondary}</Text>
+                        )}
+                        {item.detail && (
+                          <Text style={getDetailStyle(item.detail)}>{item.detail}</Text>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </LinearGradient>
             </View>
           </View>
         )}
@@ -362,72 +386,97 @@ const styles = StyleSheet.create({
     color: 'rgba(200, 200, 200, 0.85)',
   },
   biometricsSection: {
-    marginTop: 32,
-    marginBottom: 20,
+    marginTop: 40,
+    marginBottom: 32,
+  },
+  biometricsCardWrapper: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  biometricsHeadImage: {
+    width: 220,
+    height: 220,
+    opacity: 0.55,
+  },
+  biometricsCard: {
+    width: '100%',
+    marginTop: -80,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderRadius: 24,
+    paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    shadowColor: '#6E3DF0',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 10,
   },
   biometricsTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 24,
     textAlign: 'center',
+    marginBottom: 20,
+    fontFamily: 'Inter-SemiBold',
   },
-  biometricsContainer: {
-    position: 'relative',
-    height: 300,
+  biometricsCardContent: {
+    gap: 16,
+  },
+  biometricRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    paddingVertical: 12,
+  },
+  biometricRowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(59, 37, 109, 0.25)',
+  },
+  biometricIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(110, 61, 240, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileManImage: {
-    width: 180,
-    height: 180,
-    opacity: 0.4,
+  biometricContent: {
+    flex: 1,
+    gap: 4,
   },
-  biometricBubble: {
-    position: 'absolute',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(20, 18, 30, 0.9)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    shadowColor: '#B795FF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  bubble1: {
-    top: 20,
-    left: 20,
-  },
-  bubble2: {
-    top: 40,
-    right: 15,
-  },
-  bubble3: {
-    top: 120,
-    left: 10,
-  },
-  bubble4: {
-    top: 140,
-    right: 10,
-  },
-  bubble5: {
-    bottom: 80,
-    left: 25,
-  },
-  bubble6: {
-    bottom: 70,
-    right: 20,
-  },
-  biometricText: {
+  biometricLabel: {
     fontSize: 13,
     fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.75)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  biometricPrimary: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#FFFFFF',
-    maxWidth: 100,
+  },
+  biometricSecondary: {
+    fontSize: 13,
+    color: 'rgba(200, 200, 200, 0.7)',
+  },
+  biometricDetail: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#B795FF',
+  },
+  biometricDetailPositive: {
+    color: '#10B981',
+  },
+  biometricDetailNegative: {
+    color: '#EF4444',
+  },
+  biometricEmptyText: {
+    textAlign: 'center',
+    color: 'rgba(200, 200, 200, 0.65)',
+    fontSize: 13,
+    paddingVertical: 12,
   },
 });

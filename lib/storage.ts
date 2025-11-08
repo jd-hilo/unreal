@@ -7,6 +7,7 @@ import type {
   DecisionPrediction,
   SimulationScenario,
   WhatIfMetrics,
+  WhatIfBiometrics,
 } from '@/types/database';
 
 export async function upsertProfileCore(
@@ -44,6 +45,9 @@ export async function updateProfileFields(
     university?: string;
     major?: string;
     career_entrypoint?: string;
+    current_location?: string;
+    net_worth?: string;
+    political_views?: string;
   }
 ) {
   const { data, error } = await supabase
@@ -307,6 +311,7 @@ export async function insertWhatIf(
     payload: Record<string, any>;
     metrics: WhatIfMetrics;
     summary: string;
+    biometrics?: WhatIfBiometrics;
   }
 ) {
   const { data, error } = await supabase
@@ -317,6 +322,7 @@ export async function insertWhatIf(
       payload: payload.payload as any,
       metrics: payload.metrics as any,
       summary: payload.summary,
+      biometrics: payload.biometrics as any,
     } as any)
     .select()
     .single();

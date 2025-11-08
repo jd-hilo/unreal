@@ -1,4 +1,4 @@
-import { TextInput, View, Text, StyleSheet, TextInputProps, ViewStyle } from 'react-native';
+import { TextInput, View, Text, StyleSheet, TextInputProps, ViewStyle, Keyboard } from 'react-native';
 import { useState } from 'react';
 
 interface InputProps extends TextInputProps {
@@ -7,12 +7,27 @@ interface InputProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export function Input({ label, error, containerStyle, style, returnKeyType, blurOnSubmit, multiline, ...props }: InputProps) {
+export function Input({
+  label,
+  error,
+  containerStyle,
+  style,
+  returnKeyType,
+  blurOnSubmit,
+  multiline,
+  onSubmitEditing,
+  ...props
+}: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   // Use explicit returnKeyType if provided, otherwise use smart defaults
-  const finalReturnKeyType = returnKeyType !== undefined ? returnKeyType : (multiline ? 'default' : 'done');
-  const finalBlurOnSubmit = blurOnSubmit !== undefined ? blurOnSubmit : !multiline;
+  const finalReturnKeyType = returnKeyType !== undefined ? returnKeyType : 'done';
+  const finalBlurOnSubmit = blurOnSubmit !== undefined ? blurOnSubmit : true;
+
+  const handleSubmitEditing: TextInputProps['onSubmitEditing'] = (event) => {
+    onSubmitEditing?.(event);
+    Keyboard.dismiss();
+  };
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -30,6 +45,7 @@ export function Input({ label, error, containerStyle, style, returnKeyType, blur
         blurOnSubmit={finalBlurOnSubmit}
         multiline={multiline}
         enablesReturnKeyAutomatically={true}
+        onSubmitEditing={handleSubmitEditing}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         {...props}
