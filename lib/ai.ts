@@ -763,7 +763,12 @@ function mockTimelineSimulation(): TimelineSimulation {
 
 export async function runWhatIf(
   baselineSummary: string,
-  userText: string
+  userText: string,
+  currentBiometrics?: {
+    location?: string | null;
+    netWorth?: string | null;
+    relationshipStatus?: string | null;
+  }
 ): Promise<{ metrics: WhatIfMetrics; summary: string; biometrics?: any }> {
   if (DEV_MODE) {
     return mockWhatIf();
@@ -774,27 +779,34 @@ export async function runWhatIf(
   const systemPrompt =
     "You are analyzing alternate life trajectories. Generate realistic metrics comparing the user's CURRENT reality to an ALTERNATE reality where they made different choices.\n\n" +
     'IMPORTANT:\n' +
-    '- Base the "current" values on their actual baseline summary\n' +
+    '- Use the provided current biometric values as the baseline\n' +
     '- Generate the "alternate" values based on how that specific counterfactual would have changed things\n' +
     '- Values should be on a scale of 0-10\n' +
     '- Make meaningful differences - avoid tiny changes unless truly warranted\n' +
     '- Consider second-order effects (e.g., better job = more money but maybe less freedom)\n' +
     '- Include specific biometric predictions';
 
+  let biometricsSection = '';
+  if (currentBiometrics && (currentBiometrics.location || currentBiometrics.netWorth || currentBiometrics.relationshipStatus)) {
+    biometricsSection = '\n\nCURRENT BIOMETRIC DATA (use these exact values for "current"):\n';
+    if (currentBiometrics.location) biometricsSection += `- Location: ${currentBiometrics.location}\n`;
+    if (currentBiometrics.netWorth) biometricsSection += `- Net Worth: ${currentBiometrics.netWorth}\n`;
+    if (currentBiometrics.relationshipStatus) biometricsSection += `- Relationship Status: ${currentBiometrics.relationshipStatus}\n`;
+  }
+
   const userPrompt =
     'Current baseline summary:\n\n' +
     baselineSummary +
+    biometricsSection +
     '\n\nCounterfactual prompt:\n\n' +
     userText +
     '\n\nAnalyze how this alternate choice would have affected their life across 5 dimensions AND specific biometrics.\n\n' +
     'CRITICAL INSTRUCTIONS FOR BIOMETRICS:\n' +
-    '- DO NOT use placeholder text like "City, State" or "hobby name"\n' +
-    '- For "current" values: Extract ACTUAL current information from the baseline summary above\n' +
-    '- Current location: Find the EXACT city/state mentioned in their baseline (search for "Location:", "city", geographic references, or places mentioned)\n' +
-    '- Current relationship status: Extract from baseline summary (single/dating/partnered/married/etc)\n' +
-    '- Current weight, mood, hobby: Infer reasonable estimates from baseline if mentioned, otherwise omit that biometric\n' +
+    '- Use the EXACT current biometric values provided above (if available)\n' +
+    '- DO NOT make up or guess current values - use what is explicitly provided\n' +
     '- For "alternate" values: Predict how these would realistically change based on the counterfactual scenario\n' +
-    '- If you cannot find current data for a biometric field, OMIT that field entirely from the response\n\n' +
+    '- If current data for a biometric field was not provided, you may infer it from the baseline summary OR omit that field\n' +
+    '- DO NOT use placeholder text like "City, State" or generic values\n\n' +
     'Return JSON with this structure:\n\n' +
     '{\n' +
     '  "metrics": {\n' +
@@ -813,7 +825,7 @@ export async function runWhatIf(
     '  },\n' +
     '  "summary": "One paragraph in SECOND PERSON (you/your) comparing the two trajectories and explaining key differences."\n' +
     '}\n\n' +
-    'IMPORTANT: The example above shows the format and realistic data - analyze the baseline to generate your own specific values. Use REAL city names from the baseline, not placeholders.';
+    'IMPORTANT: The example above shows the format. Use the actual provided current biometric values, not these examples.';
 
   try {
     const response = await openai.chat.completions.create({

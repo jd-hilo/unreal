@@ -27,14 +27,21 @@ export default function NewWhatIfScreen() {
       const profile = await getProfile(user.id);
       const baselineSummary = profile?.narrative_summary || 'No profile data available';
       
+      // Extract current biometric values from profile
+      const currentBiometrics = {
+        location: profile?.current_location || profile?.core_json?.city || null,
+        netWorth: profile?.net_worth || null,
+        relationshipStatus: profile?.core_json?.relationship_status || null,
+      };
+      
       // Debug: Log what baseline summary is being sent to AI
       console.log('===== WHAT-IF DEBUG =====');
-      console.log('Profile city from core_json:', profile?.core_json?.city);
+      console.log('Current biometrics:', currentBiometrics);
       console.log('Baseline summary being sent to AI:');
       console.log(baselineSummary);
       console.log('========================');
 
-      const result = await runWhatIf(baselineSummary, whatIfText);
+      const result = await runWhatIf(baselineSummary, whatIfText, currentBiometrics);
 
       const whatIfData = await insertWhatIf(user.id, {
         counterfactual_type: 'general',
