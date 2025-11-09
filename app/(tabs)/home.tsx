@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Platform, Modal } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile, getWhatIfs, getRelationships } from '@/lib/storage';
-import { Compass, Sparkles, Zap } from 'lucide-react-native';
+import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf } from '@/lib/storage';
+import { Compass, Sparkles, Zap, X, Trash2 } from 'lucide-react-native';
 import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +23,8 @@ export default function HomeScreen() {
   const [recentWhatIfs, setRecentWhatIfs] = useState<any[]>([]);
   const [isLoadingDecisions, setIsLoadingDecisions] = useState(true);
   const [profileProgress, setProfileProgress] = useState(100); // Default to 100 to hide initially
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'decision' | 'whatif'; title: string } | null>(null);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -50,20 +52,39 @@ export default function HomeScreen() {
       });
   }, [user, router, checkOnboardingStatus]);
 
+  // Reload data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user && useTwin.getState().onboardingComplete) {
+        console.log('Home screen focused - reloading data');
+        loadData();
+      }
+    }, [user])
+  );
+
   async function loadData() {
     if (!user) return;
 
     try {
       const profile = await getProfile(user.id);
-      const profileName = profile?.first_name || profile?.core_json?.name || profile?.core_json?.primary_role;
-      const metadataName = (user.user_metadata as any)?.full_name || (user.user_metadata as any)?.name;
-
-      if (profileName) {
-        setUserName(String(profileName).split(' ')[0]);
-      } else if (metadataName) {
-        setUserName(String(metadataName).split(' ')[0]);
-      } else if (user.email) {
-        setUserName(user.email.split('@')[0]);
+      
+      console.log('Home screen - loaded profile:', profile);
+      console.log('Home screen - first_name from profile:', profile?.first_name);
+      
+      // Priority: profile.first_name, then metadata name, then email
+      if (profile?.first_name) {
+        console.log('Setting userName to first_name:', profile.first_name);
+        setUserName(profile.first_name);
+      } else {
+        console.log('first_name not found, checking fallbacks');
+        const metadataName = (user.user_metadata as any)?.full_name || (user.user_metadata as any)?.name;
+        if (metadataName) {
+          console.log('Using metadata name:', metadataName);
+          setUserName(String(metadataName).split(' ')[0]);
+        } else if (user.email) {
+          console.log('Using email fallback:', user.email);
+          setUserName(user.email.split('@')[0]);
+        }
       }
 
       const [decisions, whatIfs, relationships] = await Promise.all([
@@ -169,8 +190,42 @@ export default function HomeScreen() {
     }
   }
 
+  function handleLongPressEcho(echo: any) {
+    if (echo.isPlaceholder) return;
+    
+    setItemToDelete({
+      id: echo.id,
+      type: echo.type,
+      title: echo.title
+    });
+    setDeleteModalVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }
+
+  async function handleConfirmDelete() {
+    if (!itemToDelete) return;
+
+    try {
+      if (itemToDelete.type === 'decision') {
+        await deleteDecision(itemToDelete.id);
+      } else if (itemToDelete.type === 'whatif') {
+        await deleteWhatIf(itemToDelete.id);
+      }
+
+      // Reload data
+      await loadData();
+      
+      setDeleteModalVisible(false);
+      setItemToDelete(null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Failed to delete:', error);
+      alert('Failed to delete item. Please try again.');
+    }
+  }
+
   // Merge decisions and what-ifs, sort by date
-  const allEchoes = [
+  const echoEntries = [
     ...recentDecisions.map((decision) => ({
         id: decision.id,
       type: 'decision' as const,
@@ -192,31 +247,6 @@ export default function HomeScreen() {
       timestamp: new Date(whatIf.created_at).getTime(),
     }))
   ].sort((a, b) => b.timestamp - a.timestamp).slice(0, 6);
-
-  const echoEntries = allEchoes.length > 0
-    ? allEchoes
-    : [
-        {
-          id: 'echo-job-offer-placeholder',
-          type: 'decision' as const,
-          title: 'Job Offer',
-          subtitle: 'Last visited 2 days ago',
-          detail: 'Compare the paths you saved.',
-          isPlaceholder: true,
-          route: undefined as string | undefined,
-          timestamp: 0,
-        },
-        {
-          id: 'echo-career-placeholder',
-          type: 'decision' as const,
-          title: 'Career Path',
-          subtitle: '3 outcomes simulated',
-          detail: 'Hop back into your futures.',
-          isPlaceholder: true,
-          route: undefined as string | undefined,
-          timestamp: 0,
-        },
-      ];
 
   return (
     <View style={styles.screen}>
@@ -354,16 +384,17 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.echoSection}>
-              <Text style={styles.sectionTitle}>Your Echoes</Text>
+            {echoEntries.length > 0 && (
+              <View style={styles.echoSection}>
+                <Text style={styles.sectionTitle}>Your Echoes</Text>
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.echoScrollContent}
-                style={styles.echoScrollView}
-              >
-                {echoEntries.map((echo) => (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.echoScrollContent}
+                  style={styles.echoScrollView}
+                >
+                  {echoEntries.map((echo) => (
                   <TouchableOpacity
                     key={echo.id}
                     style={styles.echoCardWrapper}
@@ -373,6 +404,7 @@ export default function HomeScreen() {
                         router.push(echo.route as any);
                       }
                     }}
+                    onLongPress={() => handleLongPressEcho(echo)}
                     disabled={!echo.route}
                   >
                     <LinearGradient
@@ -386,7 +418,7 @@ export default function HomeScreen() {
                           {echo.type === 'whatif' ? (
                             <Sparkles size={12} color="#B795FF" />
                           ) : (
-                            <Compass size={12} color="#8A5CFF" />
+                            <Compass size={12} color="#B795FF" />
                           )}
                         </View>
                       )}
@@ -398,12 +430,77 @@ export default function HomeScreen() {
                       </Text>
                     </LinearGradient>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </Animated.ScrollView>
         </SafeAreaView>
       </View>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <View style={styles.deleteModalHeader}>
+              <View style={styles.deleteIconContainer}>
+                <Trash2 size={24} color="#EF4444" />
+              </View>
+              <TouchableOpacity 
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setItemToDelete(null);
+                }}
+                style={styles.deleteModalCloseButton}
+              >
+                <X size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.deleteModalTitle}>Delete {itemToDelete?.type === 'decision' ? 'Decision' : 'What If'}?</Text>
+            
+            <Text style={styles.deleteModalDescription}>
+              "{itemToDelete?.title}"
+            </Text>
+
+            <Text style={styles.deleteModalWarning}>
+              This action cannot be undone.
+            </Text>
+
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setItemToDelete(null);
+                }}
+                style={styles.deleteCancelButton}
+              >
+                <Text style={styles.deleteCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleConfirmDelete}
+                style={styles.deleteConfirmButtonWrapper}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={['#EF4444', '#DC2626', '#B91C1C']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.deleteConfirmButton}
+                >
+                  <Text style={styles.deleteConfirmButtonText}>Delete</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -688,5 +785,90 @@ const styles = StyleSheet.create({
   thinProgressFill: {
     height: '100%',
     borderRadius: 3,
+  },
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  deleteModalContent: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: 'rgba(20, 18, 30, 0.98)',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+  },
+  deleteModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  deleteIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteModalCloseButton: {
+    padding: 4,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  deleteModalDescription: {
+    fontSize: 15,
+    color: 'rgba(200, 200, 200, 0.85)',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  deleteModalWarning: {
+    fontSize: 13,
+    color: 'rgba(200, 200, 200, 0.6)',
+    fontStyle: 'italic',
+    marginBottom: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  deleteCancelButton: {
+    flex: 1,
+    backgroundColor: 'rgba(59, 37, 109, 0.3)',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+  },
+  deleteCancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  deleteConfirmButtonWrapper: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  deleteConfirmButton: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteConfirmButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

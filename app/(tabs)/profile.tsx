@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, Clipboard } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
@@ -6,11 +6,13 @@ import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen } from 'lucide-react-native';
-import { getProfile, getTodayJournal, getRelationships, deleteAccountData } from '@/lib/storage';
+import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen, Copy } from 'lucide-react-native';
+import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useTextScramble } from '@/hooks/useTextScramble';
+import * as Haptics from 'expo-haptics';
 
 interface ProfileCard {
   id: string;
@@ -30,6 +32,8 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [journalComplete, setJournalComplete] = useState(false);
   const [hasRelationships, setHasRelationships] = useState(false);
+  const [twinCode, setTwinCode] = useState<string>('');
+  const animatedTwinCode = useTextScramble(twinCode, 1500);
 
   // Reload profile data when screen comes into focus
   useFocusEffect(
@@ -46,18 +50,32 @@ export default function ProfileScreen() {
     if (!user) return;
     
     try {
-      const [profile, todayJournal, relationships] = await Promise.all([
+      const [profile, todayJournal, relationships, code] = await Promise.all([
         getProfile(user.id),
         getTodayJournal(user.id),
-        getRelationships(user.id)
+        getRelationships(user.id),
+        ensureTwinCode(user.id)
       ]);
       setProfileData(profile);
       setJournalComplete(!!todayJournal);
       setHasRelationships(relationships && relationships.length > 0);
+      setTwinCode(code);
     } catch (error) {
       console.error('Failed to load profile:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCopyTwinCode() {
+    if (!twinCode) return;
+    
+    try {
+      Clipboard.setString(twinCode);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Copied!', 'Your unreal# has been copied to clipboard');
+    } catch (error) {
+      console.error('Failed to copy:', error);
     }
   }
 
@@ -224,7 +242,18 @@ export default function ProfileScreen() {
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.title}>Your Digital Twin</Text>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>unreal#: {animatedTwinCode || '------'}</Text>
+              {twinCode && (
+                <TouchableOpacity 
+                  onPress={handleCopyTwinCode}
+                  style={styles.copyButton}
+                  activeOpacity={0.7}
+                >
+                  <Copy size={20} color="#B795FF" />
+                </TouchableOpacity>
+              )}
+            </View>
 
             {/* Twin's Understanding Card */}
             <TouchableOpacity
@@ -405,13 +434,27 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 100,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+    gap: 12,
+  },
   title: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 24,
-    textAlign: 'center',
     fontFamily: 'Inter-SemiBold',
+    letterSpacing: 0.5,
+  },
+  copyButton: {
+    padding: 6,
+    backgroundColor: 'rgba(183, 149, 255, 0.15)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
   },
   progressCard: {
     marginBottom: 24,

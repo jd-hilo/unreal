@@ -15,6 +15,7 @@ export interface Database {
           current_location: string | null;
           net_worth: string | null;
           political_views: string | null;
+          twin_code: string | null;
           core_json: CoreJsonData;
           values_json: string[];
           narrative_summary: string | null;
@@ -33,6 +34,7 @@ export interface Database {
           current_location?: string | null;
           net_worth?: string | null;
           political_views?: string | null;
+          twin_code?: string | null;
           core_json?: CoreJsonData;
           values_json?: string[];
           narrative_summary?: string | null;
@@ -51,6 +53,7 @@ export interface Database {
           current_location?: string | null;
           net_worth?: string | null;
           political_views?: string | null;
+          twin_code?: string | null;
           core_json?: CoreJsonData;
           values_json?: string[];
           narrative_summary?: string | null;
@@ -245,6 +248,29 @@ export interface Database {
           created_at?: string;
         };
       };
+      decision_participants: {
+        Row: {
+          id: string;
+          decision_id: string;
+          participant_user_id: string;
+          added_by_user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          decision_id: string;
+          participant_user_id: string;
+          added_by_user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          decision_id?: string;
+          participant_user_id?: string;
+          added_by_user_id?: string;
+          created_at?: string;
+        };
+      };
     };
   };
 }
@@ -285,6 +311,7 @@ export interface TimelineEvent {
   time: string;
   title: string;
   description: string;
+  people?: string[]; // Array of first names involved in this event
 }
 
 export interface TimelineSimulation {

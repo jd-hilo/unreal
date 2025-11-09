@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Button } from './Button';
 import { ProgressBar } from './ProgressBar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,10 +28,25 @@ export function OnboardingScreen({
   loading = false,
   canContinue = true,
 }: OnboardingScreenProps) {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  async function handleNext() {
+    if (isProcessing || !canContinue || loading) return;
+    
+    setIsProcessing(true);
+    try {
+      await onNext();
+    } finally {
+      // Keep disabled briefly to prevent double-tap
+      setTimeout(() => setIsProcessing(false), 500);
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
     >
       {/* Progress Header */}
       <View style={styles.header}>
@@ -67,24 +82,24 @@ export function OnboardingScreen({
         )}
         
         <TouchableOpacity
-          onPress={onNext}
-          disabled={!canContinue || loading}
+          onPress={handleNext}
+          disabled={!canContinue || loading || isProcessing}
           activeOpacity={0.9}
           style={[
             styles.floatingButton,
-            (!canContinue || loading) && styles.floatingButtonDisabled
+            (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled
           ]}
         >
           <LinearGradient
-            colors={canContinue && !loading ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+            colors={canContinue && !loading && !isProcessing ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.floatingButtonGradient}
           >
             <Text style={styles.floatingButtonText}>
-              {loading ? 'Processing...' : nextLabel}
+              {loading || isProcessing ? 'Processing...' : nextLabel}
             </Text>
-            {!loading && <ChevronRight size={20} color="#FFFFFF" />}
+            {!loading && !isProcessing && <ChevronRight size={20} color="#FFFFFF" />}
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -131,15 +146,13 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   floatingButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 40,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 12 : 16,
     backgroundColor: '#0C0C10',
     gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(59, 37, 109, 0.2)',
   },
   skipButton: {
     alignItems: 'center',

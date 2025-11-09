@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useAuth } from '@/store/useAuth';
@@ -8,6 +8,7 @@ import { mineRelationships } from '@/lib/ai';
 import { completeOnboarding } from '@/lib/storage';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
+import { ProgressBar } from '@/components/ProgressBar';
 import { Sparkles, CheckCircle2, Circle } from 'lucide-react-native';
 
 const RELATIONSHIP_TYPES = [
@@ -193,15 +194,17 @@ export default function AddRelationshipScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        {isOnboarding && (
+          <View style={styles.progressBarContainer}>
+            <ProgressBar progress={85} showLabel={false} />
+          </View>
+        )}
         {!isOnboarding && (
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>← Cancel</Text>
         </TouchableOpacity>
         )}
         <Text style={styles.title}>{isOnboarding ? 'Who influences your decisions?' : 'Add Relationships'}</Text>
-        {isOnboarding && (
-          <Text style={styles.subtitle}>Add key people in your life (optional)</Text>
-        )}
         
         {/* Mode Toggle */}
         <View style={styles.modeToggle}>
@@ -237,15 +240,24 @@ export default function AddRelationshipScreen() {
                 <Text style={styles.aiInstructions}>
                   Write a paragraph about the people in your life and AI will extract them for you.
                 </Text>
-                <Input
-                  placeholder="E.g., My partner Sarah has been with me for 5 years in NYC. My best friend Mike from college lives in SF and we talk weekly. My mentor Jane helped shape my career..."
-                  value={paragraph}
-                  onChangeText={setParagraph}
-                  multiline
-                  numberOfLines={10}
-                  textAlignVertical="top"
-                  style={styles.paragraphInput}
-                />
+                <View style={styles.inputCard}>
+                  <Input
+                    placeholder="E.g., My partner Sarah has been with me for 5 years in NYC. My best friend Mike from college lives in SF and we talk weekly. My mentor Jane helped shape my career..."
+                    value={paragraph}
+                    onChangeText={setParagraph}
+                    multiline
+                    numberOfLines={10}
+                    textAlignVertical="top"
+                    style={styles.paragraphInput}
+                    containerStyle={styles.inputContainer}
+                  />
+                </View>
+                
+                <View style={styles.helperCard}>
+                  <Text style={styles.helperText}>
+                    🎤 Tip: We recommend using voice transcription on your keyboard for easier input
+                  </Text>
+                </View>
                 {error && <Text style={styles.error}>{error}</Text>}
               </>
             ) : (
@@ -420,6 +432,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
+  progressBarContainer: {
+    marginBottom: 20,
+  },
   backButton: {
     marginBottom: 16,
   },
@@ -440,7 +455,6 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     alignItems: 'center',
-    paddingVertical: 12,
     marginBottom: 8,
   },
   skipText: {
@@ -482,7 +496,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 24,
-    paddingBottom: 120,
+    paddingBottom: 200,
     gap: 24,
   },
   section: {
@@ -582,8 +596,34 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 8,
   },
+  inputCard: {
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderRadius: 16,
+    padding: 16,
+  },
+  inputContainer: {
+    marginBottom: 0,
+  },
   paragraphInput: {
     minHeight: 200,
+  },
+  helperCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(183, 149, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.2)',
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  helperText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(200, 200, 200, 0.85)',
   },
   extractedTitle: {
     fontSize: 16,
@@ -631,8 +671,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 12 : 16,
     backgroundColor: '#0C0C10',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(59, 37, 109, 0.2)',
   },
   footerButtons: {
     flexDirection: 'row',

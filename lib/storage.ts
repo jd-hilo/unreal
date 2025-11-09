@@ -52,8 +52,13 @@ export async function updateProfileFields(
 ) {
   const { data, error } = await supabase
     .from('profiles')
-    .update(fields)
-    .eq('user_id', userId)
+    .upsert(
+      {
+        user_id: userId,
+        ...fields,
+      } as any,
+      { onConflict: 'user_id' }
+    )
     .select()
     .maybeSingle();
 
@@ -272,6 +277,15 @@ export async function getDecision(decisionId: string) {
   return data;
 }
 
+export async function deleteDecision(decisionId: string) {
+  const { error } = await supabase
+    .from('decisions')
+    .delete()
+    .eq('id', decisionId);
+
+  if (error) throw error;
+}
+
 export async function insertSimulation(
   userId: string,
   decisionId: string,
@@ -341,6 +355,15 @@ export async function getWhatIfs(userId: string, limit = 10) {
 
   if (error) throw error;
   return data || [];
+}
+
+export async function deleteWhatIf(whatIfId: string) {
+  const { error } = await supabase
+    .from('what_if')
+    .delete()
+    .eq('id', whatIfId);
+
+  if (error) throw error;
 }
 
 export async function insertJournal(userId: string, mood: number, text: string) {
@@ -511,6 +534,131 @@ export async function updateContributeToInsights(userId: string, enabled: boolea
   return data;
 }
 
+// Twin Code Management
+
+/**
+ * Generate and assign a unique 6-digit twin code to a user
+ */
+export async function generateUniqueTwinCode(userId: string): Promise<string> {
+  // Call the database function to generate a unique code
+  const { data, error } = await supabase.rpc('generate_unique_twin_code');
+  
+  if (error) throw error;
+  
+  const twinCode = data as string;
+  
+  // Update the user's profile with the new code
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ twin_code: twinCode })
+    .eq('user_id', userId);
+  
+  if (updateError) throw updateError;
+  
+  return twinCode;
+}
+
+/**
+ * Get or generate a twin code for a user
+ */
+export async function ensureTwinCode(userId: string): Promise<string> {
+  const profile = await getProfile(userId);
+  
+  if (profile?.twin_code) {
+    return profile.twin_code;
+  }
+  
+  return await generateUniqueTwinCode(userId);
+}
+
+/**
+ * Look up a user's profile by their twin code
+ */
+export async function getUserByTwinCode(code: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('user_id, first_name, twin_code')
+    .eq('twin_code', code)
+    .maybeSingle();
+  
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Add a participant (another twin) to a decision
+ */
+export async function addDecisionParticipant(
+  decisionId: string,
+  participantUserId: string,
+  addedByUserId: string
+) {
+  const { data, error } = await supabase
+    .from('decision_participants')
+    .insert({
+      decision_id: decisionId,
+      participant_user_id: participantUserId,
+      added_by_user_id: addedByUserId,
+    } as any)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Get all participants for a decision (including their profile info)
+ */
+export async function getDecisionParticipants(decisionId: string) {
+  const { data, error } = await supabase
+    .from('decision_participants')
+    .select(`
+      id,
+      participant_user_id,
+      created_at
+    `)
+    .eq('decision_id', decisionId);
+  
+  if (error) throw error;
+  
+  // Fetch profile info for each participant
+  if (data && data.length > 0) {
+    const participantIds = data.map(p => p.participant_user_id);
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('user_id, first_name, twin_code')
+      .in('user_id', participantIds);
+    
+    if (profileError) throw profileError;
+    
+    // Combine participant data with profile info
+    return data.map(participant => {
+      const profile = profiles?.find(p => p.user_id === participant.participant_user_id);
+      return {
+        ...participant,
+        first_name: profile?.first_name || null,
+        twin_code: profile?.twin_code || null,
+      };
+    });
+  }
+  
+  return [];
+}
+
+/**
+ * Remove a participant from a decision
+ */
+export async function removeDecisionParticipant(decisionId: string, participantUserId: string) {
+  const { error } = await supabase
+    .from('decision_participants')
+    .delete()
+    .eq('decision_id', decisionId)
+    .eq('participant_user_id', participantUserId);
+  
+  if (error) throw error;
+}
+
 /**
  * Delete all user-owned data from application tables.
  * Note: Deleting the auth user requires a server-side admin function;
@@ -519,6 +667,7 @@ export async function updateContributeToInsights(userId: string, enabled: boolea
 export async function deleteAccountData(userId: string): Promise<void> {
   // Order matters for foreign keys: delete children before parent rows
   const tablesInDeleteOrder = [
+    'decision_participants',
     'decisions',
     'simulations',
     'what_if',

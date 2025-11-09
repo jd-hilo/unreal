@@ -329,21 +329,111 @@ export async function deriveDecisionOptions(question: string): Promise<string[]>
   }
 }
 
+export async function deriveDecisionOptionsWithContext(question: string, context: string = ''): Promise<string[]> {
+  if (DEV_MODE) {
+    // Mock implementation for dev mode
+    if (question.toLowerCase().includes('should i') || question.toLowerCase().includes('should you')) {
+      return ['Yes', 'No'];
+    }
+    return ['Option A', 'Option B', 'Option C'];
+  }
+
+  const openai = getOpenAI();
+
+  const systemPrompt = [
+    'You are an AI that extracts or generates decision options from a question.',
+    context ? 'You have context about the person/people asking the question. Use it to generate more personalized, relevant options.' : '',
+    '',
+    'Rules:',
+    '1. If the question is yes/no ("Should I...?"), return ["Yes", "No"]',
+    '2. If the question explicitly mentions options (e.g., "X or Y"), extract them',
+    '3. If the question is open-ended, generate 2-4 reasonable, specific options',
+    '4. Keep options concise (2-6 words each)',
+    '5. Make options actionable and mutually exclusive',
+    '6. Consider the provided context to make options more relevant and personalized',
+    '',
+    'Examples:',
+    'Q: "Should I take the new job offer?"',
+    'A: ["Yes", "No"]',
+    '',
+    'Q: "Should I move to NYC or stay in SF?"',
+    'A: ["Move to NYC", "Stay in SF"]',
+    '',
+    'Q: "What should I do about my career?"',
+    'A: ["Stay in current role", "Look for new opportunities", "Start own business", "Take a break/sabbatical"]',
+  ].join('\n');
+
+  const userPrompt = context ? [
+    'Context about the person/people:',
+    '',
+    context.substring(0, 2000), // Limit context to avoid token limits
+    '',
+    `Question: "${question}"`,
+    '',
+    'Return ONLY a JSON object with an "options" array. No other text.',
+    '',
+    '{',
+    '  "options": ["option1", "option2", ...]',
+    '}',
+  ].join('\n') : [
+    `Question: "${question}"`,
+    '',
+    'Return ONLY a JSON object with an "options" array. No other text.',
+    '',
+    '{',
+    '  "options": ["option1", "option2", ...]',
+    '}',
+  ].join('\n');
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('No response from AI');
+
+    const parsed = JSON.parse(content);
+    const options = parsed.options || [];
+    
+    // Ensure we have at least 2 options
+    if (options.length < 2) {
+      return ['Yes', 'No'];
+    }
+    
+    // Cap at 4 options
+    return options.slice(0, 4);
+  } catch (error) {
+    console.error('Option derivation error:', error);
+    // Fallback to yes/no
+    return ['Yes', 'No'];
+  }
+}
+
 export async function predictDecision({
   corePack,
   relevancePack,
   question,
   options,
+  participantCount = 1,
 }: {
   corePack: string;
   relevancePack: string;
   question: string;
   options: string[];
+  participantCount?: number;
 }): Promise<DecisionPrediction> {
   console.log('=== PREDICT DECISION CALLED ===');
   console.log('DEV_MODE:', DEV_MODE);
   console.log('Question:', question);
   console.log('Options:', options);
+  console.log('Participant count:', participantCount);
   console.log('Core Pack length:', corePack.length);
   console.log('Relevance Pack length:', relevancePack.length);
   
@@ -355,7 +445,31 @@ export async function predictDecision({
   console.log('Calling OpenAI API...');
   const openai = getOpenAI();
 
-  const systemPrompt = [
+  const isMultiTwin = participantCount > 1;
+  
+  const systemPrompt = isMultiTwin ? [
+    "You are aggregating perspectives from multiple digital twins to provide a collective recommendation.",
+    '',
+    'The Core Pack contains profiles from multiple twins (PRIMARY TWIN and TWIN 1). Consider all their perspectives, values, and experiences.',
+    '',
+    'Use the Relevance Pack for additional context from the primary user.',
+    '',
+    'IMPORTANT: Your rationale MUST explicitly discuss BOTH people and their perspectives:',
+    '- Mention how each person\'s values, personality, or situation influences the recommendation',
+    '- Highlight where their perspectives align or differ',
+    '- Show how considering both viewpoints strengthens or complicates the decision',
+    '- Example: "You value freedom while your friend prioritizes stability, and together this suggests..."',
+    '',
+    'Return calibrated probabilities that represent a balanced aggregation of all twin perspectives,',
+    'a concise rationale (3–5 sentences) that CLEARLY references BOTH people,',
+    'top factors considered across all twins, and an uncertainty score (0–1, lower = more confident).',
+    '',
+    'Keep tone reflective, human, and emotionally grounded — not mechanical.',
+    '',
+    'CRITICAL: Write all text in SECOND PERSON (you/your), never third person. Address the primary user directly.',
+    'Use phrases like "you and [their name]" or "while you value X, they value Y".',
+    `Note: This decision is being analyzed by ${participantCount} twins collectively.`,
+  ].join('\n') : [
     "You are the user's digital twin.",
     '',
     'Use the Core Pack for identity, personality, values, and decision tendencies.',
@@ -503,7 +617,8 @@ export async function simulateOutcome(
 export async function generateTimelineSimulation(
   corePack: string,
   decision: string,
-  chosenOption: string
+  chosenOption: string,
+  participantCount: number = 1
 ): Promise<TimelineSimulation> {
   if (DEV_MODE) {
     return mockTimelineSimulation();
@@ -511,7 +626,22 @@ export async function generateTimelineSimulation(
 
   const openai = getOpenAI();
 
-  const systemPrompt =
+  const isMultiTwin = participantCount > 1;
+
+  const systemPrompt = isMultiTwin ?
+    'You are simulating a 10-year timeline for TWO PEOPLE making a life decision. Generate concrete, detailed events with real numbers and specifics.\n\n' +
+    'CRITICAL RULES:\n' +
+    '- The Core Pack contains profiles for TWO people (PRIMARY TWIN and TWIN 1) - extract their first names\n' +
+    '- Generate events that involve BOTH people together AND individual events for each person\n' +
+    '- For EACH event, include a "people" field with array of first names involved (e.g., ["Sarah"], ["John"], or ["Sarah", "John"])\n' +
+    '- Mix individual and joint events naturally (roughly 40% individual split between both people, 60% joint)\n' +
+    '- Use SECOND PERSON (you/your) for the PRIMARY person, but mention the other person by first name when relevant\n' +
+    '- Write ALL events in second person addressing the primary user\n' +
+    '- Example individual: {"time": "Month 2", "title": "Sarah Launches Side Business", "description": "Sarah starts consulting on weekends...", "people": ["Sarah"]}\n' +
+    '- Example joint: {"time": "Month 5", "title": "You and Alex Buy House Together", "description": "You both close on property...", "people": ["Primary", "Alex"]}\n' +
+    '- Be HYPER-SPECIFIC with exact numbers, costs, percentages, timeframes\n' +
+    '- NO brand names - use generic descriptors'
+    :
     'You are a life trajectory simulator. Generate HYPER-SPECIFIC, concrete events with real details. ' +
     'Use actual numbers, specific places, named scenarios. Avoid generic statements.\n\n' +
     'CRITICAL: Write ALL events in SECOND PERSON (you/your). The user is living this timeline.';

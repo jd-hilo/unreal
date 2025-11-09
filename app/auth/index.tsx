@@ -59,26 +59,41 @@ export default function AuthScreen() {
     try {
       if (isSignUp) {
         await signUp(email, password);
+        
+        // Wait a moment for state to update
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        const currentUser = useAuth.getState().user;
+        
+        if (currentUser) {
+          // Clear form
+          setEmail('');
+          setPassword('');
+          
+          // For new sign ups, go directly to onboarding first screen
+          router.replace('/onboarding/00-name');
+          return;
+        }
       } else {
         await signIn(email, password);
-      }
-
-      // Wait a moment for state to update
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      const currentUser = useAuth.getState().user;
-      
-      if (currentUser) {
-        // Clear form
-        setEmail('');
-        setPassword('');
         
-        // Navigate to index - it will handle routing based on onboarding status
-        router.replace('/');
-        return;
-      } else {
-        setLoading(false);
-        setError('Failed to sign in. Please try again.');
+        // Wait a moment for state to update
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        const currentUser = useAuth.getState().user;
+        
+        if (currentUser) {
+          // Clear form
+          setEmail('');
+          setPassword('');
+          
+          // For sign in, navigate to index - it will handle routing based on onboarding status
+          router.replace('/');
+          return;
+        } else {
+          setLoading(false);
+          setError('Failed to sign in. Please try again.');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed');

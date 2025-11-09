@@ -2,10 +2,11 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
-import { getDecision } from '@/lib/storage';
+import { getDecision, getDecisionParticipants } from '@/lib/storage';
 import { generateTimelineSimulation } from '@/lib/ai';
 import { buildCorePack } from '@/lib/relevance';
 import { ArrowLeft, Sparkles, Zap, Brain } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { TimelineSimulation } from '@/types/database';
 
 export default function SimulationScreen() {
@@ -20,6 +21,7 @@ export default function SimulationScreen() {
   const [loadingPhase, setLoadingPhase] = useState(0);
   const [simulatedPaths, setSimulatedPaths] = useState(0);
   const [probabilitiesCalculated, setProbabilitiesCalculated] = useState(0);
+  const [participants, setParticipants] = useState<any[]>([]);
 
   useEffect(() => {
     if (user && id) {
@@ -31,8 +33,13 @@ export default function SimulationScreen() {
     if (!id || typeof id !== 'string' || !user) return;
 
     try {
-      const decisionData = await getDecision(id);
+      const [decisionData, participantsData] = await Promise.all([
+        getDecision(id),
+        getDecisionParticipants(id as string),
+      ]);
+      
       setDecision(decisionData);
+      setParticipants(participantsData || []);
       
       // Set initial selected option to the predicted choice
       const initialOption = decisionData.prediction?.prediction || '';
@@ -73,12 +80,15 @@ export default function SimulationScreen() {
     }, 2);
 
     try {
-      const corePack = await buildCorePack(user.id);
+      // Get all participant user IDs
+      const allUserIds = [user.id, ...participants.map(p => p.participant_user_id)];
+      const corePack = await buildCorePack(user.id, allUserIds);
 
       const timelineData = await generateTimelineSimulation(
         corePack,
         decisionData.question,
-        option
+        option,
+        allUserIds.length
       );
 
       setTimeline(timelineData);
@@ -262,6 +272,21 @@ export default function SimulationScreen() {
                     <Text style={styles.eventTime}>{event.time}</Text>
                     <View style={styles.eventContent}>
                       <Text style={styles.eventTitle}>{event.title}</Text>
+                      {event.people && event.people.length > 0 && (
+                        <View style={styles.peopleTags}>
+                          {event.people.map((person, pIndex) => (
+                            <LinearGradient
+                              key={pIndex}
+                              colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={styles.personTag}
+                            >
+                              <Text style={styles.personTagText}>{person}</Text>
+                            </LinearGradient>
+                          ))}
+                        </View>
+                      )}
                       <Text style={styles.eventDescription}>{event.description}</Text>
                     </View>
                   </View>
@@ -562,6 +587,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(200, 200, 200, 0.75)',
     lineHeight: 19,
+  },
+  peopleTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  personTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  personTagText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   generationNote: {
     fontSize: 13,

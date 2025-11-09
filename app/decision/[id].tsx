@@ -2,13 +2,13 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
-import { getDecision, updateDecisionPrediction } from '@/lib/storage';
+import { getDecision, updateDecisionPrediction, getDecisionParticipants } from '@/lib/storage';
 import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
 import { Card, CardContent } from '@/components/Card';
-import { ArrowLeft, Sparkles } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Users } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function DecisionResultScreen() {
@@ -20,6 +20,7 @@ export default function DecisionResultScreen() {
   const [predicting, setPredicting] = useState(false);
   const [suggestions, setSuggestions] = useState<any>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [participants, setParticipants] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -38,7 +39,10 @@ export default function DecisionResultScreen() {
     if (!id || typeof id !== 'string' || !user) return;
 
     try {
-      const decisionData = await getDecision(id);
+      const [decisionData, participantsData] = await Promise.all([
+        getDecision(id),
+        getDecisionParticipants(id as string),
+      ]);
       
       if (!decisionData) {
         setLoading(false);
@@ -46,6 +50,7 @@ export default function DecisionResultScreen() {
       }
 
       setDecision(decisionData);
+      setParticipants(participantsData || []);
 
       // Always generate prediction on result screen if decision is not a draft
       // This ensures AI is called when viewing the result
@@ -71,11 +76,16 @@ export default function DecisionResultScreen() {
 
     try {
       console.log('Building core pack and relevance pack...');
-      const corePack = await buildCorePack(user.id);
+      
+      // Get all participant user IDs
+      const allUserIds = [user.id, ...participants.map(p => p.participant_user_id)];
+      
+      const corePack = await buildCorePack(user.id, allUserIds);
       const relevancePack = await buildRelevancePack(user.id, decisionData.question);
       
       console.log('Core pack length:', corePack.length);
       console.log('Relevance pack length:', relevancePack.length);
+      console.log('Number of twins:', allUserIds.length);
       
       const options = Array.isArray(decisionData.options) 
         ? decisionData.options 
@@ -87,6 +97,7 @@ export default function DecisionResultScreen() {
         relevancePack,
         question: decisionData.question,
         options,
+        participantCount: allUserIds.length,
       });
 
       console.log('AI prediction received:', {
@@ -189,6 +200,25 @@ export default function DecisionResultScreen() {
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <Text style={styles.question}>{decision.question}</Text>
+
+        {/* Show participants if any */}
+        {participants.length > 0 && (
+          <View style={styles.participantsSection}>
+            <View style={styles.participantsHeader}>
+              <Users size={16} color="#B795FF" />
+              <Text style={styles.participantsTitle}>
+                Consulted with {participants.length} other {participants.length === 1 ? 'twin' : 'twins'}
+              </Text>
+            </View>
+            <View style={styles.participantsList}>
+              {participants.map((p) => (
+                <View key={p.id} style={styles.participantChip}>
+                  <Text style={styles.participantName}>{p.first_name || 'Someone'}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {!prediction && decision.status !== 'draft' && user && (
           <View style={styles.noPredictionContainer}>
@@ -582,5 +612,42 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 16,
+  },
+  participantsSection: {
+    marginBottom: 24,
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  participantsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  participantsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.85)',
+  },
+  participantsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  participantChip: {
+    backgroundColor: 'rgba(59, 37, 109, 0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
+  },
+  participantName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#B795FF',
   },
 });

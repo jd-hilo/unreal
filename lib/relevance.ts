@@ -2,7 +2,34 @@ import { supabase } from './supabase';
 import { getProfile, getRelationships, getCareerEntries, getJournals, getDecisions } from './storage';
 import { embedText } from './ai';
 
-export async function buildCorePack(userId: string): Promise<string> {
+export async function buildCorePack(primaryUserId: string, allUserIds?: string[]): Promise<string> {
+  // If no additional users specified, just use the primary user
+  const userIds = allUserIds && allUserIds.length > 0 ? allUserIds : [primaryUserId];
+  
+  // If only one user (no additional twins), use original logic
+  if (userIds.length === 1) {
+    return buildSingleUserCorePack(primaryUserId);
+  }
+  
+  // Build packs for all users and combine them
+  const allSections: string[] = [];
+  
+  for (let i = 0; i < userIds.length; i++) {
+    const userId = userIds[i];
+    const isPrimary = userId === primaryUserId;
+    const label = isPrimary ? 'PRIMARY TWIN' : `TWIN ${i}`;
+    
+    allSections.push(`\n=== ${label} ===`);
+    const userPack = await buildSingleUserCorePack(userId);
+    allSections.push(userPack);
+  }
+  
+  const result = allSections.join('\n\n');
+  console.log(`Core Pack built for ${userIds.length} twins:`, result.substring(0, 200) + '...');
+  return result;
+}
+
+async function buildSingleUserCorePack(userId: string): Promise<string> {
   const profile = await getProfile(userId);
   const relationships = await getRelationships(userId);
   const careers = await getCareerEntries(userId);
@@ -77,9 +104,7 @@ export async function buildCorePack(userId: string): Promise<string> {
     sections.push(profile.core_json.motivation);
   }
 
-  const result = sections.join('\n');
-  console.log('Core Pack built:', result.substring(0, 200) + '...');
-  return result;
+  return sections.join('\n');
 }
 
 /**

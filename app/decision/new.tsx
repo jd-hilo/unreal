@@ -1,14 +1,15 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Image } from 'react-native';
-import { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Image, Modal, ActivityIndicator } from 'react-native';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
-import { ArrowLeft, ChevronRight } from 'lucide-react-native';
-import { insertDecision, updateDecisionPrediction } from '@/lib/storage';
+import { ArrowLeft, ChevronRight, X, UserPlus, Clock } from 'lucide-react-native';
+import { insertDecision, updateDecisionPrediction, getUserByTwinCode, addDecisionParticipant } from '@/lib/storage';
 import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function NewDecisionScreen() {
   const router = useRouter();
@@ -18,6 +19,39 @@ export default function NewDecisionScreen() {
   const [isDerivingOptions, setIsDerivingOptions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showDerivedOptions, setShowDerivedOptions] = useState(false);
+  const [showTwinModal, setShowTwinModal] = useState(false);
+  const [twinCode, setTwinCode] = useState('');
+  const [twinCodeError, setTwinCodeError] = useState('');
+  const [lookingUpTwin, setLookingUpTwin] = useState(false);
+  const [addedTwins, setAddedTwins] = useState<Array<{ userId: string; name: string; code: string }>>([]);
+  const [recentTwins, setRecentTwins] = useState<Array<{ userId: string; name: string; code: string }>>([]);
+
+  useEffect(() => {
+    loadRecentTwins();
+  }, []);
+
+  async function loadRecentTwins() {
+    try {
+      const stored = await AsyncStorage.getItem('recentTwins');
+      if (stored) {
+        setRecentTwins(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error('Failed to load recent twins:', error);
+    }
+  }
+
+  async function saveRecentTwin(twin: { userId: string; name: string; code: string }) {
+    try {
+      // Remove duplicates and add to front
+      const filtered = recentTwins.filter(t => t.userId !== twin.userId);
+      const updated = [twin, ...filtered].slice(0, 5); // Keep max 5 recent
+      setRecentTwins(updated);
+      await AsyncStorage.setItem('recentTwins', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Failed to save recent twin:', error);
+    }
+  }
 
   async function handleDeriveOptions() {
     Keyboard.dismiss();
@@ -27,8 +61,17 @@ export default function NewDecisionScreen() {
     setShowDerivedOptions(false);
 
     try {
-      const { deriveDecisionOptions } = await import('@/lib/ai');
-      const options = await deriveDecisionOptions(question.trim());
+      const { deriveDecisionOptionsWithContext } = await import('@/lib/ai');
+      
+      // Build context from all added twins if any
+      let context = '';
+      if (addedTwins.length > 0 && user) {
+        const allUserIds = [user.id, ...addedTwins.map(t => t.userId)];
+        const { buildCorePack } = await import('@/lib/relevance');
+        context = await buildCorePack(user.id, allUserIds);
+      }
+      
+      const options = await deriveDecisionOptionsWithContext(question.trim(), context);
       setDerivedOptions(options);
       setShowDerivedOptions(true);
     } catch (error) {
@@ -36,6 +79,92 @@ export default function NewDecisionScreen() {
       alert('Failed to analyze your question. Please try again.');
     } finally {
       setIsDerivingOptions(false);
+    }
+  }
+
+  async function handleAddTwin() {
+    if (!twinCode.trim() || twinCode.length !== 6) {
+      setTwinCodeError('Please enter a valid 6-digit code');
+      return;
+    }
+
+    // Limit to 1 added twin
+    if (addedTwins.length >= 1) {
+      setTwinCodeError('You can only add one other twin per decision');
+      setLookingUpTwin(false);
+      return;
+    }
+
+    setLookingUpTwin(true);
+    setTwinCodeError('');
+
+    try {
+      const twinProfile = await getUserByTwinCode(twinCode.trim());
+      
+      if (!twinProfile) {
+        setTwinCodeError('Twin code not found');
+        setLookingUpTwin(false);
+        return;
+      }
+
+      if (twinProfile.user_id === user?.id) {
+        setTwinCodeError('You cannot add your own twin');
+        setLookingUpTwin(false);
+        return;
+      }
+
+      const twinName = twinProfile.first_name || 'Someone';
+
+      const newTwin = {
+        userId: twinProfile.user_id,
+        name: twinName,
+        code: twinProfile.twin_code || twinCode.trim()
+      };
+
+      // Replace the list (only allow 1 twin)
+      setAddedTwins([newTwin]);
+
+      // Save to recent twins
+      await saveRecentTwin(newTwin);
+
+      // Close modal and reset
+      setShowTwinModal(false);
+      setTwinCode('');
+      setTwinCodeError('');
+
+      // Regenerate options if we already have some, to include the new twin's perspective
+      if (derivedOptions.length > 0) {
+        await handleDeriveOptions();
+      }
+    } catch (error) {
+      console.error('Error looking up twin:', error);
+      setTwinCodeError('Failed to look up twin code');
+    } finally {
+      setLookingUpTwin(false);
+    }
+  }
+
+  function handleRemoveTwin(userId: string) {
+    setAddedTwins(addedTwins.filter(t => t.userId !== userId));
+  }
+
+  async function handleSelectRecentTwin(twin: { userId: string; name: string; code: string }) {
+    if (twin.userId === user?.id) {
+      setTwinCodeError('You cannot add your own twin');
+      return;
+    }
+
+    // Replace the list (only allow 1 twin)
+    setAddedTwins([twin]);
+
+    // Close modal and reset
+    setShowTwinModal(false);
+    setTwinCode('');
+    setTwinCodeError('');
+
+    // Regenerate options if we already have some
+    if (derivedOptions.length > 0) {
+      await handleDeriveOptions();
     }
   }
 
@@ -55,13 +184,26 @@ export default function NewDecisionScreen() {
       });
 
       console.log('Decision created:', decision.id);
+      
+      // Add participants to the decision
+      if (addedTwins.length > 0) {
+        console.log('Adding participants to decision...');
+        for (const twin of addedTwins) {
+          await addDecisionParticipant(decision.id, twin.userId, user.id);
+        }
+      }
+
       console.log('Building Core Pack and Relevance Pack...');
       
-      const corePack = await buildCorePack(user.id);
+      // Collect all user IDs (decision owner + added twins)
+      const allUserIds = [user.id, ...addedTwins.map(t => t.userId)];
+      
+      const corePack = await buildCorePack(user.id, allUserIds);
       const relevancePack = await buildRelevancePack(user.id, question);
       
       console.log('Core pack length:', corePack.length);
       console.log('Relevance pack length:', relevancePack.length);
+      console.log('Number of twins involved:', allUserIds.length);
       console.log('Calling AI predictDecision...');
 
       const prediction = await predictDecision({
@@ -69,6 +211,7 @@ export default function NewDecisionScreen() {
         relevancePack,
         question: question.trim(),
         options: derivedOptions,
+        participantCount: allUserIds.length,
       });
 
       console.log('AI prediction received:', {
@@ -190,8 +333,33 @@ export default function NewDecisionScreen() {
         </View>
       </ScrollView>
 
-      {/* Floating Action Button */}
+      {/* Floating Action Buttons */}
       <View style={styles.floatingButtonContainer}>
+        {/* Add Twin Button / Display */}
+        {addedTwins.length > 0 ? (
+          <View style={styles.addedTwinDisplay}>
+            <Text style={styles.addedTwinDisplayText}>
+              {addedTwins[0].name}'s digital twin added
+            </Text>
+            <TouchableOpacity 
+              onPress={() => handleRemoveTwin(addedTwins[0].userId)}
+              style={styles.removeTwinButtonSmall}
+            >
+              <X size={16} color="rgba(200, 200, 200, 0.75)" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => setShowTwinModal(true)}
+            style={styles.addTwinButton}
+            activeOpacity={0.7}
+          >
+            <UserPlus size={16} color="rgba(200, 200, 200, 0.75)" />
+            <Text style={styles.addTwinButtonText}>+ add a twin</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Ask My Twin Button */}
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={!canSubmit || loading}
@@ -209,16 +377,115 @@ export default function NewDecisionScreen() {
           >
             <Image 
               source={require('@/assets/images/cube.png')}
-              style={styles.cubeIcon}
+              style={[
+                styles.cubeIcon,
+                (!canSubmit || loading) && styles.cubeIconDisabled
+              ]}
               resizeMode="contain"
             />
-            <Text style={styles.floatingButtonText}>
-              {loading ? 'Asking...' : 'Ask My Twin'}
+            <Text style={[
+              styles.floatingButtonText,
+              (!canSubmit || loading) && styles.floatingButtonTextDisabled
+            ]}>
+              {loading ? 'Asking...' : (addedTwins.length > 0 ? 'Ask Our Twins' : 'Ask My Twin')}
             </Text>
-            {!loading && <ChevronRight size={20} color="#FFFFFF" />}
+            {!loading && <ChevronRight size={20} color={canSubmit ? "#FFFFFF" : "rgba(200, 200, 200, 0.5)"} />}
           </LinearGradient>
         </TouchableOpacity>
       </View>
+
+      {/* Twin Code Modal */}
+      <Modal
+        visible={showTwinModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowTwinModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Another Twin</Text>
+              <TouchableOpacity 
+                onPress={() => {
+                  setShowTwinModal(false);
+                  setTwinCode('');
+                  setTwinCodeError('');
+                }}
+                style={styles.modalCloseButton}
+              >
+                <X size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalDescription}>
+              Enter someone's unreal# — it is listed on their profile page. They will be included in the decision.
+            </Text>
+
+            {/* Recent Twins */}
+            {recentTwins.length > 0 && (
+              <View style={styles.recentTwinsSection}>
+                <View style={styles.recentTwinsHeader}>
+                  <Clock size={14} color="rgba(200, 200, 200, 0.75)" />
+                  <Text style={styles.recentTwinsLabel}>Recently added</Text>
+                </View>
+                <View style={styles.recentTwinsList}>
+                  {recentTwins.map((twin) => (
+                    <TouchableOpacity
+                      key={twin.userId}
+                      onPress={() => handleSelectRecentTwin(twin)}
+                      style={styles.recentTwinChip}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.recentTwinName}>{twin.name}</Text>
+                      <Text style={styles.recentTwinCode}>#{twin.code}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <Input
+              placeholder=""
+              value={twinCode}
+              onChangeText={(text) => {
+                setTwinCode(text);
+                setTwinCodeError('');
+              }}
+              maxLength={6}
+              keyboardType="number-pad"
+              autoFocus={true}
+              style={styles.twinCodeInput}
+            />
+
+            {twinCodeError ? (
+              <Text style={styles.errorText}>{twinCodeError}</Text>
+            ) : null}
+
+            <TouchableOpacity
+              onPress={handleAddTwin}
+              disabled={lookingUpTwin || twinCode.length !== 6}
+              style={[
+                styles.modalButtonWrapper,
+                (lookingUpTwin || twinCode.length !== 6) && styles.modalButtonDisabled
+              ]}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={twinCode.length === 6 && !lookingUpTwin ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.modalButton}
+              >
+                {lookingUpTwin ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalButtonText}>Add Twin</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -410,8 +677,197 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  floatingButtonTextDisabled: {
+    color: 'rgba(200, 200, 200, 0.5)',
+  },
   cubeIcon: {
     width: 22,
     height: 22,
+  },
+  cubeIconDisabled: {
+    opacity: 0.3,
+  },
+  addedTwinsContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(59, 37, 109, 0.2)',
+  },
+  addedTwinsLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.75)',
+    marginBottom: 8,
+  },
+  addedTwinCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(59, 37, 109, 0.3)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  addedTwinInfo: {
+    flex: 1,
+  },
+  addedTwinName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  addedTwinCode: {
+    fontSize: 12,
+    color: 'rgba(200, 200, 200, 0.75)',
+  },
+  removeTwinButton: {
+    padding: 4,
+  },
+  addTwinButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: 'transparent',
+    marginBottom: 12,
+  },
+  addTwinButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.75)',
+  },
+  addedTwinDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(59, 37, 109, 0.3)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
+    marginBottom: 12,
+  },
+  addedTwinDisplayText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#B795FF',
+  },
+  removeTwinButtonSmall: {
+    padding: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    padding: 24,
+    paddingTop: 100,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: 'rgba(20, 18, 30, 0.98)',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  recentTwinsSection: {
+    marginBottom: 20,
+  },
+  recentTwinsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  recentTwinsLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.75)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  recentTwinsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  recentTwinChip: {
+    backgroundColor: 'rgba(59, 37, 109, 0.4)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  recentTwinName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  recentTwinCode: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#B795FF',
+  },
+  twinCodeInput: {
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 8,
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#EF4444',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  modalButtonWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 16,
+  },
+  modalButton: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonDisabled: {
+    opacity: 0.5,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

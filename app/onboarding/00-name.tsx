@@ -4,7 +4,7 @@ import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Input } from '@/components/Input';
 import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/store/useAuth';
-import { updateProfileFields, getProfile } from '@/lib/storage';
+import { updateProfileFields, getProfile, saveOnboardingResponse } from '@/lib/storage';
 
 export default function OnboardingStep0() {
   const router = useRouter();
@@ -34,9 +34,16 @@ export default function OnboardingStep0() {
   async function handleNext() {
     if (user && firstName.trim()) {
       try {
-        await updateProfileFields(user.id, { first_name: firstName.trim() });
+        console.log('Saving first name:', firstName.trim());
+        console.log('User ID:', user.id);
+        
+        // Only save to the first_name column - don't use saveOnboardingResponse
+        // because it will overwrite and set first_name back to null
+        const result = await updateProfileFields(user.id, { first_name: firstName.trim() });
+        console.log('updateProfileFields result:', result);
       } catch (error) {
         console.error('Failed to save first name:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
       }
     }
     router.push('/onboarding/01-now');
