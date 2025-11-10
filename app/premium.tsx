@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -80,17 +80,16 @@ export default function PremiumScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.alreadyPremiumContainer}>
-            <LinearGradient
-              colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.premiumBadge}
-            >
-              <Sparkles size={32} color="#FFFFFF" />
-            </LinearGradient>
+            <View style={styles.premiumBadgeContainer}>
+              <Image 
+                source={require('@/assets/images/premium.png')}
+                style={styles.premiumBadgeImage}
+                resizeMode="contain"
+              />
+            </View>
             <Text style={styles.alreadyPremiumTitle}>You're Premium!</Text>
             <Text style={styles.alreadyPremiumText}>
-              You have access to all Unreal+ features including biometrics and simulations.
+              You have access to all unreal+ features including biometrics and simulations.
             </Text>
           </View>
         </SafeAreaView>
@@ -134,15 +133,14 @@ export default function PremiumScreen() {
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
           {/* Hero Section */}
           <View style={styles.heroSection}>
-            <LinearGradient
-              colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.heroIcon}
-            >
-              <Sparkles size={40} color="#FFFFFF" />
-            </LinearGradient>
-            <Text style={styles.heroTitle}>Unlock Unreal+</Text>
+            <View style={styles.heroIconContainer}>
+              <Image 
+                source={require('@/assets/images/premium.png')}
+                style={styles.heroIconImage}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.heroTitle}>Unlock unreal+</Text>
             <Text style={styles.heroSubtitle}>
               Get full access to biometrics and life trajectory simulations
             </Text>
@@ -207,7 +205,7 @@ export default function PremiumScreen() {
               return (
                 <View key={index} style={styles.featureRow}>
                   <View style={styles.featureIcon}>
-                    <Icon size={24} color="#B795FF" strokeWidth={2} />
+                    <Icon size={24} color="#FFD700" strokeWidth={2} />
                   </View>
                   <View style={styles.featureContent}>
                     <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -226,7 +224,7 @@ export default function PremiumScreen() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+              colors={['#FFD700', '#FFA500', '#FF8C00']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.purchaseButtonGradient}
@@ -299,18 +297,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
-  heroIcon: {
+  heroIconContainer: {
     width: 80,
     height: 80,
-    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
-    shadowColor: '#6E3DF0',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
+  },
+  heroIconImage: {
+    width: 80,
+    height: 80,
   },
   heroTitle: {
     fontSize: 32,
@@ -342,8 +338,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   billingOptionSelected: {
-    borderColor: '#B795FF',
-    backgroundColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: '#FFD700',
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
   },
   saveBadge: {
     position: 'absolute',
@@ -401,7 +397,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(110, 61, 240, 0.25)',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -447,7 +443,7 @@ const styles = StyleSheet.create({
   restoreButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#B795FF',
+    color: '#FFD700',
   },
   finePrint: {
     fontSize: 12,
@@ -462,18 +458,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 40,
   },
-  premiumBadge: {
+  premiumBadgeContainer: {
     width: 80,
     height: 80,
-    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
-    shadowColor: '#6E3DF0',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
+  },
+  premiumBadgeImage: {
+    width: 80,
+    height: 80,
   },
   alreadyPremiumTitle: {
     fontSize: 28,

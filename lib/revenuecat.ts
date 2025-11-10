@@ -38,6 +38,12 @@ export async function initializeRevenueCat(userId?: string): Promise<void> {
  */
 export async function getAvailablePackages(): Promise<PurchasesPackage[]> {
   try {
+    // Ensure RevenueCat is configured before calling
+    if (!isConfigured) {
+      console.warn('RevenueCat not configured yet, initializing...');
+      await initializeRevenueCat();
+    }
+    
     const offerings = await Purchases.getOfferings();
     if (offerings.current && offerings.current.availablePackages.length > 0) {
       return offerings.current.availablePackages;
@@ -84,6 +90,11 @@ export async function restorePurchases(): Promise<CustomerInfo> {
  */
 export async function getCustomerInfo(): Promise<CustomerInfo | null> {
   try {
+    // Ensure RevenueCat is configured before calling
+    if (!isConfigured) {
+      console.warn('RevenueCat not configured yet, initializing...');
+      await initializeRevenueCat();
+    }
     const customerInfo = await Purchases.getCustomerInfo();
     return customerInfo;
   } catch (error) {
@@ -149,6 +160,12 @@ export async function getPremiumStatusFromSupabase(userId: string): Promise<bool
  */
 export async function checkAndSyncPremiumStatus(userId: string): Promise<boolean> {
   try {
+    // Ensure RevenueCat is initialized first
+    if (!isConfigured) {
+      console.log('Initializing RevenueCat for user:', userId);
+      await initializeRevenueCat(userId);
+    }
+    
     // Get status from RevenueCat
     const customerInfo = await getCustomerInfo();
     const isPremium = isPremiumActive(customerInfo);

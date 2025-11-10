@@ -158,7 +158,7 @@ export default function DecisionResultScreen() {
     if (!isPremium) {
       Alert.alert(
         'Premium Feature',
-        'Life trajectory simulations are available with Unreal+. Upgrade to unlock this feature.',
+        'Life trajectory simulations are available with unreal+. Upgrade to unlock this feature.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Upgrade', onPress: () => router.push('/premium' as any) }
@@ -355,21 +355,23 @@ export default function DecisionResultScreen() {
             )}
 
             <TouchableOpacity
-              style={styles.simulateButton}
+              style={[styles.simulateButton, isPremium && styles.simulateButtonPremium]}
               onPress={handleSimulate}
               activeOpacity={0.8}
             >
-              <LinearGradient
-                colors={isPremium ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.3)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.simulateButtonGradient}
-              >
-                {!isPremium && <Lock size={20} color="rgba(255, 255, 255, 0.7)" strokeWidth={2.5} />}
-                <Text style={styles.simulateButtonText}>
-                  {isPremium ? 'Simulate Life Trajectory' : 'Simulate (Premium)'}
-                </Text>
-              </LinearGradient>
+              <View style={styles.simulateButtonInner}>
+                <View style={styles.simulateButtonContent}>
+                  {!isPremium && <Lock size={22} color="rgba(255, 255, 255, 0.7)" strokeWidth={2.5} />}
+                  <View style={styles.simulateTextContainer}>
+                    <Text style={styles.simulateButtonText}>
+                      {isPremium ? 'Simulate Life Trajectory' : 'Simulate Each Choice'}
+                    </Text>
+                    <Text style={styles.simulateButtonSubtext}>
+                      {isPremium ? 'See how each option plays out over time' : 'See your future timeline - unreal+'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             </TouchableOpacity>
           </>
         )}
@@ -492,22 +494,48 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   simulateButton: {
-    marginTop: 16,
+    marginTop: 24,
     marginBottom: 32,
-    borderRadius: 16,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(59, 37, 109, 0.5)',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
     overflow: 'hidden',
   },
-  simulateButtonGradient: {
+  simulateButtonPremium: {
+    borderColor: '#FFD700',
+    borderWidth: 2,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  simulateButtonInner: {
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+  },
+  simulateButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
-    gap: 10,
+    gap: 12,
+  },
+  simulateTextContainer: {
+    alignItems: 'center',
+    gap: 4,
   },
   simulateButtonText: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  simulateButtonSubtext: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.85)',
+    letterSpacing: 0.3,
   },
   loadingContainer: {
     flex: 1,

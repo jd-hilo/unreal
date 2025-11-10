@@ -261,26 +261,22 @@ export default function ProfileScreen() {
               onPress={() => router.push('/premium' as any)}
               activeOpacity={0.85}
             >
-              <LinearGradient
-                colors={isPremium 
-                  ? ['rgba(183, 149, 255, 0.3)', 'rgba(110, 61, 240, 0.3)']
-                  : ['rgba(15, 10, 30, 0.95)', 'rgba(25, 15, 45, 0.9)']
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.premiumCardInner}
-              >
+              <View style={styles.premiumCardInner}>
                 <View style={styles.premiumRow}>
-                  <View style={styles.premiumIconContainer}>
+                  <View style={styles.premiumImageContainer}>
                     {isPremium ? (
                       <Crown size={24} color="#FFD700" strokeWidth={2} />
                     ) : (
-                      <Sparkles size={24} color="#B795FF" strokeWidth={2} />
+                      <Image 
+                        source={require('@/assets/images/premium.png')}
+                        style={styles.premiumImage}
+                        resizeMode="contain"
+                      />
                     )}
                   </View>
                   <View style={styles.premiumContent}>
                     <Text style={styles.premiumTitle}>
-                      {isPremium ? 'Unreal+ Active' : 'Upgrade to Unreal+'}
+                      {isPremium ? 'unreal+ Active' : 'Upgrade to unreal+'}
                     </Text>
                     <Text style={styles.premiumSubtitle}>
                       {isPremium 
@@ -291,7 +287,7 @@ export default function ProfileScreen() {
                   </View>
                   <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
 
             {/* Twin's Understanding Card */}
@@ -648,41 +644,44 @@ const styles = StyleSheet.create({
   },
   premiumCard: {
     marginBottom: 20,
-    borderRadius: 24,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   premiumCardInner: {
-    padding: 20,
+    padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
-    borderRadius: 24,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderRadius: 16,
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
   },
   premiumRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
   },
-  premiumIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(110, 61, 240, 0.25)',
+  premiumImageContainer: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  premiumImage: {
+    width: 28,
+    height: 28,
   },
   premiumContent: {
     flex: 1,
   },
   premiumTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 2,
     fontFamily: 'Inter-SemiBold',
   },
   premiumSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: 'rgba(200, 200, 200, 0.75)',
-    lineHeight: 18,
+    lineHeight: 16,
   },
 });
