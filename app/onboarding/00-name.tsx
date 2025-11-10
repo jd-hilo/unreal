@@ -5,6 +5,7 @@ import { Input } from '@/components/Input';
 import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { updateProfileFields, getProfile, saveOnboardingResponse } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function OnboardingStep0() {
   const router = useRouter();
@@ -14,6 +15,9 @@ export default function OnboardingStep0() {
 
   useEffect(() => {
     loadExistingData();
+    
+    // Track onboarding started (first step)
+    trackEvent(MixpanelEvents.ONBOARDING_STARTED);
   }, [user]);
 
   async function loadExistingData() {
@@ -41,6 +45,12 @@ export default function OnboardingStep0() {
         // because it will overwrite and set first_name back to null
         const result = await updateProfileFields(user.id, { first_name: firstName.trim() });
         console.log('updateProfileFields result:', result);
+        
+        // Track onboarding step completed
+        trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
+          step: '00-name',
+          step_name: 'Name'
+        });
       } catch (error) {
         console.error('Failed to save first name:', error);
         console.error('Error details:', JSON.stringify(error, null, 2));

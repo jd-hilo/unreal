@@ -10,6 +10,7 @@ import { runWhatIf } from '@/lib/ai';
 import { getProfile } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function NewWhatIfScreen() {
   const router = useRouter();
@@ -49,6 +50,12 @@ export default function NewWhatIfScreen() {
         metrics: result.metrics,
         summary: result.summary,
         biometrics: result.biometrics,
+      });
+
+      // Track what-if created
+      trackEvent(MixpanelEvents.WHAT_IF_CREATED, {
+        what_if_id: whatIfData.id,
+        has_biometrics: !!result.biometrics
       });
 
       router.push(`/whatif/${whatIfData.id}`);

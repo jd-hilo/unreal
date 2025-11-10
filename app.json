@@ -38,7 +38,8 @@
       "eas": {
         "projectId": "5ec525db-1667-48cc-8a1b-e1078a844e55"
       },
-      "revenuecatApiKey": "appl_hsvLarkYcuThwdbbYQbCpOfHUuV"
+      "revenuecatApiKey": "appl_hsvLarkYcuThwdbbYQbCpOfHUuV",
+      "mixpanelToken": "1ce0090bc0bcfbadb8122252aaf7e21f"
     }
   }
 }

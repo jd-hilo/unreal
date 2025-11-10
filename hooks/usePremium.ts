@@ -12,6 +12,7 @@ import {
 } from '@/lib/revenuecat';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
+import { trackEvent, MixpanelEvents, setUserProperty } from '@/lib/mixpanel';
 
 export function usePremium() {
   const user = useAuth((state) => state.user);
@@ -62,12 +63,33 @@ export function usePremium() {
         const isPremium = isPremiumActive(customerInfo);
         await syncPremiumStatus(user.id, isPremium);
         setPremium(isPremium);
+        
+        // Track successful purchase
+        trackEvent(MixpanelEvents.PREMIUM_PURCHASE_COMPLETED, {
+          product_id: pkg.product.identifier,
+          plan_type: pkg.packageType
+        });
+        setUserProperty('is_premium', true);
+        
         return true;
       }
 
+      // Track failed purchase
+      trackEvent(MixpanelEvents.PREMIUM_PURCHASE_FAILED, {
+        product_id: pkg.product.identifier,
+        reason: 'No customer info returned'
+      });
+      
       return false;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Purchase failed:', error);
+      
+      // Track failed purchase
+      trackEvent(MixpanelEvents.PREMIUM_PURCHASE_FAILED, {
+        product_id: pkg.product.identifier,
+        error: error.message || 'Unknown error'
+      });
+      
       return false;
     } finally {
       setPurchasing(false);
@@ -83,6 +105,13 @@ export function usePremium() {
       const isPremium = isPremiumActive(customerInfo);
       await syncPremiumStatus(user.id, isPremium);
       setPremium(isPremium);
+      
+      // Track restore
+      if (isPremium) {
+        trackEvent(MixpanelEvents.PREMIUM_RESTORED);
+        setUserProperty('is_premium', true);
+      }
+      
       return isPremium;
     } catch (error) {
       console.error('Restore failed:', error);

@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Sparkles, Zap, Lock, TrendingUp, Brain, Clock } from 'lucide-react-native';
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 type BillingPeriod = 'monthly' | 'yearly';
 
@@ -14,6 +15,13 @@ export default function PremiumScreen() {
   const router = useRouter();
   const { isPremium, packages, loading, purchasing, restoring, purchase, restore } = usePremium();
   const [selectedPeriod, setSelectedPeriod] = useState<BillingPeriod>('yearly');
+
+  // Track premium screen viewed
+  useEffect(() => {
+    trackEvent(MixpanelEvents.PREMIUM_SCREEN_VIEWED, {
+      is_premium: isPremium
+    });
+  }, []);
 
   async function handlePurchase() {
     if (!packages || packages.length === 0) {
@@ -50,9 +58,15 @@ export default function PremiumScreen() {
       return;
     }
 
+    // Track purchase started
+    trackEvent(MixpanelEvents.PREMIUM_PURCHASE_STARTED, {
+      plan_type: selectedPeriod,
+      product_id: pkg.product.identifier
+    });
+
     const success = await purchase(pkg);
     if (success) {
-      Alert.alert('Welcome to Unreal+!', 'You now have access to all premium features.', [
+      Alert.alert('Welcome to unreal+!', 'You now have access to all premium features.', [
         { text: 'Get Started', onPress: () => router.back() }
       ]);
     }

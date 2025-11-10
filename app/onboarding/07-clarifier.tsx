@@ -6,6 +6,7 @@ import { Input } from '@/components/Input';
 import { useTwin } from '@/store/useTwin';
 import { useAuth } from '@/store/useAuth';
 import { completeOnboarding, getProfile } from '@/lib/storage';
+import { trackEvent, MixpanelEvents, setUserProperty } from '@/lib/mixpanel';
 
 export default function OnboardingStep7() {
   const router = useRouter();
@@ -39,15 +40,22 @@ export default function OnboardingStep7() {
           hometown: answer2.trim() || undefined,
         });
         setOnboardingComplete(true);
+        
+        // Track onboarding completed
+        trackEvent(MixpanelEvents.ONBOARDING_COMPLETED);
+        setUserProperty('onboarding_complete', true);
+        
         router.replace('/(tabs)/home');
       } catch (error) {
         console.error('Failed to complete onboarding:', error);
         // Still navigate even if save fails
         setOnboardingComplete(true);
+        trackEvent(MixpanelEvents.ONBOARDING_COMPLETED);
         router.replace('/(tabs)/home');
       }
     } else {
       setOnboardingComplete(true);
+      trackEvent(MixpanelEvents.ONBOARDING_COMPLETED);
       router.replace('/(tabs)/home');
     }
   }

@@ -10,6 +10,7 @@ import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function NewDecisionScreen() {
   const router = useRouter();
@@ -185,6 +186,14 @@ export default function NewDecisionScreen() {
 
       console.log('Decision created:', decision.id);
       
+      // Track decision created
+      trackEvent(MixpanelEvents.DECISION_CREATED, {
+        decision_id: decision.id,
+        num_options: derivedOptions.length,
+        has_participants: addedTwins.length > 0,
+        num_participants: addedTwins.length
+      });
+      
       // Add participants to the decision
       if (addedTwins.length > 0) {
         console.log('Adding participants to decision...');
@@ -222,6 +231,14 @@ export default function NewDecisionScreen() {
 
       console.log('Saving prediction to database...');
       await updateDecisionPrediction(decision.id, prediction);
+
+      // Track decision analyzed
+      trackEvent(MixpanelEvents.DECISION_ANALYZED, {
+        decision_id: decision.id,
+        predicted_option: prediction.prediction,
+        confidence: Math.max(...Object.values(prediction.probs)),
+        num_participants: addedTwins.length
+      });
 
       console.log('Prediction saved. Navigating to result page...');
       router.push(`/decision/${decision.id}`);

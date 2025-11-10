@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, Weight, Heart, DollarSign, MapPin, Smile, Coffee, Lock, Sparkles } from 'lucide-react-native';
 import { useTwin } from '@/store/useTwin';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function WhatIfResultScreen() {
   const router = useRouter();
@@ -18,6 +19,21 @@ export default function WhatIfResultScreen() {
   useEffect(() => {
     loadWhatIf();
   }, [id]);
+
+  // Track biometrics viewed or blocked
+  useEffect(() => {
+    if (whatIf && whatIf.biometrics) {
+      if (isPremium) {
+        trackEvent(MixpanelEvents.BIOMETRICS_VIEWED, {
+          what_if_id: id
+        });
+      } else {
+        trackEvent(MixpanelEvents.BIOMETRICS_BLOCKED, {
+          what_if_id: id
+        });
+      }
+    }
+  }, [whatIf, isPremium]);
 
   async function loadWhatIf() {
     if (!id || typeof id !== 'string') return;
@@ -264,14 +280,14 @@ export default function WhatIfResultScreen() {
                         <Text style={styles.biometricLabel}>{item.label}</Text>
                         {isPremium ? (
                           <>
-                            {item.primary && (
-                              <Text style={styles.biometricPrimary}>{item.primary}</Text>
-                            )}
-                            {item.secondary && (
-                              <Text style={styles.biometricSecondary}>{item.secondary}</Text>
-                            )}
-                            {item.detail && (
-                              <Text style={getDetailStyle(item.detail)}>{item.detail}</Text>
+                        {item.primary && (
+                          <Text style={styles.biometricPrimary}>{item.primary}</Text>
+                        )}
+                        {item.secondary && (
+                          <Text style={styles.biometricSecondary}>{item.secondary}</Text>
+                        )}
+                        {item.detail && (
+                          <Text style={getDetailStyle(item.detail)}>{item.detail}</Text>
                             )}
                           </>
                         ) : (

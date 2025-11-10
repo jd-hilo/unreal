@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/Card';
 import { ArrowLeft, Sparkles, Users, Lock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTwin } from '@/store/useTwin';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function DecisionResultScreen() {
   const router = useRouter();
@@ -156,6 +157,11 @@ export default function DecisionResultScreen() {
     
     // Check premium status
     if (!isPremium) {
+      trackEvent(MixpanelEvents.PREMIUM_FEATURE_BLOCKED, {
+        feature: 'life_trajectory_simulation',
+        decision_id: decision.id
+      });
+      
       Alert.alert(
         'Premium Feature',
         'Life trajectory simulations are available with unreal+. Upgrade to unlock this feature.',
@@ -166,6 +172,12 @@ export default function DecisionResultScreen() {
       );
       return;
     }
+    
+    // Track simulation started
+    trackEvent(MixpanelEvents.DECISION_SIMULATED, {
+      decision_id: decision.id,
+      num_options: Array.isArray(decision.options) ? decision.options.length : JSON.parse(decision.options || '[]').length
+    });
     
     // Navigate to simulation page
     router.push(`/decision/simulate/${decision.id}` as any);

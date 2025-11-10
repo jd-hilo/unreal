@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
+import { trackEvent, resetMixpanel, MixpanelEvents } from '@/lib/mixpanel';
 
 interface AuthState {
   user: User | null;
@@ -25,16 +26,25 @@ export const useAuth = create<AuthState>((set) => ({
   setSession: (session) => set({ session, user: session?.user || null }),
 
   signUp: async (email, password) => {
+    trackEvent(MixpanelEvents.SIGN_UP_STARTED, { email });
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
 
-    if (error) throw error;
+    if (error) {
+      trackEvent('Sign Up Failed', { email, error: error.message });
+      throw error;
+    }
 
     // Ensure session and user are set immediately
     if (data.session) {
       set({ session: data.session, user: data.session.user || data.user });
+      trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, { 
+        user_id: data.user?.id,
+        email 
+      });
     }
   },
 
@@ -44,11 +54,18 @@ export const useAuth = create<AuthState>((set) => ({
       password,
     });
 
-    if (error) throw error;
+    if (error) {
+      trackEvent('Sign In Failed', { email, error: error.message });
+      throw error;
+    }
 
     // Ensure session and user are set immediately
     if (data.session) {
       set({ session: data.session, user: data.session.user || data.user });
+      trackEvent(MixpanelEvents.SIGN_IN_COMPLETED, { 
+        user_id: data.user?.id,
+        email 
+      });
     }
   },
 
@@ -56,6 +73,8 @@ export const useAuth = create<AuthState>((set) => ({
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
 
+    trackEvent(MixpanelEvents.SIGN_OUT);
+    resetMixpanel();
     set({ session: null, user: null });
   },
 

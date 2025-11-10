@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
+import { initializeMixpanel, identifyUser, setUserProperties } from '@/lib/mixpanel';
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -15,10 +16,24 @@ export default function RootLayout() {
     initialize();
   }, []);
 
-  // Initialize premium status when user is available
+  // Initialize Mixpanel
+  useEffect(() => {
+    initializeMixpanel();
+  }, []);
+
+  // Initialize premium status and Mixpanel user when user is available
   useEffect(() => {
     if (user?.id) {
       checkPremiumStatus(user.id);
+      
+      // Identify user in Mixpanel
+      identifyUser(user.id);
+      
+      // Set basic user properties
+      setUserProperties({
+        user_id: user.id,
+        signup_date: user.created_at || new Date().toISOString(),
+      });
     }
   }, [user?.id]);
 
