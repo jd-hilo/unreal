@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import { Mixpanel } from 'mixpanel-react-native';
 import Constants from 'expo-constants';
 
@@ -15,7 +16,7 @@ export async function initializeMixpanel(): Promise<void> {
   }
 
   try {
-    mixpanel = new Mixpanel(MIXPANEL_TOKEN);
+    mixpanel = new Mixpanel(MIXPANEL_TOKEN, true); // trackAutomaticEvents = true
     await mixpanel.init();
     isInitialized = true;
     console.log('📊 Mixpanel initialized');
