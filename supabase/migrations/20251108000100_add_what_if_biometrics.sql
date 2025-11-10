@@ -3,3 +3,4 @@ alter table what_if
   add column if not exists biometrics jsonb default '{}'::jsonb;
 
 
+
