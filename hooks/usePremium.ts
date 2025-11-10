@@ -57,10 +57,15 @@ export function usePremium() {
 
     try {
       setPurchasing(true);
+      console.log('🛒 Starting purchase for:', pkg.product.identifier);
+      
       const customerInfo = await purchasePackage(pkg);
 
       if (customerInfo) {
+        console.log('✅ Purchase successful, checking entitlements...');
         const isPremium = isPremiumActive(customerInfo);
+        console.log('💎 Premium status after purchase:', isPremium);
+        
         await syncPremiumStatus(user.id, isPremium);
         setPremium(isPremium);
         
@@ -69,12 +74,13 @@ export function usePremium() {
           product_id: pkg.product.identifier,
           plan_type: pkg.packageType
         });
-        setUserProperty('is_premium', true);
+        setUserProperty('is_premium', isPremium);
         
-        return true;
+        return isPremium; // Return actual premium status
       }
 
       // Track failed purchase
+      console.log('❌ Purchase failed: No customer info returned');
       trackEvent(MixpanelEvents.PREMIUM_PURCHASE_FAILED, {
         product_id: pkg.product.identifier,
         reason: 'No customer info returned'

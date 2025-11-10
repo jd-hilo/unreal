@@ -107,11 +107,19 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
  * Check if user has active premium subscription
  */
 export function isPremiumActive(customerInfo: CustomerInfo | null): boolean {
-  if (!customerInfo) return false;
+  if (!customerInfo) {
+    console.log('❌ No customer info available');
+    return false;
+  }
   
   const entitlements = customerInfo.entitlements.active;
+  console.log('🔍 Active entitlements:', Object.keys(entitlements));
+  
   // Check for 'premium' entitlement (you should configure this in RevenueCat dashboard)
-  return 'premium' in entitlements;
+  const hasPremium = 'premium' in entitlements || 'Premium' in entitlements;
+  console.log('✅ Has premium entitlement:', hasPremium);
+  
+  return hasPremium;
 }
 
 /**
@@ -157,9 +165,21 @@ export async function getPremiumStatusFromSupabase(userId: string): Promise<bool
 /**
  * Check and sync premium status
  * Returns premium status from RevenueCat and syncs to Supabase
+ * Respects manual Supabase overrides for testing
  */
 export async function checkAndSyncPremiumStatus(userId: string): Promise<boolean> {
   try {
+    // First, check if manually set to premium in Supabase (for testing)
+    const supabasePremium = await getPremiumStatusFromSupabase(userId);
+    
+    // If manually set to premium in Supabase, respect it (testing override)
+    if (supabasePremium) {
+      console.log('✅ Premium status from Supabase override: true');
+      console.log('🎉 Premium features unlocked via database override!');
+      return true;
+    }
+    
+    // Otherwise, check RevenueCat for actual subscription
     // Ensure RevenueCat is initialized first
     if (!isConfigured) {
       console.log('Initializing RevenueCat for user:', userId);
@@ -170,8 +190,10 @@ export async function checkAndSyncPremiumStatus(userId: string): Promise<boolean
     const customerInfo = await getCustomerInfo();
     const isPremium = isPremiumActive(customerInfo);
 
-    // Sync to Supabase
-    await syncPremiumStatus(userId, isPremium);
+    // Only sync to Supabase if RevenueCat says premium (don't overwrite manual test overrides)
+    if (isPremium) {
+      await syncPremiumStatus(userId, true);
+    }
 
     return isPremium;
   } catch (error) {

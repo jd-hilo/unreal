@@ -6,7 +6,7 @@ import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen, Copy, Sparkles, Crown } from 'lucide-react-native';
+import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen, Copy } from 'lucide-react-native';
 import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,6 +39,11 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       loadProfileData();
+      // Also refresh premium status when profile loads
+      if (user?.id) {
+        const { checkPremiumStatus } = useTwin.getState();
+        checkPremiumStatus(user.id);
+      }
     }, [user])
   );
 
@@ -258,26 +263,30 @@ export default function ProfileScreen() {
             {/* Unreal+ Premium Card */}
             <TouchableOpacity
               style={styles.premiumCard}
-              onPress={() => router.push('/premium' as any)}
-              activeOpacity={0.85}
+              onPress={() => !isPremium && router.push('/premium' as any)}
+              activeOpacity={isPremium ? 1 : 0.85}
+              disabled={isPremium}
             >
               <View style={styles.premiumCardInner}>
                 <View style={styles.premiumRow}>
                   <View style={styles.premiumImageContainer}>
-                    {isPremium ? (
-                      <Crown size={24} color="#FFD700" strokeWidth={2} />
-                    ) : (
-                      <Image 
-                        source={require('@/assets/images/premium.png')}
-                        style={styles.premiumImage}
-                        resizeMode="contain"
-                      />
-                    )}
+                    <Image 
+                      source={require('@/assets/images/premium.png')}
+                      style={styles.premiumImage}
+                      resizeMode="contain"
+                    />
                   </View>
                   <View style={styles.premiumContent}>
-                    <Text style={styles.premiumTitle}>
-                      {isPremium ? 'unreal+ Active' : 'Upgrade to unreal+'}
-                    </Text>
+                    {isPremium ? (
+                      <View style={styles.premiumTitleRow}>
+                        <Text style={styles.premiumTitle}>unreal+</Text>
+                        <View style={styles.activeTag}>
+                          <Text style={styles.activeTagText}>Active</Text>
+                        </View>
+                      </View>
+                    ) : (
+                      <Text style={styles.premiumTitle}>Upgrade to unreal+</Text>
+                    )}
                     <Text style={styles.premiumSubtitle}>
                       {isPremium 
                         ? 'Full access to biometrics & simulations'
@@ -285,7 +294,7 @@ export default function ProfileScreen() {
                       }
                     </Text>
                   </View>
-                  <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
+                  {!isPremium && <ChevronRight size={20} color="rgba(255,255,255,0.6)" />}
                 </View>
               </View>
             </TouchableOpacity>
@@ -672,12 +681,30 @@ const styles = StyleSheet.create({
   premiumContent: {
     flex: 1,
   },
+  premiumTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
   premiumTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 2,
     fontFamily: 'Inter-SemiBold',
+  },
+  activeTag: {
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  activeTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#000000',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   premiumSubtitle: {
     fontSize: 12,

@@ -101,7 +101,7 @@ export default function PremiumScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={styles.alreadyPremiumTitle}>You're Premium!</Text>
+            <Text style={styles.alreadyPremiumTitle}>Welcome to unreal+</Text>
             <Text style={styles.alreadyPremiumText}>
               You have access to all unreal+ features including biometrics and simulations.
             </Text>

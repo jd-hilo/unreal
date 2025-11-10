@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { isOnboardingComplete } from '@/lib/storage';
 import { checkAndSyncPremiumStatus, getPremiumStatusFromSupabase } from '@/lib/revenuecat';
+import { setUserProperty } from '@/lib/mixpanel';
 
 interface TwinState {
   twinAccuracy: number;
@@ -53,14 +54,22 @@ export const useTwin = create<TwinState>((set) => ({
       
       // Try to get status from RevenueCat and sync to Supabase
       const isPremium = await checkAndSyncPremiumStatus(userId);
+      console.log('🔄 Premium status updated to:', isPremium);
       set({ isPremium, premiumLoading: false });
+      
+      // Update Mixpanel user property
+      setUserProperty('is_premium', isPremium);
     } catch (error) {
       console.error('Failed to check premium status:', error);
       
       // Fallback: try to get from Supabase only
       try {
         const isPremium = await getPremiumStatusFromSupabase(userId);
+        console.log('🔄 Premium status from fallback:', isPremium);
         set({ isPremium, premiumLoading: false });
+        
+        // Update Mixpanel user property
+        setUserProperty('is_premium', isPremium);
       } catch (fallbackError) {
         console.error('Failed to get premium status from Supabase:', fallbackError);
         set({ isPremium: false, premiumLoading: false });
