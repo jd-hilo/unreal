@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
@@ -8,13 +8,15 @@ import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
 import { Card, CardContent } from '@/components/Card';
-import { ArrowLeft, Sparkles, Users } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Users, Lock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTwin } from '@/store/useTwin';
 
 export default function DecisionResultScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const user = useAuth((state) => state.user);
+  const { isPremium } = useTwin();
   const [decision, setDecision] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [predicting, setPredicting] = useState(false);
@@ -151,6 +153,19 @@ export default function DecisionResultScreen() {
 
   async function handleSimulate() {
     if (!user || !decision) return;
+    
+    // Check premium status
+    if (!isPremium) {
+      Alert.alert(
+        'Premium Feature',
+        'Life trajectory simulations are available with Unreal+. Upgrade to unlock this feature.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Upgrade', onPress: () => router.push('/premium' as any) }
+        ]
+      );
+      return;
+    }
     
     // Navigate to simulation page
     router.push(`/decision/simulate/${decision.id}` as any);
@@ -339,13 +354,23 @@ export default function DecisionResultScreen() {
               </View>
             )}
 
-            <Button
-              title="Simulate"
-              onPress={handleSimulate}
-              variant="primary"
-              size="large"
+            <TouchableOpacity
               style={styles.simulateButton}
-            />
+              onPress={handleSimulate}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={isPremium ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.3)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.simulateButtonGradient}
+              >
+                {!isPremium && <Lock size={20} color="rgba(255, 255, 255, 0.7)" strokeWidth={2.5} />}
+                <Text style={styles.simulateButtonText}>
+                  {isPremium ? 'Simulate Life Trajectory' : 'Simulate (Premium)'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </>
         )}
       </ScrollView>
@@ -469,6 +494,20 @@ const styles = StyleSheet.create({
   simulateButton: {
     marginTop: 16,
     marginBottom: 32,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  simulateButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 10,
+  },
+  simulateButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,

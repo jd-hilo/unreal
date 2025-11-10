@@ -6,7 +6,7 @@ import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen, Copy } from 'lucide-react-native';
+import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen, Copy, Sparkles, Crown } from 'lucide-react-native';
 import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -254,6 +254,45 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* Unreal+ Premium Card */}
+            <TouchableOpacity
+              style={styles.premiumCard}
+              onPress={() => router.push('/premium' as any)}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={isPremium 
+                  ? ['rgba(183, 149, 255, 0.3)', 'rgba(110, 61, 240, 0.3)']
+                  : ['rgba(15, 10, 30, 0.95)', 'rgba(25, 15, 45, 0.9)']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.premiumCardInner}
+              >
+                <View style={styles.premiumRow}>
+                  <View style={styles.premiumIconContainer}>
+                    {isPremium ? (
+                      <Crown size={24} color="#FFD700" strokeWidth={2} />
+                    ) : (
+                      <Sparkles size={24} color="#B795FF" strokeWidth={2} />
+                    )}
+                  </View>
+                  <View style={styles.premiumContent}>
+                    <Text style={styles.premiumTitle}>
+                      {isPremium ? 'Unreal+ Active' : 'Upgrade to Unreal+'}
+                    </Text>
+                    <Text style={styles.premiumSubtitle}>
+                      {isPremium 
+                        ? 'Full access to biometrics & simulations'
+                        : 'Unlock biometrics and life trajectory simulations'
+                      }
+                    </Text>
+                  </View>
+                  <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
 
             {/* Twin's Understanding Card */}
             <TouchableOpacity
@@ -606,5 +645,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#EF4444',
+  },
+  premiumCard: {
+    marginBottom: 20,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  premiumCardInner: {
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderRadius: 24,
+  },
+  premiumRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  premiumIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(110, 61, 240, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumContent: {
+    flex: 1,
+  },
+  premiumTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+    fontFamily: 'Inter-SemiBold',
+  },
+  premiumSubtitle: {
+    fontSize: 13,
+    color: 'rgba(200, 200, 200, 0.75)',
+    lineHeight: 18,
   },
 });

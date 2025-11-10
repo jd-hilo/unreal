@@ -16,6 +16,7 @@ export interface Database {
           net_worth: string | null;
           political_views: string | null;
           twin_code: string | null;
+          is_premium: boolean;
           core_json: CoreJsonData;
           values_json: string[];
           narrative_summary: string | null;
@@ -35,6 +36,7 @@ export interface Database {
           net_worth?: string | null;
           political_views?: string | null;
           twin_code?: string | null;
+          is_premium?: boolean;
           core_json?: CoreJsonData;
           values_json?: string[];
           narrative_summary?: string | null;
@@ -54,6 +56,7 @@ export interface Database {
           net_worth?: string | null;
           political_views?: string | null;
           twin_code?: string | null;
+          is_premium?: boolean;
           core_json?: CoreJsonData;
           values_json?: string[];
           narrative_summary?: string | null;

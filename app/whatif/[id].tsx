@@ -4,11 +4,14 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Card } from '@/components/Card';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Weight, Heart, DollarSign, MapPin, Smile, Coffee } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Weight, Heart, DollarSign, MapPin, Smile, Coffee, Lock, Sparkles } from 'lucide-react-native';
+import { useTwin } from '@/store/useTwin';
 
 export default function WhatIfResultScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { isPremium } = useTwin();
   const [whatIf, setWhatIf] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -272,6 +275,34 @@ export default function WhatIfResultScreen() {
                     </View>
                   ))}
                 </View>
+
+                {/* Premium Gate Overlay */}
+                {!isPremium && (
+                  <TouchableOpacity 
+                    style={styles.premiumOverlay}
+                    onPress={() => router.push('/premium' as any)}
+                    activeOpacity={0.9}
+                  >
+                    <BlurView intensity={80} tint="dark" style={styles.blurOverlay}>
+                      <LinearGradient
+                        colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.lockIcon}
+                      >
+                        <Lock size={32} color="#FFFFFF" strokeWidth={2.5} />
+                      </LinearGradient>
+                      <Text style={styles.unlockTitle}>Unlock Bio Metrics</Text>
+                      <Text style={styles.unlockSubtitle}>
+                        Upgrade to Unreal+ to see detailed biometric predictions
+                      </Text>
+                      <View style={styles.unlockButton}>
+                        <Sparkles size={18} color="#FFFFFF" strokeWidth={2} />
+                        <Text style={styles.unlockButtonText}>Upgrade to Unreal+</Text>
+                      </View>
+                    </BlurView>
+                  </TouchableOpacity>
+                )}
               </LinearGradient>
             </View>
           </View>
@@ -478,5 +509,63 @@ const styles = StyleSheet.create({
     color: 'rgba(200, 200, 200, 0.65)',
     fontSize: 13,
     paddingVertical: 12,
+  },
+  premiumOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  blurOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    gap: 16,
+  },
+  lockIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    shadowColor: '#6E3DF0',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  unlockTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  unlockSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.85)',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  unlockButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(183, 149, 255, 0.2)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#B795FF',
+    marginTop: 8,
+  },
+  unlockButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
