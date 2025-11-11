@@ -4,6 +4,9 @@ import { supabase } from './supabase';
 
 const REVENUECAT_API_KEY = Constants.expoConfig?.extra?.revenuecatApiKey || '';
 
+// Set this to true to bypass RevenueCat and only use Supabase (for testing)
+const BYPASS_REVENUECAT_FOR_TESTING = true;
+
 if (!REVENUECAT_API_KEY) {
   console.warn('RevenueCat API key not found in app.json');
 }
@@ -169,6 +172,13 @@ export async function getPremiumStatusFromSupabase(userId: string): Promise<bool
  */
 export async function checkAndSyncPremiumStatus(userId: string): Promise<boolean> {
   try {
+    // If bypassing RevenueCat for testing, only use Supabase
+    if (BYPASS_REVENUECAT_FOR_TESTING) {
+      const supabasePremium = await getPremiumStatusFromSupabase(userId);
+      console.log('🧪 TESTING MODE: Using Supabase only, premium status:', supabasePremium);
+      return supabasePremium;
+    }
+    
     // First, check if manually set to premium in Supabase (for testing)
     const supabasePremium = await getPremiumStatusFromSupabase(userId);
     
