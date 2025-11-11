@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Linking } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -274,6 +274,23 @@ export default function PremiumScreen() {
           <Text style={styles.finePrint}>
             Subscription will auto-renew unless cancelled. Cancel anytime in App Store settings.
           </Text>
+
+          {/* Terms and Privacy Links */}
+          <View style={styles.legalLinks}>
+            <TouchableOpacity 
+              onPress={() => Linking.openURL('https://pastoral-supply-662.notion.site/Privacy-Policy-unreal-2a32cec59ddf80098740f16913e6d43d')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.legalLinkText}>Terms of Service</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalSeparator}>•</Text>
+            <TouchableOpacity 
+              onPress={() => Linking.openURL('https://pastoral-supply-662.notion.site/Privacy-Policy-unreal-2a32cec59ddf80098740f16913e6d43d')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.legalLinkText}>Privacy Policy</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -465,6 +482,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  legalLinkText: {
+    fontSize: 12,
+    color: '#B795FF',
+    textDecorationLine: 'underline',
+  },
+  legalSeparator: {
+    fontSize: 12,
+    color: 'rgba(200, 200, 200, 0.55)',
   },
   alreadyPremiumContainer: {
     flex: 1,

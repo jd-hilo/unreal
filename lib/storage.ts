@@ -50,11 +50,16 @@ export async function updateProfileFields(
     political_views?: string;
   }
 ) {
+  // Get existing profile to preserve core_json and values_json
+  const existingProfile = await getProfile(userId);
+  
   const { data, error } = await supabase
     .from('profiles')
     .upsert(
       {
         user_id: userId,
+        core_json: existingProfile?.core_json || {},
+        values_json: existingProfile?.values_json || [],
         ...fields,
       } as any,
       { onConflict: 'user_id' }
@@ -492,16 +497,35 @@ export async function completeOnboarding(
     onboarding_complete: true,
   };
 
+  // Build update object, preserving existing values if not provided
+  const updatePayload: any = {
+    user_id: userId,
+    core_json: updatedCoreJson as any,
+  };
+
+  // Only update fields if provided, otherwise preserve existing values
+  if (onboardingData.first_name !== undefined) {
+    updatePayload.first_name = onboardingData.first_name;
+  } else if (profile?.first_name) {
+    updatePayload.first_name = profile.first_name;
+  }
+  
+  if (onboardingData.university !== undefined) {
+    updatePayload.university = onboardingData.university;
+  } else if (profile?.university) {
+    updatePayload.university = profile.university;
+  }
+  
+  if (onboardingData.hometown !== undefined) {
+    updatePayload.hometown = onboardingData.hometown;
+  } else if (profile?.hometown) {
+    updatePayload.hometown = profile.hometown;
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .upsert(
-      {
-        user_id: userId,
-        core_json: updatedCoreJson as any,
-        first_name: onboardingData.first_name || null,
-        university: onboardingData.university || null,
-        hometown: onboardingData.hometown || null,
-      } as any,
+      updatePayload,
       { onConflict: 'user_id' }
     )
     .select()

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, Clipboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, Clipboard, Linking, Modal } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
@@ -6,7 +6,7 @@ import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen, Copy } from 'lucide-react-native';
+import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen, Copy, Info, X } from 'lucide-react-native';
 import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,6 +33,7 @@ export default function ProfileScreen() {
   const [journalComplete, setJournalComplete] = useState(false);
   const [hasRelationships, setHasRelationships] = useState(false);
   const [twinCode, setTwinCode] = useState<string>('');
+  const [infoModalVisible, setInfoModalVisible] = useState(false);
   const animatedTwinCode = useTextScramble(twinCode, 1500);
 
   // Reload profile data when screen comes into focus
@@ -81,6 +82,21 @@ export default function ProfileScreen() {
       Alert.alert('Copied!', 'Your unreal# has been copied to clipboard');
     } catch (error) {
       console.error('Failed to copy:', error);
+    }
+  }
+
+  async function handleSendFeedback() {
+    try {
+      const url = 'mailto:jd@hilo.media?subject=unreal App Feedback';
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Unable to open email app');
+      }
+    } catch (error) {
+      console.error('Failed to open email:', error);
+      Alert.alert('Error', 'Unable to open email app');
     }
   }
 
@@ -247,19 +263,6 @@ export default function ProfileScreen() {
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.titleContainer}>
-              <Text style={styles.title}>unreal#: {animatedTwinCode || '------'}</Text>
-              {twinCode && (
-                <TouchableOpacity 
-                  onPress={handleCopyTwinCode}
-                  style={styles.copyButton}
-                  activeOpacity={0.7}
-                >
-                  <Copy size={20} color="#B795FF" />
-                </TouchableOpacity>
-              )}
-            </View>
-
             {/* Unreal+ Premium Card */}
             <TouchableOpacity
               style={styles.premiumCard}
@@ -305,7 +308,7 @@ export default function ProfileScreen() {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={['rgba(15, 10, 30, 0.95)', 'rgba(25, 15, 45, 0.9)']}
+                colors={['rgba(20, 10, 35, 0.95)', '#312550']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.progressCardInner}
@@ -322,7 +325,7 @@ export default function ProfileScreen() {
                 </View>
                 <View style={styles.gradientProgressBar}>
                   <LinearGradient
-                    colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+                    colors={['rgba(20, 10, 35, 0.95)', '#312550']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={[styles.progressFill, { width: `${totalProgress}%` }]}
@@ -336,6 +339,27 @@ export default function ProfileScreen() {
 
             {/* Mannequin head between cards */}
             <View style={styles.mannequinContainer}>
+              <View style={styles.titleContainer}>
+                <Text style={styles.title}>unreal#: {animatedTwinCode || '------'}</Text>
+                {twinCode && (
+                  <>
+                    <TouchableOpacity 
+                      onPress={handleCopyTwinCode}
+                      style={styles.copyButton}
+                      activeOpacity={0.7}
+                    >
+                      <Copy size={20} color="#B795FF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => setInfoModalVisible(true)}
+                      style={styles.infoButton}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={20} color="#B795FF" />
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
               <Image 
                 source={require('@/app/profileman.png')}
                 style={styles.mannequinImage}
@@ -350,7 +374,7 @@ export default function ProfileScreen() {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={['rgba(15, 10, 30, 0.95)', 'rgba(25, 15, 45, 0.9)']}
+                colors={['rgba(20, 10, 35, 0.95)', '#312550']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.journalCardInner}
@@ -403,22 +427,117 @@ export default function ProfileScreen() {
             </View>
 
             <TouchableOpacity
+              onPress={handleSendFeedback}
+              style={styles.feedbackButton}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['rgba(20, 10, 35, 0.95)', '#312550']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.feedbackButtonInner}
+              >
+                <Text style={styles.feedbackText}>Send Feedback</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               onPress={handleSignOut}
               style={styles.signOutButton}
-              activeOpacity={0.7}
+              activeOpacity={0.85}
             >
-              <Text style={styles.signOutText}>Sign Out</Text>
+              <LinearGradient
+                colors={['rgba(20, 10, 35, 0.95)', '#312550']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.signOutButtonInner}
+              >
+                <Text style={styles.signOutText}>Sign Out</Text>
+              </LinearGradient>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleDeleteAccount}
               style={styles.deleteButton}
-              activeOpacity={0.7}
+              activeOpacity={0.85}
             >
-              <Text style={styles.deleteText}>Delete Account</Text>
+              <LinearGradient
+                colors={['rgba(25, 10, 10, 0.95)', 'rgba(60, 15, 15, 0.9)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.deleteButtonInner}
+              >
+                <Text style={styles.deleteText}>Delete Account</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </ScrollView>
         </SafeAreaView>
+
+        {/* Info Modal */}
+        <Modal
+          visible={infoModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setInfoModalVisible(false)}
+        >
+          <View style={styles.infoModalOverlay}>
+            <View style={styles.infoModalContent}>
+              <LinearGradient
+                colors={['rgba(20, 10, 35, 0.98)', 'rgba(30, 15, 50, 0.98)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.infoModalGradient}
+              >
+                <TouchableOpacity 
+                  onPress={() => setInfoModalVisible(false)}
+                  style={styles.infoModalCloseButton}
+                  activeOpacity={0.7}
+                >
+                  <X size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+
+                <View style={styles.infoModalHeader}>
+                  <View style={styles.infoIconContainer}>
+                    <Info size={32} color="#B795FF" strokeWidth={2.5} />
+                  </View>
+                </View>
+
+                <View style={styles.codeDisplayBox}>
+                  <Text style={styles.codeDisplayLabel}>YOUR UNIQUE IDENTIFIER</Text>
+                  <Text style={styles.codeDisplayValue}>{twinCode}</Text>
+                  <View style={styles.scanlineEffect} />
+                </View>
+
+                <View style={styles.infoSection}>
+                  <View style={styles.infoPoint}>
+                    <View style={styles.bulletPoint} />
+                    <Text style={styles.infoText}>
+                      Your <Text style={styles.highlightText}>unreal#</Text> is a unique 6-digit code that identifies your AI twin
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.infoPoint}>
+                    <View style={styles.bulletPoint} />
+                    <Text style={styles.infoText}>
+                      Share it with others to add your twin to their decision-making process
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.infoPoint}>
+                    <View style={styles.bulletPoint} />
+                    <Text style={styles.infoText}>
+                      Your twin code is <Text style={styles.highlightText}>permanent</Text> and cannot be changed
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.techBorder}>
+                  <Text style={styles.techBorderText}>SYSTEM_ID: {twinCode}</Text>
+                </View>
+              </LinearGradient>
+            </View>
+          </View>
+        </Modal>
       </View>
     </View>
   );
@@ -438,6 +557,7 @@ const styles = StyleSheet.create({
     marginVertical: -50,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   mannequinImage: {
     width: 260,
@@ -479,12 +599,15 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   titleContainer: {
+    position: 'absolute',
+    top: 80,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
-    marginBottom: 24,
     gap: 12,
+    zIndex: 10,
   },
   title: {
     fontSize: 24,
@@ -499,6 +622,132 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(183, 149, 255, 0.3)',
+  },
+  infoButton: {
+    padding: 6,
+    backgroundColor: 'rgba(183, 149, 255, 0.15)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
+  },
+  infoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  infoModalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
+  },
+  infoModalGradient: {
+    padding: 28,
+  },
+  infoModalCloseButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 10,
+    padding: 4,
+  },
+  infoModalHeader: {
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  infoIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(183, 149, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
+  },
+  infoModalTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Courier New',
+    letterSpacing: 2,
+  },
+  codeDisplayBox: {
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.4)',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 28,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  codeDisplayLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#B795FF',
+    letterSpacing: 2,
+    marginBottom: 8,
+    fontFamily: 'Courier New',
+  },
+  codeDisplayValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Courier New',
+    letterSpacing: 4,
+  },
+  scanlineEffect: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: 'rgba(183, 149, 255, 0.5)',
+  },
+  infoSection: {
+    gap: 20,
+    marginBottom: 24,
+  },
+  infoPoint: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  bulletPoint: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#B795FF',
+    marginTop: 7,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 22,
+    color: 'rgba(220, 220, 220, 0.9)',
+  },
+  highlightText: {
+    color: '#B795FF',
+    fontWeight: '600',
+    fontFamily: 'Courier New',
+  },
+  techBorder: {
+    borderTopWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
+    paddingTop: 16,
+    alignItems: 'center',
+  },
+  techBorderText: {
+    fontSize: 11,
+    fontFamily: 'Courier New',
+    color: 'rgba(183, 149, 255, 0.6)',
+    letterSpacing: 1,
   },
   progressCard: {
     marginBottom: 24,
@@ -621,15 +870,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  signOutButton: {
+  feedbackButton: {
     marginTop: 16,
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  feedbackButtonInner: {
+    paddingVertical: 16,
     paddingHorizontal: 24,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderRadius: 16,
+  },
+  feedbackText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  signOutButton: {
+    marginTop: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  signOutButtonInner: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderRadius: 16,
   },
   signOutText: {
     fontSize: 16,
@@ -638,13 +908,17 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     marginTop: 12,
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: '#EF4444',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  deleteButtonInner: {
+    paddingVertical: 16,
     paddingHorizontal: 24,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderRadius: 16,
   },
   deleteText: {
     fontSize: 16,

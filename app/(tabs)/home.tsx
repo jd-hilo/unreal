@@ -13,6 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as StoreReview from 'expo-store-review';
 import * as Haptics from 'expo-haptics';
+import { Asset } from 'expo-asset';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -29,6 +30,12 @@ export default function HomeScreen() {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    // Preload images
+    Asset.fromModule(require('@/assets/images/compass.png')).downloadAsync();
+    Asset.fromModule(require('@/assets/images/star.png')).downloadAsync();
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -291,7 +298,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.thinProgressBar}>
                   <LinearGradient
-                    colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+                    colors={['rgba(20, 10, 35, 0.95)', '#312550']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={[styles.thinProgressFill, { width: `${profileProgress}%` }]}
@@ -318,7 +325,7 @@ export default function HomeScreen() {
                     style={styles.cardBorder}
                   >
                     <LinearGradient
-                      colors={['rgba(10, 5, 20, 0.98)', 'rgba(20, 10, 35, 0.95)']}
+                      colors={['rgba(20, 10, 35, 0.95)', '#312550']}
                       start={{ x: 1, y: 1 }}
                       end={{ x: 0, y: 0 }}
                       style={styles.actionCard}
@@ -327,7 +334,11 @@ export default function HomeScreen() {
                         <View style={styles.iconCircleContainer}>
                           {/* Icon without background container */}
                           <View style={styles.iconRotate}>
-                            <CompassGradientIcon size={40} />
+                            <Image 
+                              source={require('@/assets/images/compass.png')}
+                              style={styles.compassImage}
+                              resizeMode="contain"
+                            />
                           </View>
                         </View>
                         <View style={styles.cardTextContainer}>
@@ -360,16 +371,18 @@ export default function HomeScreen() {
                     style={styles.cardBorder}
                   >
                     <LinearGradient
-                      colors={['rgba(10, 5, 20, 0.98)', 'rgba(20, 10, 35, 0.95)']}
+                      colors={['rgba(20, 10, 35, 0.95)', '#312550']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.actionCard}
                     >
                       <View style={styles.cardContentRow}>
                         <View style={styles.iconCircleContainer}>
-                          <View style={{ marginTop: -5 }}>
-                            <StarGradientIcon size={40} />
-                          </View>
+                          <Image 
+                            source={require('@/assets/images/star.png')}
+                            style={styles.starImage}
+                            resizeMode="contain"
+                          />
                         </View>
                         <View style={styles.cardTextContainer}>
                           <Text style={styles.actionTitlePrimary}>What If?</Text>
@@ -586,20 +599,28 @@ const styles = StyleSheet.create({
   cardContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 20,
   },
   cardTextContainer: {
     flex: 1,
   },
   iconCircleContainer: {
     position: 'relative',
-    width: 76,
-    height: 60,
+    width: 80,
+    height: 80,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconRotate: {
-    transform: [{ rotate: '30deg' }],
+    transform: [{ rotate: '-30deg' }],
+  },
+  compassImage: {
+    width: 80,
+    height: 80,
+  },
+  starImage: {
+    width: 80,
+    height: 80,
   },
   iconGlow: {
     position: 'absolute',

@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 24,
     paddingTop: 32,
-    paddingBottom: 24,
+    paddingBottom: 12,
   },
   description: {
     fontSize: 16,
@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingTop: 6,
+    paddingBottom: 6,
     backgroundColor: '#0C0C10',
     borderTopWidth: 1,
     borderTopColor: 'rgba(59, 37, 109, 0.2)',

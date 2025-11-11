@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 24,
     paddingTop: 24,
-    paddingBottom: 120,
+    paddingBottom: 60,
   },
   description: {
     fontSize: 15,
@@ -248,8 +248,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 40,
+    paddingTop: 8,
+    paddingBottom: 20,
     backgroundColor: '#0C0C10',
     borderTopWidth: 1,
     borderTopColor: 'rgba(59, 37, 109, 0.2)',
