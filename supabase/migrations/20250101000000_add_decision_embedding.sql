@@ -24,3 +24,4 @@ ADD COLUMN IF NOT EXISTS contribute_to_insights boolean DEFAULT true;
 
 
 
+
