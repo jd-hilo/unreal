@@ -1,31 +1,47 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Image, Modal, ActivityIndicator } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Image, Modal, ActivityIndicator, Animated } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
-import { Input } from '@/components/Input';
-import { ArrowLeft, ChevronRight, X, UserPlus, Clock } from 'lucide-react-native';
+import { FloatingLabelInput } from '@/components/FloatingLabelInput';
+import { SwipeableOptionCard } from '@/components/SwipeableOptionCard';
+import { ArrowLeft, ChevronRight, X, UserPlus, Clock, Sparkles, Check } from 'lucide-react-native';
 import { insertDecision, updateDecisionPrediction, getUserByTwinCode, addDecisionParticipant } from '@/lib/storage';
 import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { ProgressBar } from '@/components/ProgressBar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+const TOTAL_STEPS = 4;
 
 export default function NewDecisionScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
+  
+  // Step management
+  const [currentStep, setCurrentStep] = useState(1);
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  
+  // Form data
   const [question, setQuestion] = useState('');
   const [derivedOptions, setDerivedOptions] = useState<string[]>([]);
   const [isDerivingOptions, setIsDerivingOptions] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showDerivedOptions, setShowDerivedOptions] = useState(false);
+  
+  // Twin management
   const [showTwinModal, setShowTwinModal] = useState(false);
   const [twinCode, setTwinCode] = useState('');
   const [twinCodeError, setTwinCodeError] = useState('');
   const [lookingUpTwin, setLookingUpTwin] = useState(false);
   const [addedTwins, setAddedTwins] = useState<Array<{ userId: string; name: string; code: string }>>([]);
   const [recentTwins, setRecentTwins] = useState<Array<{ userId: string; name: string; code: string }>>([]);
+  const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(null);
+  const [editingOptionText, setEditingOptionText] = useState('');
 
   useEffect(() => {
     loadRecentTwins();
@@ -44,9 +60,8 @@ export default function NewDecisionScreen() {
 
   async function saveRecentTwin(twin: { userId: string; name: string; code: string }) {
     try {
-      // Remove duplicates and add to front
       const filtered = recentTwins.filter(t => t.userId !== twin.userId);
-      const updated = [twin, ...filtered].slice(0, 5); // Keep max 5 recent
+      const updated = [twin, ...filtered].slice(0, 5);
       setRecentTwins(updated);
       await AsyncStorage.setItem('recentTwins', JSON.stringify(updated));
     } catch (error) {
@@ -54,17 +69,62 @@ export default function NewDecisionScreen() {
     }
   }
 
+  // Transition to next step with animation
+  function goToStep(nextStep: number) {
+    if (nextStep < 1 || nextStep > TOTAL_STEPS) return;
+    
+    // Dismiss keyboard before transitioning
+    Keyboard.dismiss();
+    
+    const direction = nextStep > currentStep ? 1 : -1;
+    
+    // Fade out and slide
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: -direction * 20,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Change step
+      setCurrentStep(nextStep);
+      
+      // Reset position
+      slideAnim.setValue(direction * 20);
+      
+      // Fade in and slide to center
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+
   async function handleDeriveOptions() {
     Keyboard.dismiss();
     if (!question.trim()) return;
 
     setIsDerivingOptions(true);
-    setShowDerivedOptions(false);
 
     try {
       const { deriveDecisionOptionsWithContext } = await import('@/lib/ai');
       
-      // Build context from all added twins if any
       let context = '';
       if (addedTwins.length > 0 && user) {
         const allUserIds = [user.id, ...addedTwins.map(t => t.userId)];
@@ -74,7 +134,14 @@ export default function NewDecisionScreen() {
       
       const options = await deriveDecisionOptionsWithContext(question.trim(), context);
       setDerivedOptions(options);
-      setShowDerivedOptions(true);
+      
+      // Success haptic feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Automatically go to next step
+      setTimeout(() => {
+        goToStep(2);
+      }, 300);
     } catch (error) {
       console.error('Option derivation error:', error);
       alert('Failed to analyze your question. Please try again.');
@@ -89,7 +156,6 @@ export default function NewDecisionScreen() {
       return;
     }
 
-    // Limit to 1 added twin
     if (addedTwins.length >= 1) {
       setTwinCodeError('You can only add one other twin per decision');
       setLookingUpTwin(false);
@@ -122,21 +188,11 @@ export default function NewDecisionScreen() {
         code: twinProfile.twin_code || twinCode.trim()
       };
 
-      // Replace the list (only allow 1 twin)
       setAddedTwins([newTwin]);
-
-      // Save to recent twins
       await saveRecentTwin(newTwin);
-
-      // Close modal and reset
       setShowTwinModal(false);
       setTwinCode('');
       setTwinCodeError('');
-
-      // Regenerate options if we already have some, to include the new twin's perspective
-      if (derivedOptions.length > 0) {
-        await handleDeriveOptions();
-      }
     } catch (error) {
       console.error('Error looking up twin:', error);
       setTwinCodeError('Failed to look up twin code');
@@ -155,17 +211,31 @@ export default function NewDecisionScreen() {
       return;
     }
 
-    // Replace the list (only allow 1 twin)
     setAddedTwins([twin]);
-
-    // Close modal and reset
     setShowTwinModal(false);
     setTwinCode('');
     setTwinCodeError('');
+  }
 
-    // Regenerate options if we already have some
-    if (derivedOptions.length > 0) {
-      await handleDeriveOptions();
+  function handleDeleteOption(index: number) {
+    const updated = derivedOptions.filter((_, i) => i !== index);
+    setDerivedOptions(updated);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
+  function handleEditOption(index: number) {
+    setEditingOptionIndex(index);
+    setEditingOptionText(derivedOptions[index]);
+  }
+
+  function saveEditedOption() {
+    if (editingOptionIndex !== null && editingOptionText.trim()) {
+      const updated = [...derivedOptions];
+      updated[editingOptionIndex] = editingOptionText.trim();
+      setDerivedOptions(updated);
+      setEditingOptionIndex(null);
+      setEditingOptionText('');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   }
 
@@ -186,7 +256,6 @@ export default function NewDecisionScreen() {
 
       console.log('Decision created:', decision.id);
       
-      // Track decision created
       trackEvent(MixpanelEvents.DECISION_CREATED, {
         decision_id: decision.id,
         num_options: derivedOptions.length,
@@ -194,7 +263,6 @@ export default function NewDecisionScreen() {
         num_participants: addedTwins.length
       });
       
-      // Add participants to the decision
       if (addedTwins.length > 0) {
         console.log('Adding participants to decision...');
         for (const twin of addedTwins) {
@@ -204,7 +272,6 @@ export default function NewDecisionScreen() {
 
       console.log('Building Core Pack and Relevance Pack...');
       
-      // Collect all user IDs (decision owner + added twins)
       const allUserIds = [user.id, ...addedTwins.map(t => t.userId)];
       
       const corePack = await buildCorePack(user.id, allUserIds);
@@ -232,7 +299,6 @@ export default function NewDecisionScreen() {
       console.log('Saving prediction to database...');
       await updateDecisionPrediction(decision.id, prediction);
 
-      // Track decision analyzed
       trackEvent(MixpanelEvents.DECISION_ANALYZED, {
         decision_id: decision.id,
         predicted_option: prediction.prediction,
@@ -241,6 +307,10 @@ export default function NewDecisionScreen() {
       });
 
       console.log('Prediction saved. Navigating to result page...');
+      
+      // Success haptic feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
       router.push(`/decision/${decision.id}`);
     } catch (error) {
       console.error('Decision error:', error);
@@ -251,164 +321,305 @@ export default function NewDecisionScreen() {
     }
   }
 
-  const canAnalyze = question.trim().length > 10 && !isDerivingOptions;
-  const canSubmit = derivedOptions.length >= 2 && !loading;
+  // Step rendering
+  function renderStepContent() {
+    switch (currentStep) {
+      case 1:
+        return renderStep1();
+      case 2:
+        return renderStep2();
+      case 3:
+        return renderStep3();
+      case 4:
+        return renderStep4();
+      default:
+        return null;
+    }
+  }
+
+  // Step 1: Enter Question
+  function renderStep1() {
+    return (
+      <View style={styles.stepContainer}>
+        <View style={styles.stepHeader}>
+          <Text style={styles.stepTitle}>What's your decision?</Text>
+        </View>
+
+        <FloatingLabelInput
+          label="Your question"
+          value={question}
+          onChangeText={setQuestion}
+          multiline
+          showCharCount
+          maxCharCount={500}
+          containerStyle={styles.questionInput}
+        />
+      </View>
+    );
+  }
+
+  // Step 2: Review Options
+  function renderStep2() {
+    return (
+      <View style={styles.stepContainer}>
+        <View style={styles.stepHeader}>
+          <Text style={styles.stepTitle}>Your options</Text>
+        </View>
+
+        <View style={styles.optionsContainer}>
+          {derivedOptions.map((option, index) => (
+            <SwipeableOptionCard
+              key={index}
+              option={option}
+              index={index}
+              onDelete={() => handleDeleteOption(index)}
+              onEdit={() => handleEditOption(index)}
+              delay={index * 50}
+            />
+          ))}
+        </View>
+
+        <TouchableOpacity
+          onPress={handleDeriveOptions}
+          style={styles.regenerateButton}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.regenerateText}>↻ Regenerate</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Step 3: Add Twin (Optional)
+  function renderStep3() {
+    return (
+      <View style={styles.stepContainer}>
+        <View style={styles.stepHeader}>
+          <Text style={styles.stepTitle}>Add a collaborator?</Text>
+          <Text style={styles.stepDescription}>
+            Get another perspective on your decision
+          </Text>
+        </View>
+
+        {addedTwins.length > 0 ? (
+          <View style={styles.twinAddedCard}>
+            <BlurView intensity={30} tint="dark" style={styles.twinAddedBlur}>
+              <View style={styles.twinAddedContent}>
+                <View style={styles.twinAddedInfo}>
+                  <Check size={20} color="#22C55E" />
+                  <Text style={styles.twinAddedName}>{addedTwins[0].name}'s twin added</Text>
+                </View>
+                <TouchableOpacity 
+                  onPress={() => handleRemoveTwin(addedTwins[0].userId)}
+                  style={styles.removeTwinButton}
+                >
+                  <X size={20} color="rgba(200, 200, 200, 0.75)" />
+                </TouchableOpacity>
+              </View>
+            </BlurView>
+          </View>
+        ) : (
+          <View style={styles.collaboratorSection}>
+            <TouchableOpacity
+              onPress={() => setShowTwinModal(true)}
+              style={styles.addTwinCardEnhanced}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['rgba(183, 149, 255, 0.15)', 'rgba(183, 149, 255, 0.05)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.addTwinGradient}
+              >
+                <BlurView intensity={20} tint="dark" style={styles.addTwinBlurEnhanced}>
+                  <View style={styles.addTwinContentEnhanced}>
+                    <View style={styles.iconCircle}>
+                      <UserPlus size={28} color="#B795FF" />
+                    </View>
+                    <View style={styles.addTwinTextContainer}>
+                      <Text style={styles.addTwinTextEnhanced}>Add Another Twin</Text>
+                      <Text style={styles.addTwinSubtext}>Collaborate on this decision</Text>
+                    </View>
+                    <ChevronRight size={24} color="rgba(183, 149, 255, 0.6)" />
+                  </View>
+                </BlurView>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Mannequin Image */}
+            <Image 
+              source={require('@/app/man.png')}
+              style={styles.mannequinCollaborator}
+              resizeMode="contain"
+            />
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  // Step 4: Review & Submit
+  function renderStep4() {
+    return (
+      <View style={styles.stepContainer}>
+        <View style={styles.stepHeader}>
+          <Text style={styles.stepTitle}>Review</Text>
+        </View>
+
+        <View style={styles.reviewCard}>
+          <BlurView intensity={30} tint="dark" style={styles.reviewBlur}>
+            <View style={styles.reviewContent}>
+              <Text style={styles.reviewLabel}>Question</Text>
+              <Text style={styles.reviewValue}>{question}</Text>
+
+              <Text style={[styles.reviewLabel, styles.reviewLabelSpaced]}>
+                Options ({derivedOptions.length})
+              </Text>
+              {derivedOptions.map((option, index) => (
+                <View key={index} style={styles.reviewOption}>
+                  <Text style={styles.reviewOptionNumber}>{index + 1}.</Text>
+                  <Text style={styles.reviewOptionText}>{option}</Text>
+                </View>
+              ))}
+
+              {addedTwins.length > 0 && (
+                <>
+                  <Text style={[styles.reviewLabel, styles.reviewLabelSpaced]}>
+                    Collaborator
+                  </Text>
+                  <Text style={styles.reviewValue}>{addedTwins[0].name}</Text>
+                </>
+              )}
+            </View>
+          </BlurView>
+        </View>
+      </View>
+    );
+  }
+
+  const progress = (currentStep / TOTAL_STEPS) * 100;
+  const canProceedStep1 = question.trim().length > 10 && !isDerivingOptions;
+  const canProceedStep2 = derivedOptions.length >= 2;
+  const canProceedStep3 = true; // Optional step
+  const canSubmit = !loading;
+
+  const canProceed = 
+    (currentStep === 1 && canProceedStep1) ||
+    (currentStep === 2 && canProceedStep2) ||
+    (currentStep === 3 && canProceedStep3) ||
+    (currentStep === 4 && canSubmit);
+
+  function getButtonLabel() {
+    if (currentStep === 1) return isDerivingOptions ? 'Generating...' : 'Generate Options';
+    if (currentStep === 4) return loading ? 'Analyzing...' : 'Ask My Twin';
+    return 'Continue';
+  }
+
+  function handleNextStep() {
+    if (!canProceed) return;
+    
+    if (currentStep === 1) {
+      handleDeriveOptions();
+    } else if (currentStep === 4) {
+      handleSubmit();
+    } else {
+      goToStep(currentStep + 1);
+    }
+  }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity 
+          onPress={() => currentStep > 1 ? goToStep(currentStep - 1) : router.back()} 
+          style={styles.backButton}
+        >
           <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.title}>New Decision</Text>
-          <Text style={styles.subtitle}>Let your AI twin help you decide</Text>
+          <Text style={styles.subtitle}>Step {currentStep} of {TOTAL_STEPS}</Text>
         </View>
       </View>
 
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Question Card */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>What's your decision?</Text>
-          <View style={styles.questionCard}>
-        <Input
-              placeholder="E.g., Should I take the new job offer? or What should I do about my career?"
-          value={question}
-              onChangeText={(text) => {
-                setQuestion(text);
-                setShowDerivedOptions(false);
-                setDerivedOptions([]);
-              }}
-          multiline
-              numberOfLines={4}
-          style={styles.questionInput}
-              containerStyle={styles.inputContainer}
-            />
-          </View>
-          
-          {!showDerivedOptions && (
-            <TouchableOpacity
-              onPress={handleDeriveOptions}
-              disabled={!canAnalyze}
-              style={[
-                styles.analyzeButton,
-                !canAnalyze && styles.analyzeButtonDisabled
-              ]}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.analyzeButtonText,
-                !canAnalyze && styles.analyzeButtonTextDisabled
-              ]}>
-                {isDerivingOptions ? 'Generating...' : 'Generate Options'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+      {/* Progress Bar */}
+      <View style={styles.progressContainer}>
+        <ProgressBar progress={progress} showLabel={false} />
+      </View>
 
-        {/* Derived Options Section */}
-        {showDerivedOptions && derivedOptions.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionLabel}>Your options</Text>
-              <TouchableOpacity onPress={handleDeriveOptions}>
-                <Text style={styles.refreshText}>↻ Regenerate</Text>
-              </TouchableOpacity>
-          </View>
+      <View style={styles.contentWrapper}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Animated.View
+            style={[
+              styles.animatedContent,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateX: slideAnim }],
+              },
+            ]}
+          >
+            {renderStepContent()}
+          </Animated.View>
+        </ScrollView>
 
-          <View style={styles.optionsContainer}>
-              {derivedOptions.map((option, index) => (
-              <View key={index} style={styles.optionCard}>
-                <View style={styles.optionNumber}>
-                  <Text style={styles.optionNumberText}>{index + 1}</Text>
-                </View>
-                  <View style={styles.optionTextContainer}>
-                    <Text style={styles.optionText}>{option}</Text>
-                    </View>
-          </View>
-        ))}
-          </View>
-              </View>
-          )}
-
-        {/* Helper Text */}
-        <View style={styles.helperCard}>
-          <Text style={styles.helperText}>
-            {!showDerivedOptions 
-              ? '✨ AI will automatically understand your question and identify the options for you'
-              : '💡 Your Twin will analyze each path based on your values, goals, and past decisions'}
-          </Text>
-        </View>
-      </ScrollView>
-
-      {/* Floating Action Buttons */}
-      <View style={styles.floatingButtonContainer}>
-        {/* Add Twin Button / Display */}
-        {addedTwins.length > 0 ? (
-          <View style={styles.addedTwinDisplay}>
-            <Text style={styles.addedTwinDisplayText}>
-              {addedTwins[0].name}'s digital twin added
-            </Text>
-            <TouchableOpacity 
-              onPress={() => handleRemoveTwin(addedTwins[0].userId)}
-              style={styles.removeTwinButtonSmall}
-            >
-              <X size={16} color="rgba(200, 200, 200, 0.75)" />
-            </TouchableOpacity>
-          </View>
-        ) : (
+        {/* Floating Action Button */}
+        <View style={styles.floatingButtonContainer}>
+        {currentStep === 3 && (
           <TouchableOpacity
-            onPress={() => setShowTwinModal(true)}
-            style={styles.addTwinButton}
+            onPress={() => goToStep(4)}
+            style={styles.skipButton}
             activeOpacity={0.7}
           >
-            <UserPlus size={16} color="rgba(200, 200, 200, 0.75)" />
-            <Text style={styles.addTwinButtonText}>+ add a twin</Text>
+            <Text style={styles.skipText}>Skip for now</Text>
           </TouchableOpacity>
         )}
 
-        {/* Ask My Twin Button */}
         <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={!canSubmit || loading}
+          onPress={handleNextStep}
+          disabled={!canProceed}
           activeOpacity={0.9}
           style={[
             styles.floatingButton,
-            (!canSubmit || loading) && styles.floatingButtonDisabled
+            !canProceed && styles.floatingButtonDisabled
           ]}
         >
           <LinearGradient
-            colors={canSubmit && !loading ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+            colors={canProceed ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.floatingButtonGradient}
           >
-            <Image 
-              source={require('@/assets/images/cube.png')}
-              style={[
-                styles.cubeIcon,
-                (!canSubmit || loading) && styles.cubeIconDisabled
-              ]}
-              resizeMode="contain"
-            />
+            {currentStep === 4 && (
+              <Image 
+                source={require('@/assets/images/cube.png')}
+                style={[
+                  styles.cubeIcon,
+                  !canProceed && styles.cubeIconDisabled
+                ]}
+                resizeMode="contain"
+              />
+            )}
             <Text style={[
               styles.floatingButtonText,
-              (!canSubmit || loading) && styles.floatingButtonTextDisabled
+              !canProceed && styles.floatingButtonTextDisabled
             ]}>
-              {loading ? 'Asking...' : (addedTwins.length > 0 ? 'Ask Our Twins' : 'Ask My Twin')}
+              {getButtonLabel()}
             </Text>
-            {!loading && <ChevronRight size={20} color={canSubmit ? "#FFFFFF" : "rgba(200, 200, 200, 0.5)"} />}
+            {!loading && !isDerivingOptions && <ChevronRight size={20} color={canProceed ? "#FFFFFF" : "rgba(200, 200, 200, 0.5)"} />}
           </LinearGradient>
         </TouchableOpacity>
+        </View>
       </View>
 
       {/* Twin Code Modal */}
@@ -420,90 +631,146 @@ export default function NewDecisionScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Another Twin</Text>
-              <TouchableOpacity 
-                onPress={() => {
-                  setShowTwinModal(false);
-                  setTwinCode('');
-                  setTwinCodeError('');
-                }}
-                style={styles.modalCloseButton}
-              >
-                <X size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalDescription}>
-              Enter someone's unreal# — it is listed on their profile page. They will be included in the decision.
-            </Text>
-
-            {/* Recent Twins */}
-            {recentTwins.length > 0 && (
-              <View style={styles.recentTwinsSection}>
-                <View style={styles.recentTwinsHeader}>
-                  <Clock size={14} color="rgba(200, 200, 200, 0.75)" />
-                  <Text style={styles.recentTwinsLabel}>Recently added</Text>
+            <BlurView intensity={40} tint="dark" style={styles.modalBlur}>
+              <View style={styles.modalInner}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Add Another Twin</Text>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      setShowTwinModal(false);
+                      setTwinCode('');
+                      setTwinCodeError('');
+                    }}
+                    style={styles.modalCloseButton}
+                  >
+                    <X size={24} color="#FFFFFF" />
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.recentTwinsList}>
-                  {recentTwins.map((twin) => (
-                    <TouchableOpacity
-                      key={twin.userId}
-                      onPress={() => handleSelectRecentTwin(twin)}
-                      style={styles.recentTwinChip}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.recentTwinName}>{twin.name}</Text>
-                      <Text style={styles.recentTwinCode}>#{twin.code}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
 
-            <Input
-              placeholder=""
-              value={twinCode}
-              onChangeText={(text) => {
-                setTwinCode(text);
-                setTwinCodeError('');
-              }}
-              maxLength={6}
-              keyboardType="number-pad"
-              autoFocus={true}
-              style={styles.twinCodeInput}
-            />
+                <Text style={styles.modalDescription}>
+                  Enter someone's unreal# — it is listed on their profile page. They will be included in the decision.
+                </Text>
 
-            {twinCodeError ? (
-              <Text style={styles.errorText}>{twinCodeError}</Text>
-            ) : null}
-
-            <TouchableOpacity
-              onPress={handleAddTwin}
-              disabled={lookingUpTwin || twinCode.length !== 6}
-              style={[
-                styles.modalButtonWrapper,
-                (lookingUpTwin || twinCode.length !== 6) && styles.modalButtonDisabled
-              ]}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={twinCode.length === 6 && !lookingUpTwin ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.modalButton}
-              >
-                {lookingUpTwin ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalButtonText}>Add Twin</Text>
+                {recentTwins.length > 0 && (
+                  <View style={styles.recentTwinsSection}>
+                    <View style={styles.recentTwinsHeader}>
+                      <Clock size={14} color="rgba(200, 200, 200, 0.75)" />
+                      <Text style={styles.recentTwinsLabel}>Recently added</Text>
+                    </View>
+                    <View style={styles.recentTwinsList}>
+                      {recentTwins.map((twin) => (
+                        <TouchableOpacity
+                          key={twin.userId}
+                          onPress={() => handleSelectRecentTwin(twin)}
+                          style={styles.recentTwinChip}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.recentTwinName}>{twin.name}</Text>
+                          <Text style={styles.recentTwinCode}>#{twin.code}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
                 )}
-              </LinearGradient>
-            </TouchableOpacity>
+
+                <FloatingLabelInput
+                  label="Enter 6-digit code"
+                  value={twinCode}
+                  onChangeText={(text) => {
+                    setTwinCode(text);
+                    setTwinCodeError('');
+                  }}
+                  maxLength={6}
+                  keyboardType="number-pad"
+                  error={twinCodeError}
+                />
+
+                <TouchableOpacity
+                  onPress={handleAddTwin}
+                  disabled={lookingUpTwin || twinCode.length !== 6}
+                  style={[
+                    styles.modalButtonWrapper,
+                    (lookingUpTwin || twinCode.length !== 6) && styles.modalButtonDisabled
+                  ]}
+                  activeOpacity={0.9}
+                >
+                  <LinearGradient
+                    colors={twinCode.length === 6 && !lookingUpTwin ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.modalButton}
+                  >
+                    {lookingUpTwin ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.modalButtonText}>Add Twin</Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </BlurView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Option Modal */}
+      <Modal
+        visible={editingOptionIndex !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setEditingOptionIndex(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <BlurView intensity={40} tint="dark" style={styles.modalBlur}>
+              <View style={styles.modalInner}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Edit Option</Text>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      setEditingOptionIndex(null);
+                      setEditingOptionText('');
+                    }}
+                    style={styles.modalCloseButton}
+                  >
+                    <X size={24} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+
+                <FloatingLabelInput
+                  label="Option text"
+                  value={editingOptionText}
+                  onChangeText={setEditingOptionText}
+                  multiline
+                  showCharCount
+                  maxCharCount={200}
+                />
+
+                <TouchableOpacity
+                  onPress={saveEditedOption}
+                  disabled={!editingOptionText.trim()}
+                  style={[
+                    styles.modalButtonWrapper,
+                    !editingOptionText.trim() && styles.modalButtonDisabled
+                  ]}
+                  activeOpacity={0.9}
+                >
+                  <LinearGradient
+                    colors={editingOptionText.trim() ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.modalButton}
+                  >
+                    <Text style={styles.modalButtonText}>Save Changes</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </BlurView>
           </View>
         </View>
       </Modal>
     </KeyboardAvoidingView>
+    </GestureHandlerRootView>
   );
 }
 
@@ -517,11 +784,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: 21,
+    paddingBottom: 16,
     gap: 16,
     backgroundColor: '#0C0C10',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
   backButton: {
     width: 40,
@@ -539,51 +804,64 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: 'rgba(200, 200, 200, 0.75)',
+  },
+  progressContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
+  },
+  contentWrapper: {
+    flex: 1,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
     paddingHorizontal: 24,
-    paddingTop: 21,
-    paddingBottom: 120,
+    paddingTop: 24,
+    paddingBottom: 20,
   },
-  section: {
-    marginBottom: 48,
+  animatedContent: {
+    flex: 1,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+  stepContainer: {
+    gap: 20,
   },
-  sectionLabel: {
-    fontSize: 17,
-    fontWeight: '600',
+  stepHeader: {
+    marginBottom: 4,
+  },
+  stepIcon: {
+    width: 48,
+    height: 48,
+    marginBottom: 8,
+  },
+  stepTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 12,
+    lineHeight: 28,
   },
-  sectionHint: {
+  stepSubtitle: {
+    fontSize: 16,
+    color: 'rgba(200, 200, 200, 0.75)',
+    lineHeight: 24,
+  },
+  stepDescription: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.6)',
-  },
-  questionCard: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
-    borderRadius: 16,
-    padding: 16,
-  },
-  inputContainer: {
-    marginBottom: 0,
+    color: 'rgba(200, 200, 200, 0.65)',
+    lineHeight: 20,
+    marginTop: 4,
   },
   questionInput: {
-    minHeight: 100,
-    textAlignVertical: 'top',
+    marginTop: 4,
   },
-  analyzeButton: {
+  optionsContainer: {
+    gap: 0,
+  },
+  regenerateButton: {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(183, 149, 255, 0.15)',
@@ -591,82 +869,182 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(183, 149, 255, 0.4)',
     borderRadius: 12,
     padding: 14,
-    marginTop: 12,
   },
-  analyzeButtonDisabled: {
-    backgroundColor: 'rgba(59, 37, 109, 0.2)',
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-  },
-  analyzeButtonText: {
+  regenerateText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#B795FF',
   },
-  analyzeButtonTextDisabled: {
-    color: 'rgba(183, 149, 255, 0.5)',
+  twinAddedCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(34, 197, 94, 0.4)',
   },
-  refreshText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#B795FF',
+  twinAddedBlur: {
+    backgroundColor: 'rgba(20, 18, 30, 0.3)',
   },
-  optionsContainer: {
-    gap: 12,
-  },
-  optionCard: {
+  twinAddedContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
-    borderRadius: 16,
+    justifyContent: 'space-between',
     padding: 16,
+  },
+  twinAddedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
-  optionNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(183, 149, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionNumberText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#B795FF',
-  },
-  optionTextContainer: {
-    flex: 1,
-  },
-  optionText: {
+  twinAddedName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  removeTwinButton: {
+    padding: 4,
+  },
+  addTwinCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderStyle: 'dashed',
+  },
+  addTwinBlur: {
+    backgroundColor: 'rgba(20, 18, 30, 0.3)',
+  },
+  addTwinContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    padding: 24,
+  },
+  addTwinText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#B795FF',
+  },
+  collaboratorSection: {
+    position: 'relative',
+    minHeight: 200,
+  },
+  addTwinCardEnhanced: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
+    marginBottom: 20,
+  },
+  addTwinGradient: {
+    borderRadius: 18,
+  },
+  addTwinBlurEnhanced: {
+    backgroundColor: 'rgba(20, 18, 30, 0.4)',
+    overflow: 'hidden',
+  },
+  addTwinContentEnhanced: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    gap: 16,
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(183, 149, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(183, 149, 255, 0.4)',
+  },
+  addTwinTextContainer: {
+    flex: 1,
+  },
+  addTwinTextEnhanced: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  addTwinSubtext: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(200, 200, 200, 0.7)',
+  },
+  mannequinCollaborator: {
+    position: 'absolute',
+    right: -30,
+    bottom: -40,
+    width: 180,
+    height: 180,
+    opacity: 0.3,
+    zIndex: -1,
+  },
+  reviewCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+  },
+  reviewBlur: {
+    backgroundColor: 'rgba(20, 18, 30, 0.3)',
+  },
+  reviewContent: {
+    padding: 16,
+  },
+  reviewLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.6)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  reviewLabelSpaced: {
+    marginTop: 20,
+  },
+  reviewValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    lineHeight: 24,
+  },
+  reviewOption: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  reviewOptionNumber: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#B795FF',
+  },
+  reviewOptionText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#FFFFFF',
     lineHeight: 22,
   },
-  helperCard: {
-    backgroundColor: 'rgba(183, 149, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.2)',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 8,
-  },
-  helperText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: 'rgba(200, 200, 200, 0.85)',
-  },
   floatingButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 40,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
     backgroundColor: '#0C0C10',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(59, 37, 109, 0.2)',
+  },
+  skipButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  skipText: {
+    fontSize: 14,
+    color: 'rgba(200, 200, 200, 0.75)',
+    fontWeight: '600',
   },
   floatingButton: {
     borderRadius: 16,
@@ -685,7 +1063,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
+    paddingVertical: 16,
     paddingHorizontal: 24,
     gap: 10,
   },
@@ -704,96 +1082,26 @@ const styles = StyleSheet.create({
   cubeIconDisabled: {
     opacity: 0.3,
   },
-  addedTwinsContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(59, 37, 109, 0.2)',
-  },
-  addedTwinsLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
-    marginBottom: 8,
-  },
-  addedTwinCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(59, 37, 109, 0.3)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-  },
-  addedTwinInfo: {
-    flex: 1,
-  },
-  addedTwinName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  addedTwinCode: {
-    fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.75)',
-  },
-  removeTwinButton: {
-    padding: 4,
-  },
-  addTwinButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: 'transparent',
-    marginBottom: 12,
-  },
-  addTwinButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
-  },
-  addedTwinDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(59, 37, 109, 0.3)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
-    marginBottom: 12,
-  },
-  addedTwinDisplayText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#B795FF',
-  },
-  removeTwinButtonSmall: {
-    padding: 2,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    paddingTop: 100,
   },
   modalContent: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: 'rgba(20, 18, 30, 0.98)',
     borderRadius: 24,
-    padding: 24,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(59, 37, 109, 0.4)',
+  },
+  modalBlur: {
+    backgroundColor: 'rgba(20, 18, 30, 0.95)',
+  },
+  modalInner: {
+    padding: 24,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -811,9 +1119,9 @@ const styles = StyleSheet.create({
   },
   modalDescription: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: 'rgba(200, 200, 200, 0.85)',
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   recentTwinsSection: {
     marginBottom: 20,
@@ -857,22 +1165,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#B795FF',
   },
-  twinCodeInput: {
-    fontSize: 24,
-    fontWeight: '700',
-    textAlign: 'center',
-    letterSpacing: 8,
-  },
-  errorText: {
-    fontSize: 13,
-    color: '#EF4444',
-    marginTop: 8,
-    marginBottom: 8,
-  },
   modalButtonWrapper: {
     borderRadius: 12,
     overflow: 'hidden',
-    marginTop: 16,
+    marginTop: 8,
   },
   modalButton: {
     paddingVertical: 16,
