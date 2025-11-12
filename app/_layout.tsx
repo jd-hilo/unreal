@@ -4,14 +4,31 @@ import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { initializeMixpanel, identifyUser, setUserProperties } from '@/lib/mixpanel';
-
+import {
+  initializeMixpanel,
+  identifyUser,
+  setUserProperties,
+} from '@/lib/mixpanel';
+import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
+import adjustService from '@/adjustService';
 export default function RootLayout() {
   useFrameworkReady();
   const initialize = useAuth((state) => state.initialize);
   const user = useAuth((state) => state.user);
   const checkPremiumStatus = useTwin((state) => state.checkPremiumStatus);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await requestTrackingPermissionsAsync();
+        console.log('Tracking permission status:', status);
 
+        adjustService.initialize();
+        console.log('Adjust has been initialized');
+      } catch (error) {
+        console.error('Error  tracking:', error);
+      }
+    })();
+  }, []);
   useEffect(() => {
     initialize();
   }, []);
@@ -25,10 +42,10 @@ export default function RootLayout() {
   useEffect(() => {
     if (user?.id) {
       checkPremiumStatus(user.id);
-      
+
       // Identify user in Mixpanel
       identifyUser(user.id);
-      
+
       // Set basic user properties
       setUserProperties({
         user_id: user.id,
