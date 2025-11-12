@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   floatingButtonContainer: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 12 : 16,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 36,
     backgroundColor: '#0C0C10',
     gap: 12,
     borderTopWidth: 1,

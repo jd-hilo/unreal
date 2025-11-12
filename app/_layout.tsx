@@ -9,7 +9,6 @@ import {
   identifyUser,
   setUserProperties,
 } from '@/lib/mixpanel';
-import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import adjustService from '@/adjustService';
 export default function RootLayout() {
   useFrameworkReady();
@@ -19,9 +18,6 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       try {
-        const { status } = await requestTrackingPermissionsAsync();
-        console.log('Tracking permission status:', status);
-
         adjustService.initialize();
         console.log('Adjust has been initialized');
       } catch (error) {

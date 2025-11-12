@@ -373,28 +373,42 @@ export default function ProfileScreen() {
               onPress={() => router.push('/journal' as any)}
               activeOpacity={0.85}
             >
-              <LinearGradient
-                colors={['rgba(20, 10, 35, 0.95)', '#312550']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.journalCardInner}
-              >
-                <View style={styles.journalRow}>
-                  <View style={styles.journalIconContainer}>
-                    <BookOpen size={24} color="#B795FF" strokeWidth={2} />
+              {journalComplete ? (
+                <View style={styles.journalCardCompleted}>
+                  <View style={styles.journalRow}>
+                    <View style={styles.journalIconContainer}>
+                      <CheckCircle2 size={24} color="#B795FF" strokeWidth={2.5} />
+                    </View>
+                    <View style={styles.journalContent}>
+                      <Text style={styles.journalTitle}>Daily Journal</Text>
+                      <Text style={styles.journalSubtitle}>
+                        Today's journal complete
+                      </Text>
+                    </View>
+                    <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
                   </View>
-                  <View style={styles.journalContent}>
-                    <Text style={styles.journalTitle}>Daily Journal</Text>
-                    <Text style={styles.journalSubtitle}>
-                      {journalComplete 
-                        ? "Today's journal complete"
-                        : "Journal your days and help your twin understand you"
-                      }
-                    </Text>
-                  </View>
-                  <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
                 </View>
-              </LinearGradient>
+              ) : (
+                <LinearGradient
+                  colors={['rgba(20, 10, 35, 0.95)', '#312550']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.journalCardInner}
+                >
+                  <View style={styles.journalRow}>
+                    <View style={styles.journalIconContainer}>
+                      <BookOpen size={24} color="#B795FF" strokeWidth={2} />
+                    </View>
+                    <View style={styles.journalContent}>
+                      <Text style={styles.journalTitle}>Daily Journal</Text>
+                      <Text style={styles.journalSubtitle}>
+                        Journal your days and help your twin understand you
+                      </Text>
+                    </View>
+                    <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
+                  </View>
+                </LinearGradient>
+              )}
             </TouchableOpacity>
 
             {/* Profile sections */}
@@ -800,6 +814,13 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(59, 37, 109, 0.4)',
     borderRadius: 24,
   },
+  journalCardCompleted: {
+    padding: 20,
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderRadius: 24,
+  },
   journalRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -809,7 +830,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(110, 61, 240, 0.25)',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },

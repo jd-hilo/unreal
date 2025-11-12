@@ -1,11 +1,14 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, InputAccessoryView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { insertJournal, getTodayJournal } from '@/lib/storage';
-import { Input } from '@/components/Input';
-import { Button } from '@/components/Button';
-import { Smile, Meh, Frown, SmilePlus, Angry } from 'lucide-react-native';
+import { FloatingLabelInput } from '@/components/FloatingLabelInput';
+import { Smile, Meh, Frown, SmilePlus, Angry, ArrowLeft, ChevronRight } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
+import { ProgressBar } from '@/components/ProgressBar';
 
 const MOODS = [
   { value: 5, label: 'Amazing', icon: SmilePlus, color: '#10B981' },
@@ -25,11 +28,18 @@ const PLACEHOLDER_PROMPTS = [
   "What's on your mind right now?",
 ];
 
+const TOTAL_STEPS = 2;
+
 export default function AddJournalScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
-  const scrollRef = useRef<ScrollView>(null);
-  const accessoryId = 'journalInputAccessory';
+  
+  // Step management
+  const [currentStep, setCurrentStep] = useState(1);
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  
+  // Form data
   const [mood, setMood] = useState<number | null>(null);
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
@@ -44,14 +54,12 @@ export default function AddJournalScreen() {
   }, []);
 
   useEffect(() => {
-    // Check if there's already a journal for today
     async function checkTodayJournal() {
       if (!user) return;
       
       try {
         const todayJournal = await getTodayJournal(user.id);
         if (todayJournal) {
-          // Redirect to view the existing journal
           router.replace(`/journal/${todayJournal.id}` as any);
         }
       } catch (error) {
@@ -62,6 +70,45 @@ export default function AddJournalScreen() {
     checkTodayJournal();
   }, [user]);
 
+  // Transition to next step with animation
+  function goToStep(nextStep: number) {
+    if (nextStep < 1 || nextStep > TOTAL_STEPS) return;
+    
+    const direction = nextStep > currentStep ? 1 : -1;
+    
+    // Fade out and slide
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: -direction * 20,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setCurrentStep(nextStep);
+      slideAnim.setValue(direction * 20);
+      
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
 
   async function handleSave() {
     if (!user) {
@@ -79,6 +126,7 @@ export default function AddJournalScreen() {
 
     try {
       await insertJournal(user.id, mood, text.trim());
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err: any) {
       setError(err.message || 'Failed to save journal entry');
@@ -86,135 +134,234 @@ export default function AddJournalScreen() {
     }
   }
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>← Cancel</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>New Journal Entry</Text>
-        <Text style={styles.subtitle}>
-          {new Date().toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            month: 'long', 
-            day: 'numeric' 
+  // Step rendering
+  function renderStepContent() {
+    switch (currentStep) {
+      case 1:
+        return renderStep1();
+      case 2:
+        return renderStep2();
+      default:
+        return null;
+    }
+  }
+
+  // Step 1: Text Entry (Apple Notes Style)
+  function renderStep1() {
+    return (
+      <View style={styles.stepContainer}>
+        <View style={styles.dateHeader}>
+          <Text style={styles.dateText}>
+            {new Date().toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </Text>
+        </View>
+
+        <FloatingLabelInput
+          label="What's on your mind?"
+          placeholder={PLACEHOLDER_PROMPTS[placeholderIndex]}
+          value={text}
+          onChangeText={setText}
+          multiline
+          showCharCount
+          maxCharCount={2000}
+          containerStyle={styles.textInput}
+          style={styles.notesTextArea}
+        />
+      </View>
+    );
+  }
+
+  // Step 2: Mood Selection
+  function renderStep2() {
+    return (
+      <View style={styles.stepContainer}>
+        <View style={styles.stepHeader}>
+          <Text style={styles.stepTitle}>How are you feeling?</Text>
+          <Text style={styles.stepSubtitle}>
+            Select your current mood
+          </Text>
+        </View>
+
+        <View style={styles.moodsList}>
+          {MOODS.map((moodOption, index) => {
+            const MoodIcon = moodOption.icon;
+            const isSelected = mood === moodOption.value;
+            return (
+              <TouchableOpacity
+                key={moodOption.value}
+                style={styles.moodCardWrapper}
+                onPress={() => {
+                  setMood(moodOption.value);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }}
+                activeOpacity={0.7}
+              >
+                <Animated.View
+                  style={[
+                    styles.moodCardAnimated,
+                    {
+                      opacity: fadeAnim,
+                      transform: [
+                        { 
+                          scale: fadeAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.9, 1],
+                          })
+                        }
+                      ],
+                    },
+                  ]}
+                >
+                  <BlurView 
+                    intensity={30} 
+                    tint="dark" 
+                    style={[
+                      styles.moodCard,
+                      isSelected && styles.moodCardSelected,
+                      isSelected && { borderColor: moodOption.color }
+                    ]}
+                  >
+                    <View style={styles.moodCardContent}>
+                      <View style={[
+                        styles.moodIconContainer,
+                        isSelected && { backgroundColor: moodOption.color }
+                      ]}>
+                        <MoodIcon 
+                          size={32} 
+                          color={isSelected ? '#FFFFFF' : moodOption.color} 
+                        />
+                      </View>
+                      <View style={styles.moodTextContainer}>
+                        <Text style={[
+                          styles.moodLabel,
+                          isSelected && styles.moodLabelSelected
+                        ]}>
+                          {moodOption.label}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <View style={styles.selectedIndicator}>
+                          <View style={[styles.selectedDot, { backgroundColor: moodOption.color }]} />
+                        </View>
+                      )}
+                    </View>
+                  </BlurView>
+                </Animated.View>
+              </TouchableOpacity>
+            );
           })}
-        </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const progress = (currentStep / TOTAL_STEPS) * 100;
+  const canProceedStep1 = text.trim().length > 0;
+  const canProceedStep2 = mood !== null && !saving;
+
+  const canProceed = 
+    (currentStep === 1 && canProceedStep1) ||
+    (currentStep === 2 && canProceedStep2);
+
+  function getButtonLabel() {
+    if (currentStep === 1) return 'Continue';
+    return saving ? 'Saving...' : 'Save Entry';
+  }
+
+  function handleNextStep() {
+    if (!canProceed) return;
+    
+    if (currentStep === 1) {
+      goToStep(2);
+    } else if (currentStep === 2) {
+      handleSave();
+    }
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => currentStep > 1 ? goToStep(currentStep - 1) : router.back()} 
+          style={styles.backButton}
+        >
+          <ArrowLeft size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>New Journal Entry</Text>
+          <Text style={styles.subtitle}>Step {currentStep} of {TOTAL_STEPS}</Text>
+        </View>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoidingContainer}
-        behavior="padding"
-        keyboardVerticalOffset={90}
-      >
-        <ScrollView 
-          ref={scrollRef}
+      {/* Progress Bar */}
+      <View style={styles.progressContainer}>
+        <ProgressBar progress={progress} showLabel={false} />
+      </View>
+
+      <View style={styles.contentWrapper}>
+        <ScrollView
           style={styles.content}
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          automaticallyAdjustsScrollIndicatorInsets={false}
         >
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>How are you feeling?</Text>
-          <View style={styles.moodsGrid}>
-            {MOODS.map((moodOption) => {
-              const MoodIcon = moodOption.icon;
-              const isSelected = mood === moodOption.value;
-              return (
-                <TouchableOpacity
-                  key={moodOption.value}
-                  style={[
-                    styles.moodOption,
-                    isSelected && styles.moodOptionSelected,
-                    isSelected && { borderColor: moodOption.color }
-                  ]}
-                  onPress={() => setMood(moodOption.value)}
-                >
-                  <View style={[
-                    styles.moodIconContainer,
-                    isSelected && { backgroundColor: moodOption.color }
-                  ]}>
-                    <MoodIcon 
-                      size={24} 
-                      color={isSelected ? '#FFFFFF' : moodOption.color} 
-                    />
-                  </View>
-                  <Text style={[
-                    styles.moodLabel,
-                    isSelected && styles.moodLabelSelected
-                  ]}>
-                    {moodOption.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {error && <Text style={styles.error}>{error}</Text>}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Reflect on your day</Text>
-          <View style={styles.textInputCard}>
-          <Input
-              placeholder={PLACEHOLDER_PROMPTS[placeholderIndex]}
-            value={text}
-            onChangeText={setText}
-            multiline
-              numberOfLines={14}
-            textAlignVertical="top"
-            style={styles.textInput}
-            inputAccessoryViewID={accessoryId}
-            onFocus={() => {
-              setTimeout(() => {
-                scrollRef.current?.scrollToEnd({ animated: true });
-              }, 300);
-            }}
-          />
-            {text.length > 0 && (
-              <Text style={styles.charCount}>{text.length} characters</Text>
-            )}
-          </View>
-        </View>
-
+          <Animated.View
+            style={[
+              styles.animatedContent,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateX: slideAnim }],
+              },
+            ]}
+          >
+            {renderStepContent()}
+          </Animated.View>
         </ScrollView>
-      </KeyboardAvoidingView>
 
-      {Platform.OS === 'ios' && (
-        <InputAccessoryView nativeID={accessoryId}>
-          <View style={styles.accessoryBar}>
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={mood === null || saving}
-              style={[
-                styles.accessorySubmitButton,
-                (mood === null || saving) && styles.accessorySubmitButtonDisabled
-              ]}
+        {/* Action Button */}
+        <View style={styles.floatingButtonContainer}>
+          <TouchableOpacity
+            onPress={handleNextStep}
+            disabled={!canProceed}
+            activeOpacity={0.9}
+            style={[
+              styles.floatingButton,
+              !canProceed && styles.floatingButtonDisabled
+            ]}
+          >
+            <LinearGradient
+              colors={canProceed ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.floatingButtonGradient}
             >
               <Text style={[
-                styles.accessorySubmitText,
-                (mood === null || saving) && styles.accessorySubmitTextDisabled
+                styles.floatingButtonText,
+                !canProceed && styles.floatingButtonTextDisabled
               ]}>
-                {saving ? 'Saving...' : 'Submit'}
+                {getButtonLabel()}
               </Text>
-            </TouchableOpacity>
-          </View>
-        </InputAccessoryView>
-      )}
+              {!saving && <ChevronRight size={20} color={canProceed ? "#FFFFFF" : "rgba(200, 200, 200, 0.5)"} />}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-      {Platform.OS !== 'ios' && (
-        <View style={styles.footer}>
-          <Button
-            title="Save Journal Entry"
-            onPress={handleSave}
-            loading={saving}
-            size="large"
-            disabled={mood === null}
-          />
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -224,157 +371,193 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C0C10',
   },
   header: {
-    paddingTop: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingTop: 60,
+    paddingBottom: 16,
+    gap: 16,
     backgroundColor: '#0C0C10',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerContent: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 0,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: 'rgba(200, 200, 200, 0.75)',
+  },
+  progressContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
-  keyboardAvoidingContainer: {
+  contentWrapper: {
     flex: 1,
-  },
-  backButton: {
-    marginBottom: 16,
-  },
-  backText: {
-    fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    padding: 24,
-    paddingBottom: 40,
-    gap: 32,
-    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 20,
   },
-  section: {
-    gap: 16,
+  animatedContent: {
+    flex: 1,
   },
-  sectionLabel: {
-    fontSize: 18,
+  stepContainer: {
+    gap: 24,
+  },
+  stepHeader: {
+    marginBottom: 8,
+  },
+  stepTitle: {
+    fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: 0.3,
+    lineHeight: 32,
+    marginBottom: 8,
   },
-  moodsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 14,
+  stepSubtitle: {
+    fontSize: 16,
+    color: 'rgba(200, 200, 200, 0.75)',
+    lineHeight: 24,
   },
-  moodOption: {
-    width: '31%',
-    aspectRatio: 1,
-    borderRadius: 20,
+  dateHeader: {
+    marginBottom: 8,
+  },
+  dateText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.6)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  textInput: {
+    marginTop: 4,
+  },
+  notesTextArea: {
+    fontSize: 17,
+    lineHeight: 26,
+    minHeight: 200,
+  },
+  moodsList: {
+    gap: 12,
+  },
+  moodCardWrapper: {
+    marginBottom: 0,
+  },
+  moodCardAnimated: {
+    borderRadius: 16,
+  },
+  moodCard: {
+    backgroundColor: 'rgba(20, 18, 30, 0.3)',
+    borderRadius: 16,
     borderWidth: 2,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    backgroundColor: 'rgba(10, 8, 15, 0.8)',
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: 'rgba(59, 37, 109, 0.4)',
+    overflow: 'hidden',
   },
-  moodOptionSelected: {
+  moodCardSelected: {
     borderWidth: 2.5,
-    backgroundColor: 'rgba(20, 18, 30, 0.8)',
-    shadowColor: '#B795FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    backgroundColor: 'rgba(20, 18, 30, 0.5)',
+  },
+  moodCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    gap: 16,
   },
   moodIconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  moodTextContainer: {
+    flex: 1,
+  },
   moodLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: 'rgba(200, 200, 200, 0.7)',
-    textAlign: 'center',
-    letterSpacing: 0.2,
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.85)',
   },
   moodLabelSelected: {
     color: '#FFFFFF',
+    fontWeight: '700',
   },
-  textInputCard: {
-    backgroundColor: 'rgba(20, 18, 30, 0.4)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    borderRadius: 20,
-    padding: 18,
-    minHeight: 240,
+  selectedIndicator: {
+    marginLeft: 'auto',
   },
-  textInput: {
-    minHeight: 180,
-    fontSize: 16,
-    lineHeight: 24,
+  selectedDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
-  charCount: {
-    fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.5)',
-    textAlign: 'right',
-    marginTop: 8,
-  },
-  error: {
-    color: '#EF4444',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 24,
-    backgroundColor: '#0C0C10',
-  },
-  accessoryBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  floatingButtonContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
     backgroundColor: '#0C0C10',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(59, 37, 109, 0.3)',
+    borderTopColor: 'rgba(59, 37, 109, 0.2)',
   },
-  accessorySubmitButton: {
-    backgroundColor: '#B795FF',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+  floatingButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#B795FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  floatingButtonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  floatingButtonGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 10,
   },
-  accessorySubmitButtonDisabled: {
-    backgroundColor: 'rgba(59, 37, 109, 0.5)',
-  },
-  accessorySubmitText: {
-    fontSize: 16,
+  floatingButtonText: {
+    fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  accessorySubmitTextDisabled: {
+  floatingButtonTextDisabled: {
     color: 'rgba(200, 200, 200, 0.5)',
   },
+  errorContainer: {
+    position: 'absolute',
+    bottom: 100,
+    left: 24,
+    right: 24,
+    backgroundColor: 'rgba(239, 68, 68, 0.95)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  errorText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
 });
-
-
