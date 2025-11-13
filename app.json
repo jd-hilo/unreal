@@ -12,7 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#0C0C10"
     },
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.jdhilo2.unreal",
@@ -34,14 +34,7 @@
       ["expo-apple-authentication"],
       "@config-plugins/react-native-adjust",
       "expo-asset",
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "newArchEnabled": false
-          }
-        }
-      ],
+      ["expo-build-properties", {}],
       [
         "expo-tracking-transparency",
         {
