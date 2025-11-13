@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { useEffect } from 'react';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+// import { useEffect } from 'react';
+// import Animated, {
+//   useAnimatedStyle,
+//   useSharedValue,
+//   withSpring,
+// } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface ProgressBarProps {
@@ -14,32 +14,33 @@ interface ProgressBarProps {
 }
 
 export function ProgressBar({ progress, showLabel = true, height = 8 }: ProgressBarProps) {
-  const animatedProgress = useSharedValue(0);
+  // Commented out Reanimated code - using simple static version
+  // const animatedProgress = useSharedValue(0);
 
-  useEffect(() => {
-    animatedProgress.value = withSpring(progress, {
-      damping: 15,
-      stiffness: 100,
-    });
-  }, [progress]);
+  // useEffect(() => {
+  //   animatedProgress.value = withSpring(progress, {
+  //     damping: 15,
+  //     stiffness: 100,
+  //   });
+  // }, [progress]);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      width: `${animatedProgress.value}%`,
-    };
-  });
+  // const animatedStyle = useAnimatedStyle(() => {
+  //   return {
+  //     width: `${animatedProgress.value}%`,
+  //   };
+  // });
 
   return (
     <View style={styles.container}>
       <View style={[styles.track, { height }]}>
-        <Animated.View style={[{ height, borderRadius: 100, overflow: 'hidden' }, animatedStyle]}>
+        <View style={[{ height, borderRadius: 100, overflow: 'hidden', width: `${progress}%` }]}>
           <LinearGradient
             colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFill}
           />
-        </Animated.View>
+        </View>
       </View>
       {showLabel && (
         <Text style={styles.label}>{Math.round(progress)}%</Text>
