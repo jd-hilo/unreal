@@ -70,8 +70,8 @@ export default function AuthScreen() {
           setEmail('');
           setPassword('');
           
-          // For new sign ups, go directly to onboarding first screen
-          router.replace('/onboarding/00-name');
+          // For new sign ups, go to onboarding method choice screen
+          router.replace('/onboarding/choose-method');
           return;
         }
       } else {

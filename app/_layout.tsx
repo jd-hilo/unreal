@@ -10,6 +10,7 @@ import {
   setUserProperties,
 } from '@/lib/mixpanel';
 import adjustService from '@/adjustService';
+import { ElevenLabsProvider } from '@elevenlabs/react-native';
 export default function RootLayout() {
   useFrameworkReady();
   const initialize = useAuth((state) => state.initialize);
@@ -51,7 +52,7 @@ export default function RootLayout() {
   }, [user?.id]);
 
   return (
-    <>
+    <ElevenLabsProvider>
       <Stack
         screenOptions={{
           headerShown: false,
@@ -61,6 +62,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="auth" />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="ai-onboarding" />
         <Stack.Screen name="decision" />
         <Stack.Screen name="whatif" />
         <Stack.Screen name="relationships" />
@@ -70,6 +72,6 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="light" />
-    </>
+    </ElevenLabsProvider>
   );
 }

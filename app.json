@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.jdhilo2.unreal",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "This app needs microphone access to enable voice conversations with your AI twin builder, Sol."
       }
     },
     "web": {
