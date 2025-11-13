@@ -35,6 +35,14 @@
       "@config-plugins/react-native-adjust",
       "expo-asset",
       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "newArchEnabled": false
+          }
+        }
+      ],
+      [
         "expo-tracking-transparency",
         {
           "userTrackingPermission": "This identifier will be used to deliver personalized ads to you."
