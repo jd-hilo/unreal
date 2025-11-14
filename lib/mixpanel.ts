@@ -1,11 +1,51 @@
 import 'react-native-get-random-values';
 import { Mixpanel } from 'mixpanel-react-native';
 import Constants from 'expo-constants';
+import {
+  MPSessionReplay,
+  MPSessionReplayConfig,
+  MPSessionReplayMask,
+} from '@mixpanel/react-native-session-replay';
 
 const MIXPANEL_TOKEN = Constants.expoConfig?.extra?.mixpanelToken || '';
 
 let mixpanel: Mixpanel | null = null;
 let isInitialized = false;
+let sessionReplayInitialized = false;
+let currentUserId: string | null = null;
+
+/**
+ * Initialize Mixpanel Session Replay
+ * Note: Session Replay is currently in Private Beta - contact Mixpanel for access
+ */
+async function initializeSessionReplay(userId: string): Promise<void> {
+  if (sessionReplayInitialized || !MIXPANEL_TOKEN) {
+    return;
+  }
+
+  try {
+    // Configure Session Replay settings
+    const config = new MPSessionReplayConfig({
+      wifiOnly: false, // Set to true to upload replays only on Wi-Fi
+      recordingSessionsPercent: 100, // Percentage of sessions to record (0-100)
+      autoStartRecording: true, // Automatically start recording sessions
+      autoMaskedViews: [
+        MPSessionReplayMask.Image, // Automatically mask images
+        MPSessionReplayMask.Text, // Automatically mask text (for privacy)
+      ],
+      flushInterval: 5, // Interval in seconds to flush data
+      enableLogging: __DEV__, // Enable logging in development mode
+    });
+
+    // Initialize Session Replay
+    await MPSessionReplay.initialize(MIXPANEL_TOKEN, userId, config);
+    sessionReplayInitialized = true;
+    console.log('📹 Mixpanel Session Replay initialized');
+  } catch (error) {
+    // Session Replay may not be available (beta feature)
+    console.warn('Failed to initialize Session Replay (may require beta access):', error);
+  }
+}
 
 /**
  * Initialize Mixpanel
@@ -45,7 +85,7 @@ export function trackEvent(eventName: string, properties?: Record<string, any>):
 /**
  * Identify user
  */
-export function identifyUser(userId: string): void {
+export async function identifyUser(userId: string): Promise<void> {
   if (!mixpanel || !isInitialized) {
     console.warn('Mixpanel not initialized, skipping identify');
     return;
@@ -53,7 +93,11 @@ export function identifyUser(userId: string): void {
 
   try {
     mixpanel.identify(userId);
+    currentUserId = userId;
     console.log('📊 User identified:', userId);
+
+    // Initialize Session Replay for this user
+    await initializeSessionReplay(userId);
   } catch (error) {
     console.error('Failed to identify user:', error);
   }
@@ -94,16 +138,74 @@ export function setUserProperty(key: string, value: any): void {
 /**
  * Reset Mixpanel (call on logout)
  */
-export function resetMixpanel(): void {
+export async function resetMixpanel(): Promise<void> {
   if (!mixpanel || !isInitialized) {
     return;
   }
 
   try {
     mixpanel.reset();
+    currentUserId = null;
+    sessionReplayInitialized = false;
     console.log('📊 Mixpanel reset');
+
+    // Stop Session Replay recording
+    try {
+      await MPSessionReplay.stopRecording();
+    } catch (error) {
+      // Ignore errors if Session Replay wasn't initialized
+    }
   } catch (error) {
     console.error('Failed to reset Mixpanel:', error);
+  }
+}
+
+/**
+ * Start Session Replay recording manually
+ */
+export async function startSessionReplay(): Promise<void> {
+  if (!sessionReplayInitialized) {
+    console.warn('Session Replay not initialized');
+    return;
+  }
+
+  try {
+    await MPSessionReplay.startRecording();
+    console.log('📹 Session Replay recording started');
+  } catch (error) {
+    console.error('Failed to start Session Replay:', error);
+  }
+}
+
+/**
+ * Stop Session Replay recording manually
+ */
+export async function stopSessionReplay(): Promise<void> {
+  if (!sessionReplayInitialized) {
+    return;
+  }
+
+  try {
+    await MPSessionReplay.stopRecording();
+    console.log('📹 Session Replay recording stopped');
+  } catch (error) {
+    console.error('Failed to stop Session Replay:', error);
+  }
+}
+
+/**
+ * Check if Session Replay is currently recording
+ */
+export async function isSessionReplayRecording(): Promise<boolean> {
+  if (!sessionReplayInitialized) {
+    return false;
+  }
+
+  try {
+    return await MPSessionReplay.isRecording();
+  } catch (error) {
+    console.error('Failed to check Session Replay status:', error);
+    return false;
   }
 }
 

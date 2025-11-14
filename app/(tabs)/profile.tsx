@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, Clipboard, Linking, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, Clipboard, Linking, Modal, Animated } from 'react-native';
+import Svg, { Circle, Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
@@ -6,9 +7,10 @@ import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { CheckCircle2, Circle, Edit3, ChevronRight, BookOpen, Copy, Info, X } from 'lucide-react-native';
+import { CheckCircle2, Circle as CircleIcon, Edit3, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings } from 'lucide-react-native';
 import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useTextScramble } from '@/hooks/useTextScramble';
@@ -263,6 +265,113 @@ export default function ProfileScreen() {
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
+            {/* Profile Avatar Section */}
+            <View style={styles.profileSection}>
+              <View style={styles.avatarWrapper}>
+                {/* Circular Progress Ring */}
+                <Svg width={140} height={140} style={styles.progressRing}>
+                  <Defs>
+                    <SvgLinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <Stop offset="0%" stopColor="#B795FF" />
+                      <Stop offset="50%" stopColor="#8B5CF6" />
+                      <Stop offset="100%" stopColor="#6E3DF0" />
+                    </SvgLinearGradient>
+                  </Defs>
+                  {/* Background circle */}
+                  <Circle
+                    cx={70}
+                    cy={70}
+                    r={64}
+                    stroke="rgba(255, 255, 255, 0.1)"
+                    strokeWidth={6}
+                    fill="none"
+                  />
+                  {/* Progress arc */}
+                  {(() => {
+                    const radius = 64;
+                    const centerX = 70;
+                    const centerY = 70;
+                    const progress = totalProgress / 100;
+                    
+                    // If progress is 100%, draw a full circle
+                    if (progress >= 1) {
+                      return (
+                        <Circle
+                          cx={centerX}
+                          cy={centerY}
+                          r={radius}
+                          stroke="url(#progressGradient)"
+                          strokeWidth={6}
+                          fill="none"
+                          strokeLinecap="round"
+                        />
+                      );
+                    }
+                    
+                    // Otherwise draw an arc
+                    const angle = progress * 2 * Math.PI - Math.PI / 2; // Start from top
+                    const x = centerX + radius * Math.cos(angle);
+                    const y = centerY + radius * Math.sin(angle);
+                    const largeArcFlag = progress > 0.5 ? 1 : 0;
+                    
+                    const pathData = `M ${centerX} ${centerY - radius} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x} ${y}`;
+                    
+                    return (
+                      <Path
+                        d={pathData}
+                        stroke="url(#progressGradient)"
+                        strokeWidth={6}
+                        fill="none"
+                        strokeLinecap="round"
+                      />
+                    );
+                  })()}
+                </Svg>
+                
+                <View style={styles.avatarContainer}>
+                  <Image 
+                    source={require('@/assets/images/cube.png')}
+                    style={styles.avatarImage}
+                    resizeMode="contain"
+                  />
+                </View>
+                
+                {/* Percentage Badge */}
+                <View style={styles.percentageBadge}>
+                  <LinearGradient
+                    colors={['#B795FF', '#8B5CF6', '#6E3DF0']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.percentageBadgeGradient}
+                  >
+                    <Text style={styles.percentageText}>{totalProgress}%</Text>
+                  </LinearGradient>
+                </View>
+              </View>
+              
+              <View style={styles.usernameContainer}>
+                <Text style={styles.username}>unreal#{animatedTwinCode || '------'}</Text>
+                {twinCode && (
+                  <>
+                    <TouchableOpacity 
+                      onPress={handleCopyTwinCode}
+                      style={styles.copyButton}
+                      activeOpacity={0.7}
+                    >
+                      <Copy size={20} color="#B795FF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => setInfoModalVisible(true)}
+                      style={styles.infoButton}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={20} color="#B795FF" />
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </View>
+
             {/* Unreal+ Premium Card */}
             <TouchableOpacity
               style={styles.premiumCard}
@@ -301,71 +410,6 @@ export default function ProfileScreen() {
                 </View>
               </View>
             </TouchableOpacity>
-
-            {/* Twin's Understanding Card */}
-            <TouchableOpacity
-              style={styles.progressCard}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={['rgba(20, 10, 35, 0.95)', '#312550']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.progressCardInner}
-              >
-                <View style={styles.progressHeader}>
-                  <View style={styles.compassIcon}>
-                    <Image 
-                      source={require('@/assets/images/cube.png')}
-                      style={styles.cubeIcon}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <Text style={styles.progressTitle}>Twin's Understanding</Text>
-                </View>
-                <View style={styles.gradientProgressBar}>
-                  <LinearGradient
-                    colors={['rgba(20, 10, 35, 0.95)', '#312550']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.progressFill, { width: `${totalProgress}%` }]}
-                  />
-                </View>
-                <Text style={styles.progressSubtitle}>
-                  {completedCount} of {cards.length} sections complete • {totalProgress}%
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Mannequin head between cards */}
-            <View style={styles.mannequinContainer}>
-              <View style={styles.titleContainer}>
-                <Text style={styles.title}>unreal#: {animatedTwinCode || '------'}</Text>
-                {twinCode && (
-                  <>
-                    <TouchableOpacity 
-                      onPress={handleCopyTwinCode}
-                      style={styles.copyButton}
-                      activeOpacity={0.7}
-                    >
-                      <Copy size={20} color="#B795FF" />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      onPress={() => setInfoModalVisible(true)}
-                      style={styles.infoButton}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={20} color="#B795FF" />
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
-              <Image 
-                source={require('@/app/profileman.png')}
-                style={styles.mannequinImage}
-                resizeMode="contain"
-              />
-            </View>
 
             {/* Daily Journal Card */}
             <TouchableOpacity
@@ -424,7 +468,7 @@ export default function ProfileScreen() {
                     {card.completed ? (
                       <CheckCircle2 size={20} color="#B795FF" strokeWidth={2.5} />
                     ) : (
-                      <Circle size={20} color="rgba(150, 150, 150, 0.6)" strokeWidth={2} />
+                      <CircleIcon size={20} color="rgba(150, 150, 150, 0.6)" strokeWidth={2} />
                     )}
                   </View>
                   <View style={styles.cardContent}>
@@ -566,42 +610,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0C0C10',
   },
-  mannequinContainer: {
-    alignSelf: 'center',
-    marginVertical: -50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  mannequinImage: {
-    width: 260,
-    height: 260,
-    opacity: 1,
-  },
-  mannequinGlow: {
-    position: 'absolute',
-    bottom: 20,
-    width: 140,
-    height: 100,
-    borderRadius: 70,
-    backgroundColor: '#6E3DF0',
-    opacity: 0.35,
-    shadowColor: '#6E3DF0',
-    shadowOpacity: 0.9,
-    shadowRadius: 50,
-    elevation: 15,
-  },
-  gradientProgressBar: {
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginVertical: 12,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
   safeArea: {
     flex: 1,
   },
@@ -612,23 +620,99 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 100,
   },
-  titleContainer: {
+  profileSection: {
+    alignItems: 'center',
+    marginBottom: 32,
+    marginTop: 8,
+  },
+  avatarWrapper: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    position: 'relative',
+  },
+  progressRing: {
     position: 'absolute',
-    top: 80,
+    top: 0,
     left: 0,
-    right: 0,
+  },
+  avatarContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'visible',
+    position: 'relative',
+    borderWidth: 2,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
+    zIndex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarImage: {
+    width: '80%',
+    height: '80%',
+  },
+  proBadge: {
+    position: 'absolute',
+    bottom: 0,
+    left: '50%',
+    transform: [{ translateX: -30 }],
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    minWidth: 60,
+    alignItems: 'center',
+    zIndex: 2,
+    borderWidth: 1,
+    borderColor: '#FFA500',
+  },
+  proBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#000000',
+    textTransform: 'uppercase',
+  },
+  percentageBadge: {
+    position: 'absolute',
+    bottom: -8,
+    right: -8,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#0C0C10',
+    zIndex: 3,
+    shadowColor: '#B795FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  percentageBadgeGradient: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  percentageText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  usernameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    zIndex: 10,
+    marginTop: 8,
   },
-  title: {
+  username: {
     fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    letterSpacing: 0.5,
   },
   copyButton: {
     padding: 6,
@@ -643,6 +727,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(183, 149, 255, 0.3)',
+  },
+  editProfileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+  },
+  editProfileText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   infoModalOverlay: {
     flex: 1,

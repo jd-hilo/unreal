@@ -125,7 +125,7 @@ export const useAuth = create<AuthState>((set) => ({
     if (error) throw error;
 
     trackEvent(MixpanelEvents.SIGN_OUT);
-    resetMixpanel();
+    await resetMixpanel();
     set({ session: null, user: null });
   },
 

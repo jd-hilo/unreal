@@ -1,0 +1,217 @@
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  Easing,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { Button } from '@/components/Button';
+import { useTypewriter } from '@/hooks/useTypewriter';
+import { setHasSeenWelcome } from '@/lib/welcomeStorage';
+
+const WELCOME_LINES = [
+  'welcome to unreal',
+  'we help you make sense of big life decisions',
+  '(and the small ones too, like what movie to watch tonight)',
+  'we build a digital twin of you and run it through alternate lifelines',
+  'so you can choose the best path',
+  'ready to begin?',
+];
+
+const LINE_FONT_SIZES = [23, 23, 20, 23, 23, 25];
+const LIFT_AMOUNT = 8; // pixels to lift previous lines
+const LIFT_DURATION = 250; // ms
+
+export default function WelcomeScreen() {
+  const router = useRouter();
+  const [buttonVisible, setButtonVisible] = useState(false);
+  
+  // Create shared values for each line's offset and opacity
+  const lineOffsets = WELCOME_LINES.map(() => useSharedValue(0));
+  const lineOpacities = WELCOME_LINES.map(() => useSharedValue(0));
+  const buttonOpacity = useSharedValue(0);
+  const buttonScale = useSharedValue(0.96);
+
+  const handleLineStart = (lineIndex: number) => {
+    // Trigger haptic at start of each line
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Fade in current line
+    lineOpacities[lineIndex].value = withTiming(1, {
+      duration: 250,
+      easing: Easing.out(Easing.ease),
+    });
+
+    // Lift previous lines
+    if (lineIndex > 0) {
+      for (let i = 0; i < lineIndex; i++) {
+        lineOffsets[i].value = withTiming(
+          lineOffsets[i].value.value - LIFT_AMOUNT,
+          {
+            duration: LIFT_DURATION,
+            easing: Easing.bezier(0.16, 1, 0.3, 1),
+          }
+        );
+      }
+    }
+  };
+
+  const handleLineComplete = (lineIndex: number) => {
+    // No haptic here, only at start
+  };
+
+  const handleCharTyped = () => {
+    // Light haptic for each character typed
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleAllComplete = () => {
+    // Success haptic after final line
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Show button after delay
+    setTimeout(() => {
+      setButtonVisible(true);
+      buttonOpacity.value = withTiming(1, {
+        duration: 500,
+        easing: Easing.out(Easing.ease),
+      });
+      buttonScale.value = withSpring(1.0, {
+        damping: 15,
+        stiffness: 150,
+      });
+    }, 700); // 600-800ms delay
+  };
+
+  const { displayedLines, isComplete } = useTypewriter(WELCOME_LINES, {
+    speed: 40, // 30-50ms per character
+    pauseBetweenLines: 500, // 400-600ms pause
+    onLineStart: handleLineStart,
+    onLineComplete: handleLineComplete,
+    onAllComplete: handleAllComplete,
+    onCharTyped: handleCharTyped,
+  });
+
+  const handleGetStarted = async () => {
+    // Selection haptic on button press
+    Haptics.selectionAsync();
+
+    // Mark welcome as seen
+    await setHasSeenWelcome();
+
+    // Navigate to auth
+    router.replace('/auth');
+  };
+
+  // Create animated styles for each line (must be at top level)
+  const lineAnimatedStyles = WELCOME_LINES.map((_, index) =>
+    useAnimatedStyle(() => {
+      return {
+        transform: [{ translateY: lineOffsets[index].value }],
+        opacity: lineOpacities[index].value,
+      };
+    })
+  );
+
+  // Button animated style
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: buttonOpacity.value,
+      transform: [{ scale: buttonScale.value }],
+    };
+  });
+
+  return (
+    <LinearGradient
+      colors={['#09090A', '#0F0F11']}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+    >
+      <View style={styles.content}>
+        <View style={styles.textContainer}>
+          {WELCOME_LINES.map((_, index) => {
+            const fontSize = LINE_FONT_SIZES[index];
+            const lineHeight = fontSize * 1.15;
+
+            return (
+              <Animated.View
+                key={index}
+                style={[
+                  styles.lineWrapper,
+                  lineAnimatedStyles[index],
+                  { marginBottom: index === 2 ? 12 : 0 }, // Extra spacing for parenthetical line
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.lineText,
+                    {
+                      fontSize,
+                      lineHeight,
+                      fontFamily: Platform.select({
+                        ios: 'Inter-Bold',
+                        android: 'Inter-Bold',
+                        default: 'Inter',
+                      }),
+                      fontWeight: '700',
+                    },
+                  ]}
+                >
+                  {displayedLines[index]}
+                </Text>
+              </Animated.View>
+            );
+          })}
+        </View>
+
+        {buttonVisible && (
+          <Animated.View style={[styles.buttonContainer, buttonAnimatedStyle]}>
+            <Button
+              title="Get Started"
+              onPress={handleGetStarted}
+              size="large"
+              style={styles.button}
+            />
+          </Animated.View>
+        )}
+      </View>
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 120, // Slightly above midpoint for cinematic spacing
+    justifyContent: 'flex-start',
+  },
+  textContainer: {
+    alignItems: 'flex-start', // Left-aligned for "system boot" feel
+  },
+  lineWrapper: {
+    marginBottom: 0,
+  },
+  lineText: {
+    color: 'rgba(255, 255, 255, 0.92)',
+    letterSpacing: -0.8,
+    textAlign: 'left',
+  },
+  buttonContainer: {
+    marginTop: 48,
+    width: '100%',
+  },
+  button: {
+    width: '100%',
+  },
+});
+

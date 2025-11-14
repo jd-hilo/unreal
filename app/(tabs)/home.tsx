@@ -287,23 +287,30 @@ export default function HomeScreen() {
                 activeOpacity={0.85}
                 style={styles.progressBarContainer}
               >
-                <View style={styles.progressBarHeader}>
-                  <Image 
-                    source={require('@/assets/images/cube.png')}
-                    style={styles.progressCubeIcon}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.progressBarText}>Twin's Understanding</Text>
-                  <Text style={styles.progressPercentage}>{profileProgress}%</Text>
-                </View>
-                <View style={styles.thinProgressBar}>
-                  <LinearGradient
-                    colors={['rgba(20, 10, 35, 0.95)', '#312550']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.thinProgressFill, { width: `${profileProgress}%` }]}
-                  />
-                </View>
+                <LinearGradient
+                  colors={['rgba(40, 35, 60, 1)', 'rgba(50, 45, 75, 1)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.progressBarGradient}
+                >
+                  <View style={styles.progressBarHeader}>
+                    <Image 
+                      source={require('@/assets/images/cube.png')}
+                      style={styles.progressCubeIcon}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.progressBarText}>Twin's Understanding</Text>
+                    <Text style={styles.progressPercentage}>{profileProgress}%</Text>
+                  </View>
+                  <View style={styles.thinProgressBar}>
+                    <LinearGradient
+                      colors={['#B795FF', '#8B5CF6', '#6E3DF0']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.thinProgressFill, { width: `${profileProgress}%` }]}
+                    />
+                  </View>
+                </LinearGradient>
               </TouchableOpacity>
             )}
 
@@ -769,12 +776,14 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   progressBarContainer: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
     borderRadius: 16,
-    padding: 16,
     marginBottom: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 149, 255, 0.3)',
+  },
+  progressBarGradient: {
+    padding: 16,
   },
   progressBarHeader: {
     flexDirection: 'row',

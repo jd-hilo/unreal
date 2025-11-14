@@ -11,7 +11,6 @@ import {
 } from '@/lib/mixpanel';
 import adjustService from '@/adjustService';
 import { ElevenLabsProvider } from '@elevenlabs/react-native';
-import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -22,14 +21,10 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       try {
-         const { status } = await requestTrackingPermissionsAsync();
-      if (status === 'granted') {
-        console.log('Yay! I have user permission to track data');
-      }
         adjustService.initialize();
         console.log('Adjust has been initialized');
       } catch (error) {
-        console.error('Error  tracking:', error);
+        console.error('Error initializing Adjust:', error);
       }
     })();
   }, []);
@@ -47,8 +42,10 @@ export default function RootLayout() {
     if (user?.id) {
       checkPremiumStatus(user.id);
 
-      // Identify user in Mixpanel
-      identifyUser(user.id);
+      // Identify user in Mixpanel (async - will also initialize Session Replay)
+      identifyUser(user.id).catch((error) => {
+        console.error('Failed to identify user in Mixpanel:', error);
+      });
 
       // Set basic user properties
       setUserProperties({
@@ -66,6 +63,7 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: '#0C0C10' },
         }}
       >
+        <Stack.Screen name="welcome" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="auth" />
         <Stack.Screen name="onboarding" />

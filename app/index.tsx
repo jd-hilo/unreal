@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
+import { getHasSeenWelcome } from '@/lib/welcomeStorage';
 
 export default function Index() {
   console.log('📍 INDEX: Component rendering');
@@ -9,9 +10,27 @@ export default function Index() {
   const { user, initialized, loading } = useAuth();
   const { checkOnboardingStatus } = useTwin();
   const hasRouted = useRef(false);
+  const [hasCheckedWelcome, setHasCheckedWelcome] = useState(false);
+
+  // Check welcome screen status
+  useEffect(() => {
+    const checkWelcome = async () => {
+      const hasSeenWelcome = await getHasSeenWelcome();
+      setHasCheckedWelcome(true);
+      
+      if (!hasSeenWelcome) {
+        console.log('📍 INDEX: User has not seen welcome, routing to /welcome');
+        hasRouted.current = true;
+        router.replace('/welcome');
+        return;
+      }
+    };
+    
+    checkWelcome();
+  }, []);
 
   useEffect(() => {
-    console.log('📍 INDEX: useEffect running', { hasRouted: hasRouted.current, initialized, loading, hasUser: !!user });
+    console.log('📍 INDEX: useEffect running', { hasRouted: hasRouted.current, initialized, loading, hasUser: !!user, hasCheckedWelcome });
     
     // Prevent multiple routing attempts
     if (hasRouted.current) {
@@ -19,9 +38,9 @@ export default function Index() {
       return;
     }
     
-    // Wait for auth to finish initializing before routing
-    if (!initialized || loading) {
-      console.log('📍 INDEX: Waiting for auth to initialize');
+    // Wait for welcome check and auth to finish initializing before routing
+    if (!hasCheckedWelcome || !initialized || loading) {
+      console.log('📍 INDEX: Waiting for welcome check or auth to initialize');
       return;
     }
 
@@ -52,7 +71,7 @@ export default function Index() {
       // If check fails, just go to home
       router.replace('/(tabs)/home');
     });
-  }, [user, initialized, loading]);
+  }, [user, initialized, loading, hasCheckedWelcome]);
 
   // Reset routing flag when user changes
   useEffect(() => {
