@@ -7,10 +7,11 @@ import { Button } from '@/components/Button';
 import { ArrowLeft, ChevronRight, Lightbulb, GraduationCap, MapPin, Briefcase } from 'lucide-react-native';
 import { insertWhatIf } from '@/lib/storage';
 import { runWhatIf } from '@/lib/ai';
-import { getProfile } from '@/lib/storage';
+import { getProfile, getRelationships } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { computeScenarioAlignment } from '@/lib/relevance';
 
 export default function NewWhatIfScreen() {
   const router = useRouter();
@@ -27,13 +28,27 @@ export default function NewWhatIfScreen() {
     try {
       const profile = await getProfile(user.id);
       const baselineSummary = profile?.narrative_summary || 'No profile data available';
+      const relationships = await getRelationships(user.id);
       
       // Extract current biometric values from profile
-      const currentBiometrics = {
+      const currentBiometrics: {
+        location?: string | null;
+        netWorth?: string | null;
+        relationshipStatus?: string | null;
+      } = {
         location: profile?.current_location || profile?.core_json?.city || null,
         netWorth: profile?.net_worth || null,
         relationshipStatus: profile?.core_json?.relationship_status || null,
       };
+      
+      // If user has a partner/spouse, override relationshipStatus to "in a relationship"
+      const hasPartner = (relationships || []).some((r: any) => {
+        const type = (r?.relationship_type || '').toLowerCase();
+        return type === 'partner' || type === 'spouse';
+      });
+      if (hasPartner) {
+        currentBiometrics.relationshipStatus = 'in a relationship';
+      }
       
       // Debug: Log what baseline summary is being sent to AI
       console.log('===== WHAT-IF DEBUG =====');
@@ -44,12 +59,25 @@ export default function NewWhatIfScreen() {
 
       const result = await runWhatIf(baselineSummary, whatIfText, currentBiometrics);
 
+      // Compute Scenario-specific Alignment Score (varies per What-If)
+      let twinAlignmentScore: number | null = null;
+      try {
+        console.log('===== SCENARIO ALIGNMENT DEBUG =====');
+        console.log('User ID:', user.id);
+        twinAlignmentScore = await computeScenarioAlignment(user.id, result.summary, result.metrics, result.biometrics);
+        console.log('Scenario Alignment Score:', twinAlignmentScore);
+        console.log('====================================');
+      } catch (e) {
+        console.warn('Failed to compute scenario alignment:', e);
+      }
+
       const whatIfData = await insertWhatIf(user.id, {
         counterfactual_type: 'general',
         payload: { question: whatIfText },
         metrics: result.metrics,
         summary: result.summary,
         biometrics: result.biometrics,
+        twinAlignmentScore: twinAlignmentScore ?? undefined,
       });
 
       // Track what-if created

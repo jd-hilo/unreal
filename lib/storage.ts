@@ -331,6 +331,7 @@ export async function insertWhatIf(
     metrics: WhatIfMetrics;
     summary: string;
     biometrics?: WhatIfBiometrics;
+    twinAlignmentScore?: number;
   }
 ) {
   const { data, error } = await supabase
@@ -342,6 +343,7 @@ export async function insertWhatIf(
       metrics: payload.metrics as any,
       summary: payload.summary,
       biometrics: payload.biometrics as any,
+      twin_alignment_score: payload.twinAlignmentScore ?? null,
     } as any)
     .select()
     .single();

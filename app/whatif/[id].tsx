@@ -244,6 +244,34 @@ export default function WhatIfResultScreen() {
           </View>
         )}
 
+        {typeof whatIf.twin_alignment_score === 'number' && (
+          <Card style={styles.alignmentCard}>
+            <Text style={styles.alignmentTitle}>Twin Alignment Score</Text>
+            <Text style={styles.alignmentPercent}>
+              {Math.round(whatIf.twin_alignment_score)}%
+            </Text>
+            <Text style={styles.alignmentNote}>
+              100% means your twin mirrors you perfectly; 0% means completely different.
+            </Text>
+          </Card>
+        )}
+
+        <TouchableOpacity
+          style={styles.chatTwinButton}
+          onPress={() => router.push(`/whatif/chat/${whatIf.id}` as any)}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={['#5B3DF5', '#8E6BFF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.chatTwinGradient}
+          >
+            <Sparkles size={18} color="#FFFFFF" />
+            <Text style={styles.chatTwinText}>Chat with your Twin today</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
         {whatIf.biometrics && (
           <View style={styles.biometricsSection}>
             <View style={styles.biometricsCardWrapper}>
@@ -437,6 +465,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: 'rgba(200, 200, 200, 0.85)',
+  },
+  alignmentCard: {
+    marginTop: 16,
+    padding: 20,
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderRadius: 16,
+  },
+  alignmentTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  alignmentPercent: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#B795FF',
+    marginBottom: 6,
+  },
+  alignmentNote: {
+    fontSize: 12,
+    color: 'rgba(200, 200, 200, 0.65)',
+  },
+  chatTwinButton: {
+    marginTop: 16,
+  },
+  chatTwinGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  chatTwinText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
   },
   biometricsSection: {
     marginTop: 40,

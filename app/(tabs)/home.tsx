@@ -16,9 +16,9 @@ import * as Haptics from 'expo-haptics';
 import { Asset } from 'expo-asset';
 
 export default function HomeScreen() {
+  console.log('🏠 HOME SCREEN: Component rendering');
   const router = useRouter();
   const user = useAuth((state) => state.user);
-  const { checkOnboardingStatus } = useTwin();
   const [userName, setUserName] = useState('there');
   const [recentDecisions, setRecentDecisions] = useState<any[]>([]);
   const [recentWhatIfs, setRecentWhatIfs] = useState<any[]>([]);
@@ -37,35 +37,20 @@ export default function HomeScreen() {
     Asset.fromModule(require('@/assets/images/star.png')).downloadAsync();
   }, []);
 
-  useEffect(() => {
-    if (!user) {
-      router.replace('/auth');
-      return;
-    }
-
-    // Check onboarding status from database
-    checkOnboardingStatus(user.id)
-      .then(() => {
-        const isComplete = useTwin.getState().onboardingComplete;
-        if (!isComplete) {
-          router.replace('/onboarding/00-name');
-          return;
-        }
-        loadData();
-      })
-      .catch((error) => {
-        console.warn('Failed to confirm onboarding status:', error);
-        setIsLoadingDecisions(false);
-      });
-  }, [user, router, checkOnboardingStatus]);
-
   // Reload data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      console.log('🏠 HOME SCREEN: useFocusEffect triggered', {
+        hasUser: !!user,
+        onboardingComplete: useTwin.getState().onboardingComplete
+      });
       if (user && useTwin.getState().onboardingComplete) {
-        console.log('Home screen focused - reloading data');
+        console.log('🏠 HOME SCREEN: Loading data');
         loadData();
       }
+      return () => {
+        console.log('🏠 HOME SCREEN: useFocusEffect cleanup (unfocused)');
+      };
     }, [user])
   );
 
@@ -530,7 +515,7 @@ const styles = StyleSheet.create({
   mannequinImage: {
     position: 'absolute',
     right: -50,
-    bottom: 0,
+    bottom: -50,
     width: 300,
     height: 300,
     opacity: 0.35,

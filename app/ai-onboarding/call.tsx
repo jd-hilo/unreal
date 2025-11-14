@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { useRouter, useNavigation } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { Phone, PhoneOff, Mic, MicOff, Check } from 'lucide-react-native';
 import { Audio } from 'expo-av';
@@ -26,7 +26,9 @@ interface OnboardingData {
 }
 
 export default function AIOnboardingCall() {
+  console.log('🟢 AI CALL SCREEN: Component rendering');
   const router = useRouter();
+  const navigation = useNavigation();
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [conversationStarted, setConversationStarted] = useState(false);
   const [conversationComplete, setConversationComplete] = useState(false);
@@ -35,12 +37,65 @@ export default function AIOnboardingCall() {
   const [userConfirmedMic, setUserConfirmedMic] = useState(false);
   const [checkingPermission, setCheckingPermission] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const callStateRef = useRef({ started: false, complete: false });
   
+  // Keep ref in sync with state
+  useEffect(() => {
+    callStateRef.current = { started: conversationStarted, complete: conversationComplete };
+  }, [conversationStarted, conversationComplete]);
+
+  useEffect(() => {
+    console.log('🟢 AI CALL SCREEN: Component mounted');
+    
+    // Override router methods to prevent navigation during call
+    const originalReplace = router.replace;
+    const originalPush = router.push;
+    const originalBack = router.back;
+    
+    router.replace = ((...args: any[]) => {
+      const { started, complete } = callStateRef.current;
+      if (started && !complete) {
+        console.log('🚫 AI CALL SCREEN: BLOCKED router.replace attempt during active call!', args);
+        return;
+      }
+      console.log('✅ AI CALL SCREEN: Allowing router.replace', args);
+      return originalReplace.apply(router, args);
+    }) as any;
+    
+    router.push = ((...args: any[]) => {
+      const { started, complete } = callStateRef.current;
+      if (started && !complete) {
+        console.log('🚫 AI CALL SCREEN: BLOCKED router.push attempt during active call!', args);
+        return;
+      }
+      console.log('✅ AI CALL SCREEN: Allowing router.push', args);
+      return originalPush.apply(router, args);
+    }) as any;
+    
+    router.back = (() => {
+      const { started, complete } = callStateRef.current;
+      if (started && !complete) {
+        console.log('🚫 AI CALL SCREEN: BLOCKED router.back attempt during active call!');
+        return;
+      }
+      console.log('✅ AI CALL SCREEN: Allowing router.back');
+      return originalBack.apply(router);
+    }) as any;
+    
+    return () => {
+      console.log('🔴 AI CALL SCREEN: Component unmounting');
+      // Restore original router methods
+      router.replace = originalReplace;
+      router.push = originalPush;
+      router.back = originalBack;
+    };
+  }, []);
+
   // Use official Eleven Labs SDK
   const conversation = useConversation({
     onConnect: () => {
       console.log('✅ Connected to Eleven Labs agent');
-      setConversationStarted(true);
+      // Don't set conversationStarted here - it's already set when starting
     },
     onDisconnect: () => {
       console.log('❌ Disconnected from agent');
@@ -99,6 +154,74 @@ export default function AIOnboardingCall() {
       }, 100);
     }
   }, [messages]);
+
+  // Check if conversation is complete and end session
+  useEffect(() => {
+    if (isConversationComplete(onboardingData) && conversation.status === 'connected') {
+      console.log('✅ Conversation complete - all data collected');
+      // Wait a moment for final message to be heard, then end session
+      setTimeout(async () => {
+        console.log('🔚 Ending session automatically');
+        try {
+          await conversation.endSession();
+          setConversationComplete(true);
+        } catch (error) {
+          console.error('Failed to end session:', error);
+          setConversationComplete(true);
+        }
+      }, 3000); // 3 second delay for user to hear final message
+    }
+  }, [onboardingData, conversation.status]);
+
+  // NAVIGATION BLOCKER: Prevent navigation away from call until complete
+  useEffect(() => {
+    console.log('🛡️ AI CALL SCREEN: Setting up navigation blocker');
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      console.log('⚠️ AI CALL SCREEN: Navigation attempt detected!', {
+        conversationComplete,
+        conversationStarted,
+        action: e.data.action
+      });
+      
+      // Allow navigation if conversation is complete or never started
+      if (conversationComplete || !conversationStarted) {
+        console.log('✅ AI CALL SCREEN: Allowing navigation (conversation complete or not started)');
+        return;
+      }
+
+      // Prevent default navigation
+      console.log('🚫 AI CALL SCREEN: BLOCKING navigation - showing confirmation dialog');
+      e.preventDefault();
+
+      // Show confirmation dialog
+      Alert.alert(
+        'End conversation?',
+        'Are you sure you want to end your conversation with Sol? Your progress will be lost.',
+        [
+          { text: "Stay", style: 'cancel', onPress: () => console.log('User chose to stay') },
+          {
+            text: 'End Call',
+            style: 'destructive',
+            onPress: async () => {
+              console.log('User chose to end call');
+              try {
+                await conversation.endSession();
+              } catch (error) {
+                console.error('Failed to end session:', error);
+              }
+              // Allow navigation after ending call
+              navigation.dispatch(e.data.action);
+            },
+          },
+        ]
+      );
+    });
+
+    return () => {
+      console.log('🛡️ AI CALL SCREEN: Removing navigation blocker');
+      unsubscribe();
+    };
+  }, [navigation, conversationComplete, conversationStarted, conversation]);
 
   function isConversationComplete(data: OnboardingData): boolean {
     return !!(
@@ -229,20 +352,26 @@ export default function AIOnboardingCall() {
   }
 
   async function handleStartCall() {
+    console.log('🎙️ AI CALL SCREEN: handleStartCall invoked');
     if (micPermission !== 'granted' || !userConfirmedMic) {
-      console.log('⚠️ Permission not granted');
+      console.log('⚠️ AI CALL SCREEN: Permission not granted');
       return;
     }
 
+    // Set conversationStarted BEFORE calling startSession to switch to call UI
+    console.log('🎙️ AI CALL SCREEN: Setting conversationStarted = true');
+    setConversationStarted(true);
+
     try {
-      console.log('🚀 Starting conversation with agent:', ELEVENLABS_AGENT_ID);
+      console.log('🚀 AI CALL SCREEN: Starting conversation with agent:', ELEVENLABS_AGENT_ID);
       await conversation.startSession({
         agentId: ELEVENLABS_AGENT_ID,
       });
-      console.log('✅ Session started');
+      console.log('✅ AI CALL SCREEN: Session started successfully');
     } catch (error) {
-      console.error('❌ Failed to start session:', error);
+      console.error('❌ AI CALL SCREEN: Failed to start session:', error);
       alert('Failed to start conversation. Please try again.');
+      setConversationStarted(false); // Reset on error
     }
   }
 
@@ -268,10 +397,19 @@ export default function AIOnboardingCall() {
   }
 
   function getCallStatus() {
-    if (conversation.status !== 'connected') return 'disconnected';
+    if (!conversation || conversation.status !== 'connected') return 'disconnected';
     if (conversation.isSpeaking) return 'speaking';
     return 'listening';
   }
+
+  // Debug: Log conversation object
+  useEffect(() => {
+    console.log('🔍 Conversation object:', {
+      status: conversation?.status,
+      isSpeaking: conversation?.isSpeaking,
+      conversationStarted,
+    });
+  }, [conversation?.status, conversation?.isSpeaking, conversationStarted]);
 
   // Pre-call screen
   if (!conversationStarted) {
@@ -352,6 +490,9 @@ export default function AIOnboardingCall() {
   }
 
   const callStatus = getCallStatus();
+
+  // Debug render
+  console.log('🎨 Rendering call screen, conversationStarted:', conversationStarted, 'status:', conversation?.status);
 
   // Active call screen
   return (

@@ -16,6 +16,7 @@ export default function RootLayout() {
   const initialize = useAuth((state) => state.initialize);
   const user = useAuth((state) => state.user);
   const checkPremiumStatus = useTwin((state) => state.checkPremiumStatus);
+  const onboardingComplete = useTwin((state) => state.onboardingComplete);
   useEffect(() => {
     (async () => {
       try {
@@ -62,7 +63,14 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="auth" />
         <Stack.Screen name="onboarding" />
-        <Stack.Screen name="ai-onboarding" />
+        <Stack.Screen 
+          name="ai-onboarding" 
+          options={{
+            presentation: 'fullScreenModal',
+            gestureEnabled: false,
+            animation: 'none',
+          }}
+        />
         <Stack.Screen name="decision" />
         <Stack.Screen name="whatif" />
         <Stack.Screen name="relationships" />

@@ -8,10 +8,12 @@ interface TwinState {
   isPremium: boolean;
   premiumLoading: boolean;
   onboardingComplete: boolean;
+  aiOnboardingActive: boolean;
   setTwinAccuracy: (accuracy: number) => void;
   setPremium: (premium: boolean) => void;
   setPremiumLoading: (loading: boolean) => void;
   setOnboardingComplete: (complete: boolean) => void;
+  setAIOnboardingActive: (active: boolean) => void;
   checkOnboardingStatus: (userId: string) => Promise<void>;
   checkPremiumStatus: (userId: string) => Promise<void>;
   calculateProgress: (completedCards: string[]) => number;
@@ -32,11 +34,13 @@ export const useTwin = create<TwinState>((set) => ({
   isPremium: false,
   premiumLoading: false,
   onboardingComplete: false,
+  aiOnboardingActive: false,
 
   setTwinAccuracy: (accuracy) => set({ twinAccuracy: accuracy }),
   setPremium: (premium) => set({ isPremium: premium }),
   setPremiumLoading: (loading) => set({ premiumLoading: loading }),
   setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
+  setAIOnboardingActive: (active) => set({ aiOnboardingActive: active }),
   
   checkOnboardingStatus: async (userId: string) => {
     try {

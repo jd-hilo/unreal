@@ -207,6 +207,8 @@ export interface Database {
           payload: Record<string, any>;
           metrics: WhatIfMetrics;
           summary: string | null;
+          biometrics?: WhatIfBiometrics | null;
+          twin_alignment_score?: number | null;
           created_at: string;
         };
         Insert: {
@@ -216,6 +218,8 @@ export interface Database {
           payload?: Record<string, any>;
           metrics?: WhatIfMetrics;
           summary?: string | null;
+          biometrics?: WhatIfBiometrics | null;
+          twin_alignment_score?: number | null;
           created_at?: string;
         };
         Update: {
@@ -225,6 +229,8 @@ export interface Database {
           payload?: Record<string, any>;
           metrics?: WhatIfMetrics;
           summary?: string | null;
+          biometrics?: WhatIfBiometrics | null;
+          twin_alignment_score?: number | null;
           created_at?: string;
         };
       };

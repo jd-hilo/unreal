@@ -25,6 +25,9 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        lazy: true,
+        // Avoid aggressive unmounting to prevent focus/unfocus loops
+        detachInactiveScreens: false,
         tabBarActiveTintColor: '#FFFFFF',
         tabBarInactiveTintColor: 'rgba(150, 150, 150, 0.8)',
         sceneStyle: { backgroundColor: '#0C0C10' },
@@ -75,6 +78,8 @@ export default function TabLayout() {
         name="home"
         options={{
           title: 'Home',
+          // Keep screen mounted to prevent churn
+          unmountOnBlur: false,
           tabBarIcon: ({ focused, size }) => 
             focused ? (
               <HomeGradientIcon size={size} />
@@ -87,6 +92,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
+          unmountOnBlur: false,
           tabBarIcon: ({ focused, size }) => 
             focused ? (
               <UserGradientIcon size={size} />
