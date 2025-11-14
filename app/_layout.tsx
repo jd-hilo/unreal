@@ -11,6 +11,8 @@ import {
 } from '@/lib/mixpanel';
 import adjustService from '@/adjustService';
 import { ElevenLabsProvider } from '@elevenlabs/react-native';
+import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
+
 export default function RootLayout() {
   useFrameworkReady();
   const initialize = useAuth((state) => state.initialize);
@@ -20,6 +22,10 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       try {
+         const { status } = await requestTrackingPermissionsAsync();
+      if (status === 'granted') {
+        console.log('Yay! I have user permission to track data');
+      }
         adjustService.initialize();
         console.log('Adjust has been initialized');
       } catch (error) {
