@@ -256,7 +256,7 @@ export default function WhatIfResultScreen() {
           </Card>
         )}
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.chatTwinButton}
           onPress={() => router.push(`/whatif/chat/${whatIf.id}` as any)}
           activeOpacity={0.85}
@@ -270,7 +270,7 @@ export default function WhatIfResultScreen() {
             <Sparkles size={18} color="#FFFFFF" />
             <Text style={styles.chatTwinText}>Chat with your Twin today</Text>
           </LinearGradient>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {whatIf.biometrics && (
           <View style={styles.biometricsSection}>
