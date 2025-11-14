@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet } from 'react-native';
-// import { useEffect } from 'react';
-// import Animated, {
-//   useAnimatedStyle,
-//   useSharedValue,
-//   withSpring,
-// } from 'react-native-reanimated';
+import { useEffect } from 'react';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface ProgressBarProps {
@@ -15,20 +15,20 @@ interface ProgressBarProps {
 
 export function ProgressBar({ progress, showLabel = true, height = 8 }: ProgressBarProps) {
   // Commented out Reanimated code - using simple static version
-  // const animatedProgress = useSharedValue(0);
+  const animatedProgress = useSharedValue(0);
 
-  // useEffect(() => {
-  //   animatedProgress.value = withSpring(progress, {
-  //     damping: 15,
-  //     stiffness: 100,
-  //   });
-  // }, [progress]);
+  useEffect(() => {
+    animatedProgress.value = withSpring(progress, {
+      damping: 15,
+      stiffness: 100,
+    });
+  }, [progress]);
 
-  // const animatedStyle = useAnimatedStyle(() => {
-  //   return {
-  //     width: `${animatedProgress.value}%`,
-  //   };
-  // });
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      width: `${animatedProgress.value}%`,
+    };
+  });
 
   return (
     <View style={styles.container}>

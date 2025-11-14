@@ -1,21 +1,30 @@
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Animated, TouchableOpacity, Linking, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Animated,
+  TouchableOpacity,
+  Linking,
+  Image,
+} from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-
 export default function AuthScreen() {
   const router = useRouter();
-  const { user, initialized, signIn, signUp } = useAuth();
+  const { user, initialized, signIn, signUp ,appleSignIn} = useAuth();
   const { checkOnboardingStatus } = useTwin();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   // Animation values
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const subtitleOpacity = useRef(new Animated.Value(0)).current;
@@ -39,14 +48,14 @@ export default function AuthScreen() {
   // If user is already signed in, redirect immediately (don't wait for onboarding check)
   useEffect(() => {
     if (!initialized || loading) return;
-    
+
     if (user) {
       // User is signed in, let index.tsx handle routing
       // Just redirect to index which will route properly
       router.replace('/');
     }
   }, [user, initialized, loading, router]);
-
+ 
   async function handleAuth() {
     if (!email || !password) {
       setError('Please fill in all fields');
@@ -59,34 +68,34 @@ export default function AuthScreen() {
     try {
       if (isSignUp) {
         await signUp(email, password);
-        
+
         // Wait a moment for state to update
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
         const currentUser = useAuth.getState().user;
-        
+
         if (currentUser) {
           // Clear form
           setEmail('');
           setPassword('');
-          
+
           // For new sign ups, go to onboarding method choice screen
           router.replace('/onboarding/choose-method');
           return;
         }
       } else {
         await signIn(email, password);
-        
+
         // Wait a moment for state to update
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
         const currentUser = useAuth.getState().user;
-        
+
         if (currentUser) {
           // Clear form
           setEmail('');
           setPassword('');
-          
+
           // For sign in, navigate to index - it will handle routing based on onboarding status
           router.replace('/');
           return;
@@ -142,7 +151,9 @@ export default function AuthScreen() {
               <Text
                 style={styles.linkText}
                 onPress={() =>
-                  Linking.openURL('https://pastoral-supply-662.notion.site/Terms-of-Service-unreal-2a32cec59ddf80aca5e3ec91fdf8e529?source=copy_link')
+                  Linking.openURL(
+                    'https://pastoral-supply-662.notion.site/Terms-of-Service-unreal-2a32cec59ddf80aca5e3ec91fdf8e529?source=copy_link'
+                  )
                 }
               >
                 Terms of Service
@@ -154,11 +165,18 @@ export default function AuthScreen() {
           {error && <Text style={styles.error}>{error}</Text>}
         </View>
       </View>
- 
+
       <View style={styles.footer}>
         <Button
           title={isSignUp ? 'Sign Up' : 'Sign In'}
           onPress={handleAuth}
+          loading={loading}
+          size="large"
+          style={styles.button}
+        />
+        <Button
+          title={'Continue with Apple'}
+          onPress={appleSignIn}
           loading={loading}
           size="large"
           style={styles.button}
@@ -171,7 +189,9 @@ export default function AuthScreen() {
           style={styles.toggleButton}
         >
           <Text style={styles.toggleText}>
-            {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+            {isSignUp
+              ? 'Already have an account? Sign In'
+              : "Don't have an account? Sign Up"}
           </Text>
         </TouchableOpacity>
       </View>
