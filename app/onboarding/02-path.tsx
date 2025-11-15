@@ -42,12 +42,15 @@ export default function OnboardingStep2() {
   return (
     <OnboardingScreen
       title="How did you get here?"
-      subtitle="Tell your twin about your life journey so far"
       progress={25}
       onNext={handleNext}
       canContinue={text.trim().length > 0}
+      backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
+      buttonGradient={['#4169E1', '#1E40AF', '#1E3A8A']}
+      progressBarGradient={['#4A90E2', '#357ABD', '#2E6DA4']}
+      buttonShadowColor="#4169E1"
     >
-      <View style={styles.inputCard}>
+      <View style={styles.inputWrapper}>
         <Input
           placeholder="E.g., I grew up in a small town, went to college for business, landed my first job at a startup, and recently moved to pursue better opportunities..."
           value={text}
@@ -59,47 +62,46 @@ export default function OnboardingStep2() {
           containerStyle={styles.inputContainer}
           returnKeyType="done"
           blurOnSubmit={true}
+          placeholderTextColor="rgba(255, 255, 255, 0.5)"
         />
+        <View style={styles.underline} />
       </View>
       
-      <View style={styles.helperCard}>
-        <Text style={styles.helperText}>
-          🎤 Tip: We recommend using voice transcription on your keyboard for easier input
-        </Text>
-      </View>
+      <Text style={styles.helperText}>
+        The more information, the more accurate your digital twin will be.
+      </Text>
     </OnboardingScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  inputCard: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
-    borderRadius: 16,
-    padding: 16,
+  inputWrapper: {
+    marginTop: 8,
   },
   inputContainer: {
     marginBottom: 0,
+    padding: 0,
   },
   input: {
-    minHeight: 160,
+    fontSize: 18,
+    fontWeight: '500',
+    letterSpacing: -0.2,
+    lineHeight: 20,
+    color: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    minHeight: 120,
   },
-  helperCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(183, 149, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.2)',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 16,
-    gap: 8,
+  underline: {
+    height: 2,
+    backgroundColor: 'rgba(74, 144, 226, 0.5)',
+    marginTop: 4,
+    borderRadius: 1,
   },
   helperText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-    color: 'rgba(200, 200, 200, 0.85)',
+    fontSize: 15,
+    color: 'rgba(200, 200, 200, 0.7)',
+    marginTop: 16,
+    fontWeight: '400',
   },
 });

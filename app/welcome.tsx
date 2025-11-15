@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -10,7 +10,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Button } from '@/components/Button';
+import { ChevronRight } from 'lucide-react-native';
 import { useTypewriter } from '@/hooks/useTypewriter';
 import { setHasSeenWelcome } from '@/lib/welcomeStorage';
 
@@ -172,12 +172,21 @@ export default function WelcomeScreen() {
 
         {buttonVisible && (
           <Animated.View style={[styles.buttonContainer, buttonAnimatedStyle]}>
-            <Button
-              title="Get Started"
+            <TouchableOpacity
               onPress={handleGetStarted}
-              size="large"
+              activeOpacity={0.9}
               style={styles.button}
-            />
+            >
+              <LinearGradient
+                colors={['#4169E1', '#1E40AF', '#1E3A8A']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.buttonText}>Get Started</Text>
+                <ChevronRight size={20} color="#FFFFFF" />
+              </LinearGradient>
+            </TouchableOpacity>
           </Animated.View>
         )}
       </View>
@@ -211,7 +220,27 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   button: {
-    width: '100%',
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    shadowColor: '#4169E1',
+    elevation: 12,
+  },
+  buttonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+    borderRadius: 24,
+  },
+  buttonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
 

@@ -11,9 +11,10 @@ interface ProgressBarProps {
   progress: number;
   showLabel?: boolean;
   height?: number;
+  gradientColors?: string[];
 }
 
-export function ProgressBar({ progress, showLabel = true, height = 8 }: ProgressBarProps) {
+export function ProgressBar({ progress, showLabel = true, height = 8, gradientColors = ['#B795FF', '#8A5CFF', '#6E3DF0'] }: ProgressBarProps) {
   // Commented out Reanimated code - using simple static version
   const animatedProgress = useSharedValue(0);
 
@@ -35,7 +36,7 @@ export function ProgressBar({ progress, showLabel = true, height = 8 }: Progress
       <View style={[styles.track, { height }]}>
         <View style={[{ height, borderRadius: 100, overflow: 'hidden', width: `${progress}%` }]}>
           <LinearGradient
-            colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+            colors={gradientColors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFill}

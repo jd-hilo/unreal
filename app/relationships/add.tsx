@@ -1,15 +1,15 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { supabase } from '@/lib/supabase';
 import { mineRelationships } from '@/lib/ai';
 import { completeOnboarding } from '@/lib/storage';
 import { Input } from '@/components/Input';
-import { Button } from '@/components/Button';
 import { ProgressBar } from '@/components/ProgressBar';
-import { Sparkles, CheckCircle2, Circle } from 'lucide-react-native';
+import { Sparkles, CheckCircle2, Circle, ChevronRight } from 'lucide-react-native';
 
 const RELATIONSHIP_TYPES = [
   'Partner', 'Spouse', 'Family', 'Friend', 'Mentor', 
@@ -192,11 +192,16 @@ export default function AddRelationshipScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={isOnboarding ? ['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E'] : ['#0C0C10', '#0F0F11']}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+    >
       <View style={styles.header}>
         {isOnboarding && (
           <View style={styles.progressBarContainer}>
-            <ProgressBar progress={85} showLabel={false} />
+            <ProgressBar progress={85} showLabel={false} gradientColors={['#4A90E2', '#357ABD', '#2E6DA4']} />
           </View>
         )}
         {!isOnboarding && (
@@ -253,11 +258,6 @@ export default function AddRelationshipScreen() {
                   />
                 </View>
                 
-                <View style={styles.helperCard}>
-                  <Text style={styles.helperText}>
-                    🎤 Tip: We recommend using voice transcription on your keyboard for easier input
-                  </Text>
-                </View>
                 {error && <Text style={styles.error}>{error}</Text>}
               </>
             ) : (
@@ -381,54 +381,116 @@ export default function AddRelationshipScreen() {
         )}
         {mode === 'ai' ? (
           extracted.length === 0 ? (
-            <Button
-              title="Extract Relationships"
+            <TouchableOpacity
               onPress={handleExtract}
-              loading={extracting}
-              size="large"
-              icon={<Sparkles size={20} color="#FFFFFF" />}
-            />
+              disabled={extracting}
+              activeOpacity={0.9}
+              style={[
+                styles.button,
+                { shadowColor: !extracting ? '#4169E1' : 'rgba(100, 100, 100, 0.3)' },
+                extracting && styles.buttonDisabled
+              ]}
+            >
+              <LinearGradient
+                colors={!extracting ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.buttonGradient}
+              >
+                {extracting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Sparkles size={20} color="#FFFFFF" />
+                    <Text style={styles.buttonText}>Extract Relationships</Text>
+                    <ChevronRight size={20} color="#FFFFFF" />
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
           ) : (
             <View style={styles.footerButtons}>
-              <Button
-                title="Back"
+              <TouchableOpacity
                 onPress={() => setExtracted([])}
-                variant="outline"
-                size="large"
-                style={{ flex: 1 }}
-              />
-              <Button
-                title={isOnboarding ? 'Continue' : `Add ${extracted.filter(r => r.selected).length}`}
+                activeOpacity={0.9}
+                style={[styles.button, styles.buttonOutline]}
+              >
+                <Text style={styles.buttonTextOutline}>Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 onPress={handleSaveExtracted}
-                loading={saving}
-                size="large"
-                style={{ flex: 1 }}
-              />
+                disabled={saving || extracted.filter(r => r.selected).length === 0}
+                activeOpacity={0.9}
+                style={[
+                  styles.button,
+                  { flex: 1, shadowColor: (!saving && extracted.filter(r => r.selected).length > 0) ? '#4169E1' : 'rgba(100, 100, 100, 0.3)' },
+                  (saving || extracted.filter(r => r.selected).length === 0) && styles.buttonDisabled
+                ]}
+              >
+                <LinearGradient
+                  colors={(!saving && extracted.filter(r => r.selected).length > 0) ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.buttonGradient}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Text style={styles.buttonText}>
+                        {isOnboarding ? 'Continue' : `Add ${extracted.filter(r => r.selected).length}`}
+                      </Text>
+                      <ChevronRight size={20} color="#FFFFFF" />
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
           )
         ) : (
-          <Button
-            title={isOnboarding ? 'Continue' : 'Save Relationship'}
+          <TouchableOpacity
             onPress={handleSave}
-            loading={saving}
-            size="large"
-          />
+            disabled={saving || !name.trim() || !relationshipType}
+            activeOpacity={0.9}
+            style={[
+              styles.button,
+              { shadowColor: (!saving && name.trim() && relationshipType) ? '#4169E1' : 'rgba(100, 100, 100, 0.3)' },
+              (saving || !name.trim() || !relationshipType) && styles.buttonDisabled
+            ]}
+          >
+            <LinearGradient
+              colors={(!saving && name.trim() && relationshipType) ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.buttonGradient}
+            >
+              {saving ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Text style={styles.buttonText}>
+                    {isOnboarding ? 'Continue' : 'Save Relationship'}
+                  </Text>
+                  <ChevronRight size={20} color="#FFFFFF" />
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
         )}
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C0C10',
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    backgroundColor: '#0C0C10',
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
@@ -455,7 +517,7 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   skipText: {
     fontSize: 16,
@@ -673,14 +735,55 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 24,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 12 : 16,
-    backgroundColor: '#0C0C10',
+    paddingBottom: Platform.OS === 'ios' ? 32 : 36,
+    backgroundColor: 'transparent',
     borderTopWidth: 1,
     borderTopColor: 'rgba(59, 37, 109, 0.2)',
   },
   footerButtons: {
     flexDirection: 'row',
     gap: 12,
+  },
+  button: {
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  buttonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  buttonOutline: {
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    backgroundColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  buttonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+    borderRadius: 24,
+  },
+  buttonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  buttonTextOutline: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    textAlign: 'center',
   },
 });
 

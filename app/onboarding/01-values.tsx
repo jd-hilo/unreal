@@ -4,13 +4,12 @@ import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Input } from '@/components/Input';
 import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/store/useAuth';
-import { saveOnboardingResponse } from '@/lib/storage';
+import { saveOnboardingResponse, getProfile } from '@/lib/storage';
 
 export default function OnboardingStep1() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [text, setText] = useState('');
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadExistingData();
@@ -18,40 +17,32 @@ export default function OnboardingStep1() {
 
   async function loadExistingData() {
     if (!user) return;
-    
     try {
-      const { getProfile } = await import('@/lib/storage');
       const profile = await getProfile(user.id);
-      const existingResponse = profile?.core_json?.onboarding_responses?.['01-now'];
+      const existingResponse = profile?.core_json?.onboarding_responses?.['03-values'] || profile?.core_json?.onboarding_responses?.['01-values'];
       if (existingResponse) {
         setText(existingResponse);
       }
     } catch (error) {
       console.error('Failed to load existing data:', error);
-    } finally {
-      setLoading(false);
     }
   }
 
   async function handleNext() {
     if (user && text.trim()) {
       try {
-        await saveOnboardingResponse(user.id, '01-now', text.trim());
+        await saveOnboardingResponse(user.id, '01-values', text.trim());
       } catch (error) {
         console.error('Failed to save onboarding response:', error);
       }
     }
-    router.push('/onboarding/02-path');
-  }
-
-  function handleBack() {
-    router.back();
+    router.push('/onboarding/02-now');
   }
 
   return (
     <OnboardingScreen
-      title="Tell us about your current situation"
-      progress={12.5}
+      title="What matters most to you?"
+      progress={25}
       onNext={handleNext}
       canContinue={text.trim().length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
@@ -61,11 +52,11 @@ export default function OnboardingStep1() {
     >
       <View style={styles.inputWrapper}>
         <Input
-          placeholder="E.g., I'm a software engineer at a tech startup, recently moved to a new city, and thinking about my career direction..."
+          placeholder="E.g., family, financial stability, health, etc."
           value={text}
           onChangeText={setText}
           multiline
-          numberOfLines={8}
+          numberOfLines={4}
           textAlignVertical="top"
           style={styles.input}
           containerStyle={styles.inputContainer}
@@ -99,7 +90,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     paddingVertical: 12,
     paddingHorizontal: 0,
-    minHeight: 120,
+    minHeight: 80,
   },
   underline: {
     height: 2,
@@ -114,3 +105,4 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
 });
+

@@ -56,20 +56,23 @@ export default function OnboardingStep0() {
         console.error('Error details:', JSON.stringify(error, null, 2));
       }
     }
-    router.push('/onboarding/01-now');
+    router.push('/onboarding/01-values');
   }
 
   return (
     <OnboardingScreen
       title="What's your first name?"
-      subtitle="Help us personalize your experience"
       progress={0}
       onNext={handleNext}
       canContinue={firstName.trim().length > 0}
+      backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
+      buttonGradient={['#4169E1', '#1E40AF', '#1E3A8A']}
+      progressBarGradient={['#4A90E2', '#357ABD', '#2E6DA4']}
+      buttonShadowColor="#4169E1"
     >
-      <View style={styles.inputCard}>
+      <View style={styles.inputWrapper}>
         <Input
-          placeholder="Enter your first name"
+          placeholder="Enter name"
           value={firstName}
           onChangeText={setFirstName}
           autoCapitalize="words"
@@ -78,48 +81,45 @@ export default function OnboardingStep0() {
           onSubmitEditing={handleNext}
           style={styles.input}
           containerStyle={styles.inputContainer}
+          placeholderTextColor="rgba(255, 255, 255, 0.5)"
         />
+        <View style={styles.underline} />
       </View>
       
-      <View style={styles.helperCard}>
-        <Text style={styles.helperText}>
-          👋 We'll use this to make your AI twin feel more personal
-        </Text>
-      </View>
+      <Text style={styles.helperText}>
+        The more information, the more accurate your digital twin will be.
+      </Text>
     </OnboardingScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  inputCard: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
-    borderRadius: 16,
-    padding: 16,
+  inputWrapper: {
+    marginTop: 8,
   },
   inputContainer: {
     marginBottom: 0,
+    padding: 0,
   },
   input: {
-    fontSize: 18,
+    fontSize: 24,
+    fontWeight: '500',
+    letterSpacing: -0.3,
+    color: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 0,
   },
-  helperCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(183, 149, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.2)',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 16,
-    gap: 8,
+  underline: {
+    height: 2,
+    backgroundColor: 'rgba(74, 144, 226, 0.5)',
+    marginTop: 4,
+    borderRadius: 1,
   },
   helperText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-    color: 'rgba(200, 200, 200, 0.85)',
+    fontSize: 15,
+    color: 'rgba(200, 200, 200, 0.7)',
+    marginTop: 16,
+    fontWeight: '400',
   },
 });
 

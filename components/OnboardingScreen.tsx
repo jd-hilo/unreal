@@ -15,6 +15,10 @@ interface OnboardingScreenProps {
   nextLabel?: string;
   loading?: boolean;
   canContinue?: boolean;
+  backgroundGradient?: string[];
+  buttonGradient?: string[];
+  progressBarGradient?: string[];
+  buttonShadowColor?: string;
 }
 
 export function OnboardingScreen({
@@ -27,6 +31,10 @@ export function OnboardingScreen({
   nextLabel = 'Continue',
   loading = false,
   canContinue = true,
+  backgroundGradient = ['#0C0C10', '#0F0F11', '#1A0F2E', '#2D1B4E'],
+  buttonGradient = ['#B795FF', '#8A5CFF', '#6E3DF0'],
+  progressBarGradient = ['#B795FF', '#8A5CFF', '#6E3DF0'],
+  buttonShadowColor = '#B795FF',
 }: OnboardingScreenProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -43,74 +51,84 @@ export function OnboardingScreen({
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
+    <LinearGradient
+      colors={backgroundGradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={styles.gradientBackground}
     >
-      {/* Progress Header */}
-      <View style={styles.header}>
-        <ProgressBar progress={progress} showLabel={false} />
-      </View>
-
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-        {/* Title Section */}
-        <View style={styles.titleSection}>
-        <Text style={styles.title}>{title}</Text>
-          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+        {/* Progress Header */}
+        <View style={styles.header}>
+          <ProgressBar progress={progress} showLabel={false} gradientColors={progressBarGradient} />
         </View>
 
-        {/* Content */}
-        <View style={styles.body}>{children}</View>
-      </ScrollView>
-
-      {/* Floating Action Button */}
-      <View style={styles.floatingButtonContainer}>
-        {onSkip && (
-          <TouchableOpacity
-            onPress={onSkip}
-            style={styles.skipButton}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.skipText}>Skip for now</Text>
-          </TouchableOpacity>
-        )}
-        
-        <TouchableOpacity
-          onPress={handleNext}
-          disabled={!canContinue || loading || isProcessing}
-          activeOpacity={0.9}
-          style={[
-            styles.floatingButton,
-            (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled
-          ]}
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <LinearGradient
-            colors={canContinue && !loading && !isProcessing ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.floatingButtonGradient}
+          {/* Title Section */}
+          <View style={styles.titleSection}>
+          <Text style={styles.title}>{title}</Text>
+            {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+          </View>
+
+          {/* Content */}
+          <View style={styles.body}>{children}</View>
+        </ScrollView>
+
+        {/* Floating Action Button */}
+        <View style={styles.floatingButtonContainer}>
+          {onSkip && (
+            <TouchableOpacity
+              onPress={onSkip}
+              style={styles.skipButton}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.skipText}>Skip for now</Text>
+            </TouchableOpacity>
+          )}
+          
+          <TouchableOpacity
+            onPress={handleNext}
+            disabled={!canContinue || loading || isProcessing}
+            activeOpacity={0.9}
+            style={[
+              styles.floatingButton,
+              { shadowColor: canContinue && !loading && !isProcessing ? buttonShadowColor : 'rgba(100, 100, 100, 0.3)' },
+              (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled
+            ]}
           >
-            <Text style={styles.floatingButtonText}>
-              {loading || isProcessing ? 'Processing...' : nextLabel}
-            </Text>
-            {!loading && !isProcessing && <ChevronRight size={20} color="#FFFFFF" />}
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+            <LinearGradient
+              colors={canContinue && !loading && !isProcessing ? buttonGradient : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.floatingButtonGradient}
+            >
+              <Text style={styles.floatingButtonText}>
+                {loading || isProcessing ? 'Processing...' : nextLabel}
+              </Text>
+              {!loading && !isProcessing && <ChevronRight size={20} color="#FFFFFF" />}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientBackground: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#0C0C10',
   },
   header: {
     paddingHorizontal: 24,
@@ -149,7 +167,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 32 : 36,
-    backgroundColor: '#0C0C10',
+    backgroundColor: 'transparent',
     gap: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(59, 37, 109, 0.2)',
@@ -164,13 +182,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   floatingButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#B795FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
   },
   floatingButtonDisabled: {
     shadowOpacity: 0,
@@ -183,6 +200,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 24,
     gap: 10,
+    borderRadius: 24,
   },
   floatingButtonText: {
     fontSize: 17,

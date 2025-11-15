@@ -6,7 +6,7 @@ import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { saveOnboardingResponse } from '@/lib/storage';
 
-export default function OnboardingStep1() {
+export default function OnboardingStep2() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [text, setText] = useState('');
@@ -22,7 +22,7 @@ export default function OnboardingStep1() {
     try {
       const { getProfile } = await import('@/lib/storage');
       const profile = await getProfile(user.id);
-      const existingResponse = profile?.core_json?.onboarding_responses?.['01-now'];
+      const existingResponse = profile?.core_json?.onboarding_responses?.['01-now'] || profile?.core_json?.onboarding_responses?.['02-now'];
       if (existingResponse) {
         setText(existingResponse);
       }
@@ -36,12 +36,12 @@ export default function OnboardingStep1() {
   async function handleNext() {
     if (user && text.trim()) {
       try {
-        await saveOnboardingResponse(user.id, '01-now', text.trim());
+        await saveOnboardingResponse(user.id, '02-now', text.trim());
       } catch (error) {
         console.error('Failed to save onboarding response:', error);
       }
     }
-    router.push('/onboarding/02-path');
+    router.push('/onboarding/03-path');
   }
 
   function handleBack() {
@@ -51,7 +51,7 @@ export default function OnboardingStep1() {
   return (
     <OnboardingScreen
       title="Tell us about your current situation"
-      progress={12.5}
+      progress={50}
       onNext={handleNext}
       canContinue={text.trim().length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
@@ -114,3 +114,4 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
 });
+

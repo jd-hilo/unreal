@@ -40,7 +40,7 @@ export function Input({
           error && styles.input_error,
           { color: '#FFFFFF' }, // Ensure text is always white
         ]}
-        placeholderTextColor="rgba(150, 150, 150, 0.6)"
+        placeholderTextColor={props.placeholderTextColor || "rgba(150, 150, 150, 0.6)"}
         returnKeyType={finalReturnKeyType}
         blurOnSubmit={finalBlurOnSubmit}
         multiline={multiline}
@@ -66,20 +66,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     fontSize: 16,
     color: '#FFFFFF',
   },
   input_focused: {
-    borderColor: '#B795FF',
+    // No border on focus
   },
   input_error: {
-    borderColor: '#EF4444',
+    // Error state can be handled differently if needed
   },
   error: {
     fontSize: 12,
