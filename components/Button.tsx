@@ -64,7 +64,7 @@ export function Button({
         activeOpacity={0.7}
       >
         <LinearGradient
-          colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+          colors={['#4169E1', '#1E40AF', '#1E3A8A']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={[

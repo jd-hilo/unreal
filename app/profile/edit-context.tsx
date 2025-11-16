@@ -95,7 +95,7 @@ export default function EditContextScreen() {
         {/* Current Location */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <MapPin size={20} color="#B795FF" />
+            <MapPin size={20} color="#4169E1" />
             <Text style={styles.sectionTitle}>Current Location</Text>
           </View>
           <Input
@@ -129,7 +129,7 @@ export default function EditContextScreen() {
         {/* Political Views */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Users size={20} color="#8B5CF6" />
+            <Users size={20} color="#1E40AF" />
             <Text style={styles.sectionTitle}>Political Views</Text>
           </View>
           <Input

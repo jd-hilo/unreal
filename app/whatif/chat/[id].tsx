@@ -107,7 +107,7 @@ export default function WhatIfChatScreen() {
           <Text style={styles.title}>Chat with Your Twin</Text>
         </View>
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color="#B795FF" />
+          <ActivityIndicator color="#4169E1" />
           <Text style={styles.loadingText}>Loading twin context...</Text>
         </View>
       </View>
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loadingText: {
-    color: '#B795FF',
+    color: '#4169E1',
   },
   chat: {
     flex: 1,

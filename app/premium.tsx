@@ -264,7 +264,7 @@ export default function PremiumScreen() {
             activeOpacity={0.7}
           >
             {restoring ? (
-              <ActivityIndicator size="small" color="#B795FF" />
+              <ActivityIndicator size="small" color="#4169E1" />
             ) : (
               <Text style={styles.restoreButtonText}>Restore Purchases</Text>
             )}
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   },
   legalLinkText: {
     fontSize: 12,
-    color: '#B795FF',
+    color: '#4169E1',
     textDecorationLine: 'underline',
   },
   legalSeparator: {

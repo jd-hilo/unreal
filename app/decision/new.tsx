@@ -26,6 +26,7 @@ export default function NewDecisionScreen() {
   const [currentStep, setCurrentStep] = useState(1);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const questionInputRef = useRef<TextInput>(null);
   
   // Form data
   const [question, setQuestion] = useState('');
@@ -42,10 +43,37 @@ export default function NewDecisionScreen() {
   const [recentTwins, setRecentTwins] = useState<Array<{ userId: string; name: string; code: string }>>([]);
   const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(null);
   const [editingOptionText, setEditingOptionText] = useState('');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
     loadRecentTwins();
+    
+    // Keyboard listeners for modal positioning
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
   }, []);
+
+  // Auto-focus question input when on step 1
+  useEffect(() => {
+    if (currentStep === 1) {
+      // Small delay to ensure the component is rendered
+      const timer = setTimeout(() => {
+        questionInputRef.current?.focus();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [currentStep]);
 
   async function loadRecentTwins() {
     try {
@@ -346,6 +374,7 @@ export default function NewDecisionScreen() {
         </View>
 
         <FloatingLabelInput
+          ref={questionInputRef}
           label="Your question"
           value={question}
           onChangeText={setQuestion}
@@ -353,6 +382,7 @@ export default function NewDecisionScreen() {
           showCharCount
           maxCharCount={500}
           containerStyle={styles.questionInput}
+          style={styles.questionInputText}
         />
       </View>
     );
@@ -395,7 +425,7 @@ export default function NewDecisionScreen() {
     return (
       <View style={styles.stepContainer}>
         <View style={styles.stepHeader}>
-          <Text style={styles.stepTitle}>Add a collaborator?</Text>
+          <Text style={styles.stepTitle}>Add someone else's twin</Text>
           <Text style={styles.stepDescription}>
             Get another perspective on your decision
           </Text>
@@ -426,7 +456,7 @@ export default function NewDecisionScreen() {
               activeOpacity={0.7}
             >
               <LinearGradient
-                colors={['rgba(183, 149, 255, 0.15)', 'rgba(183, 149, 255, 0.05)']}
+                colors={['rgba(65, 105, 225, 0.15)', 'rgba(65, 105, 225, 0.05)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.addTwinGradient}
@@ -434,13 +464,13 @@ export default function NewDecisionScreen() {
                 <BlurView intensity={20} tint="dark" style={styles.addTwinBlurEnhanced}>
                   <View style={styles.addTwinContentEnhanced}>
                     <View style={styles.iconCircle}>
-                      <UserPlus size={28} color="#B795FF" />
+                      <UserPlus size={28} color="#4169E1" />
                     </View>
                     <View style={styles.addTwinTextContainer}>
                       <Text style={styles.addTwinTextEnhanced}>Add Another Twin</Text>
                       <Text style={styles.addTwinSubtext}>Collaborate on this decision</Text>
                     </View>
-                    <ChevronRight size={24} color="rgba(183, 149, 255, 0.6)" />
+                    <ChevronRight size={24} color="rgba(65, 105, 225, 0.6)" />
                   </View>
                 </BlurView>
               </LinearGradient>
@@ -595,7 +625,7 @@ export default function NewDecisionScreen() {
           ]}
         >
           <LinearGradient
-            colors={canProceed ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+            colors={canProceed ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.floatingButtonGradient}
@@ -629,7 +659,7 @@ export default function NewDecisionScreen() {
         animationType="fade"
         onRequestClose={() => setShowTwinModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, keyboardVisible && styles.modalOverlayKeyboard]}>
           <View style={styles.modalContent}>
             <BlurView intensity={40} tint="dark" style={styles.modalBlur}>
               <View style={styles.modalInner}>
@@ -695,7 +725,7 @@ export default function NewDecisionScreen() {
                   activeOpacity={0.9}
                 >
                   <LinearGradient
-                    colors={twinCode.length === 6 && !lookingUpTwin ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+                    colors={twinCode.length === 6 && !lookingUpTwin ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.modalButton}
@@ -756,7 +786,7 @@ export default function NewDecisionScreen() {
                   activeOpacity={0.9}
                 >
                   <LinearGradient
-                    colors={editingOptionText.trim() ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+                    colors={editingOptionText.trim() ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.modalButton}
@@ -811,7 +841,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
+    borderBottomColor: 'rgba(65, 105, 225, 0.2)',
   },
   contentWrapper: {
     flex: 1,
@@ -858,22 +888,29 @@ const styles = StyleSheet.create({
   questionInput: {
     marginTop: 4,
   },
+  questionInputText: {
+    fontSize: 24,
+    fontWeight: '500',
+    letterSpacing: -0.3,
+    lineHeight: 28,
+    minHeight: 28,
+  },
   optionsContainer: {
     gap: 0,
   },
   regenerateButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(183, 149, 255, 0.15)',
+    backgroundColor: 'rgba(65, 105, 225, 0.15)',
     borderWidth: 1.5,
-    borderColor: 'rgba(183, 149, 255, 0.4)',
+    borderColor: 'rgba(65, 105, 225, 0.4)',
     borderRadius: 12,
     padding: 14,
   },
   regenerateText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#B795FF',
+    color: '#4169E1',
   },
   twinAddedCard: {
     borderRadius: 16,
@@ -923,7 +960,7 @@ const styles = StyleSheet.create({
   addTwinText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#B795FF',
+    color: '#4169E1',
   },
   collaboratorSection: {
     position: 'relative',
@@ -933,7 +970,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
+    borderColor: 'rgba(65, 105, 225, 0.3)',
     marginBottom: 20,
   },
   addTwinGradient: {
@@ -953,11 +990,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(183, 149, 255, 0.2)',
+    backgroundColor: 'rgba(65, 105, 225, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(183, 149, 255, 0.4)',
+    borderColor: 'rgba(65, 105, 225, 0.4)',
   },
   addTwinTextContainer: {
     flex: 1,
@@ -986,7 +1023,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderColor: 'rgba(65, 105, 225, 0.3)',
   },
   reviewBlur: {
     backgroundColor: 'rgba(20, 18, 30, 0.3)',
@@ -1019,7 +1056,7 @@ const styles = StyleSheet.create({
   reviewOptionNumber: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#B795FF',
+    color: '#4169E1',
   },
   reviewOptionText: {
     flex: 1,
@@ -1031,10 +1068,10 @@ const styles = StyleSheet.create({
   floatingButtonContainer: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 36,
     backgroundColor: '#0C0C10',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(59, 37, 109, 0.2)',
+    borderTopColor: 'rgba(65, 105, 225, 0.2)',
   },
   skipButton: {
     alignItems: 'center',
@@ -1047,13 +1084,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   floatingButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#B795FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowColor: '#4169E1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
   },
   floatingButtonDisabled: {
     shadowOpacity: 0,
@@ -1063,9 +1100,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 24,
     gap: 10,
+    borderRadius: 24,
   },
   floatingButtonText: {
     fontSize: 17,
@@ -1089,13 +1127,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
+  modalOverlayKeyboard: {
+    justifyContent: 'flex-start',
+    paddingTop: 80,
+  },
   modalContent: {
     width: '100%',
     maxWidth: 400,
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderColor: 'rgba(65, 105, 225, 0.3)',
   },
   modalBlur: {
     backgroundColor: 'rgba(20, 18, 30, 0.95)',
@@ -1145,12 +1187,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   recentTwinChip: {
-    backgroundColor: 'rgba(59, 37, 109, 0.4)',
+    backgroundColor: 'rgba(30, 58, 138, 0.4)',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
+    borderColor: 'rgba(65, 105, 225, 0.3)',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -1163,17 +1205,24 @@ const styles = StyleSheet.create({
   recentTwinCode: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#B795FF',
+    color: '#4169E1',
   },
   modalButtonWrapper: {
-    borderRadius: 12,
-    overflow: 'hidden',
+    borderRadius: 24,
+    overflow: 'visible',
     marginTop: 8,
+    shadowColor: '#4169E1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
   },
   modalButton: {
-    paddingVertical: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 24,
   },
   modalButtonDisabled: {
     opacity: 0.5,

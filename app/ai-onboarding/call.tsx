@@ -458,10 +458,10 @@ export default function AIOnboardingCall() {
                 </Text>
               </View>
               {checkingPermission && (
-                <ActivityIndicator size="small" color="#B795FF" />
+                <ActivityIndicator size="small" color="#4169E1" />
               )}
               {!checkingPermission && micPermission === 'undetermined' && (
-                <Mic size={24} color="#B795FF" />
+                <Mic size={24} color="#4169E1" />
               )}
               {!checkingPermission && micPermission === 'granted' && (
                 <Mic size={24} color="#10B981" />
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
   transcriptSpeaker: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#B795FF',
+    color: '#4169E1',
   },
   transcriptText: {
     fontSize: 16,

@@ -161,7 +161,7 @@ export default function AIOnboardingReview() {
     return (
       <View style={styles.container}>
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#B795FF" />
+          <ActivityIndicator size="large" color="#4169E1" />
           <Text style={styles.loadingText}>Loading your conversation...</Text>
         </View>
       </View>
@@ -252,7 +252,7 @@ export default function AIOnboardingReview() {
           <Text style={styles.sectionLabel}>Important Relationships</Text>
           {extractingRelationships ? (
             <View style={styles.loadingCard}>
-              <ActivityIndicator size="small" color="#B795FF" />
+              <ActivityIndicator size="small" color="#4169E1" />
               <Text style={styles.loadingCardText}>Extracting relationships...</Text>
             </View>
           ) : extractedRelationships.length > 0 ? (

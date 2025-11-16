@@ -76,9 +76,9 @@ export default function OnboardingStep1() {
         <View style={styles.underline} />
       </View>
       
-      <Text style={styles.helperText}>
+        <Text style={styles.helperText}>
         The more information, the more accurate your digital twin will be.
-      </Text>
+        </Text>
     </OnboardingScreen>
   );
 }

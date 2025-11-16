@@ -1,8 +1,8 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Image } from 'react-native';
-import { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Image, TextInput } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
-import { Input } from '@/components/Input';
+import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { Button } from '@/components/Button';
 import { ArrowLeft, ChevronRight, Lightbulb, GraduationCap, MapPin, Briefcase } from 'lucide-react-native';
 import { insertWhatIf } from '@/lib/storage';
@@ -18,6 +18,15 @@ export default function NewWhatIfScreen() {
   const user = useAuth((state) => state.user);
   const [whatIfText, setWhatIfText] = useState('');
   const [loading, setLoading] = useState(false);
+  const scenarioInputRef = useRef<TextInput>(null);
+
+  // Auto-focus input when screen loads
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scenarioInputRef.current?.focus();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   async function handleSubmit() {
     if (!user || !whatIfText.trim()) return;
@@ -121,24 +130,23 @@ export default function NewWhatIfScreen() {
       >
         {/* Scenario Input */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Your scenario</Text>
-          <View style={styles.scenarioCard}>
-        <Input
-              placeholder="E.g., What if I had studied engineering instead of business?"
-          value={whatIfText}
-          onChangeText={setWhatIfText}
-          multiline
-              numberOfLines={5}
-              style={styles.scenarioInput}
-              containerStyle={styles.inputContainer}
-            />
-          </View>
+          <FloatingLabelInput
+            ref={scenarioInputRef}
+            label="Your scenario"
+            value={whatIfText}
+            onChangeText={setWhatIfText}
+            multiline
+            placeholder="What if I..."
+            returnKeyType="done"
+            containerStyle={styles.scenarioInput}
+            style={styles.scenarioInputText}
+          />
         </View>
 
         {/* Example Scenarios */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Lightbulb size={18} color="#B795FF" />
+            <Lightbulb size={18} color="#4169E1" />
             <Text style={styles.sectionLabel}>Try these examples</Text>
           </View>
 
@@ -149,7 +157,7 @@ export default function NewWhatIfScreen() {
               activeOpacity={0.7}
           >
               <View style={styles.exampleIcon}>
-                <GraduationCap size={20} color="#B795FF" />
+                <GraduationCap size={20} color="#4169E1" />
               </View>
               <View style={styles.exampleContent}>
                 <Text style={styles.exampleTitle}>Different major</Text>
@@ -164,7 +172,7 @@ export default function NewWhatIfScreen() {
               activeOpacity={0.7}
           >
               <View style={styles.exampleIcon}>
-                <MapPin size={20} color="#B795FF" />
+                <MapPin size={20} color="#4169E1" />
               </View>
               <View style={styles.exampleContent}>
                 <Text style={styles.exampleTitle}>Different location</Text>
@@ -179,7 +187,7 @@ export default function NewWhatIfScreen() {
               activeOpacity={0.7}
           >
               <View style={styles.exampleIcon}>
-                <Briefcase size={20} color="#B795FF" />
+                <Briefcase size={20} color="#4169E1" />
               </View>
               <View style={styles.exampleContent}>
                 <Text style={styles.exampleTitle}>Career path</Text>
@@ -210,7 +218,7 @@ export default function NewWhatIfScreen() {
           ]}
         >
           <LinearGradient
-            colors={canSubmit && !loading ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+            colors={canSubmit && !loading ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.floatingButtonGradient}
@@ -245,7 +253,7 @@ const styles = StyleSheet.create({
     gap: 16,
     backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
+    borderBottomColor: 'rgba(65, 105, 225, 0.2)',
   },
   backButton: {
     width: 40,
@@ -289,19 +297,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 12,
   },
-  scenarioCard: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
-    borderRadius: 16,
-    padding: 16,
-  },
-  inputContainer: {
-    marginBottom: 0,
-  },
   scenarioInput: {
-    minHeight: 120,
-    textAlignVertical: 'top',
+    marginTop: 4,
+  },
+  scenarioInputText: {
+    fontSize: 24,
+    fontWeight: '500',
+    letterSpacing: -0.3,
+    lineHeight: 28,
+    minHeight: 28,
   },
   examplesGrid: {
     gap: 12,
@@ -311,7 +315,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
     borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderColor: 'rgba(30, 64, 175, 0.4)',
     borderRadius: 16,
     padding: 16,
     gap: 12,
@@ -320,7 +324,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(183, 149, 255, 0.2)',
+    backgroundColor: 'rgba(65, 105, 225, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -338,9 +342,9 @@ const styles = StyleSheet.create({
     color: 'rgba(200, 200, 200, 0.6)',
   },
   helperCard: {
-    backgroundColor: 'rgba(183, 149, 255, 0.1)',
+    backgroundColor: 'rgba(65, 105, 225, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.2)',
+    borderColor: 'rgba(65, 105, 225, 0.2)',
     borderRadius: 16,
     padding: 16,
     marginTop: 8,
@@ -361,13 +365,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C0C10',
   },
   floatingButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#B795FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowColor: '#4169E1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
   },
   floatingButtonDisabled: {
     shadowOpacity: 0,
@@ -380,6 +384,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 24,
     gap: 10,
+    borderRadius: 24,
   },
   floatingButtonText: {
     fontSize: 17,

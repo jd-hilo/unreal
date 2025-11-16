@@ -83,7 +83,7 @@ export default function EditLocationScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.iconContainer}>
-          <MapPin size={48} color="#B795FF" strokeWidth={1.5} />
+          <MapPin size={48} color="#4169E1" strokeWidth={1.5} />
         </View>
 
         <Text style={styles.description}>

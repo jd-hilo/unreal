@@ -117,7 +117,7 @@ export default function WhatIfResultScreen() {
     biometricsEntries.push({
       key: 'weight',
       label: 'Weight',
-      icon: <Weight size={18} color="#B795FF" />,
+      icon: <Weight size={18} color="#4169E1" />,
       primary: biometricsData.weight.alternate || biometricsData.weight.current || '—',
       secondary: biometricsData.weight.current ? `Current: ${biometricsData.weight.current}` : undefined,
       detail: biometricsData.weight.change,
@@ -138,7 +138,7 @@ export default function WhatIfResultScreen() {
     biometricsEntries.push({
       key: 'hobby',
       label: 'Hobby',
-      icon: <Coffee size={18} color="#8B5CF6" />,
+      icon: <Coffee size={18} color="#1E40AF" />,
       primary: capitalize(biometricsData.hobby.alternate || biometricsData.hobby.current || '—'),
       secondary: biometricsData.hobby.current ? `Current: ${capitalize(biometricsData.hobby.current)}` : undefined,
     });
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
   alignmentPercent: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#B795FF',
+    color: '#4169E1',
     marginBottom: 6,
   },
   alignmentNote: {
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    shadowColor: '#6E3DF0',
+    shadowColor: '#1E3A8A',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 18,
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   biometricDetail: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#B795FF',
+    color: '#4169E1',
   },
   biometricDetailPositive: {
     color: '#10B981',

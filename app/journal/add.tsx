@@ -339,7 +339,7 @@ export default function AddJournalScreen() {
             ]}
           >
             <LinearGradient
-              colors={canProceed ? ['#B795FF', '#8A5CFF', '#6E3DF0'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
+              colors={canProceed ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.floatingButtonGradient}
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
   floatingButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#B795FF',
+    shadowColor: '#4169E1',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,

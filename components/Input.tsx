@@ -32,24 +32,27 @@ export function Input({
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <TextInput
-        style={[
-          styles.input,
-          style,
-          isFocused && styles.input_focused,
-          error && styles.input_error,
-          { color: '#FFFFFF' }, // Ensure text is always white
-        ]}
-        placeholderTextColor={props.placeholderTextColor || "rgba(150, 150, 150, 0.6)"}
-        returnKeyType={finalReturnKeyType}
-        blurOnSubmit={finalBlurOnSubmit}
-        multiline={multiline}
-        enablesReturnKeyAutomatically={true}
-        onSubmitEditing={handleSubmitEditing}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        {...props}
-      />
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={[
+            styles.input,
+            style,
+            isFocused && styles.input_focused,
+            error && styles.input_error,
+            { color: '#FFFFFF' }, // Ensure text is always white
+          ]}
+          placeholderTextColor={props.placeholderTextColor || "rgba(150, 150, 150, 0.6)"}
+          returnKeyType={finalReturnKeyType}
+          blurOnSubmit={finalBlurOnSubmit}
+          multiline={multiline}
+          enablesReturnKeyAutomatically={true}
+          onSubmitEditing={handleSubmitEditing}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          {...props}
+        />
+        <View style={[styles.underline, isFocused && styles.underlineFocused]} />
+      </View>
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
@@ -60,10 +63,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 10,
+  },
+  inputWrapper: {
+    position: 'relative',
   },
   input: {
     backgroundColor: 'transparent',
@@ -71,14 +77,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 0,
     paddingVertical: 0,
-    fontSize: 16,
+    fontSize: 18,
     color: '#FFFFFF',
+    minHeight: 24,
   },
   input_focused: {
     // No border on focus
   },
   input_error: {
     // Error state can be handled differently if needed
+  },
+  underline: {
+    height: 1,
+    backgroundColor: 'rgba(65, 105, 225, 0.3)',
+    marginTop: 4,
+  },
+  underlineFocused: {
+    backgroundColor: 'rgba(65, 105, 225, 0.6)',
+    height: 1.5,
   },
   error: {
     fontSize: 12,

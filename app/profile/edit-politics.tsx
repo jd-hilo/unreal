@@ -83,7 +83,7 @@ export default function EditPoliticsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.iconContainer}>
-          <Users size={48} color="#8B5CF6" strokeWidth={1.5} />
+          <Users size={48} color="#1E40AF" strokeWidth={1.5} />
         </View>
 
         <Text style={styles.description}>

@@ -84,7 +84,7 @@ export default function EditUniversityScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.iconContainer}>
-          <GraduationCap size={48} color="#B795FF" strokeWidth={1.5} />
+          <GraduationCap size={48} color="#4169E1" strokeWidth={1.5} />
         </View>
 
         <Text style={styles.description}>

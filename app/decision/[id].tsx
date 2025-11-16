@@ -193,7 +193,7 @@ export default function DecisionResultScreen() {
           <Text style={styles.title}>Decision Result</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#B795FF" />
+          <ActivityIndicator size="large" color="#4169E1" />
           <Text style={styles.loadingText}>
             {predicting ? 'Generating prediction...' : 'Loading...'}
           </Text>
@@ -232,7 +232,7 @@ export default function DecisionResultScreen() {
         {participants.length > 0 && (
           <View style={styles.participantsSection}>
             <View style={styles.participantsHeader}>
-              <Users size={16} color="#B795FF" />
+              <Users size={16} color="#4169E1" />
               <Text style={styles.participantsTitle}>
                 Consulted with {participants.length} other {participants.length === 1 ? 'twin' : 'twins'}
               </Text>
@@ -289,7 +289,7 @@ export default function DecisionResultScreen() {
                       <View style={styles.probContainer}>
                         <View style={styles.probBarBackground}>
                           <LinearGradient
-                            colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+                            colors={['#4169E1', '#1E40AF', '#1E3A8A']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
                           style={[
@@ -323,11 +323,11 @@ export default function DecisionResultScreen() {
             {decision.prediction && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Sparkles size={20} color="#B795FF" />
+                  <Sparkles size={20} color="#4169E1" />
                   <Text style={styles.sectionTitle}>If things were different…</Text>
                 </View>
                 {loadingSuggestions ? (
-                  <ActivityIndicator size="small" color="#B795FF" style={styles.sectionLoader} />
+                  <ActivityIndicator size="small" color="#4169E1" style={styles.sectionLoader} />
                 ) : suggestions?.suggestions ? (
                   <View style={styles.suggestionsContainer}>
                     {suggestions.suggestions.map((suggestion: any, index: number) => (
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   predictionCard: {
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(30, 64, 175, 0.3)',
     marginBottom: 32,
   },
   predictionLabel: {
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: 'rgba(59, 37, 109, 0.5)',
+    borderColor: 'rgba(30, 64, 175, 0.5)',
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
     overflow: 'hidden',
   },
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
   groupCard: {
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(30, 64, 175, 0.3)',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
   },
   consensusChip: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(59, 37, 109, 0.4)',
+    backgroundColor: 'rgba(30, 64, 175, 0.4)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -643,11 +643,11 @@ const styles = StyleSheet.create({
   suggestionCard: {
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(30, 64, 175, 0.3)',
     padding: 16,
     borderRadius: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#B795FF',
+    borderLeftColor: '#4169E1',
   },
   suggestionLabel: {
     fontSize: 16,
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(30, 64, 175, 0.3)',
     borderRadius: 12,
     padding: 16,
   },
@@ -717,16 +717,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   participantChip: {
-    backgroundColor: 'rgba(59, 37, 109, 0.4)',
+    backgroundColor: 'rgba(30, 64, 175, 0.4)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
+    borderColor: 'rgba(65, 105, 225, 0.3)',
   },
   participantName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#B795FF',
+    color: '#4169E1',
   },
 });

@@ -135,7 +135,7 @@ export default function SimulationScreen() {
             {/* Animated icon */}
             <View style={styles.loadingIconContainer}>
               <View style={styles.loadingIconGlow} />
-              <Icon size={48} color="#B795FF" />
+              <Icon size={48} color="#4169E1" />
             </View>
             
             {/* Main loading message */}
@@ -198,9 +198,9 @@ export default function SimulationScreen() {
     : JSON.parse(decision.options || '[]');
 
   const timelineData = timeline ? [
-    { period: '1 Year', events: timeline.one_year, color: '#C4B5FD' },
+    { period: '1 Year', events: timeline.one_year, color: '#4169E1' },
     { period: '3 Years', events: timeline.three_year, color: '#A78BFA' },
-    { period: '5 Years', events: timeline.five_year, color: '#8B5CF6' },
+    { period: '5 Years', events: timeline.five_year, color: '#1E40AF' },
     { period: '10 Years', events: timeline.ten_year, color: '#6D28D9' },
   ] : [];
 
@@ -251,7 +251,7 @@ export default function SimulationScreen() {
         {/* Loading State for Regeneration */}
         {generating && (
           <View style={styles.regeneratingContainer}>
-            <ActivityIndicator size="small" color="#B795FF" />
+            <ActivityIndicator size="small" color="#4169E1" />
             <Text style={styles.regeneratingText}>Generating timeline for "{selectedOption}"...</Text>
           </View>
         )}
@@ -277,7 +277,7 @@ export default function SimulationScreen() {
                           {event.people.map((person, pIndex) => (
                             <LinearGradient
                               key={pIndex}
-                              colors={['#B795FF', '#8A5CFF', '#6E3DF0']}
+                              colors={['#4169E1', '#1E40AF', '#1E3A8A']}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 0 }}
                               style={styles.personTag}
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#B795FF',
+    backgroundColor: '#4169E1',
     opacity: 0.2,
   },
   loadingMainText: {
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#B795FF',
+    color: '#4169E1',
     marginBottom: 8,
   },
   statLabel: {
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(183, 149, 255, 0.3)',
   },
   progressDotActive: {
-    backgroundColor: '#B795FF',
+    backgroundColor: '#4169E1',
     width: 24,
   },
   animatedBarsContainer: {
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   },
   animatedBar: {
     flex: 1,
-    backgroundColor: '#B795FF',
+    backgroundColor: '#4169E1',
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
   },
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
   },
   optionButtonSelected: {
-    borderColor: '#B795FF',
+    borderColor: '#4169E1',
     backgroundColor: 'rgba(59, 37, 109, 0.3)',
   },
   optionButtonDisabled: {

@@ -288,7 +288,7 @@ export default function HomeScreen() {
                 style={styles.progressBarContainer}
               >
                 <LinearGradient
-                  colors={['rgba(40, 35, 60, 1)', 'rgba(50, 45, 75, 1)']}
+                  colors={['rgba(135, 206, 235, 0.2)', 'rgba(30, 58, 138, 0.4)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.progressBarGradient}
@@ -304,7 +304,7 @@ export default function HomeScreen() {
                   </View>
                   <View style={styles.thinProgressBar}>
                     <LinearGradient
-                      colors={['#B795FF', '#8B5CF6', '#6E3DF0']}
+                      colors={['#87CEEB', '#4169E1', '#1E3A8A']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={[styles.thinProgressFill, { width: `${profileProgress}%` }]}
@@ -324,17 +324,17 @@ export default function HomeScreen() {
                 activeOpacity={0.85}
               >
                 <View style={styles.cardWrapperPrimary}>
-                  {/* Gradient border - reversed from What If (dark purple top-left to neon purple bottom-right) */}
+                  {/* Gradient border - dark blue to dark blue-black */}
                   <LinearGradient
-                    colors={['#1A0F2E', '#4A2870', '#3B256D']}
-                    start={{ x: 1, y: 1 }}
-                    end={{ x: 0, y: 0 }}
+                    colors={['#1E40AF', '#0D0D2E']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
                     style={styles.cardBorder}
                   >
                     <LinearGradient
-                      colors={['rgba(20, 10, 35, 0.95)', '#312550']}
-                      start={{ x: 1, y: 1 }}
-                      end={{ x: 0, y: 0 }}
+                      colors={['rgba(30, 64, 175, 0.2)', 'rgba(13, 13, 46, 0.4)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
                       style={styles.actionCard}
                     >
                       <View style={styles.cardContentRow}>
@@ -351,8 +351,8 @@ export default function HomeScreen() {
                         <View style={styles.cardTextContainer}>
                           <Text style={[styles.actionTitlePrimary, styles.actionTitlePrimaryTight]}>What Should{"\n"}I Choose?</Text>
                           <Text style={styles.actionSubtitlePrimary}>
-                            Simulate outcomes,
-                            {"\n"}compare options.
+                            Compare options
+                            {"\n"}simulate outcomes
                           </Text>
                         </View>
                       </View>
@@ -370,17 +370,17 @@ export default function HomeScreen() {
                 activeOpacity={0.85}
               >
                 <View style={styles.cardWrapperSecondary}>
-                  {/* Gradient border - dark purple top-left to neon purple bottom-right */}
+                  {/* Gradient border - dark blue to dark blue-black (rotated) */}
                   <LinearGradient
-                    colors={['#1A0F2E', '#4A2870', '#3B256D']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                    colors={['#1E40AF', '#0D0D2E']}
+                    start={{ x: 1, y: 1 }}
+                    end={{ x: 0, y: 0 }}
                     style={styles.cardBorder}
                   >
                     <LinearGradient
-                      colors={['rgba(20, 10, 35, 0.95)', '#312550']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
+                      colors={['rgba(30, 64, 175, 0.2)', 'rgba(13, 13, 46, 0.4)']}
+                      start={{ x: 1, y: 1 }}
+                      end={{ x: 0, y: 0 }}
                       style={styles.actionCard}
                     >
                       <View style={styles.cardContentRow}>
@@ -436,9 +436,9 @@ export default function HomeScreen() {
                       {!echo.isPlaceholder && (
                         <View style={styles.echoTypeBadge}>
                           {echo.type === 'whatif' ? (
-                            <Sparkles size={12} color="#B795FF" />
+                            <Sparkles size={12} color="#4169E1" />
                           ) : (
-                            <Compass size={12} color="#B795FF" />
+                            <Compass size={12} color="#4169E1" />
                           )}
                         </View>
                       )}
@@ -622,12 +622,17 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-30deg' }],
   },
   compassImage: {
-    width: 80,
-    height: 80,
+    width: 64,
+    height: 64,
+    shadowColor: '#4169E1',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 20,
   },
   starImage: {
-    width: 80,
-    height: 80,
+    width: 64,
+    height: 64,
   },
   iconGlow: {
     position: 'absolute',
@@ -750,11 +755,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(183, 149, 255, 0.15)',
+    backgroundColor: 'rgba(65, 105, 225, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
+    borderColor: 'rgba(65, 105, 225, 0.3)',
   },
   echoTitle: {
     fontSize: 16,
@@ -780,7 +785,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
+    borderColor: 'rgba(65, 105, 225, 0.3)',
   },
   progressBarGradient: {
     padding: 16,
@@ -804,7 +809,7 @@ const styles = StyleSheet.create({
   progressPercentage: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#B795FF',
+    color: '#4169E1',
   },
   thinProgressBar: {
     height: 6,

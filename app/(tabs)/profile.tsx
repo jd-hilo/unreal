@@ -7,7 +7,7 @@ import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { CheckCircle2, Circle as CircleIcon, Edit3, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings } from 'lucide-react-native';
+import { CheckCircle2, Circle as CircleIcon, Edit3, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut } from 'lucide-react-native';
 import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -272,9 +272,9 @@ export default function ProfileScreen() {
                 <Svg width={140} height={140} style={styles.progressRing}>
                   <Defs>
                     <SvgLinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <Stop offset="0%" stopColor="#B795FF" />
-                      <Stop offset="50%" stopColor="#8B5CF6" />
-                      <Stop offset="100%" stopColor="#6E3DF0" />
+                      <Stop offset="0%" stopColor="#4169E1" />
+                      <Stop offset="50%" stopColor="#1E40AF" />
+                      <Stop offset="100%" stopColor="#1E3A8A" />
                     </SvgLinearGradient>
                   </Defs>
                   {/* Background circle */}
@@ -339,7 +339,7 @@ export default function ProfileScreen() {
                 {/* Percentage Badge */}
                 <View style={styles.percentageBadge}>
                   <LinearGradient
-                    colors={['#B795FF', '#8B5CF6', '#6E3DF0']}
+                    colors={['#4169E1', '#1E40AF', '#1E3A8A']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.percentageBadgeGradient}
@@ -358,14 +358,14 @@ export default function ProfileScreen() {
                       style={styles.copyButton}
                       activeOpacity={0.7}
                     >
-                      <Copy size={20} color="#B795FF" />
+                      <Copy size={20} color="#4169E1" />
                     </TouchableOpacity>
                     <TouchableOpacity 
                       onPress={() => setInfoModalVisible(true)}
                       style={styles.infoButton}
                       activeOpacity={0.7}
                     >
-                      <Info size={20} color="#B795FF" />
+                      <Info size={20} color="#4169E1" />
                     </TouchableOpacity>
                   </>
                 )}
@@ -421,7 +421,7 @@ export default function ProfileScreen() {
                 <View style={styles.journalCardCompleted}>
                   <View style={styles.journalRow}>
                     <View style={styles.journalIconContainer}>
-                      <CheckCircle2 size={24} color="#B795FF" strokeWidth={2.5} />
+                      <CheckCircle2 size={24} color="#4169E1" strokeWidth={2.5} />
                     </View>
                     <View style={styles.journalContent}>
                       <Text style={styles.journalTitle}>Daily Journal</Text>
@@ -434,14 +434,14 @@ export default function ProfileScreen() {
                 </View>
               ) : (
                 <LinearGradient
-                  colors={['rgba(20, 10, 35, 0.95)', '#312550']}
+                  colors={['rgba(30, 64, 175, 0.2)', 'rgba(13, 13, 46, 0.4)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.journalCardInner}
                 >
                   <View style={styles.journalRow}>
                     <View style={styles.journalIconContainer}>
-                      <BookOpen size={24} color="#B795FF" strokeWidth={2} />
+                      <BookOpen size={24} color="#4169E1" strokeWidth={2} />
                     </View>
                     <View style={styles.journalContent}>
                       <Text style={styles.journalTitle}>Daily Journal</Text>
@@ -466,7 +466,7 @@ export default function ProfileScreen() {
                 >
                   <View style={styles.cardIconContainer}>
                     {card.completed ? (
-                      <CheckCircle2 size={20} color="#B795FF" strokeWidth={2.5} />
+                      <CheckCircle2 size={20} color="#4169E1" strokeWidth={2.5} />
                     ) : (
                       <CircleIcon size={20} color="rgba(150, 150, 150, 0.6)" strokeWidth={2} />
                     )}
@@ -486,31 +486,35 @@ export default function ProfileScreen() {
 
             <TouchableOpacity
               onPress={handleSendFeedback}
+              activeOpacity={0.9}
               style={styles.feedbackButton}
-              activeOpacity={0.85}
             >
               <LinearGradient
-                colors={['rgba(20, 10, 35, 0.95)', '#312550']}
+                colors={['#4169E1', '#1E40AF', '#1E3A8A']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.feedbackButtonInner}
+                end={{ x: 1, y: 0 }}
+                style={styles.feedbackButtonGradient}
               >
+                <Mail size={20} color="#FFFFFF" />
                 <Text style={styles.feedbackText}>Send Feedback</Text>
+                <ChevronRight size={20} color="#FFFFFF" />
               </LinearGradient>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleSignOut}
+              activeOpacity={0.9}
               style={styles.signOutButton}
-              activeOpacity={0.85}
             >
               <LinearGradient
-                colors={['rgba(20, 10, 35, 0.95)', '#312550']}
+                colors={['#4169E1', '#1E40AF', '#1E3A8A']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.signOutButtonInner}
+                end={{ x: 1, y: 0 }}
+                style={styles.signOutButtonGradient}
               >
+                <LogOut size={20} color="#FFFFFF" />
                 <Text style={styles.signOutText}>Sign Out</Text>
+                <ChevronRight size={20} color="#FFFFFF" />
               </LinearGradient>
             </TouchableOpacity>
 
@@ -556,7 +560,7 @@ export default function ProfileScreen() {
 
                 <View style={styles.infoModalHeader}>
                   <View style={styles.infoIconContainer}>
-                    <Info size={32} color="#B795FF" strokeWidth={2.5} />
+                    <Info size={32} color="#4169E1" strokeWidth={2.5} />
                   </View>
                 </View>
 
@@ -683,7 +687,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#0C0C10',
     zIndex: 3,
-    shadowColor: '#B795FF',
+    shadowColor: '#4169E1',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
     shadowRadius: 4,
@@ -804,7 +808,7 @@ const styles = StyleSheet.create({
   codeDisplayLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#B795FF',
+    color: '#4169E1',
     letterSpacing: 2,
     marginBottom: 8,
     fontFamily: 'Courier New',
@@ -837,7 +841,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#B795FF',
+    backgroundColor: '#4169E1',
     marginTop: 7,
   },
   infoText: {
@@ -847,7 +851,7 @@ const styles = StyleSheet.create({
     color: 'rgba(220, 220, 220, 0.9)',
   },
   highlightText: {
-    color: '#B795FF',
+    color: '#4169E1',
     fontWeight: '600',
     fontFamily: 'Courier New',
   },
@@ -911,14 +915,14 @@ const styles = StyleSheet.create({
   journalCardInner: {
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderColor: 'rgba(65, 105, 225, 0.3)',
     borderRadius: 24,
   },
   journalCardCompleted: {
     padding: 20,
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(65, 105, 225, 0.3)',
     borderRadius: 24,
   },
   journalRow: {
@@ -993,38 +997,50 @@ const styles = StyleSheet.create({
   },
   feedbackButton: {
     marginTop: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowColor: '#4169E1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
   },
-  feedbackButtonInner: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+  feedbackButtonGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
-    borderRadius: 16,
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+    borderRadius: 24,
   },
   feedbackText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   signOutButton: {
     marginTop: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowColor: '#4169E1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
   },
-  signOutButtonInner: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+  signOutButtonGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
-    borderRadius: 16,
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+    borderRadius: 24,
   },
   signOutText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   deleteButton: {

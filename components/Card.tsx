@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(59, 37, 109, 0.3)',
   },
   card_elevated: {
-    shadowColor: '#6E3DF0',
+    shadowColor: '#1E3A8A',
     shadowOffset: {
       width: 0,
       height: 4,

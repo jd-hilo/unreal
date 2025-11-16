@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   numberText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#B795FF',
+    color: '#4169E1',
   },
   textContainer: {
     flex: 1,

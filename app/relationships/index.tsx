@@ -78,7 +78,7 @@ export default function RelationshipsScreen() {
         return <UserCircle size={20} color="#3B82F6" />;
       case 'coworker':
       case 'boss':
-        return <Briefcase size={20} color="#8B5CF6" />;
+        return <Briefcase size={20} color="#1E40AF" />;
       case 'mentor':
         return <GraduationCap size={20} color="#F59E0B" />;
       default:

@@ -31,10 +31,10 @@ export function OnboardingScreen({
   nextLabel = 'Continue',
   loading = false,
   canContinue = true,
-  backgroundGradient = ['#0C0C10', '#0F0F11', '#1A0F2E', '#2D1B4E'],
-  buttonGradient = ['#B795FF', '#8A5CFF', '#6E3DF0'],
-  progressBarGradient = ['#B795FF', '#8A5CFF', '#6E3DF0'],
-  buttonShadowColor = '#B795FF',
+  backgroundGradient = ['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E'],
+  buttonGradient = ['#4169E1', '#1E40AF', '#1E3A8A'],
+  progressBarGradient = ['#4169E1', '#1E40AF', '#1E3A8A'],
+  buttonShadowColor = '#4169E1',
 }: OnboardingScreenProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -57,68 +57,68 @@ export function OnboardingScreen({
       end={{ x: 0, y: 1 }}
       style={styles.gradientBackground}
     >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
-        {/* Progress Header */}
-        <View style={styles.header}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
+      {/* Progress Header */}
+      <View style={styles.header}>
           <ProgressBar progress={progress} showLabel={false} gradientColors={progressBarGradient} />
+      </View>
+
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Title Section */}
+        <View style={styles.titleSection}>
+        <Text style={styles.title}>{title}</Text>
+          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         </View>
 
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Title Section */}
-          <View style={styles.titleSection}>
-          <Text style={styles.title}>{title}</Text>
-            {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
-          </View>
+        {/* Content */}
+        <View style={styles.body}>{children}</View>
+      </ScrollView>
 
-          {/* Content */}
-          <View style={styles.body}>{children}</View>
-        </ScrollView>
-
-        {/* Floating Action Button */}
-        <View style={styles.floatingButtonContainer}>
-          {onSkip && (
-            <TouchableOpacity
-              onPress={onSkip}
-              style={styles.skipButton}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.skipText}>Skip for now</Text>
-            </TouchableOpacity>
-          )}
-          
+      {/* Floating Action Button */}
+      <View style={styles.floatingButtonContainer}>
+        {onSkip && (
           <TouchableOpacity
-            onPress={handleNext}
-            disabled={!canContinue || loading || isProcessing}
-            activeOpacity={0.9}
-            style={[
-              styles.floatingButton,
-              { shadowColor: canContinue && !loading && !isProcessing ? buttonShadowColor : 'rgba(100, 100, 100, 0.3)' },
-              (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled
-            ]}
+            onPress={onSkip}
+            style={styles.skipButton}
+            activeOpacity={0.7}
           >
-            <LinearGradient
-              colors={canContinue && !loading && !isProcessing ? buttonGradient : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.floatingButtonGradient}
-            >
-              <Text style={styles.floatingButtonText}>
-                {loading || isProcessing ? 'Processing...' : nextLabel}
-              </Text>
-              {!loading && !isProcessing && <ChevronRight size={20} color="#FFFFFF" />}
-            </LinearGradient>
+            <Text style={styles.skipText}>Skip for now</Text>
           </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+        )}
+        
+        <TouchableOpacity
+          onPress={handleNext}
+          disabled={!canContinue || loading || isProcessing}
+          activeOpacity={0.9}
+          style={[
+            styles.floatingButton,
+              { shadowColor: canContinue && !loading && !isProcessing ? buttonShadowColor : 'rgba(100, 100, 100, 0.3)' },
+            (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled
+          ]}
+        >
+          <LinearGradient
+              colors={canContinue && !loading && !isProcessing ? buttonGradient : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.floatingButtonGradient}
+          >
+            <Text style={styles.floatingButtonText}>
+              {loading || isProcessing ? 'Processing...' : nextLabel}
+            </Text>
+            {!loading && !isProcessing && <ChevronRight size={20} color="#FFFFFF" />}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
     </LinearGradient>
   );
 }

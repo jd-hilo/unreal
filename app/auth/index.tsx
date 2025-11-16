@@ -8,13 +8,15 @@ import {
   TouchableOpacity,
   Linking,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
+import { ChevronRight } from 'lucide-react-native';
 export default function AuthScreen() {
   const router = useRouter();
   const { user, initialized, signIn, signUp ,appleSignIn} = useAuth();
@@ -128,22 +130,30 @@ export default function AuthScreen() {
         </Animated.Text>
 
         <View style={styles.form}>
-          <Input
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="your@email.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+          <View style={styles.inputWrapper}>
+            <Input
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="your@email.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              containerStyle={styles.inputContainer}
+              style={styles.inputText}
+            />
+          </View>
 
-          <Input
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            secureTextEntry
-          />
+          <View style={styles.inputWrapper}>
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              secureTextEntry
+              containerStyle={styles.inputContainer}
+              style={styles.inputText}
+            />
+          </View>
 
           {isSignUp && (
             <Text style={styles.termsText}>
@@ -167,20 +177,48 @@ export default function AuthScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Button
-          title={isSignUp ? 'Sign Up' : 'Sign In'}
+        <TouchableOpacity
           onPress={handleAuth}
-          loading={loading}
-          size="large"
-          style={styles.button}
-        />
-        <Button
-          title={'Continue with Apple'}
+          disabled={loading || !email || !password}
+          activeOpacity={0.9}
+          style={[
+            styles.button,
+            { shadowColor: (!loading && email && password) ? '#4169E1' : 'rgba(100, 100, 100, 0.3)' },
+            (loading || !email || !password) && styles.buttonDisabled
+          ]}
+        >
+          <LinearGradient
+            colors={(!loading && email && password) ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.buttonGradient}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>
+                  {isSignUp ? 'Sign Up' : 'Sign In'}
+                </Text>
+                <ChevronRight size={20} color="#FFFFFF" />
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
           onPress={appleSignIn}
-          loading={loading}
-          size="large"
-          style={styles.button}
-        />
+          disabled={loading}
+          activeOpacity={0.9}
+          style={[styles.appleButton, loading && styles.buttonDisabled]}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.appleButtonText}>Continue with Apple</Text>
+          )}
+        </TouchableOpacity>
+        
         <TouchableOpacity
           onPress={() => {
             setIsSignUp(!isSignUp);
@@ -227,11 +265,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: 'rgba(200, 200, 200, 0.85)',
     textAlign: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
     fontWeight: '500',
   },
   form: {
-    gap: 8,
+    gap: 4,
+  },
+  inputWrapper: {
+    paddingVertical: 4,
+  },
+  inputContainer: {
+    paddingVertical: 16,
+  },
+  inputText: {
+    fontSize: 18,
+    paddingVertical: 14,
   },
   error: {
     color: '#EF4444',
@@ -239,7 +287,47 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   button: {
-    marginTop: 8,
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
+    marginBottom: 12,
+  },
+  buttonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  buttonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+    borderRadius: 24,
+  },
+  buttonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  appleButton: {
+    backgroundColor: '#000000',
+    borderRadius: 24,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  appleButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   toggleButton: {
     marginTop: 5,
@@ -258,7 +346,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   linkText: {
-    color: '#B795FF',
+    color: '#4169E1',
     textDecorationLine: 'underline',
     fontWeight: '600',
   },
