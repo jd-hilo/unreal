@@ -9,6 +9,7 @@ import {
   Linking,
   Image,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
@@ -17,6 +18,7 @@ import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { Input } from '@/components/Input';
 import { ChevronRight } from 'lucide-react-native';
+import Svg, { Path } from 'react-native-svg';
 export default function AuthScreen() {
   const router = useRouter();
   const { user, initialized, signIn, signUp ,appleSignIn} = useAuth();
@@ -26,6 +28,7 @@ export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
   // Animation values
   const titleOpacity = useRef(new Animated.Value(0)).current;
@@ -49,14 +52,14 @@ export default function AuthScreen() {
 
   // If user is already signed in, redirect immediately (don't wait for onboarding check)
   useEffect(() => {
-    if (!initialized || loading) return;
+    if (!initialized || loading || isSigningUp) return;
 
     if (user) {
       // User is signed in, let index.tsx handle routing
       // Just redirect to index which will route properly
       router.replace('/');
     }
-  }, [user, initialized, loading, router]);
+  }, [user, initialized, loading, router, isSigningUp]);
  
   async function handleAuth() {
     if (!email || !password) {
@@ -69,10 +72,11 @@ export default function AuthScreen() {
 
     try {
       if (isSignUp) {
+        setIsSigningUp(true);
         await signUp(email, password);
 
         // Wait a moment for state to update
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 300));
 
         const currentUser = useAuth.getState().user;
 
@@ -80,10 +84,15 @@ export default function AuthScreen() {
           // Clear form
           setEmail('');
           setPassword('');
+          setIsSigningUp(false);
 
-          // For new sign ups, go to onboarding method choice screen
+          // For new sign ups, go to choose-method screen (AI call or manual)
           router.replace('/onboarding/choose-method');
           return;
+        } else {
+          setIsSigningUp(false);
+          setLoading(false);
+          setError('Failed to create account. Please try again.');
         }
       } else {
         await signIn(email, password);
@@ -117,7 +126,12 @@ export default function AuthScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.content}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <Animated.View style={{ opacity: titleOpacity }}>
           <Image
             source={require('@/assets/images/unreallogo.png')}
@@ -174,7 +188,7 @@ export default function AuthScreen() {
 
           {error && <Text style={styles.error}>{error}</Text>}
         </View>
-      </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
@@ -209,13 +223,21 @@ export default function AuthScreen() {
         <TouchableOpacity
           onPress={appleSignIn}
           disabled={loading}
-          activeOpacity={0.9}
+          activeOpacity={0.8}
           style={[styles.appleButton, loading && styles.buttonDisabled]}
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.appleButtonText}>Continue with Apple</Text>
+            <View style={styles.appleButtonContent}>
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"
+                  fill="#FFFFFF"
+                />
+              </Svg>
+              <Text style={styles.appleButtonText}>Continue with Apple</Text>
+            </View>
           )}
         </TouchableOpacity>
         
@@ -248,9 +270,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 12,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
     padding: 24,
+    paddingTop: 14,
+    paddingBottom: 200,
+    minHeight: '100%',
     justifyContent: 'center',
   },
   title: {
@@ -320,19 +347,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 0,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#FFFFFF',
+  },
+  appleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   appleButtonText: {
     fontSize: 17,
     fontWeight: '600',
     color: '#FFFFFF',
+    fontFamily: Platform.select({
+      ios: '-apple-system',
+      android: 'Roboto',
+      default: 'System',
+    }),
   },
   toggleButton: {
-    marginTop: 5,
+    marginTop: 8,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 4,
+    marginBottom: 12,
   },
   toggleText: {
     fontSize: 14,
@@ -356,6 +395,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 24,
+    paddingBottom: 14,
     backgroundColor: '#0C0C10',
     gap: 8,
   },

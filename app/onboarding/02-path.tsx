@@ -31,12 +31,16 @@ export default function OnboardingStep2() {
   async function handleNext() {
     if (user && text.trim()) {
       try {
-        await saveOnboardingResponse(user.id, '02-path', text.trim());
+        console.log('💾 Saving onboarding response for 02-path:', text.trim());
+        const result = await saveOnboardingResponse(user.id, '02-path', text.trim());
+        console.log('✅ Successfully saved onboarding response:', result);
       } catch (error) {
-        console.error('Failed to save onboarding response:', error);
+        console.error('❌ Failed to save onboarding response:', error);
+        alert('Failed to save your response. Please try again.');
+        return; // Don't navigate if save failed
       }
     }
-    router.push('/onboarding/03-values');
+    router.push('/relationships/add?onboarding=true');
   }
 
   return (
@@ -64,7 +68,6 @@ export default function OnboardingStep2() {
           blurOnSubmit={true}
           placeholderTextColor="rgba(255, 255, 255, 0.5)"
         />
-        <View style={styles.underline} />
       </View>
       
         <Text style={styles.helperText}>
@@ -91,12 +94,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 0,
     minHeight: 120,
-  },
-  underline: {
-    height: 2,
-    backgroundColor: 'rgba(74, 144, 226, 0.5)',
-    marginTop: 4,
-    borderRadius: 1,
   },
   helperText: {
     fontSize: 15,

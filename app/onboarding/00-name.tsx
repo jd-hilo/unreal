@@ -83,7 +83,6 @@ export default function OnboardingStep0() {
           containerStyle={styles.inputContainer}
           placeholderTextColor="rgba(255, 255, 255, 0.5)"
         />
-        <View style={styles.underline} />
       </View>
       
         <Text style={styles.helperText}>
@@ -108,12 +107,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     paddingVertical: 12,
     paddingHorizontal: 0,
-  },
-  underline: {
-    height: 2,
-    backgroundColor: 'rgba(74, 144, 226, 0.5)',
-    marginTop: 4,
-    borderRadius: 1,
   },
   helperText: {
     fontSize: 15,

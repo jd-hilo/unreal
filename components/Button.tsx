@@ -100,13 +100,18 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
-    overflow: 'hidden',
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    shadowColor: '#4169E1',
+    elevation: 12,
   },
   gradientButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: 24,
     width: '100%',
   },
   contentRow: {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -34,8 +34,12 @@ export default function WelcomeScreen() {
   // Create shared values for each line's offset and opacity
   const lineOffsets = WELCOME_LINES.map(() => useSharedValue(0));
   const lineOpacities = WELCOME_LINES.map(() => useSharedValue(0));
+  const lastLineOpacity = useSharedValue(1); // For fading out "ready to begin?"
+  const lastLineTranslateY = useSharedValue(0); // For moving "ready to begin?" up
   const buttonOpacity = useSharedValue(0);
   const buttonScale = useSharedValue(0.96);
+  const logoOpacity = useSharedValue(0);
+  const logoScale = useSharedValue(0.9);
 
   const handleLineStart = (lineIndex: number) => {
     // Trigger haptic at start of each line
@@ -74,7 +78,32 @@ export default function WelcomeScreen() {
     // Success haptic after final line
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // Show button after delay
+    // Wait before fading out "ready to begin?" line (give user time to read)
+    setTimeout(() => {
+      const lastLineIndex = WELCOME_LINES.length - 1;
+      lastLineOpacity.value = withTiming(0, {
+        duration: 400,
+        easing: Easing.in(Easing.ease),
+      });
+      lastLineTranslateY.value = withTiming(-30, {
+        duration: 400,
+        easing: Easing.in(Easing.ease),
+      });
+    }, 1500); // Show "ready to begin?" for 1.5 seconds before fading
+
+    // Fade in logo in the middle
+    setTimeout(() => {
+      logoOpacity.value = withTiming(1, {
+        duration: 600,
+        easing: Easing.out(Easing.ease),
+      });
+      logoScale.value = withSpring(1.0, {
+        damping: 15,
+        stiffness: 150,
+      });
+    }, 1800); // Start logo fade-in after "ready to begin?" starts fading
+
+    // Show button at bottom after delay
     setTimeout(() => {
       setButtonVisible(true);
       buttonOpacity.value = withTiming(1, {
@@ -85,7 +114,7 @@ export default function WelcomeScreen() {
         damping: 15,
         stiffness: 150,
       });
-    }, 700); // 600-800ms delay
+    }, 2300); // Show button after logo has started appearing
   };
 
   const { displayedLines, isComplete } = useTypewriter(WELCOME_LINES, {
@@ -98,8 +127,8 @@ export default function WelcomeScreen() {
   });
 
   const handleGetStarted = async () => {
-    // Selection haptic on button press
-    Haptics.selectionAsync();
+    // Impact haptic on button press
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     // Mark welcome as seen
     await setHasSeenWelcome();
@@ -111,12 +140,25 @@ export default function WelcomeScreen() {
   // Create animated styles for each line (must be at top level)
   const lineAnimatedStyles = WELCOME_LINES.map((_, index) =>
     useAnimatedStyle(() => {
+      const isLastLine = index === WELCOME_LINES.length - 1;
       return {
-        transform: [{ translateY: lineOffsets[index].value }],
-        opacity: lineOpacities[index].value,
+        transform: [
+          { translateY: lineOffsets[index].value + (isLastLine ? lastLineTranslateY.value : 0) }
+        ],
+        opacity: isLastLine 
+          ? Math.min(lineOpacities[index].value, lastLineOpacity.value)
+          : lineOpacities[index].value,
       };
     })
   );
+
+  // Logo animated style
+  const logoAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: logoOpacity.value,
+      transform: [{ scale: logoScale.value }, { translateY: -30 }],
+    };
+  });
 
   // Button animated style
   const buttonAnimatedStyle = useAnimatedStyle(() => {
@@ -169,27 +211,37 @@ export default function WelcomeScreen() {
             );
           })}
         </View>
-
-        {buttonVisible && (
-          <Animated.View style={[styles.buttonContainer, buttonAnimatedStyle]}>
-            <TouchableOpacity
-              onPress={handleGetStarted}
-              activeOpacity={0.9}
-              style={styles.button}
-            >
-              <LinearGradient
-                colors={['#4169E1', '#1E40AF', '#1E3A8A']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.buttonGradient}
-              >
-                <Text style={styles.buttonText}>Get Started</Text>
-                <ChevronRight size={20} color="#FFFFFF" />
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
       </View>
+
+      {/* Logo in the middle */}
+      <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
+        <Image
+          source={require('@/assets/images/unreallogo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </Animated.View>
+
+      {/* Button at the bottom */}
+      {buttonVisible && (
+        <Animated.View style={[styles.buttonContainer, buttonAnimatedStyle]}>
+          <TouchableOpacity
+            onPress={handleGetStarted}
+            activeOpacity={0.9}
+            style={styles.button}
+          >
+            <LinearGradient
+              colors={['#4169E1', '#1E40AF', '#1E3A8A']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.buttonText}>Get Started</Text>
+              <ChevronRight size={20} color="#FFFFFF" />
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
     </LinearGradient>
   );
 }
@@ -215,8 +267,26 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     textAlign: 'left',
   },
+  logoContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 200,
+    height: 200,
+  },
   buttonContainer: {
-    marginTop: 48,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
     width: '100%',
   },
   button: {

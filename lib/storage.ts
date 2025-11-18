@@ -446,33 +446,84 @@ export async function saveOnboardingResponse(
   step: string,
   response: string
 ) {
-  // Get existing profile or create one
-  const profile = await getProfile(userId);
-  const currentCoreJson = (profile?.core_json as CoreJsonData) || {};
-
+  console.log(`💾 [saveOnboardingResponse] Starting save for step: ${step}, userId: ${userId}`);
+  console.log(`💾 [saveOnboardingResponse] Response value:`, response);
+  
+  // Get existing profile to preserve core_json and values_json (EXACT same pattern as updateProfileFields)
+  const existingProfile = await getProfile(userId);
+  console.log(`💾 [saveOnboardingResponse] Existing profile:`, existingProfile ? 'found' : 'not found');
+  console.log(`💾 [saveOnboardingResponse] Existing core_json:`, JSON.stringify(existingProfile?.core_json, null, 2));
+  
+  const currentCoreJson = (existingProfile?.core_json as CoreJsonData) || {};
+  
   // Store onboarding responses in core_json
   const onboardingData = currentCoreJson.onboarding_responses || {};
   onboardingData[step] = response;
+  console.log(`💾 [saveOnboardingResponse] Updated onboarding_data[${step}]:`, onboardingData[step]);
 
   const updatedCoreJson: CoreJsonData = {
     ...currentCoreJson,
     onboarding_responses: onboardingData,
   };
+  console.log(`💾 [saveOnboardingResponse] Updated core_json:`, JSON.stringify(updatedCoreJson, null, 2));
 
-  // Upsert profile with onboarding data
+  // Use updateProfileFields to save - it preserves everything correctly
+  // We'll update core_json by calling updateProfileFields with no fields, then update core_json separately
+  // Actually, let's just use the same upsert pattern but ensure we wait for it
+  const upsertPayload = {
+    user_id: userId,
+    core_json: updatedCoreJson as any,
+    values_json: existingProfile?.values_json || [],
+    first_name: existingProfile?.first_name || null,
+    hometown: existingProfile?.hometown || null,
+    university: existingProfile?.university || null,
+    major: existingProfile?.major || null,
+    career_entrypoint: existingProfile?.career_entrypoint || null,
+    current_location: existingProfile?.current_location || null,
+    net_worth: existingProfile?.net_worth || null,
+    political_views: existingProfile?.political_views || null,
+    family_relationship: existingProfile?.family_relationship || null,
+  };
+  console.log(`💾 [saveOnboardingResponse] Upsert payload:`, JSON.stringify(upsertPayload, null, 2));
+  
   const { data, error } = await supabase
     .from('profiles')
     .upsert(
-      {
-        user_id: userId,
-        core_json: updatedCoreJson as any,
-      } as any,
+      upsertPayload as any,
       { onConflict: 'user_id' }
     )
     .select()
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    console.error('❌ [saveOnboardingResponse] Error in upsert:', error);
+    console.error('❌ [saveOnboardingResponse] Error details:', JSON.stringify(error, null, 2));
+    throw error;
+  }
+  
+  console.log(`✅ [saveOnboardingResponse] Upsert successful, returned data:`, data);
+  
+  // Verify it was saved
+  if (data) {
+    // Wait a tiny bit for the database to be consistent
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const verify = await getProfile(userId);
+    console.log(`🔍 [saveOnboardingResponse] Verification fetch:`, verify ? 'found' : 'not found');
+    console.log(`🔍 [saveOnboardingResponse] Verification core_json:`, JSON.stringify(verify?.core_json, null, 2));
+    
+    const saved = (verify?.core_json as CoreJsonData)?.onboarding_responses?.[step];
+    console.log(`🔍 [saveOnboardingResponse] Saved value for ${step}:`, saved);
+    console.log(`🔍 [saveOnboardingResponse] Expected value:`, response);
+    
+    if (saved !== response) {
+      console.error('❌ [saveOnboardingResponse] VERIFICATION FAILED: Expected', response, 'but got', saved);
+      throw new Error(`Save verification failed: expected "${response}" but got "${saved}"`);
+    }
+    
+    console.log(`✅ [saveOnboardingResponse] Verification passed!`);
+  }
+  
   return data;
 }
 

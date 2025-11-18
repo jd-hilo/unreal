@@ -258,13 +258,6 @@ export default function HomeScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.backgroundGradient}>
-        {/* Mannequin head in background */}
-        <Image 
-          source={require('@/app/man.png')}
-          style={styles.mannequinImage}
-          resizeMode="contain"
-        />
-        
         <StatusBar style="light" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
           <Animated.ScrollView
@@ -533,15 +526,6 @@ const styles = StyleSheet.create({
   backgroundGradient: {
     flex: 1,
     backgroundColor: '#0C0C10',
-  },
-  mannequinImage: {
-    position: 'absolute',
-    right: -50,
-    bottom: 0,
-    width: 300,
-    height: 300,
-    opacity: 0.35,
-    zIndex: 0,
   },
   glowContainer: {
     position: 'absolute',

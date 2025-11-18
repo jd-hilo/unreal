@@ -111,13 +111,13 @@ export default function ProfileScreen() {
 
   const cards: ProfileCard[] = [
     {
-      id: '01-now',
+      id: '02-now',
       title: 'Current Life Situation',
-      subtitle: onboardingResponses['01-now'] 
-        ? onboardingResponses['01-now'].substring(0, 50) + '...'
+      subtitle: onboardingResponses['02-now'] 
+        ? onboardingResponses['02-now'].substring(0, 50) + '...'
         : 'Where are you in life right now?',
       route: '/profile/edit-lifesituation' as any,
-      completed: !!onboardingResponses['01-now'],
+      completed: !!onboardingResponses['02-now'],
     },
     {
       id: '02-path',
@@ -129,13 +129,13 @@ export default function ProfileScreen() {
       completed: !!onboardingResponses['02-path'],
     },
     {
-      id: '03-values',
+      id: '01-values',
       title: 'Core Values',
-      subtitle: onboardingResponses['03-values']
-        ? onboardingResponses['03-values'].substring(0, 50) + '...'
+      subtitle: onboardingResponses['01-values']
+        ? onboardingResponses['01-values'].substring(0, 50) + '...'
         : 'What matters most to you?',
       route: '/profile/edit-values' as any,
-      completed: !!onboardingResponses['03-values'],
+      completed: !!onboardingResponses['01-values'],
     },
     {
       id: '04-style',

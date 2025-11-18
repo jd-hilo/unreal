@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, AppState } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { Phone, PhoneOff, Mic, MicOff, Check } from 'lucide-react-native';
@@ -317,26 +317,48 @@ export default function AIOnboardingCall() {
       if (status === 'granted') {
         console.log('✅ Microphone permission GRANTED!');
         
+        // Ensure app is in foreground before testing recording
+        if (AppState.currentState !== 'active') {
+          console.log('⚠️ App not in foreground, waiting...');
+          // Wait a bit and check again
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
         // Verify with recording test
         try {
-          await Audio.setAudioModeAsync({
-            allowsRecordingIOS: true,
-            playsInSilentModeIOS: true,
-            playThroughEarpieceAndroid: false,
-          });
-          
-          const { recording } = await Audio.Recording.createAsync(
-            Audio.RecordingOptionsPresets.HIGH_QUALITY
-          );
-          
-          console.log('✅ Recording test successful');
-          await recording.stopAndUnloadAsync();
-          
-          setMicPermission('granted');
-          setUserConfirmedMic(true);
+          // Ensure app is active before activating audio session
+          if (AppState.currentState === 'active') {
+            await Audio.setAudioModeAsync({
+              allowsRecordingIOS: true,
+              playsInSilentModeIOS: true,
+              playThroughEarpieceAndroid: false,
+            });
+            
+            const { recording } = await Audio.Recording.createAsync(
+              Audio.RecordingOptionsPresets.HIGH_QUALITY
+            );
+            
+            console.log('✅ Recording test successful');
+            await recording.stopAndUnloadAsync();
+            
+            setMicPermission('granted');
+            setUserConfirmedMic(true);
+          } else {
+            // App is not active, but permission is granted - allow it anyway
+            console.log('⚠️ App not active, but permission granted - allowing');
+            setMicPermission('granted');
+            setUserConfirmedMic(true);
+          }
         } catch (recError: any) {
-          console.error('❌ Recording test failed:', recError.message);
-          setMicPermission('denied');
+          // If error is about background state, still allow permission
+          if (recError.message?.includes('background')) {
+            console.log('⚠️ Recording test failed due to background state, but permission granted');
+            setMicPermission('granted');
+            setUserConfirmedMic(true);
+          } else {
+            console.error('❌ Recording test failed:', recError.message);
+            setMicPermission('denied');
+          }
         }
       } else {
         console.log('❌ Microphone permission DENIED');

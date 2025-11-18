@@ -133,14 +133,14 @@ export default function NewWhatIfScreen() {
           <FloatingLabelInput
             ref={scenarioInputRef}
             label="Your scenario"
-            value={whatIfText}
-            onChangeText={setWhatIfText}
-            multiline
+          value={whatIfText}
+          onChangeText={setWhatIfText}
+          multiline
             placeholder="What if I..."
             returnKeyType="done"
             containerStyle={styles.scenarioInput}
             style={styles.scenarioInputText}
-          />
+            />
         </View>
 
         {/* Example Scenarios */}
