@@ -23,8 +23,12 @@ export default function EditValuesScreen() {
     
     try {
       const profile = await getProfile(user.id);
-      if (profile?.core_json?.onboarding_responses?.['03-values']) {
-        setResponse(profile.core_json.onboarding_responses['03-values']);
+      // Prefer new key '01-values', fallback to legacy '03-values'
+      const existing =
+        profile?.core_json?.onboarding_responses?.['01-values'] ??
+        profile?.core_json?.onboarding_responses?.['03-values'];
+      if (existing) {
+        setResponse(existing);
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -38,7 +42,8 @@ export default function EditValuesScreen() {
 
     setLoading(true);
     try {
-      await saveOnboardingResponse(user.id, '03-values', response.trim());
+      // Save to the new key
+      await saveOnboardingResponse(user.id, '01-values', response.trim());
       router.back();
     } catch (error) {
       console.error('Failed to save:', error);

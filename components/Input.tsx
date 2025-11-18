@@ -89,11 +89,11 @@ const styles = StyleSheet.create({
   },
   underline: {
     height: 1,
-    backgroundColor: 'rgba(65, 105, 225, 0.3)',
+    backgroundColor: 'rgba(135, 206, 250, 0.3)',
     marginTop: 4,
   },
   underlineFocused: {
-    backgroundColor: 'rgba(65, 105, 225, 0.6)',
+    backgroundColor: 'rgba(135, 206, 250, 0.6)',
     height: 1.5,
   },
   error: {

@@ -1,5 +1,6 @@
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { ReactNode } from 'react';
 
 interface ButtonProps {
@@ -52,29 +53,36 @@ export function Button({
 
   if (variant === 'primary') {
     return (
-      <TouchableOpacity
-        style={[
-          styles.button,
-          styles[`button_${size}`],
-          isDisabled && styles.button_disabled,
-          style,
-        ]}
-        onPress={onPress}
-        disabled={isDisabled}
-        activeOpacity={0.7}
-      >
-        <LinearGradient
-          colors={['#4169E1', '#1E40AF', '#1E3A8A']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[
-            styles.gradientButton,
-            styles[`button_${size}`],
-          ]}
-        >
-          {buttonContent}
-        </LinearGradient>
-      </TouchableOpacity>
+      <View style={[
+        styles.buttonWrapper,
+        styles[`button_${size}`],
+        isDisabled && styles.button_disabled,
+        style,
+      ]}>
+        <BlurView intensity={80} tint="dark" style={styles.button}>
+          {/* Classic glass border */}
+          <View style={styles.glassBorder} />
+          {/* Subtle inner highlight */}
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.glassHighlight}
+            pointerEvents="none"
+          />
+          <TouchableOpacity
+            onPress={onPress}
+            disabled={isDisabled}
+            activeOpacity={0.9}
+            style={[
+              styles.buttonInner,
+              styles[`button_${size}`],
+            ]}
+          >
+            {buttonContent}
+          </TouchableOpacity>
+        </BlurView>
+      </View>
     );
   }
 
@@ -97,22 +105,48 @@ export function Button({
 }
 
 const styles = StyleSheet.create({
-  button: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  buttonWrapper: {
     borderRadius: 24,
-    overflow: 'visible',
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    shadowColor: '#4169E1',
-    elevation: 12,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  gradientButton: {
+  button: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  glassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  buttonInner: {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 24,
-    width: '100%',
+    zIndex: 1,
   },
   contentRow: {
     flexDirection: 'row',

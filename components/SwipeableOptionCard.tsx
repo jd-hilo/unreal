@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderColor: 'rgba(150, 150, 150, 0.3)',
   },
   blurCard: {
     backgroundColor: 'rgba(20, 18, 30, 0.3)',
@@ -129,16 +129,16 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(183, 149, 255, 0.25)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.4)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
   numberText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
   },
   textContainer: {
     flex: 1,

@@ -105,13 +105,13 @@ export const FloatingLabelInput = forwardRef<TextInput, FloatingLabelInputProps>
     }),
     color: labelAnimation.interpolate({
       inputRange: [0, 1],
-      outputRange: ['rgba(255, 255, 255, 0.5)', '#4169E1'],
+      outputRange: ['rgba(255, 255, 255, 0.5)', 'rgba(135, 206, 250, 0.9)'],
     }),
   };
 
   const borderColor = borderAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: ['rgba(65, 105, 225, 0.3)', '#4169E1'],
+    outputRange: ['rgba(135, 206, 250, 0.3)', 'rgba(135, 206, 250, 0.9)'],
   });
 
   const glowOpacity = borderAnimation.interpolate({
@@ -165,7 +165,7 @@ export const FloatingLabelInput = forwardRef<TextInput, FloatingLabelInputProps>
             />
         
         {/* Underline */}
-        <View style={[styles.underline, { backgroundColor: isFocused ? 'rgba(74, 144, 226, 0.5)' : 'rgba(74, 144, 226, 0.3)' }]} />
+        <View style={[styles.underline, { backgroundColor: isFocused ? 'rgba(135, 206, 250, 0.5)' : 'rgba(135, 206, 250, 0.3)' }]} />
         
         {/* Character count and error */}
         <View style={styles.footer}>

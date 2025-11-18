@@ -146,7 +146,7 @@ export default function NewWhatIfScreen() {
         {/* Example Scenarios */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Lightbulb size={18} color="#4169E1" />
+            <Lightbulb size={18} color="rgba(135, 206, 250, 0.9)" />
             <Text style={styles.sectionLabel}>Try these examples</Text>
           </View>
 
@@ -157,7 +157,7 @@ export default function NewWhatIfScreen() {
               activeOpacity={0.7}
           >
               <View style={styles.exampleIcon}>
-                <GraduationCap size={20} color="#4169E1" />
+                <GraduationCap size={20} color="rgba(135, 206, 250, 0.9)" />
               </View>
               <View style={styles.exampleContent}>
                 <Text style={styles.exampleTitle}>Different major</Text>
@@ -172,7 +172,7 @@ export default function NewWhatIfScreen() {
               activeOpacity={0.7}
           >
               <View style={styles.exampleIcon}>
-                <MapPin size={20} color="#4169E1" />
+                <MapPin size={20} color="rgba(135, 206, 250, 0.9)" />
               </View>
               <View style={styles.exampleContent}>
                 <Text style={styles.exampleTitle}>Different location</Text>
@@ -187,7 +187,7 @@ export default function NewWhatIfScreen() {
               activeOpacity={0.7}
           >
               <View style={styles.exampleIcon}>
-                <Briefcase size={20} color="#4169E1" />
+                <Briefcase size={20} color="rgba(135, 206, 250, 0.9)" />
               </View>
               <View style={styles.exampleContent}>
                 <Text style={styles.exampleTitle}>Career path</Text>
@@ -218,7 +218,7 @@ export default function NewWhatIfScreen() {
           ]}
         >
           <LinearGradient
-            colors={canSubmit && !loading ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+            colors={canSubmit && !loading ? ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.floatingButtonGradient}
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     gap: 16,
     backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(65, 105, 225, 0.2)',
+    borderBottomColor: 'rgba(135, 206, 250, 0.2)',
   },
   backButton: {
     width: 40,
@@ -324,27 +324,30 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(65, 105, 225, 0.2)',
+    backgroundColor: 'rgba(135, 206, 250, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   exampleContent: {
     flex: 1,
+    flexShrink: 1,
   },
   exampleTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 2,
+    flexShrink: 1,
   },
   exampleDesc: {
     fontSize: 13,
     color: 'rgba(200, 200, 200, 0.6)',
+    flexShrink: 1,
   },
   helperCard: {
-    backgroundColor: 'rgba(65, 105, 225, 0.1)',
+    backgroundColor: 'rgba(135, 206, 250, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(65, 105, 225, 0.2)',
+    borderColor: 'rgba(135, 206, 250, 0.2)',
     borderRadius: 16,
     padding: 16,
     marginTop: 8,
@@ -367,7 +370,7 @@ const styles = StyleSheet.create({
   floatingButton: {
     borderRadius: 24,
     overflow: 'visible',
-    shadowColor: '#4169E1',
+    shadowColor: 'rgba(135, 206, 250, 0.5)',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
     shadowRadius: 20,

@@ -75,10 +75,10 @@ export default function RelationshipsScreen() {
       case 'family':
         return <Users size={20} color="#10B981" />;
       case 'friend':
-        return <UserCircle size={20} color="#3B82F6" />;
+        return <UserCircle size={20} color="rgba(135, 206, 250, 0.9)" />;
       case 'coworker':
       case 'boss':
-        return <Briefcase size={20} color="#1E40AF" />;
+        return <Briefcase size={20} color="rgba(135, 206, 250, 0.9)" />;
       case 'mentor':
         return <GraduationCap size={20} color="#F59E0B" />;
       default:
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
+    borderBottomColor: 'rgba(135, 206, 250, 0.2)',
   },
   backButton: {
     marginBottom: 16,
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
     gap: 12,
   },
   relationshipIcon: {
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
+    borderBottomColor: 'rgba(135, 206, 250, 0.2)',
   },
   modalTitle: {
     fontSize: 24,
@@ -504,12 +504,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
     backgroundColor: '#0C0C10',
   },
   modalOptionSelected: {
-    borderColor: '#000000',
-    backgroundColor: '#000000',
+    borderColor: 'rgba(135, 206, 250, 0.6)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
   },
   modalOptionText: {
     fontSize: 14,
@@ -528,14 +528,14 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
     backgroundColor: '#0C0C10',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalSliderButtonActive: {
-    borderColor: '#000000',
-    backgroundColor: '#000000',
+    borderColor: 'rgba(135, 206, 250, 0.6)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
   },
   modalSliderButtonText: {
     fontSize: 12,

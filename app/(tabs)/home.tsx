@@ -7,6 +7,7 @@ import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision,
 import { Compass, Sparkles, Zap, X, Trash2 } from 'lucide-react-native';
 import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { formatDistanceToNow } from 'date-fns';
@@ -281,7 +282,7 @@ export default function HomeScreen() {
                 style={styles.progressBarContainer}
               >
                 <LinearGradient
-                  colors={['rgba(135, 206, 235, 0.2)', 'rgba(30, 58, 138, 0.4)']}
+                  colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.3)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.progressBarGradient}
@@ -297,7 +298,7 @@ export default function HomeScreen() {
                   </View>
                   <View style={styles.thinProgressBar}>
                     <LinearGradient
-                      colors={['#87CEEB', '#4169E1', '#1E3A8A']}
+                      colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={[styles.thinProgressFill, { width: `${profileProgress}%` }]}
@@ -314,43 +315,40 @@ export default function HomeScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   router.push('/decision/new');
                 }}
-                activeOpacity={0.85}
+                activeOpacity={0.9}
               >
                 <View style={styles.cardWrapperPrimary}>
-                  {/* Gradient border - dark blue to dark blue-black */}
-                  <LinearGradient
-                    colors={['#1E40AF', '#0D0D2E']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.cardBorder}
-                  >
+                  <BlurView intensity={80} tint="dark" style={styles.actionCard}>
+                    {/* Classic glass border */}
+                    <View style={styles.glassBorder} />
+                    {/* Subtle inner highlight */}
                     <LinearGradient
-                      colors={['rgba(30, 64, 175, 0.2)', 'rgba(13, 13, 46, 0.4)']}
+                      colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
                       start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.actionCard}
-                    >
-                      <View style={styles.cardContentRow}>
-                        <View style={styles.iconCircleContainer}>
-                          {/* Icon without background container */}
-                          <View style={styles.iconRotate}>
-                            <Image 
-                              source={require('@/assets/images/compass.png')}
-                              style={styles.compassImage}
-                              resizeMode="contain"
-                            />
-                          </View>
-                        </View>
-                        <View style={styles.cardTextContainer}>
-                          <Text style={[styles.actionTitlePrimary, styles.actionTitlePrimaryTight]}>What Should{"\n"}I Choose?</Text>
-                          <Text style={styles.actionSubtitlePrimary}>
-                            Compare options
-                            {"\n"}simulate outcomes
-                          </Text>
+                      end={{ x: 0, y: 1 }}
+                      style={styles.glassHighlight}
+                      pointerEvents="none"
+                    />
+                    <View style={styles.cardContentRow}>
+                      <View style={styles.iconCircleContainer}>
+                        {/* Icon without background container */}
+                        <View style={styles.iconRotate}>
+                          <Image 
+                            source={require('@/assets/images/compass.png')}
+                            style={styles.compassImage}
+                            resizeMode="contain"
+                          />
                         </View>
                       </View>
-                    </LinearGradient>
-                  </LinearGradient>
+                      <View style={styles.cardTextContainer}>
+                        <Text style={[styles.actionTitlePrimary, styles.actionTitlePrimaryTight]}>What Should{"\n"}I Choose?</Text>
+                        <Text style={styles.actionSubtitlePrimary}>
+                          Compare options
+                          {"\n"}simulate outcomes
+                        </Text>
+                      </View>
+                    </View>
+                  </BlurView>
                 </View>
               </TouchableOpacity>
 
@@ -360,39 +358,36 @@ export default function HomeScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   router.push('/whatif/new');
                 }}
-                activeOpacity={0.85}
+                activeOpacity={0.9}
               >
                 <View style={styles.cardWrapperSecondary}>
-                  {/* Gradient border - dark blue to dark blue-black (rotated) */}
-                  <LinearGradient
-                    colors={['#1E40AF', '#0D0D2E']}
-                    start={{ x: 1, y: 1 }}
-                    end={{ x: 0, y: 0 }}
-                    style={styles.cardBorder}
-                  >
+                  <BlurView intensity={80} tint="dark" style={styles.actionCard}>
+                    {/* Classic glass border */}
+                    <View style={styles.glassBorder} />
+                    {/* Subtle inner highlight */}
                     <LinearGradient
-                      colors={['rgba(30, 64, 175, 0.2)', 'rgba(13, 13, 46, 0.4)']}
-                      start={{ x: 1, y: 1 }}
-                      end={{ x: 0, y: 0 }}
-                      style={styles.actionCard}
-                    >
-                      <View style={styles.cardContentRow}>
-                        <View style={styles.iconCircleContainer}>
-                          <Image 
-                            source={require('@/assets/images/star.png')}
-                            style={styles.starImage}
-                            resizeMode="contain"
-                          />
-                        </View>
-                        <View style={styles.cardTextContainer}>
-                          <Text style={styles.actionTitlePrimary}>What If?</Text>
-                          <Text style={styles.actionSubtitlePrimary}>
-                            Explore alternate realities
-                          </Text>
-                        </View>
+                      colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 1 }}
+                      style={styles.glassHighlight}
+                      pointerEvents="none"
+                    />
+                    <View style={styles.cardContentRow}>
+                      <View style={styles.iconCircleContainer}>
+                        <Image 
+                          source={require('@/assets/images/star.png')}
+                          style={styles.starImage}
+                          resizeMode="contain"
+                        />
                       </View>
-                    </LinearGradient>
-                  </LinearGradient>
+                      <View style={styles.cardTextContainer}>
+                        <Text style={styles.actionTitlePrimary}>What If?</Text>
+                        <Text style={styles.actionSubtitlePrimary}>
+                          Explore alternate realities
+                        </Text>
+                      </View>
+                    </View>
+                  </BlurView>
                 </View>
               </TouchableOpacity>
             </View>
@@ -429,9 +424,9 @@ export default function HomeScreen() {
                       {!echo.isPlaceholder && (
                         <View style={styles.echoTypeBadge}>
                           {echo.type === 'whatif' ? (
-                            <Sparkles size={12} color="#4169E1" />
+                            <Sparkles size={12} color="rgba(135, 206, 250, 0.9)" />
                           ) : (
-                            <Compass size={12} color="#4169E1" />
+                            <Compass size={12} color="rgba(135, 206, 250, 0.9)" />
                           )}
                         </View>
                       )}
@@ -574,23 +569,60 @@ const styles = StyleSheet.create({
   actions: {
     gap: 16,
   },
-  cardWrapperPrimary: {},
-  cardWrapperSecondary: {},
-  cardBorder: {
+  cardWrapperPrimary: {
     borderRadius: 24,
-    padding: 1,
     overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  cardWrapperSecondary: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
   },
   actionCard: {
-    borderRadius: 22,
+    borderRadius: 24,
     padding: 22,
     minHeight: 130,
     justifyContent: 'center',
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  glassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   cardContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 20,
+    zIndex: 1,
   },
   cardTextContainer: {
     flex: 1,
@@ -608,15 +640,20 @@ const styles = StyleSheet.create({
   compassImage: {
     width: 64,
     height: 64,
-    shadowColor: '#4169E1',
+    shadowColor: 'rgba(135, 206, 250, 0.5)',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 20,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   starImage: {
     width: 64,
     height: 64,
+    shadowColor: 'rgba(135, 206, 250, 0.5)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   iconGlow: {
     position: 'absolute',
@@ -687,7 +724,7 @@ const styles = StyleSheet.create({
   actionTitlePrimary: {
     fontSize: 22,
     fontWeight: '600',
-    color: '#F1EEFF',
+    color: 'rgba(240, 248, 255, 0.95)',
     letterSpacing: 0.2,
     lineHeight: 28,
     fontFamily: 'Inter-SemiBold',
@@ -702,7 +739,7 @@ const styles = StyleSheet.create({
   },
   actionSubtitlePrimary: {
     fontSize: 15,
-    color: 'rgba(168, 182, 216, 0.95)',
+    color: 'rgba(200, 220, 240, 0.85)',
     lineHeight: 18,
   },
   echoSection: {
@@ -793,7 +830,7 @@ const styles = StyleSheet.create({
   progressPercentage: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
   },
   thinProgressBar: {
     height: 6,

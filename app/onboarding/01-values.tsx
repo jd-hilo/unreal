@@ -50,9 +50,9 @@ export default function OnboardingStep1() {
       onNext={handleNext}
       canContinue={text.trim().length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
-      buttonGradient={['#4169E1', '#1E40AF', '#1E3A8A']}
-      progressBarGradient={['#4A90E2', '#357ABD', '#2E6DA4']}
-      buttonShadowColor="#4169E1"
+      buttonGradient={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
+      progressBarGradient={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
+      buttonShadowColor="rgba(135, 206, 250, 0.5)"
     >
       <View style={styles.inputWrapper}>
         <Input

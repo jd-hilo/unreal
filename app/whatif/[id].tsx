@@ -1,8 +1,7 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { Card } from '@/components/Card';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, Weight, Heart, DollarSign, MapPin, Smile, Coffee, Lock, Sparkles } from 'lucide-react-native';
@@ -117,7 +116,7 @@ export default function WhatIfResultScreen() {
     biometricsEntries.push({
       key: 'weight',
       label: 'Weight',
-      icon: <Weight size={18} color="#4169E1" />,
+      icon: <Weight size={18} color="rgba(135, 206, 250, 0.9)" />,
       primary: biometricsData.weight.alternate || biometricsData.weight.current || '—',
       secondary: biometricsData.weight.current ? `Current: ${biometricsData.weight.current}` : undefined,
       detail: biometricsData.weight.change,
@@ -138,7 +137,7 @@ export default function WhatIfResultScreen() {
     biometricsEntries.push({
       key: 'hobby',
       label: 'Hobby',
-      icon: <Coffee size={18} color="#1E40AF" />,
+      icon: <Coffee size={18} color="rgba(100, 181, 246, 0.8)" />,
       primary: capitalize(biometricsData.hobby.alternate || biometricsData.hobby.current || '—'),
       secondary: biometricsData.hobby.current ? `Current: ${capitalize(biometricsData.hobby.current)}` : undefined,
     });
@@ -197,7 +196,7 @@ export default function WhatIfResultScreen() {
             const diff = alternate - current;
 
             return (
-              <Card key={metricName} style={styles.metricCard}>
+              <View key={metricName} style={styles.metricCard}>
                 <View style={styles.metricHeader}>
                   {getMetricIcon(current, alternate)}
                   <Text style={styles.metricName}>
@@ -232,7 +231,7 @@ export default function WhatIfResultScreen() {
                   {diff > 0 ? '+' : ''}
                   {diff.toFixed(1)}
                 </Text>
-              </Card>
+              </View>
             );
           })}
         </View>
@@ -245,7 +244,7 @@ export default function WhatIfResultScreen() {
         )}
 
         {typeof whatIf.twin_alignment_score === 'number' && (
-          <Card style={styles.alignmentCard}>
+          <View style={styles.alignmentCard}>
             <Text style={styles.alignmentTitle}>Twin Alignment Score</Text>
             <Text style={styles.alignmentPercent}>
               {Math.round(whatIf.twin_alignment_score)}%
@@ -253,7 +252,7 @@ export default function WhatIfResultScreen() {
             <Text style={styles.alignmentNote}>
               100% means your twin mirrors you perfectly; 0% means completely different.
             </Text>
-          </Card>
+          </View>
         )}
 
         {/* <TouchableOpacity
@@ -274,18 +273,7 @@ export default function WhatIfResultScreen() {
 
         {whatIf.biometrics && (
           <View style={styles.biometricsSection}>
-            <View style={styles.biometricsCardWrapper}>
-              <Image 
-                source={require('@/app/profileman.png')}
-                style={styles.biometricsHeadImage}
-                resizeMode="contain"
-              />
-              <LinearGradient
-                colors={['rgba(15, 10, 30, 0.95)', 'rgba(25, 15, 45, 0.9)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.biometricsCard}
-              >
+            <View style={styles.biometricsCard}>
                 <Text style={styles.biometricsTitle}>Bio Metrics</Text>
 
                 <View style={styles.biometricsCardContent}>
@@ -353,10 +341,16 @@ export default function WhatIfResultScreen() {
                     </LinearGradient>
                   </TouchableOpacity>
                 )}
-              </LinearGradient>
-            </View>
+              </View>
           </View>
         )}
+
+        {/* Disclaimer */}
+        <View style={styles.disclaimerSection}>
+          <Text style={styles.disclaimerText}>
+            This trajectory is AI-generated based on your unique profile. Use it as a thought experiment, not a prediction.
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -410,9 +404,14 @@ const styles = StyleSheet.create({
   metricCard: {
     width: '48%',
     padding: 16,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 0,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 0,
   },
   metricHeader: {
     flexDirection: 'row',
@@ -424,6 +423,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+    flex: 1,
+    flexShrink: 1,
   },
   metricValues: {
     flexDirection: 'row',
@@ -449,17 +450,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   summary: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 0,
+    padding: 18,
     borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 0,
   },
   summaryTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 12,
+    letterSpacing: 0.2,
   },
   summaryText: {
     fontSize: 16,
@@ -468,22 +474,27 @@ const styles = StyleSheet.create({
   },
   alignmentCard: {
     marginTop: 16,
-    padding: 20,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    padding: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 0,
     borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 0,
   },
   alignmentTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 8,
+    letterSpacing: 0.2,
   },
   alignmentPercent: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
     marginBottom: 6,
   },
   alignmentNote: {
@@ -507,32 +518,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   biometricsSection: {
-    marginTop: 40,
+    marginTop: 24,
     marginBottom: 32,
-  },
-  biometricsCardWrapper: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  biometricsHeadImage: {
-    width: 220,
-    height: 220,
-    opacity: 0.55,
   },
   biometricsCard: {
     width: '100%',
-    marginTop: -80,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
-    borderRadius: 24,
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    shadowColor: '#1E3A8A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 0,
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 0,
   },
   biometricsTitle: {
     fontSize: 18,
@@ -540,7 +539,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 20,
-    fontFamily: 'Inter-SemiBold',
+    letterSpacing: 0.2,
   },
   biometricsCardContent: {
     gap: 16,
@@ -553,13 +552,13 @@ const styles = StyleSheet.create({
   },
   biometricRowDivider: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.25)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   biometricIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(110, 61, 240, 0.25)',
+    backgroundColor: 'rgba(10, 132, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -578,15 +577,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+    flexShrink: 1,
   },
   biometricSecondary: {
     fontSize: 13,
     color: 'rgba(200, 200, 200, 0.7)',
+    flexShrink: 1,
   },
   biometricDetail: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
   },
   biometricDetailPositive: {
     color: '#10B981',
@@ -649,5 +650,16 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  disclaimerSection: {
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  disclaimerText: {
+    fontSize: 13,
+    color: 'rgba(200, 200, 200, 0.75)',
+    lineHeight: 20,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

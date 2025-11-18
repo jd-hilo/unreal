@@ -205,7 +205,7 @@ export default function ChooseOnboardingMethod() {
       {/* Animated background pulse */}
       <Animated.View style={[styles.backgroundPulse, backgroundPulseStyle]}>
         <LinearGradient
-          colors={['rgba(65, 105, 225, 0.3)', 'transparent']}
+          colors={['rgba(135, 206, 250, 0.3)', 'transparent']}
           style={StyleSheet.absoluteFill}
         />
       </Animated.View>
@@ -303,8 +303,8 @@ const styles = StyleSheet.create({
     right: -20,
     bottom: -20,
     borderRadius: 44,
-    backgroundColor: '#4169E1',
-    shadowColor: '#4169E1',
+    backgroundColor: 'rgba(135, 206, 250, 0.9)',
+    shadowColor: 'rgba(135, 206, 250, 0.5)',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 30,
@@ -355,9 +355,9 @@ const styles = StyleSheet.create({
   },
   // Primary option (AI Voice) - Emphasized
   primaryCard: {
-    backgroundColor: 'rgba(65, 105, 225, 0.15)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
     borderWidth: 2,
-    borderColor: '#4169E1',
+    borderColor: 'rgba(135, 206, 250, 0.9)',
     borderRadius: 24,
     padding: 24,
     flexDirection: 'row',
@@ -372,8 +372,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   primaryCardSelected: {
-    backgroundColor: 'rgba(65, 105, 225, 0.25)',
-    borderColor: '#4169E1',
+    backgroundColor: 'rgba(135, 206, 250, 0.25)',
+    borderColor: 'rgba(135, 206, 250, 0.9)',
   },
   primaryTitle: {
     fontSize: 20,
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
   secondaryCard: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(65, 105, 225, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
     borderRadius: 24,
     padding: 18,
     flexDirection: 'row',
@@ -392,8 +392,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   secondaryCardSelected: {
-    borderColor: 'rgba(65, 105, 225, 0.6)',
-    backgroundColor: 'rgba(65, 105, 225, 0.1)',
+    borderColor: 'rgba(135, 206, 250, 0.6)',
+    backgroundColor: 'rgba(135, 206, 250, 0.1)',
   },
   secondaryTitle: {
     fontSize: 16,
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: 'rgba(65, 105, 225, 0.5)',
+    borderColor: 'rgba(135, 206, 250, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },

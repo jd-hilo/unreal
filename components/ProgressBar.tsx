@@ -14,7 +14,7 @@ interface ProgressBarProps {
   gradientColors?: string[];
 }
 
-export function ProgressBar({ progress, showLabel = true, height = 8, gradientColors = ['#4169E1', '#1E40AF', '#1E3A8A'] }: ProgressBarProps) {
+export function ProgressBar({ progress, showLabel = true, height = 8, gradientColors = ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] }: ProgressBarProps) {
   // Commented out Reanimated code - using simple static version
   const animatedProgress = useSharedValue(0);
 

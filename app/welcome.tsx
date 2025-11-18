@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import Animated, {
   useSharedValue,
@@ -225,21 +226,28 @@ export default function WelcomeScreen() {
       {/* Button at the bottom */}
       {buttonVisible && (
         <Animated.View style={[styles.buttonContainer, buttonAnimatedStyle]}>
-          <TouchableOpacity
-            onPress={handleGetStarted}
-            activeOpacity={0.9}
-            style={styles.button}
-          >
-            <LinearGradient
-              colors={['#4169E1', '#1E40AF', '#1E3A8A']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.buttonGradient}
-            >
-              <Text style={styles.buttonText}>Get Started</Text>
-              <ChevronRight size={20} color="#FFFFFF" />
-            </LinearGradient>
-          </TouchableOpacity>
+          <View style={styles.buttonWrapper}>
+            <BlurView intensity={80} tint="dark" style={styles.button}>
+              {/* Classic glass border */}
+              <View style={styles.glassBorder} />
+              {/* Subtle inner highlight */}
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.glassHighlight}
+                pointerEvents="none"
+              />
+              <TouchableOpacity
+                onPress={handleGetStarted}
+                activeOpacity={0.9}
+                style={styles.buttonInner}
+              >
+                <Text style={styles.buttonText}>Get Started</Text>
+                <ChevronRight size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </BlurView>
+          </View>
         </Animated.View>
       )}
     </LinearGradient>
@@ -289,16 +297,44 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     width: '100%',
   },
+  buttonWrapper: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
   button: {
     borderRadius: 24,
-    overflow: 'visible',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    shadowColor: '#4169E1',
-    elevation: 12,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
-  buttonGradient: {
+  glassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  buttonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -306,6 +342,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     borderRadius: 24,
+    zIndex: 1,
   },
   buttonText: {
     fontSize: 17,

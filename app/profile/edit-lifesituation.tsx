@@ -23,8 +23,12 @@ export default function EditLifeSituationScreen() {
     
     try {
       const profile = await getProfile(user.id);
-      if (profile?.core_json?.onboarding_responses?.['01-now']) {
-        setResponse(profile.core_json.onboarding_responses['01-now']);
+      // Prefer new key '02-now', fallback to legacy '01-now'
+      const existing =
+        profile?.core_json?.onboarding_responses?.['02-now'] ??
+        profile?.core_json?.onboarding_responses?.['01-now'];
+      if (existing) {
+        setResponse(existing);
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -38,7 +42,8 @@ export default function EditLifeSituationScreen() {
 
     setLoading(true);
     try {
-      await saveOnboardingResponse(user.id, '01-now', response.trim());
+      // Save to the new key
+      await saveOnboardingResponse(user.id, '02-now', response.trim());
       router.back();
     } catch (error) {
       console.error('Failed to save:', error);

@@ -3,6 +3,7 @@ import { ReactNode, useState } from 'react';
 import { Button } from './Button';
 import { ProgressBar } from './ProgressBar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { ChevronRight, Sparkles } from 'lucide-react-native';
 
 interface OnboardingScreenProps {
@@ -32,9 +33,9 @@ export function OnboardingScreen({
   loading = false,
   canContinue = true,
   backgroundGradient = ['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E'],
-  buttonGradient = ['#4169E1', '#1E40AF', '#1E3A8A'],
-  progressBarGradient = ['#4169E1', '#1E40AF', '#1E3A8A'],
-  buttonShadowColor = '#4169E1',
+  buttonGradient = ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'],
+  progressBarGradient = ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'],
+  buttonShadowColor = 'rgba(135, 206, 250, 0.5)',
 }: OnboardingScreenProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -95,28 +96,34 @@ export function OnboardingScreen({
           </TouchableOpacity>
         )}
         
-        <TouchableOpacity
-          onPress={handleNext}
-          disabled={!canContinue || loading || isProcessing}
-          activeOpacity={0.9}
-          style={[
+        <View style={styles.floatingButtonWrapper}>
+          <BlurView intensity={80} tint="dark" style={[
             styles.floatingButton,
-              { shadowColor: canContinue && !loading && !isProcessing ? buttonShadowColor : 'rgba(100, 100, 100, 0.3)' },
             (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled
-          ]}
-        >
-          <LinearGradient
-              colors={canContinue && !loading && !isProcessing ? buttonGradient : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.floatingButtonGradient}
-          >
-            <Text style={styles.floatingButtonText}>
-              {loading || isProcessing ? 'Processing...' : nextLabel}
-            </Text>
-            {!loading && !isProcessing && <ChevronRight size={20} color="#FFFFFF" />}
-          </LinearGradient>
-        </TouchableOpacity>
+          ]}>
+            {/* Classic glass border */}
+            <View style={styles.buttonGlassBorder} />
+            {/* Subtle inner highlight */}
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.buttonGlassHighlight}
+              pointerEvents="none"
+            />
+            <TouchableOpacity
+              onPress={handleNext}
+              disabled={!canContinue || loading || isProcessing}
+              activeOpacity={0.9}
+              style={styles.floatingButtonInner}
+            >
+              <Text style={styles.floatingButtonText}>
+                {loading || isProcessing ? 'Processing...' : nextLabel}
+              </Text>
+              {!loading && !isProcessing && <ChevronRight size={20} color="#FFFFFF" />}
+            </TouchableOpacity>
+          </BlurView>
+        </View>
       </View>
     </KeyboardAvoidingView>
     </LinearGradient>
@@ -181,19 +188,47 @@ const styles = StyleSheet.create({
     color: 'rgba(200, 200, 200, 0.75)',
     fontWeight: '600',
   },
+  floatingButtonWrapper: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
   floatingButton: {
     borderRadius: 24,
-    overflow: 'visible',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
   floatingButtonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
+    opacity: 0.6,
   },
-  floatingButtonGradient: {
+  buttonGlassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  buttonGlassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  floatingButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -201,6 +236,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     borderRadius: 24,
+    zIndex: 1,
   },
   floatingButtonText: {
     fontSize: 17,

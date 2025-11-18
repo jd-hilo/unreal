@@ -103,6 +103,11 @@ export default function ProfileScreen() {
   }
 
   const onboardingResponses = profileData?.core_json?.onboarding_responses || {};
+  // Handle migration: prefer new keys, but fall back to legacy keys so checkmarks show for existing users
+  const lifeSituationResp =
+    onboardingResponses['02-now'] ?? onboardingResponses['01-now'];
+  const coreValuesResp =
+    onboardingResponses['01-values'] ?? onboardingResponses['03-values'];
   const university = profileData?.university || onboardingResponses.university;
   const hometown = profileData?.hometown || onboardingResponses.hometown;
   const currentLocation = profileData?.current_location;
@@ -113,11 +118,11 @@ export default function ProfileScreen() {
     {
       id: '02-now',
       title: 'Current Life Situation',
-      subtitle: onboardingResponses['02-now'] 
-        ? onboardingResponses['02-now'].substring(0, 50) + '...'
+      subtitle: lifeSituationResp
+        ? (lifeSituationResp as string).substring(0, 50) + '...'
         : 'Where are you in life right now?',
       route: '/profile/edit-lifesituation' as any,
-      completed: !!onboardingResponses['02-now'],
+      completed: !!lifeSituationResp,
     },
     {
       id: '02-path',
@@ -131,11 +136,11 @@ export default function ProfileScreen() {
     {
       id: '01-values',
       title: 'Core Values',
-      subtitle: onboardingResponses['01-values']
-        ? onboardingResponses['01-values'].substring(0, 50) + '...'
+      subtitle: coreValuesResp
+        ? (coreValuesResp as string).substring(0, 50) + '...'
         : 'What matters most to you?',
       route: '/profile/edit-values' as any,
-      completed: !!onboardingResponses['01-values'],
+      completed: !!coreValuesResp,
     },
     {
       id: '04-style',
@@ -272,9 +277,9 @@ export default function ProfileScreen() {
                 <Svg width={140} height={140} style={styles.progressRing}>
                   <Defs>
                     <SvgLinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <Stop offset="0%" stopColor="#4169E1" />
-                      <Stop offset="50%" stopColor="#1E40AF" />
-                      <Stop offset="100%" stopColor="#1E3A8A" />
+                      <Stop offset="0%" stopColor="rgba(135, 206, 250, 0.9)" />
+                      <Stop offset="50%" stopColor="rgba(100, 181, 246, 0.8)" />
+                      <Stop offset="100%" stopColor="rgba(135, 206, 250, 0.7)" />
                     </SvgLinearGradient>
                   </Defs>
                   {/* Background circle */}
@@ -337,15 +342,22 @@ export default function ProfileScreen() {
                 </View>
                 
                 {/* Percentage Badge */}
-                <View style={styles.percentageBadge}>
-                  <LinearGradient
-                    colors={['#4169E1', '#1E40AF', '#1E3A8A']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.percentageBadgeGradient}
-                  >
-                    <Text style={styles.percentageText}>{totalProgress}%</Text>
-                  </LinearGradient>
+                <View style={styles.percentageBadgeWrapper}>
+                  <BlurView intensity={80} tint="dark" style={styles.percentageBadge}>
+                    {/* Classic glass border */}
+                    <View style={styles.badgeGlassBorder} />
+                    {/* Subtle inner highlight */}
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 1 }}
+                      style={styles.badgeGlassHighlight}
+                      pointerEvents="none"
+                    />
+                    <View style={styles.percentageBadgeInner}>
+                      <Text style={styles.percentageText}>{totalProgress}%</Text>
+                    </View>
+                  </BlurView>
                 </View>
               </View>
               
@@ -353,20 +365,28 @@ export default function ProfileScreen() {
                 <Text style={styles.username}>unreal#{animatedTwinCode || '------'}</Text>
                 {twinCode && (
                   <>
-                    <TouchableOpacity 
-                      onPress={handleCopyTwinCode}
-                      style={styles.copyButton}
-                      activeOpacity={0.7}
-                    >
-                      <Copy size={20} color="#4169E1" />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      onPress={() => setInfoModalVisible(true)}
-                      style={styles.infoButton}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={20} color="#4169E1" />
-                    </TouchableOpacity>
+                    <View style={styles.copyButtonWrapper}>
+                      <BlurView intensity={60} tint="dark" style={styles.copyButton}>
+                        <TouchableOpacity 
+                          onPress={handleCopyTwinCode}
+                          activeOpacity={0.7}
+                          style={styles.copyButtonInner}
+                        >
+                          <Copy size={20} color="rgba(135, 206, 250, 0.9)" />
+                        </TouchableOpacity>
+                      </BlurView>
+                    </View>
+                    <View style={styles.infoButtonWrapper}>
+                      <BlurView intensity={60} tint="dark" style={styles.infoButton}>
+                        <TouchableOpacity 
+                          onPress={() => setInfoModalVisible(true)}
+                          activeOpacity={0.7}
+                          style={styles.infoButtonInner}
+                        >
+                          <Info size={20} color="rgba(135, 206, 250, 0.9)" />
+                        </TouchableOpacity>
+                      </BlurView>
+                    </View>
                   </>
                 )}
               </View>
@@ -374,85 +394,94 @@ export default function ProfileScreen() {
 
             {/* Unreal+ Premium Card */}
             <TouchableOpacity
-              style={styles.premiumCard}
+              style={styles.premiumCardWrapper}
               onPress={() => !isPremium && router.push('/premium' as any)}
               activeOpacity={isPremium ? 1 : 0.85}
               disabled={isPremium}
             >
-              <View style={styles.premiumCardInner}>
-                <View style={styles.premiumRow}>
-                  <View style={styles.premiumImageContainer}>
-                    <Image 
-                      source={require('@/assets/images/premium.png')}
-                      style={styles.premiumImage}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <View style={styles.premiumContent}>
-                    {isPremium ? (
-                      <View style={styles.premiumTitleRow}>
-                        <Text style={styles.premiumTitle}>unreal+</Text>
-                        <View style={styles.activeTag}>
-                          <Text style={styles.activeTagText}>Active</Text>
+              <BlurView intensity={80} tint="dark" style={styles.premiumCard}>
+                {/* Classic glass border */}
+                <View style={styles.glassBorder} />
+                {/* Subtle inner highlight */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.glassHighlight}
+                  pointerEvents="none"
+                />
+                <View style={styles.premiumCardInner}>
+                  <View style={styles.premiumRow}>
+                    <View style={styles.premiumImageContainer}>
+                      <Image 
+                        source={require('@/assets/images/premium.png')}
+                        style={styles.premiumImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                    <View style={styles.premiumContent}>
+                      {isPremium ? (
+                        <View style={styles.premiumTitleRow}>
+                          <Text style={styles.premiumTitle}>unreal+</Text>
+                          <View style={styles.activeTag}>
+                            <Text style={styles.activeTagText}>Active</Text>
+                          </View>
                         </View>
-                      </View>
-                    ) : (
-                      <Text style={styles.premiumTitle}>Upgrade to unreal+</Text>
-                    )}
-                    <Text style={styles.premiumSubtitle}>
-                      {isPremium 
-                        ? 'Full access to biometrics & simulations'
-                        : 'Unlock biometrics and life trajectory simulations'
-                      }
-                    </Text>
+                      ) : (
+                        <Text style={styles.premiumTitle}>Upgrade to unreal+</Text>
+                      )}
+                      <Text style={styles.premiumSubtitle}>
+                        {isPremium 
+                          ? 'Full access to biometrics & simulations'
+                          : 'Unlock biometrics and life trajectory simulations'
+                        }
+                      </Text>
+                    </View>
+                    {!isPremium && <ChevronRight size={20} color="rgba(255,255,255,0.6)" />}
                   </View>
-                  {!isPremium && <ChevronRight size={20} color="rgba(255,255,255,0.6)" />}
                 </View>
-              </View>
+              </BlurView>
             </TouchableOpacity>
 
             {/* Daily Journal Card */}
             <TouchableOpacity
-              style={styles.journalCard}
+              style={styles.journalCardWrapper}
               onPress={() => router.push('/journal' as any)}
               activeOpacity={0.85}
             >
-              {journalComplete ? (
-                <View style={styles.journalCardCompleted}>
+              <BlurView intensity={80} tint="dark" style={styles.journalCard}>
+                {/* Classic glass border */}
+                <View style={styles.glassBorder} />
+                {/* Subtle inner highlight */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.glassHighlight}
+                  pointerEvents="none"
+                />
+                <View style={styles.journalCardInner}>
                   <View style={styles.journalRow}>
                     <View style={styles.journalIconContainer}>
-                      <CheckCircle2 size={24} color="#4169E1" strokeWidth={2.5} />
+                      {journalComplete ? (
+                        <CheckCircle2 size={24} color="rgba(135, 206, 250, 0.9)" strokeWidth={2.5} />
+                      ) : (
+                        <BookOpen size={24} color="rgba(135, 206, 250, 0.9)" strokeWidth={2} />
+                      )}
                     </View>
                     <View style={styles.journalContent}>
                       <Text style={styles.journalTitle}>Daily Journal</Text>
                       <Text style={styles.journalSubtitle}>
-                        Today's journal complete
+                        {journalComplete 
+                          ? "Today's journal complete"
+                          : 'Journal your days and help your twin understand you'
+                        }
                       </Text>
                     </View>
                     <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
                   </View>
                 </View>
-              ) : (
-                <LinearGradient
-                  colors={['rgba(30, 64, 175, 0.2)', 'rgba(13, 13, 46, 0.4)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.journalCardInner}
-                >
-                  <View style={styles.journalRow}>
-                    <View style={styles.journalIconContainer}>
-                      <BookOpen size={24} color="#4169E1" strokeWidth={2} />
-                    </View>
-                    <View style={styles.journalContent}>
-                      <Text style={styles.journalTitle}>Daily Journal</Text>
-                      <Text style={styles.journalSubtitle}>
-                        Journal your days and help your twin understand you
-                      </Text>
-                    </View>
-                    <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
-                  </View>
-                </LinearGradient>
-              )}
+              </BlurView>
             </TouchableOpacity>
 
             {/* Profile sections */}
@@ -460,63 +489,91 @@ export default function ProfileScreen() {
               {cards.map((card) => (
                 <TouchableOpacity
                   key={card.id}
-                  style={styles.card}
+                  style={styles.cardWrapper}
                   onPress={() => handleCardPress(card)}
                   activeOpacity={0.85}
                 >
-                  <View style={styles.cardIconContainer}>
-                    {card.completed ? (
-                      <CheckCircle2 size={20} color="#4169E1" strokeWidth={2.5} />
-                    ) : (
-                      <CircleIcon size={20} color="rgba(150, 150, 150, 0.6)" strokeWidth={2} />
-                    )}
-                  </View>
-                  <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>{card.title}</Text>
-                    <Text style={styles.cardSubtitle} numberOfLines={2}>
-                      {card.subtitle}
-                    </Text>
-                  </View>
-                  <View style={styles.cardAction}>
-                    <Edit3 size={18} color="rgba(150, 150, 150, 0.6)" />
-                  </View>
+                  <BlurView intensity={80} tint="dark" style={styles.card}>
+                    {/* Classic glass border */}
+                    <View style={styles.cardGlassBorder} />
+                    {/* Subtle inner highlight */}
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 1 }}
+                      style={styles.cardGlassHighlight}
+                      pointerEvents="none"
+                    />
+                    <View style={styles.cardInner}>
+                      <View style={styles.cardIconContainer}>
+                        {card.completed ? (
+                          <CheckCircle2 size={20} color="rgba(135, 206, 250, 0.9)" strokeWidth={2.5} />
+                        ) : (
+                          <CircleIcon size={20} color="rgba(150, 150, 150, 0.6)" strokeWidth={2} />
+                        )}
+                      </View>
+                      <View style={styles.cardContent}>
+                        <Text style={styles.cardTitle}>{card.title}</Text>
+                        <Text style={styles.cardSubtitle} numberOfLines={2}>
+                          {card.subtitle}
+                        </Text>
+                      </View>
+                      <View style={styles.cardAction}>
+                        <Edit3 size={18} color="rgba(150, 150, 150, 0.6)" />
+                      </View>
+                    </View>
+                  </BlurView>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <TouchableOpacity
-              onPress={handleSendFeedback}
-              activeOpacity={0.9}
-              style={styles.feedbackButton}
-            >
-              <LinearGradient
-                colors={['#4169E1', '#1E40AF', '#1E3A8A']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.feedbackButtonGradient}
-              >
-                <Mail size={20} color="#FFFFFF" />
-                <Text style={styles.feedbackText}>Send Feedback</Text>
-                <ChevronRight size={20} color="#FFFFFF" />
-              </LinearGradient>
-            </TouchableOpacity>
+            <View style={styles.feedbackButtonWrapper}>
+              <BlurView intensity={80} tint="dark" style={styles.feedbackButton}>
+                {/* Classic glass border */}
+                <View style={styles.buttonGlassBorder} />
+                {/* Subtle inner highlight */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.buttonGlassHighlight}
+                  pointerEvents="none"
+                />
+                <TouchableOpacity
+                  onPress={handleSendFeedback}
+                  activeOpacity={0.9}
+                  style={styles.feedbackButtonInner}
+                >
+                  <Mail size={20} color="#FFFFFF" />
+                  <Text style={styles.feedbackText}>Send Feedback</Text>
+                  <ChevronRight size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </BlurView>
+            </View>
 
-            <TouchableOpacity
-              onPress={handleSignOut}
-              activeOpacity={0.9}
-              style={styles.signOutButton}
-            >
-              <LinearGradient
-                colors={['#4169E1', '#1E40AF', '#1E3A8A']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.signOutButtonGradient}
-              >
-                <LogOut size={20} color="#FFFFFF" />
-                <Text style={styles.signOutText}>Sign Out</Text>
-                <ChevronRight size={20} color="#FFFFFF" />
-              </LinearGradient>
-            </TouchableOpacity>
+            <View style={styles.signOutButtonWrapper}>
+              <BlurView intensity={80} tint="dark" style={styles.signOutButton}>
+                {/* Classic glass border */}
+                <View style={styles.buttonGlassBorder} />
+                {/* Subtle inner highlight */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.buttonGlassHighlight}
+                  pointerEvents="none"
+                />
+                <TouchableOpacity
+                  onPress={handleSignOut}
+                  activeOpacity={0.9}
+                  style={styles.signOutButtonInner}
+                >
+                  <LogOut size={20} color="#FFFFFF" />
+                  <Text style={styles.signOutText}>Sign Out</Text>
+                  <ChevronRight size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </BlurView>
+            </View>
 
             <TouchableOpacity
               onPress={handleDeleteAccount}
@@ -679,27 +736,54 @@ const styles = StyleSheet.create({
     color: '#000000',
     textTransform: 'uppercase',
   },
-  percentageBadge: {
+  percentageBadgeWrapper: {
     position: 'absolute',
     bottom: -8,
     right: -8,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#0C0C10',
-    zIndex: 3,
-    shadowColor: '#4169E1',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 5,
     overflow: 'hidden',
+    zIndex: 3,
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  percentageBadgeGradient: {
+  percentageBadge: {
+    borderRadius: 16,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  badgeGlassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  badgeGlassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 16,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  percentageBadgeInner: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 14,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   percentageText: {
     fontSize: 12,
@@ -718,19 +802,47 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  copyButtonWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.3)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   copyButton: {
-    padding: 6,
-    backgroundColor: 'rgba(183, 149, 255, 0.15)',
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  copyButtonInner: {
+    padding: 6,
+    borderRadius: 11,
+    zIndex: 1,
+  },
+  infoButtonWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.3)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   infoButton: {
-    padding: 6,
-    backgroundColor: 'rgba(183, 149, 255, 0.15)',
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  infoButtonInner: {
+    padding: 6,
+    borderRadius: 11,
+    zIndex: 1,
   },
   editProfileButton: {
     flexDirection: 'row',
@@ -907,23 +1019,27 @@ const styles = StyleSheet.create({
     color: 'rgba(200, 200, 200, 0.75)',
     marginTop: 12,
   },
-  journalCard: {
+  journalCardWrapper: {
     marginBottom: 32,
     borderRadius: 24,
     overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  journalCard: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
   journalCardInner: {
     padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(65, 105, 225, 0.3)',
     borderRadius: 24,
-  },
-  journalCardCompleted: {
-    padding: 20,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(65, 105, 225, 0.3)',
-    borderRadius: 24,
+    zIndex: 1,
   },
   journalRow: {
     flexDirection: 'row',
@@ -957,15 +1073,49 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 32,
   },
+  cardWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.4)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   card: {
+    borderRadius: 20,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  cardGlassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  cardGlassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 20,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  cardInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderRadius: 16,
     padding: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
     gap: 14,
+    zIndex: 1,
   },
   cardIconContainer: {
     width: 24,
@@ -995,17 +1145,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  feedbackButton: {
+  feedbackButtonWrapper: {
     marginTop: 16,
     borderRadius: 24,
-    overflow: 'visible',
-    shadowColor: '#4169E1',
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  feedbackButtonGradient: {
+  feedbackButton: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  buttonGlassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  buttonGlassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  feedbackButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1013,23 +1191,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     borderRadius: 24,
+    zIndex: 1,
   },
   feedbackText: {
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  signOutButton: {
+  signOutButtonWrapper: {
     marginTop: 12,
     borderRadius: 24,
-    overflow: 'visible',
-    shadowColor: '#4169E1',
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  signOutButtonGradient: {
+  signOutButton: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  signOutButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1037,6 +1223,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     borderRadius: 24,
+    zIndex: 1,
   },
   signOutText: {
     fontSize: 17,
@@ -1062,17 +1249,48 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#EF4444',
   },
-  premiumCard: {
+  premiumCardWrapper: {
     marginBottom: 20,
-    borderRadius: 16,
+    borderRadius: 24,
     overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  premiumCard: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  glassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   premiumCardInner: {
     padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    borderRadius: 16,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderRadius: 24,
+    zIndex: 1,
   },
   premiumRow: {
     flexDirection: 'row',

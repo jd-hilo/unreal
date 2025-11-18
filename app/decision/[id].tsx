@@ -7,7 +7,6 @@ import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
-import { Card, CardContent } from '@/components/Card';
 import { ArrowLeft, Sparkles, Users, Lock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTwin } from '@/store/useTwin';
@@ -193,7 +192,7 @@ export default function DecisionResultScreen() {
           <Text style={styles.title}>Decision Result</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4169E1" />
+          <ActivityIndicator size="large" color="rgba(135, 206, 250, 0.9)" />
           <Text style={styles.loadingText}>
             {predicting ? 'Generating prediction...' : 'Loading...'}
           </Text>
@@ -232,7 +231,7 @@ export default function DecisionResultScreen() {
         {participants.length > 0 && (
           <View style={styles.participantsSection}>
             <View style={styles.participantsHeader}>
-              <Users size={16} color="#4169E1" />
+              <Users size={16} color="rgba(135, 206, 250, 0.9)" />
               <Text style={styles.participantsTitle}>
                 Consulted with {participants.length} other {participants.length === 1 ? 'twin' : 'twins'}
               </Text>
@@ -264,127 +263,155 @@ export default function DecisionResultScreen() {
 
         {prediction && (
           <>
-            <Card style={styles.predictionCard} variant="elevated">
-              <CardContent>
-                <Text style={styles.predictionLabel}>Recommended</Text>
-                <Text style={styles.predictionValue}>{prediction.prediction}</Text>
-                <Text style={styles.confidence}>
-                  {confidence.toFixed(0)}% confidence
-                </Text>
-              </CardContent>
-            </Card>
+            <View style={styles.predictionCard}>
+              <Text style={styles.predictionLabel}>Recommended</Text>
+              <Text style={styles.predictionValue}>{prediction.prediction}</Text>
+              <Text style={styles.confidence}>
+                {confidence.toFixed(0)}% confidence
+              </Text>
+            </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Why this choice?</Text>
-              <Text style={styles.rationale}>{prediction.rationale}</Text>
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>Why this choice?</Text>
+                <Text style={styles.rationale}>{prediction.rationale}</Text>
+              </View>
             </View>
 
             {prediction.probs && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>All Options</Text>
-                {Object.entries(prediction.probs as Record<string, number>).map(
-                  ([option, prob]) => (
-                    <View key={option} style={styles.optionRow}>
-                      <Text style={styles.optionName}>{option}</Text>
-                      <View style={styles.probContainer}>
-                        <View style={styles.probBarBackground}>
-                          <LinearGradient
-                            colors={['#4169E1', '#1E40AF', '#1E3A8A']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                          style={[
-                            styles.probBar,
-                            { width: `${(prob as number) * 100}%` },
-                          ]}
-                        />
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>All Options</Text>
+                  {Object.entries(prediction.probs as Record<string, number>).map(
+                    ([option, prob]) => (
+                      <View key={option} style={styles.optionRow}>
+                        <Text style={styles.optionName}>{option}</Text>
+                        <View style={styles.probContainer}>
+                          <View style={styles.probBarBackground}>
+                            <LinearGradient
+                              colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                            style={[
+                              styles.probBar,
+                              { width: `${(prob as number) * 100}%` },
+                            ]}
+                          />
+                          </View>
+                          <Text style={styles.probText}>
+                            {((prob as number) * 100).toFixed(0)}%
+                          </Text>
                         </View>
-                        <Text style={styles.probText}>
-                          {((prob as number) * 100).toFixed(0)}%
-                        </Text>
                       </View>
-                    </View>
-                  )
-                )}
+                    )
+                  )}
+                </View>
               </View>
             )}
 
             {prediction.factors && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Key Factors</Text>
-                {formatFactors(prediction.factors).map((formattedFactor: string, index: number) => (
-                  <Text key={index} style={styles.factor}>
-                    {formattedFactor}
-                  </Text>
-                ))}
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>Key Factors</Text>
+                  {formatFactors(prediction.factors).map((formattedFactor: string, index: number) => (
+                    <Text key={index} style={styles.factor}>
+                      {formattedFactor}
+                    </Text>
+                  ))}
+                </View>
               </View>
             )}
 
             {/* If things were different Section */}
             {decision.prediction && (
               <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Sparkles size={20} color="#4169E1" />
-                  <Text style={styles.sectionTitle}>If things were different…</Text>
-                </View>
-                {loadingSuggestions ? (
-                  <ActivityIndicator size="small" color="#4169E1" style={styles.sectionLoader} />
-                ) : suggestions?.suggestions ? (
-                  <View style={styles.suggestionsContainer}>
-                    {suggestions.suggestions.map((suggestion: any, index: number) => (
-                      <View key={index} style={styles.suggestionCard}>
-                        <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
-                        {suggestion.probs && (
-                          <View style={styles.suggestionProbs}>
-                            {Object.entries(suggestion.probs).map(([option, prob]: [string, any]) => {
-                              const currentProb = decision.prediction.probs[option] || 0;
-                              const delta = prob - currentProb;
-                              return (
-                                <View key={option} style={styles.suggestionProbRow}>
-                                  <Text style={styles.suggestionOption}>{option}</Text>
-                                  <Text style={styles.suggestionProb}>{(prob * 100).toFixed(0)}%</Text>
-                                  {delta !== 0 && (
-                                    <Text style={[styles.suggestionDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
-                                      {delta > 0 ? '+' : ''}{(delta * 100).toFixed(0)}%
-                                    </Text>
-                                  )}
-                                </View>
-                              );
-                            })}
-                          </View>
-                        )}
-                        {suggestion.delta && (
-                          <Text style={styles.suggestionDeltaText}>{suggestion.delta}</Text>
-                        )}
-                      </View>
-                    ))}
+                <View style={styles.sectionCard}>
+                  <View style={styles.sectionHeader}>
+                    <Sparkles size={20} color="rgba(135, 206, 250, 0.9)" />
+                    <Text style={styles.sectionTitle}>If things were different…</Text>
                   </View>
-                ) : (
-                  <Text style={styles.emptyStateText}>
-                    No suggestions available at this time.
-                  </Text>
-                )}
+                  {loadingSuggestions ? (
+                    <ActivityIndicator size="small" color="rgba(135, 206, 250, 0.9)" style={styles.sectionLoader} />
+                  ) : suggestions?.suggestions ? (
+                    <View style={styles.suggestionsContainer}>
+                      {suggestions.suggestions.map((suggestion: any, index: number) => (
+                        <View key={index} style={styles.suggestionCard}>
+                          <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
+                          {suggestion.probs && (
+                            <View style={styles.suggestionProbs}>
+                              {Object.entries(suggestion.probs).map(([option, prob]: [string, any]) => {
+                                const currentProb = decision.prediction.probs[option] || 0;
+                                const delta = prob - currentProb;
+                                return (
+                                  <View key={option} style={styles.suggestionProbRow}>
+                                    <Text style={styles.suggestionOption}>{option}</Text>
+                                    <Text style={styles.suggestionProb}>{(prob * 100).toFixed(0)}%</Text>
+                                    {delta !== 0 && (
+                                      <Text style={[styles.suggestionDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
+                                        {delta > 0 ? '+' : ''}{(delta * 100).toFixed(0)}%
+                                      </Text>
+                                    )}
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          )}
+                          {suggestion.delta && (
+                            <Text style={styles.suggestionDeltaText}>{suggestion.delta}</Text>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.emptyStateText}>
+                      No suggestions available at this time.
+                    </Text>
+                  )}
+                </View>
               </View>
             )}
 
-            <TouchableOpacity
-              style={[styles.simulateButton, isPremium && styles.simulateButtonPremium]}
-              onPress={handleSimulate}
-              activeOpacity={0.8}
-            >
-              <View style={styles.simulateButtonInner}>
-                <View style={styles.simulateButtonContent}>
-                  {!isPremium && <Lock size={22} color="rgba(255, 255, 255, 0.7)" strokeWidth={2.5} />}
-                  <View style={styles.simulateTextContainer}>
-                    <Text style={styles.simulateButtonText}>
-                      {isPremium ? 'Simulate Life Trajectory' : 'Simulate Each Choice'}
-                    </Text>
-                    <Text style={styles.simulateButtonSubtext}>
-                      {isPremium ? 'See how each option plays out over time' : 'See your future timeline - unreal+'}
-                    </Text>
-                  </View>
-                </View>
+            <View style={isPremium ? styles.simulateButtonWrapper : styles.simulateButtonWrapperNonPremium}>
+              <TouchableOpacity
+                style={[styles.simulateButton, isPremium && styles.simulateButtonPremium]}
+                onPress={handleSimulate}
+                activeOpacity={0.8}
+              >
+                  {isPremium ? (
+                    <LinearGradient
+                      colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.simulateButtonGradient}
+                    >
+                      <Text style={styles.simulateButtonTextActive}>Simulate Decisions</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.simulateButtonInner}>
+                      <View style={styles.simulateButtonContent}>
+                        <Lock size={22} color="rgba(255, 255, 255, 0.7)" strokeWidth={2.5} />
+                        <View style={styles.simulateTextContainer}>
+                          <Text style={styles.simulateButtonText}>
+                            Simulate Each Choice
+                          </Text>
+                          <Text style={styles.simulateButtonSubtext}>
+                            See your future timeline - unreal+
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Disclaimer */}
+            {isPremium && (
+              <View style={styles.disclaimerSection}>
+                <Text style={styles.disclaimerText}>
+                  This trajectory is AI-generated based on your unique profile. Use it as a thought experiment, not a prediction.
+                </Text>
               </View>
-            </TouchableOpacity>
+            )}
           </>
         )}
       </ScrollView>
@@ -431,10 +458,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   predictionCard: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(30, 64, 175, 0.3)',
-    marginBottom: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 0,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 0,
   },
   predictionLabel: {
     fontSize: 14,
@@ -454,13 +487,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
+  },
+  sectionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 0,
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 0,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 12,
+    letterSpacing: 0.2,
   },
   rationale: {
     fontSize: 16,
@@ -474,7 +519,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 10,
+    letterSpacing: 0.1,
   },
   probContainer: {
     flexDirection: 'row',
@@ -485,7 +531,7 @@ const styles = StyleSheet.create({
   probBarBackground: {
     flex: 1,
     height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -502,26 +548,56 @@ const styles = StyleSheet.create({
   factor: {
     fontSize: 15,
     color: 'rgba(200, 200, 200, 0.85)',
-    marginBottom: 8,
+    marginBottom: 10,
     lineHeight: 22,
+    letterSpacing: 0.1,
   },
-  simulateButton: {
+  simulateButtonWrapper: {
     marginTop: 24,
     marginBottom: 32,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(30, 64, 175, 0.5)',
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    overflow: 'hidden',
+    borderRadius: 24,
+    shadowColor: 'rgba(135, 206, 250, 0.4)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  simulateButtonWrapperNonPremium: {
+    marginTop: 24,
+    marginBottom: 32,
+  },
+  simulateButton: {
+    marginTop: 0,
+    marginBottom: 0,
+    borderRadius: 24,
+    borderWidth: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    overflow: 'visible',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 0,
   },
   simulateButtonPremium: {
-    borderColor: '#FFD700',
-    borderWidth: 2,
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: 'transparent',
+    shadowColor: 'rgba(135, 206, 250, 0.9)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 25,
+    elevation: 16,
+  },
+  simulateButtonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  simulateButtonTextActive: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   simulateButtonInner: {
     paddingVertical: 20,
@@ -597,7 +673,7 @@ const styles = StyleSheet.create({
   groupCard: {
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(30, 64, 175, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
@@ -626,7 +702,7 @@ const styles = StyleSheet.create({
   },
   consensusChip: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(30, 64, 175, 0.4)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -638,22 +714,20 @@ const styles = StyleSheet.create({
     color: 'rgba(200, 200, 200, 0.75)',
   },
   suggestionsContainer: {
-    gap: 12,
+    gap: 14,
   },
   suggestionCard: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(30, 64, 175, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 0,
     padding: 16,
     borderRadius: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#4169E1',
   },
   suggestionLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 12,
+    letterSpacing: 0.2,
   },
   suggestionProbs: {
     gap: 8,
@@ -678,6 +752,10 @@ const styles = StyleSheet.create({
   suggestionDelta: {
     fontSize: 12,
     fontWeight: '600',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   suggestionDeltaText: {
     fontSize: 13,
@@ -694,11 +772,15 @@ const styles = StyleSheet.create({
   },
   participantsSection: {
     marginBottom: 24,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(30, 64, 175, 0.3)',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 0,
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 0,
   },
   participantsHeader: {
     flexDirection: 'row',
@@ -717,16 +799,27 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   participantChip: {
-    backgroundColor: 'rgba(30, 64, 175, 0.4)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(65, 105, 225, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
   participantName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
+  },
+  disclaimerSection: {
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  disclaimerText: {
+    fontSize: 13,
+    color: 'rgba(200, 200, 200, 0.75)',
+    lineHeight: 20,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

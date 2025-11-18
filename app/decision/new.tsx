@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Image, Modal, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Image, Modal, ActivityIndicator, Animated } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
@@ -456,7 +456,7 @@ export default function NewDecisionScreen() {
               activeOpacity={0.7}
             >
               <LinearGradient
-                colors={['rgba(65, 105, 225, 0.15)', 'rgba(65, 105, 225, 0.05)']}
+                colors={['rgba(135, 206, 250, 0.15)', 'rgba(135, 206, 250, 0.05)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.addTwinGradient}
@@ -464,13 +464,13 @@ export default function NewDecisionScreen() {
                 <BlurView intensity={20} tint="dark" style={styles.addTwinBlurEnhanced}>
                   <View style={styles.addTwinContentEnhanced}>
                     <View style={styles.iconCircle}>
-                      <UserPlus size={28} color="#4169E1" />
+                      <UserPlus size={28} color="rgba(135, 206, 250, 0.9)" />
                     </View>
                     <View style={styles.addTwinTextContainer}>
                       <Text style={styles.addTwinTextEnhanced}>Add Another Twin</Text>
                       <Text style={styles.addTwinSubtext}>Collaborate on this decision</Text>
                     </View>
-                    <ChevronRight size={24} color="rgba(65, 105, 225, 0.6)" />
+                    <ChevronRight size={24} color="rgba(135, 206, 250, 0.6)" />
                   </View>
                 </BlurView>
               </LinearGradient>
@@ -615,40 +615,50 @@ export default function NewDecisionScreen() {
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity
-          onPress={handleNextStep}
-          disabled={!canProceed}
-          activeOpacity={0.9}
-          style={[
+        <View style={styles.floatingButtonWrapper}>
+          <BlurView intensity={80} tint="dark" style={[
             styles.floatingButton,
             !canProceed && styles.floatingButtonDisabled
-          ]}
-        >
-          <LinearGradient
-            colors={canProceed ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.floatingButtonGradient}
-          >
-            {currentStep === 4 && (
-              <Image 
-                source={require('@/assets/images/cube.png')}
-                style={[
-                  styles.cubeIcon,
-                  !canProceed && styles.cubeIconDisabled
-                ]}
-                resizeMode="contain"
-              />
-            )}
-            <Text style={[
-              styles.floatingButtonText,
-              !canProceed && styles.floatingButtonTextDisabled
-            ]}>
-              {getButtonLabel()}
-            </Text>
-            {!loading && !isDerivingOptions && <ChevronRight size={20} color={canProceed ? "#FFFFFF" : "rgba(200, 200, 200, 0.5)"} />}
-          </LinearGradient>
-        </TouchableOpacity>
+          ]}>
+            {/* Classic glass border */}
+            <View style={styles.buttonGlassBorder} />
+            {/* Subtle inner highlight */}
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.buttonGlassHighlight}
+              pointerEvents="none"
+            />
+            <TouchableOpacity
+              onPress={handleNextStep}
+              disabled={!canProceed}
+              activeOpacity={0.9}
+              style={[
+                styles.floatingButtonInner,
+                !canProceed && { opacity: 0.6 }
+              ]}
+            >
+              {currentStep === 4 && (
+                <Image 
+                  source={require('@/assets/images/cube.png')}
+                  style={[
+                    styles.cubeIcon,
+                    !canProceed && styles.cubeIconDisabled
+                  ]}
+                  resizeMode="contain"
+                />
+              )}
+              <Text style={[
+                styles.floatingButtonText,
+                !canProceed && styles.floatingButtonTextDisabled
+              ]}>
+                {getButtonLabel()}
+              </Text>
+              {!loading && !isDerivingOptions && <ChevronRight size={20} color={canProceed ? "#FFFFFF" : "rgba(200, 200, 200, 0.5)"} />}
+            </TouchableOpacity>
+          </BlurView>
+        </View>
         </View>
       </View>
 
@@ -725,7 +735,7 @@ export default function NewDecisionScreen() {
                   activeOpacity={0.9}
                 >
                   <LinearGradient
-                    colors={twinCode.length === 6 && !lookingUpTwin ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+                    colors={twinCode.length === 6 && !lookingUpTwin ? ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.modalButton}
@@ -786,7 +796,7 @@ export default function NewDecisionScreen() {
                   activeOpacity={0.9}
                 >
                   <LinearGradient
-                    colors={editingOptionText.trim() ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+                    colors={editingOptionText.trim() ? ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.modalButton}
@@ -841,7 +851,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(65, 105, 225, 0.2)',
+    borderBottomColor: 'rgba(135, 206, 250, 0.2)',
   },
   contentWrapper: {
     flex: 1,
@@ -860,8 +870,49 @@ const styles = StyleSheet.create({
   stepContainer: {
     gap: 20,
   },
+  stepCardWrapper: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  stepCard: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  stepCardContent: {
+    padding: 22,
+    zIndex: 1,
+  },
   stepHeader: {
     marginBottom: 4,
+  },
+  glassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   stepIcon: {
     width: 48,
@@ -901,16 +952,16 @@ const styles = StyleSheet.create({
   regenerateButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(65, 105, 225, 0.15)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
     borderWidth: 1.5,
-    borderColor: 'rgba(65, 105, 225, 0.4)',
+    borderColor: 'rgba(135, 206, 250, 0.4)',
     borderRadius: 12,
     padding: 14,
   },
   regenerateText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
   },
   twinAddedCard: {
     borderRadius: 16,
@@ -960,7 +1011,7 @@ const styles = StyleSheet.create({
   addTwinText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
   },
   collaboratorSection: {
     position: 'relative',
@@ -970,7 +1021,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: 'rgba(65, 105, 225, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
     marginBottom: 20,
   },
   addTwinGradient: {
@@ -990,11 +1041,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(65, 105, 225, 0.2)',
+    backgroundColor: 'rgba(135, 206, 250, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(65, 105, 225, 0.4)',
+    borderColor: 'rgba(135, 206, 250, 0.4)',
   },
   addTwinTextContainer: {
     flex: 1,
@@ -1023,7 +1074,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: 'rgba(65, 105, 225, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
   reviewBlur: {
     backgroundColor: 'rgba(20, 18, 30, 0.3)',
@@ -1056,7 +1107,7 @@ const styles = StyleSheet.create({
   reviewOptionNumber: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
   },
   reviewOptionText: {
     flex: 1,
@@ -1071,7 +1122,7 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 32 : 36,
     backgroundColor: '#0C0C10',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(65, 105, 225, 0.2)',
+    borderTopColor: 'rgba(135, 206, 250, 0.2)',
   },
   skipButton: {
     alignItems: 'center',
@@ -1083,20 +1134,47 @@ const styles = StyleSheet.create({
     color: 'rgba(200, 200, 200, 0.75)',
     fontWeight: '600',
   },
+  floatingButtonWrapper: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
   floatingButton: {
     borderRadius: 24,
-    overflow: 'visible',
-    shadowColor: '#4169E1',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
   floatingButtonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
+    opacity: 0.6,
   },
-  floatingButtonGradient: {
+  buttonGlassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  buttonGlassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  floatingButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1104,6 +1182,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     borderRadius: 24,
+    zIndex: 1,
   },
   floatingButtonText: {
     fontSize: 17,
@@ -1137,7 +1216,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(65, 105, 225, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
   modalBlur: {
     backgroundColor: 'rgba(20, 18, 30, 0.95)',
@@ -1187,12 +1266,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   recentTwinChip: {
-    backgroundColor: 'rgba(30, 58, 138, 0.4)',
+    backgroundColor: 'rgba(20, 30, 50, 0.4)',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(65, 105, 225, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -1205,13 +1284,13 @@ const styles = StyleSheet.create({
   recentTwinCode: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
   },
   modalButtonWrapper: {
     borderRadius: 24,
     overflow: 'visible',
     marginTop: 8,
-    shadowColor: '#4169E1',
+    shadowColor: 'rgba(135, 206, 250, 0.5)',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
     shadowRadius: 20,

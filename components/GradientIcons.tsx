@@ -13,12 +13,12 @@ export function CompassGradientIcon({ size = 20 }: IconProps) {
     <Svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
       <Defs>
         <SvgLinearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor="#4169E1" />
-          <Stop offset="100%" stopColor="#1E3A8A" />
+          <Stop offset="0%" stopColor="rgba(135, 206, 250, 0.9)" />
+          <Stop offset="100%" stopColor="rgba(135, 206, 250, 0.7)" />
         </SvgLinearGradient>
         <SvgLinearGradient id="compFill" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor="#4169E1" />
-          <Stop offset="100%" stopColor="#1E40AF" />
+          <Stop offset="0%" stopColor="rgba(135, 206, 250, 0.9)" />
+          <Stop offset="100%" stopColor="rgba(100, 181, 246, 0.8)" />
         </SvgLinearGradient>
       </Defs>
       {/* outer subtle inner ring to mimic icon styling */}
@@ -38,8 +38,8 @@ export function StarGradientIcon({ size = 20 }: IconProps) {
     <Svg width={s} height={s} viewBox="0 0 24 24">
       <Defs>
         <SvgLinearGradient id="starStroke" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor="#4169E1" />
-          <Stop offset="100%" stopColor="#1E40AF" />
+          <Stop offset="0%" stopColor="rgba(135, 206, 250, 0.9)" />
+          <Stop offset="100%" stopColor="rgba(100, 181, 246, 0.8)" />
         </SvgLinearGradient>
       </Defs>
       {/* smooth 4-point star using cubic curves */}
@@ -60,9 +60,9 @@ export function HomeGradientIcon({ size = 24 }: IconProps) {
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Defs>
         <SvgLinearGradient id="homeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor="#4169E1" />
-          <Stop offset="50%" stopColor="#1E40AF" />
-          <Stop offset="100%" stopColor="#1E3A8A" />
+          <Stop offset="0%" stopColor="rgba(135, 206, 250, 0.9)" />
+          <Stop offset="50%" stopColor="rgba(100, 181, 246, 0.8)" />
+          <Stop offset="100%" stopColor="rgba(135, 206, 250, 0.7)" />
         </SvgLinearGradient>
       </Defs>
       <Path
@@ -90,9 +90,9 @@ export function UserGradientIcon({ size = 24 }: IconProps) {
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Defs>
         <SvgLinearGradient id="userGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor="#4169E1" />
-          <Stop offset="50%" stopColor="#1E40AF" />
-          <Stop offset="100%" stopColor="#1E3A8A" />
+          <Stop offset="0%" stopColor="rgba(135, 206, 250, 0.9)" />
+          <Stop offset="50%" stopColor="rgba(100, 181, 246, 0.8)" />
+          <Stop offset="100%" stopColor="rgba(135, 206, 250, 0.7)" />
         </SvgLinearGradient>
       </Defs>
       <Circle

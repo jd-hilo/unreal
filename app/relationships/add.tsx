@@ -387,12 +387,12 @@ export default function AddRelationshipScreen() {
               activeOpacity={0.9}
               style={[
                 styles.button,
-                { shadowColor: !extracting ? '#4169E1' : 'rgba(100, 100, 100, 0.3)' },
+                { shadowColor: !extracting ? 'rgba(135, 206, 250, 0.5)' : 'rgba(100, 100, 100, 0.3)' },
                 extracting && styles.buttonDisabled
               ]}
             >
               <LinearGradient
-                colors={!extracting ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+                colors={!extracting ? ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.buttonGradient}
@@ -423,12 +423,12 @@ export default function AddRelationshipScreen() {
                 activeOpacity={0.9}
                 style={[
                   styles.button,
-                  { flex: 1, shadowColor: (!saving && extracted.filter(r => r.selected).length > 0) ? '#4169E1' : 'rgba(100, 100, 100, 0.3)' },
+                  { flex: 1, shadowColor: (!saving && extracted.filter(r => r.selected).length > 0) ? 'rgba(135, 206, 250, 0.5)' : 'rgba(100, 100, 100, 0.3)' },
                   (saving || extracted.filter(r => r.selected).length === 0) && styles.buttonDisabled
                 ]}
               >
                 <LinearGradient
-                  colors={(!saving && extracted.filter(r => r.selected).length > 0) ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+                  colors={(!saving && extracted.filter(r => r.selected).length > 0) ? ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.buttonGradient}
@@ -454,12 +454,12 @@ export default function AddRelationshipScreen() {
             activeOpacity={0.9}
             style={[
               styles.button,
-              { shadowColor: (!saving && name.trim() && relationshipType) ? '#4169E1' : 'rgba(100, 100, 100, 0.3)' },
+              { shadowColor: (!saving && name.trim() && relationshipType) ? 'rgba(135, 206, 250, 0.5)' : 'rgba(100, 100, 100, 0.3)' },
               (saving || !name.trim() || !relationshipType) && styles.buttonDisabled
             ]}
           >
             <LinearGradient
-              colors={(!saving && name.trim() && relationshipType) ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+              colors={(!saving && name.trim() && relationshipType) ? ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.buttonGradient}

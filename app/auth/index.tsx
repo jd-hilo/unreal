@@ -14,6 +14,7 @@ import {
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { Input } from '@/components/Input';
@@ -191,34 +192,40 @@ export default function AuthScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          onPress={handleAuth}
-          disabled={loading || !email || !password}
-          activeOpacity={0.9}
-          style={[
+        <View style={styles.buttonWrapper}>
+          <BlurView intensity={80} tint="dark" style={[
             styles.button,
-            { shadowColor: (!loading && email && password) ? '#4169E1' : 'rgba(100, 100, 100, 0.3)' },
             (loading || !email || !password) && styles.buttonDisabled
-          ]}
-        >
-          <LinearGradient
-            colors={(!loading && email && password) ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.buttonGradient}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Text style={styles.buttonText}>
-                  {isSignUp ? 'Sign Up' : 'Sign In'}
-                </Text>
-                <ChevronRight size={20} color="#FFFFFF" />
-              </>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+          ]}>
+            {/* Classic glass border */}
+            <View style={styles.glassBorder} />
+            {/* Subtle inner highlight */}
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.glassHighlight}
+              pointerEvents="none"
+            />
+            <TouchableOpacity
+              onPress={handleAuth}
+              disabled={loading || !email || !password}
+              activeOpacity={0.9}
+              style={styles.buttonInner}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Text style={styles.buttonText}>
+                    {isSignUp ? 'Sign Up' : 'Sign In'}
+                  </Text>
+                  <ChevronRight size={20} color="#FFFFFF" />
+                </>
+              )}
+            </TouchableOpacity>
+          </BlurView>
+        </View>
         
         <TouchableOpacity
           onPress={appleSignIn}
@@ -313,20 +320,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 8,
   },
-  button: {
+  buttonWrapper: {
     borderRadius: 24,
-    overflow: 'visible',
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
     marginBottom: 12,
   },
-  buttonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
+  button: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
-  buttonGradient: {
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  glassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  buttonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -334,6 +369,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     borderRadius: 24,
+    zIndex: 1,
   },
   buttonText: {
     fontSize: 17,
@@ -385,7 +421,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   linkText: {
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
     textDecorationLine: 'underline',
     fontWeight: '600',
   },

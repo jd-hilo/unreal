@@ -170,18 +170,20 @@ export default function PremiumScreen() {
               onPress={() => setSelectedPeriod('monthly')}
               activeOpacity={0.7}
             >
-              <Text style={[
-                styles.billingOptionTitle,
-                selectedPeriod === 'monthly' && styles.billingOptionTitleSelected,
-              ]}>
-                Monthly
-              </Text>
-              <Text style={[
-                styles.billingOptionPrice,
-                selectedPeriod === 'monthly' && styles.billingOptionPriceSelected,
-              ]}>
-                $9.99/mo
-              </Text>
+              <BlurView intensity={80} tint="dark" style={styles.billingOptionBlur}>
+                <Text style={[
+                  styles.billingOptionTitle,
+                  selectedPeriod === 'monthly' && styles.billingOptionTitleSelected,
+                ]}>
+                  Monthly
+                </Text>
+                <Text style={[
+                  styles.billingOptionPrice,
+                  selectedPeriod === 'monthly' && styles.billingOptionPriceSelected,
+                ]}>
+                  $9.99/mo
+                </Text>
+              </BlurView>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -195,19 +197,21 @@ export default function PremiumScreen() {
               <View style={styles.saveBadge}>
                 <Text style={styles.saveBadgeText}>SAVE 20%</Text>
               </View>
-              <Text style={[
-                styles.billingOptionTitle,
-                selectedPeriod === 'yearly' && styles.billingOptionTitleSelected,
-              ]}>
-                Yearly
-              </Text>
-              <Text style={[
-                styles.billingOptionPrice,
-                selectedPeriod === 'yearly' && styles.billingOptionPriceSelected,
-              ]}>
-                $94.99/yr
-              </Text>
-              <Text style={styles.billingOptionDetail}>$7.92/mo</Text>
+              <BlurView intensity={80} tint="dark" style={styles.billingOptionBlur}>
+                <Text style={[
+                  styles.billingOptionTitle,
+                  selectedPeriod === 'yearly' && styles.billingOptionTitleSelected,
+                ]}>
+                  Yearly
+                </Text>
+                <Text style={[
+                  styles.billingOptionPrice,
+                  selectedPeriod === 'yearly' && styles.billingOptionPriceSelected,
+                ]}>
+                  $94.99/yr
+                </Text>
+                <Text style={styles.billingOptionDetail}>$7.92/mo</Text>
+              </BlurView>
             </TouchableOpacity>
           </View>
 
@@ -219,7 +223,7 @@ export default function PremiumScreen() {
               return (
                 <View key={index} style={styles.featureRow}>
                   <View style={styles.featureIcon}>
-                    <Icon size={24} color="#FFD700" strokeWidth={2} />
+                    <Icon size={24} color="rgba(135, 206, 250, 0.9)" strokeWidth={2} />
                   </View>
                   <View style={styles.featureContent}>
                     <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -238,7 +242,7 @@ export default function PremiumScreen() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['#FFD700', '#FFA500', '#FF8C00']}
+              colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.purchaseButtonGradient}
@@ -264,7 +268,7 @@ export default function PremiumScreen() {
             activeOpacity={0.7}
           >
             {restoring ? (
-              <ActivityIndicator size="small" color="#4169E1" />
+              <ActivityIndicator size="small" color="rgba(135, 206, 250, 0.9)" />
             ) : (
               <Text style={styles.restoreButtonText}>Restore Purchases</Text>
             )}
@@ -360,17 +364,26 @@ const styles = StyleSheet.create({
   },
   billingOption: {
     flex: 1,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
     borderWidth: 2,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
     position: 'relative',
+    overflow: 'hidden',
   },
   billingOptionSelected: {
-    borderColor: '#FFD700',
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    borderColor: 'rgba(135, 206, 250, 0.6)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
+  },
+  billingOptionBlur: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   saveBadge: {
     position: 'absolute',
@@ -428,9 +441,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
   featureContent: {
     flex: 1,
@@ -450,6 +465,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 16,
+    shadowColor: 'rgba(135, 206, 250, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
   },
   purchaseButtonDisabled: {
     opacity: 0.6,
@@ -474,7 +494,7 @@ const styles = StyleSheet.create({
   restoreButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFD700',
+    color: 'rgba(135, 206, 250, 0.9)',
   },
   finePrint: {
     fontSize: 12,
@@ -493,7 +513,7 @@ const styles = StyleSheet.create({
   },
   legalLinkText: {
     fontSize: 12,
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
     textDecorationLine: 'underline',
   },
   legalSeparator: {

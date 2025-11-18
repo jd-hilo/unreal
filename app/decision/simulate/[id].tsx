@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
@@ -8,6 +8,14 @@ import { buildCorePack } from '@/lib/relevance';
 import { ArrowLeft, Sparkles, Zap, Brain } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { TimelineSimulation } from '@/types/database';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  withSequence,
+  Easing,
+} from 'react-native-reanimated';
 
 export default function SimulationScreen() {
   const router = useRouter();
@@ -22,6 +30,45 @@ export default function SimulationScreen() {
   const [simulatedPaths, setSimulatedPaths] = useState(0);
   const [probabilitiesCalculated, setProbabilitiesCalculated] = useState(0);
   const [participants, setParticipants] = useState<any[]>([]);
+
+  // Matrix background columns - simplified for performance
+  const numColumns = 12;
+  const matrixColumns = useRef(
+    Array.from({ length: numColumns }, (_, i) => ({
+      id: i,
+      y: useSharedValue(Math.random() * -1500),
+      speed: 3000 + Math.random() * 2000, // Duration in ms (3-5 seconds)
+    }))
+  ).current;
+
+  // Animate matrix columns
+  useEffect(() => {
+    if (!loading && !generating) return;
+
+    matrixColumns.forEach((col) => {
+      // Start smooth continuous looping animation
+      col.y.value = withRepeat(
+        withSequence(
+          withTiming(1200, {
+            duration: col.speed,
+            easing: Easing.linear,
+          }),
+          withTiming(-1500, {
+            duration: 0,
+            easing: Easing.linear,
+          })
+        ),
+        -1,
+        false
+      );
+    });
+
+    return () => {
+      matrixColumns.forEach((col) => {
+        col.y.value = -1500;
+      });
+    };
+  }, [loading, generating]);
 
   useEffect(() => {
     if (user && id) {
@@ -111,69 +158,58 @@ export default function SimulationScreen() {
     await generateSimulationForOption(decision, option);
   }
 
+  // Create matrix number styles - simplified for performance
+  const numbersPerColumn = 20;
+  const matrixNumberStyles = matrixColumns.map((column, colIdx) =>
+    Array.from({ length: numbersPerColumn }, (_, idx) =>
+      useAnimatedStyle(() => {
+        const opacity = idx < 3 ? idx * 0.3 : Math.max(0.2, 1 - (idx - 3) * 0.1);
+        return {
+          opacity,
+          transform: [{ translateY: column.y.value + idx * 40 }],
+        };
+      })
+    )
+  );
+
   if (loading || generating) {
-    const loadingMessages = [
-      { text: 'Constructing timeline matrix', icon: Brain },
-      { text: 'Simulating parallel futures', icon: Sparkles },
-      { text: 'Calculating probability waves', icon: Zap },
-      { text: 'Weaving reality threads', icon: Sparkles },
-    ];
-    
-    const currentMessage = loadingMessages[loadingPhase];
-    const Icon = currentMessage.icon;
-    
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Life Trajectory</Text>
+      <LinearGradient
+        colors={['#09090A', '#0F0F11']}
+        style={styles.container}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      >
+        {/* Matrix Background */}
+        <View style={styles.matrixContainer} pointerEvents="none">
+          {matrixColumns.map((column, colIdx) => {
+            const numbers = Array.from({ length: numbersPerColumn }, () => Math.floor(Math.random() * 10).toString());
+            
+            return (
+              <Animated.View
+                key={column.id}
+                style={[
+                  styles.matrixColumn,
+                  { left: `${(column.id / numColumns) * 100}%` },
+                ]}
+              >
+                {numbers.map((num, idx) => (
+                  <Animated.Text
+                    key={idx}
+                    style={[styles.matrixNumber, matrixNumberStyles[colIdx][idx]]}
+                  >
+                    {num}
+                  </Animated.Text>
+                ))}
+              </Animated.View>
+            );
+          })}
         </View>
+
         <View style={styles.loadingContainer}>
-          <View style={styles.loadingContent}>
-            {/* Animated icon */}
-            <View style={styles.loadingIconContainer}>
-              <View style={styles.loadingIconGlow} />
-              <Icon size={48} color="#4169E1" />
-            </View>
-            
-            {/* Main loading message */}
-            <Text style={styles.loadingMainText}>{currentMessage.text}</Text>
-            
-            {/* Stats grid */}
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>
-                  {simulatedPaths.toLocaleString()}
-                </Text>
-                <Text style={styles.statLabel}>Paths Simulated</Text>
-              </View>
-              
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>
-                  {probabilitiesCalculated.toLocaleString()}
-          </Text>
-                <Text style={styles.statLabel}>Probabilities Calculated</Text>
-              </View>
-            </View>
-            
-            {/* Progress dots */}
-            <View style={styles.progressDots}>
-              {[0, 1, 2, 3].map((i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.progressDot,
-                    loadingPhase === i && styles.progressDotActive
-                  ]}
-                />
-              ))}
-            </View>
-            
-          </View>
+          <Text style={styles.loadingText}>running different lifelines...</Text>
         </View>
-      </View>
+      </LinearGradient>
     );
   }
 
@@ -198,9 +234,9 @@ export default function SimulationScreen() {
     : JSON.parse(decision.options || '[]');
 
   const timelineData = timeline ? [
-    { period: '1 Year', events: timeline.one_year, color: '#4169E1' },
+    { period: '1 Year', events: timeline.one_year, color: 'rgba(135, 206, 250, 0.9)' },
     { period: '3 Years', events: timeline.three_year, color: '#A78BFA' },
-    { period: '5 Years', events: timeline.five_year, color: '#1E40AF' },
+    { period: '5 Years', events: timeline.five_year, color: 'rgba(100, 181, 246, 0.8)' },
     { period: '10 Years', events: timeline.ten_year, color: '#6D28D9' },
   ] : [];
 
@@ -215,82 +251,89 @@ export default function SimulationScreen() {
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {/* Decision Context */}
-        <View style={styles.contextSection}>
-          <Text style={styles.question}>{decision.question}</Text>
+        <View style={styles.section}>
+          <View style={styles.sectionCard}>
+            <Text style={styles.question}>{decision.question}</Text>
+          </View>
         </View>
 
         {/* Option Selector */}
-        <View style={styles.optionsSection}>
-          <Text style={styles.optionsLabel}>Explore Each Option:</Text>
-          <View style={styles.optionsGrid}>
-            {options.map((option: string) => {
-              return (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.optionButton,
-                    selectedOption === option && styles.optionButtonSelected,
-                    generating && styles.optionButtonDisabled,
-                  ]}
-                  onPress={() => handleOptionSelect(option)}
-                  activeOpacity={0.7}
-                  disabled={generating}
-                >
-                  <Text style={[
-                    styles.optionButtonText,
-                    selectedOption === option && styles.optionButtonTextSelected
-                  ]}>
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+        <View style={styles.section}>
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Explore Each Option</Text>
+            <View style={styles.optionsGrid}>
+              {options.map((option: string) => {
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.optionButton,
+                      selectedOption === option && styles.optionButtonSelected,
+                      generating && styles.optionButtonDisabled,
+                    ]}
+                    onPress={() => handleOptionSelect(option)}
+                    activeOpacity={0.7}
+                    disabled={generating}
+                  >
+                    <Text style={[
+                      styles.optionButtonText,
+                      selectedOption === option && styles.optionButtonTextSelected
+                    ]}>
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </View>
 
         {/* Loading State for Regeneration */}
         {generating && (
-          <View style={styles.regeneratingContainer}>
-            <ActivityIndicator size="small" color="#4169E1" />
-            <Text style={styles.regeneratingText}>Generating timeline for "{selectedOption}"...</Text>
+          <View style={styles.section}>
+            <View style={styles.sectionCard}>
+              <View style={styles.regeneratingContainer}>
+                <ActivityIndicator size="small" color="rgba(135, 206, 250, 0.9)" />
+                <Text style={styles.regeneratingText}>Generating timeline for "{selectedOption}"...</Text>
+              </View>
+            </View>
           </View>
         )}
 
         {/* Timeline */}
         {timeline && (
           <View style={styles.timelineContainer}>
-            {timelineData.map(({ period, events, color }) => (
-              <View key={period} style={styles.periodSection}>
-                {/* Period Header */}
-                <View style={[styles.periodHeader, { backgroundColor: color }]}>
+            {timelineData.map(({ period, events }) => (
+              <View key={period} style={styles.section}>
+                <View style={styles.sectionCard}>
                   <Text style={styles.periodTitle}>{period}</Text>
-                </View>
-
-                {/* Events */}
-                {events.map((event, index) => (
-                  <View key={index} style={styles.eventRow}>
-                    <Text style={styles.eventTime}>{event.time}</Text>
-                    <View style={styles.eventContent}>
-                      <Text style={styles.eventTitle}>{event.title}</Text>
-                      {event.people && event.people.length > 0 && (
-                        <View style={styles.peopleTags}>
-                          {event.people.map((person, pIndex) => (
-                            <LinearGradient
-                              key={pIndex}
-                              colors={['#4169E1', '#1E40AF', '#1E3A8A']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 0 }}
-                              style={styles.personTag}
-                            >
-                              <Text style={styles.personTagText}>{person}</Text>
-                            </LinearGradient>
-                          ))}
+                  <View style={styles.eventsContainer}>
+                    {events.map((event, index) => (
+                      <View 
+                        key={index} 
+                        style={[
+                          styles.eventRow,
+                          index === events.length - 1 && styles.eventRowLast
+                        ]}
+                      >
+                        <Text style={styles.eventTime}>{event.time}</Text>
+                        <View style={styles.eventContent}>
+                          <Text style={styles.eventTitle}>{event.title}</Text>
+                          {event.people && event.people.length > 0 && (
+                            <View style={styles.peopleTags}>
+                              {event.people.map((person, pIndex) => (
+                                <View key={pIndex} style={styles.personTag}>
+                                  <Text style={styles.personTagText}>{person}</Text>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                          <Text style={styles.eventDescription}>{event.description}</Text>
                         </View>
-                      )}
-                      <Text style={styles.eventDescription}>{event.description}</Text>
-                    </View>
+                      </View>
+                    ))}
                   </View>
-                ))}
+                </View>
               </View>
             ))}
           </View>
@@ -298,9 +341,13 @@ export default function SimulationScreen() {
 
         {/* Generation Note */}
         {timeline && (
-          <Text style={styles.generationNote}>
-            This trajectory is AI-generated based on your unique profile. Use it as a thought experiment, not a prediction.
-          </Text>
+          <View style={styles.section}>
+            <View style={styles.sectionCard}>
+              <Text style={styles.generationNote}>
+                This trajectory is AI-generated based on your unique profile. Use it as a thought experiment, not a prediction.
+              </Text>
+            </View>
+          </View>
         )}
       </ScrollView>
     </View>
@@ -312,16 +359,39 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0C0C10',
   },
+  matrixContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  matrixColumn: {
+    position: 'absolute',
+    top: 0,
+    width: '5%',
+    alignItems: 'center',
+  },
+  matrixNumber: {
+    fontSize: 12,
+    color: 'rgba(200, 200, 200, 0.2)',
+    fontFamily: Platform.select({
+      ios: 'Courier',
+      android: 'monospace',
+      default: 'monospace',
+    }),
+    lineHeight: 18,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 20,
-    backgroundColor: '#0C0C10',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
     gap: 16,
+    backgroundColor: '#0C0C10',
   },
   backButton: {
     width: 40,
@@ -339,84 +409,48 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: 24,
+    paddingHorizontal: 24,
     paddingBottom: 40,
-    overflow: 'visible',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 0,
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 0,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 12,
+    letterSpacing: 0.2,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
   },
-  loadingContent: {
-    width: '100%',
-    alignItems: 'center',
-    gap: 32,
-  },
-  loadingIconContainer: {
-    position: 'relative',
-    width: 80,
-    height: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingIconGlow: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#4169E1',
-    opacity: 0.2,
-  },
-  loadingMainText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 16,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  statCard: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    minWidth: 150,
-    flex: 1,
-    maxWidth: 180,
-  },
-  statNumber: {
-    fontSize: 16,
+  loadingText: {
+    fontSize: 28,
     fontWeight: '700',
-    color: '#4169E1',
-    marginBottom: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: '#FFFFFF',
+    letterSpacing: -0.8,
     textAlign: 'center',
-  },
-  progressDots: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(183, 149, 255, 0.3)',
-  },
-  progressDotActive: {
-    backgroundColor: '#4169E1',
-    width: 24,
+    opacity: 1,
+    fontFamily: Platform.select({
+      ios: 'Inter-Bold',
+      android: 'Inter-Bold',
+      default: 'Inter',
+    }),
   },
   animatedBarsContainer: {
     position: 'absolute',
@@ -432,7 +466,7 @@ const styles = StyleSheet.create({
   },
   animatedBar: {
     flex: 1,
-    backgroundColor: '#4169E1',
+    backgroundColor: 'rgba(135, 206, 250, 0.9)',
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
   },
@@ -450,44 +484,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(200, 200, 200, 0.75)',
   },
-  contextSection: {
-    marginBottom: 16,
-  },
   question: {
     fontSize: 20,
     fontWeight: '600',
     color: '#FFFFFF',
     lineHeight: 28,
   },
-  optionsSection: {
-    marginBottom: 24,
-    marginTop: 8,
-    overflow: 'visible',
-  },
-  optionsLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
-    marginBottom: 16,
-    marginTop: 4,
-  },
   optionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    overflow: 'visible',
   },
   optionButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
   optionButtonSelected: {
-    borderColor: '#4169E1',
-    backgroundColor: 'rgba(59, 37, 109, 0.3)',
+    backgroundColor: 'rgba(135, 206, 250, 0.2)',
   },
   optionButtonDisabled: {
     opacity: 0.5,
@@ -498,7 +514,7 @@ const styles = StyleSheet.create({
     color: 'rgba(200, 200, 200, 0.85)',
   },
   optionButtonTextSelected: {
-    color: '#FFFFFF',
+    color: 'rgba(135, 206, 250, 0.9)',
   },
   recommendedBadge: {
     position: 'absolute',
@@ -526,48 +542,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    paddingVertical: 20,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    borderRadius: 12,
-    marginBottom: 16,
+    paddingVertical: 8,
   },
   regeneratingText: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: 'rgba(200, 200, 200, 0.85)',
   },
   timelineContainer: {
-    gap: 32,
-  },
-  periodSection: {
-    gap: 2,
-  },
-  periodHeader: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 12,
+    gap: 0,
   },
   periodTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    marginBottom: 16,
+    letterSpacing: 0.2,
+  },
+  eventsContainer: {
+    gap: 12,
   },
   eventRow: {
     flexDirection: 'row',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    borderRadius: 8,
-    marginBottom: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
     gap: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  eventRowLast: {
+    borderBottomWidth: 0,
   },
   eventTime: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: 'rgba(200, 200, 200, 0.75)',
     width: 70,
@@ -578,41 +584,41 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   eventTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    lineHeight: 20,
+    lineHeight: 22,
+    marginBottom: 4,
   },
   eventDescription: {
-    fontSize: 13,
-    color: 'rgba(200, 200, 200, 0.75)',
-    lineHeight: 19,
+    fontSize: 15,
+    color: 'rgba(200, 200, 200, 0.85)',
+    lineHeight: 22,
   },
   peopleTags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
     marginTop: 6,
     marginBottom: 6,
   },
   personTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(10, 132, 255, 0.2)',
   },
   personTagText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#0A84FF',
   },
   generationNote: {
     fontSize: 13,
     color: 'rgba(200, 200, 200, 0.75)',
     lineHeight: 20,
-    textAlign: 'center',
+    textAlign: 'left',
     fontStyle: 'italic',
-    marginTop: 16,
-    paddingHorizontal: 16,
   },
 });
 
