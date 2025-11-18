@@ -20,6 +20,7 @@ import { useTwin } from '@/store/useTwin';
 import { Input } from '@/components/Input';
 import { ChevronRight } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
+import { PhoneAuth } from '@/components/phoneAuth';
 export default function AuthScreen() {
   const router = useRouter();
   const { user, initialized, signIn, signUp ,appleSignIn} = useAuth();
@@ -34,6 +35,15 @@ export default function AuthScreen() {
   // Animation values
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const subtitleOpacity = useRef(new Animated.Value(0)).current;
+ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
+
+  const handleAuthSuccess = () => {
+    console.log('Phone auth successful!');
+    setShowPhoneAuth(false);
+    // Navigate to main app
+  };
+
+
 
   // Fade in animations
   useEffect(() => {
@@ -121,7 +131,14 @@ export default function AuthScreen() {
       setLoading(false);
     }
   }
-
+  if (showPhoneAuth) {
+    return (
+      <PhoneAuth
+        onAuthSuccess={handleAuthSuccess}
+        onBack={() => setShowPhoneAuth(false)}
+      />
+    );
+  }
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -226,7 +243,12 @@ export default function AuthScreen() {
             </TouchableOpacity>
           </BlurView>
         </View>
-        
+         <TouchableOpacity 
+        onPress={() => setShowPhoneAuth(true)}
+        style={styles.appleButton}
+      >
+        <Text style={{ color: 'white', fontSize: 16 }}>Sign in with Phone</Text>
+      </TouchableOpacity>
         <TouchableOpacity
           onPress={appleSignIn}
           disabled={loading}

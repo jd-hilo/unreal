@@ -61,7 +61,8 @@ export default function Index() {
       
       if (!isComplete) {
         console.log('📍 INDEX: Routing to /onboarding/00-name');
-        router.replace('/onboarding/00-name');
+        router.replace('/onboarding/choose-method');
+       // router.replace('/onboarding/00-name');
       } else {
         console.log('📍 INDEX: Routing to /(tabs)/home');
         router.replace('/(tabs)/home');

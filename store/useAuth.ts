@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { trackEvent, resetMixpanel, MixpanelEvents } from '@/lib/mixpanel';
+import { router } from 'expo-router';
 
 interface AuthState {
   user: User | null;
@@ -16,6 +17,9 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
+  sendPhoneOtp: (phone: string) => Promise<void>;
+  verifyPhoneOtp: (phone: string, otp: string) => Promise<void>;
+  resendPhoneOtp: (phone: string) => Promise<void>;
 }
 
 export const useAuth = create<AuthState>((set) => ({
@@ -87,9 +91,10 @@ export const useAuth = create<AuthState>((set) => ({
               },
             });
           }
+          
           set({ session: session, user: user });
-
-          // User is signed in.
+          // For new sign ups, go to choose-method screen (AI call or manual)
+   // User is signed in.
         }
       } else {
         throw new Error('No identityToken.');
@@ -149,6 +154,55 @@ export const useAuth = create<AuthState>((set) => ({
     } catch (error) {
       console.error('Auth initialization error:', error);
       set({ loading: false, initialized: true });
+    }
+  },
+  sendPhoneOtp: async (phone: string) => {
+    const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: formattedPhone,
+    });
+
+    if (error) {
+      trackEvent('Phone OTP Failed', { phone, error: error.message });
+      throw error;
+    }
+  },
+
+  verifyPhoneOtp: async (phone: string, otp: string) => {
+    const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone: formattedPhone,
+      token: otp,
+      type: 'sms',
+    });
+
+    if (error) {
+      trackEvent('Phone OTP Verification Failed', {
+        phone,
+        error: error.message,
+      });
+      throw error;
+    }
+
+    // Set session and user upon successful verification
+    if (data.session) {
+      set({ session: data.session, user: data.session.user || data.user });
+    }
+  },
+
+  resendPhoneOtp: async (phone: string) => {
+    const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+
+    const { error } = await supabase.auth.resend({
+      type: 'sms',
+      phone: formattedPhone,
+    });
+
+    if (error) {
+      trackEvent('Phone OTP Resend Failed', { phone, error: error.message });
+      throw error;
     }
   },
 }));
