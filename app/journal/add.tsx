@@ -217,22 +217,29 @@ export default function AddJournalScreen() {
                   ]}
                 >
                   <BlurView 
-                    intensity={30} 
+                    intensity={80} 
                     tint="dark" 
                     style={[
                       styles.moodCard,
                       isSelected && styles.moodCardSelected,
-                      isSelected && { borderColor: moodOption.color }
                     ]}
                   >
+                    <LinearGradient
+                      colors={isSelected 
+                        ? ['rgba(135, 206, 250, 0.15)', 'transparent'] 
+                        : ['rgba(135, 206, 250, 0.05)', 'transparent']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.glassHighlight}
+                    />
                     <View style={styles.moodCardContent}>
                       <View style={[
                         styles.moodIconContainer,
-                        isSelected && { backgroundColor: moodOption.color }
+                        isSelected && styles.moodIconContainerSelected
                       ]}>
                         <MoodIcon 
                           size={32} 
-                          color={isSelected ? '#FFFFFF' : moodOption.color} 
+                          color={isSelected ? 'rgba(135, 206, 250, 0.9)' : moodOption.color} 
                         />
                       </View>
                       <View style={styles.moodTextContainer}>
@@ -245,7 +252,7 @@ export default function AddJournalScreen() {
                       </View>
                       {isSelected && (
                         <View style={styles.selectedIndicator}>
-                          <View style={[styles.selectedDot, { backgroundColor: moodOption.color }]} />
+                          <View style={styles.selectedDot} />
                         </View>
                       )}
                     </View>
@@ -329,30 +336,38 @@ export default function AddJournalScreen() {
 
         {/* Action Button */}
         <View style={styles.floatingButtonContainer}>
-          <TouchableOpacity
-            onPress={handleNextStep}
-            disabled={!canProceed}
-            activeOpacity={0.9}
-            style={[
-              styles.floatingButton,
-              !canProceed && styles.floatingButtonDisabled
-            ]}
-          >
-            <LinearGradient
-              colors={canProceed ? ['#4169E1', '#1E40AF', '#1E3A8A'] : ['rgba(59, 37, 109, 0.5)', 'rgba(59, 37, 109, 0.5)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.floatingButtonGradient}
+          <View style={styles.floatingButtonWrapper}>
+            <BlurView 
+              intensity={80} 
+              tint="dark" 
+              style={[
+                styles.floatingButton,
+                !canProceed && styles.floatingButtonDisabled
+              ]}
             >
-              <Text style={[
-                styles.floatingButtonText,
-                !canProceed && styles.floatingButtonTextDisabled
-              ]}>
-                {getButtonLabel()}
-              </Text>
-              {!saving && <ChevronRight size={20} color={canProceed ? "#FFFFFF" : "rgba(200, 200, 200, 0.5)"} />}
-            </LinearGradient>
-          </TouchableOpacity>
+              {/* Classic glass border */}
+              <View style={styles.buttonGlassBorder} />
+              {/* Subtle inner highlight */}
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.buttonGlassHighlight}
+                pointerEvents="none"
+              />
+              <TouchableOpacity
+                onPress={handleNextStep}
+                disabled={!canProceed}
+                activeOpacity={0.9}
+                style={styles.floatingButtonInner}
+              >
+                <Text style={styles.floatingButtonText}>
+                  {getButtonLabel()}
+                </Text>
+                {!saving && <ChevronRight size={20} color="#FFFFFF" />}
+              </TouchableOpacity>
+            </BlurView>
+          </View>
         </View>
       </View>
 
@@ -389,20 +404,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 0,
+    letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: 'rgba(135, 206, 250, 0.7)',
+    fontWeight: '500',
   },
   progressContainer: {
     paddingHorizontal: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
+    borderBottomColor: 'rgba(135, 206, 250, 0.15)',
   },
   contentWrapper: {
     flex: 1,
@@ -425,16 +442,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   stepTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 32,
+    lineHeight: 34,
     marginBottom: 8,
+    letterSpacing: -0.3,
   },
   stepSubtitle: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: 'rgba(135, 206, 250, 0.7)',
     lineHeight: 24,
+    fontWeight: '500',
   },
   dateHeader: {
     marginBottom: 8,
@@ -442,7 +461,7 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.6)',
+    color: 'rgba(135, 206, 250, 0.7)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -464,15 +483,32 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   moodCard: {
-    backgroundColor: 'rgba(20, 18, 30, 0.3)',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
     overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.3)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   moodCardSelected: {
-    borderWidth: 2.5,
-    backgroundColor: 'rgba(20, 18, 30, 0.5)',
+    borderWidth: 2,
+    borderColor: 'rgba(135, 206, 250, 0.5)',
+    backgroundColor: 'rgba(20, 30, 50, 0.4)',
+    shadowColor: 'rgba(135, 206, 250, 0.4)',
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
   },
   moodCardContent: {
     flexDirection: 'row',
@@ -484,9 +520,15 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    backgroundColor: 'rgba(20, 30, 50, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.2)',
+  },
+  moodIconContainerSelected: {
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
+    borderColor: 'rgba(135, 206, 250, 0.4)',
   },
   moodTextContainer: {
     flex: 1,
@@ -494,7 +536,7 @@ const styles = StyleSheet.create({
   moodLabel: {
     fontSize: 18,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: 'rgba(220, 220, 220, 0.85)',
   },
   moodLabelSelected: {
     color: '#FFFFFF',
@@ -504,46 +546,73 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   selectedDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(135, 206, 250, 0.9)',
   },
   floatingButtonContainer: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 36,
     backgroundColor: '#0C0C10',
     borderTopWidth: 1,
     borderTopColor: 'rgba(59, 37, 109, 0.2)',
   },
-  floatingButton: {
-    borderRadius: 16,
+  floatingButtonWrapper: {
+    borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: '#4169E1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
     elevation: 8,
   },
-  floatingButtonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
+  floatingButton: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
-  floatingButtonGradient: {
+  floatingButtonDisabled: {
+    opacity: 0.6,
+  },
+  buttonGlassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  buttonGlassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  floatingButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 24,
     gap: 10,
+    borderRadius: 24,
+    zIndex: 1,
   },
   floatingButtonText: {
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
-  },
-  floatingButtonTextDisabled: {
-    color: 'rgba(200, 200, 200, 0.5)',
   },
   errorContainer: {
     position: 'absolute',

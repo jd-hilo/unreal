@@ -4,9 +4,10 @@ import { useState, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { getJournals, getTodayJournal } from '@/lib/storage';
 import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
 import { Plus, BookOpen, Smile, Meh, Frown } from 'lucide-react-native';
 import { format } from 'date-fns';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface Journal {
   id: string;
@@ -92,7 +93,13 @@ export default function JournalScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        <Card style={styles.todayCard}>
+        <BlurView intensity={80} tint="dark" style={styles.todayCard}>
+          <LinearGradient
+            colors={['rgba(135, 206, 250, 0.1)', 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.glassHighlight}
+          />
           {todayJournal ? (
             <>
               <View style={styles.todayComplete}>
@@ -112,7 +119,9 @@ export default function JournalScreen() {
             </>
           ) : (
             <>
-              <BookOpen size={32} color="#666666" style={styles.todayIcon} />
+              <View style={styles.todayIconContainer}>
+                <BookOpen size={32} color="rgba(135, 206, 250, 0.8)" />
+              </View>
               <Text style={styles.todayTitle}>How are you feeling today?</Text>
               <Text style={styles.todayText}>
                 Take a moment to journal about your day
@@ -125,43 +134,62 @@ export default function JournalScreen() {
               />
             </>
           )}
-        </Card>
+        </BlurView>
 
         {journals.length === 0 && !loading ? (
-          <Card style={styles.emptyCard}>
-            <BookOpen size={48} color="#D1D5DB" style={styles.emptyIcon} />
+          <BlurView intensity={80} tint="dark" style={styles.emptyCard}>
+            <LinearGradient
+              colors={['rgba(135, 206, 250, 0.08)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.glassHighlight}
+            />
+            <BookOpen size={48} color="rgba(135, 206, 250, 0.6)" style={styles.emptyIcon} />
             <Text style={styles.emptyTitle}>No journal entries yet</Text>
             <Text style={styles.emptyText}>
               Start journaling to track your mood and reflect on your days
             </Text>
-          </Card>
+          </BlurView>
         ) : (
           <View style={styles.list}>
             <Text style={styles.listTitle}>Past Entries</Text>
             {journals.map((journal) => (
               <TouchableOpacity
                 key={journal.id}
-                style={styles.journalCard}
                 onPress={() => handleViewJournal(journal.id)}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
               >
-                <View style={styles.journalIcon}>
-                  {getMoodEmoji(journal.mood)}
-                </View>
-                <View style={styles.journalContent}>
-                  <View style={styles.journalHeader}>
-                    <Text style={styles.journalDate}>
-                      {format(new Date(journal.created_at), 'MMM d, yyyy')}
-                    </Text>
-                    <Text style={styles.journalMood}>
-                      {getMoodLabel(journal.mood)}
-                    </Text>
-                  </View>
-                  {journal.text && (
-                    <Text style={styles.journalPreview} numberOfLines={2}>
-                      {journal.text}
-                    </Text>
-                  )}
+                <View style={styles.journalCardWrapper}>
+                  <BlurView intensity={80} tint="dark" style={styles.journalCard}>
+                    <LinearGradient
+                      colors={['rgba(135, 206, 250, 0.08)', 'transparent']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.glassHighlightCard}
+                    />
+                    <View style={styles.journalIcon}>
+                      {getMoodEmoji(journal.mood)}
+                    </View>
+                    <View style={styles.journalContent}>
+                      <View style={styles.journalHeader}>
+                        <View style={styles.journalHeaderLeft}>
+                          <Text style={styles.journalDate}>
+                            {format(new Date(journal.created_at), 'MMM d, yyyy')}
+                          </Text>
+                          <View style={styles.journalMoodBadge}>
+                            <Text style={styles.journalMood}>
+                              {getMoodLabel(journal.mood)}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                      {journal.text && (
+                        <Text style={styles.journalPreview} numberOfLines={3}>
+                          {journal.text}
+                        </Text>
+                      )}
+                    </View>
+                  </BlurView>
                 </View>
               </TouchableOpacity>
             ))}
@@ -183,24 +211,26 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
+    borderBottomColor: 'rgba(135, 206, 250, 0.15)',
   },
   backButton: {
     marginBottom: 16,
   },
   backText: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: 'rgba(135, 206, 250, 0.8)',
   },
   title: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: 'rgba(135, 206, 250, 0.7)',
+    fontWeight: '500',
   },
   content: {
     flex: 1,
@@ -212,8 +242,36 @@ const styles = StyleSheet.create({
   },
   todayCard: {
     alignItems: 'center',
-    padding: 24,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    padding: 32,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+  },
+  todayIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(20, 30, 50, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.2)',
   },
   todayIcon: {
     marginBottom: 12,
@@ -222,94 +280,149 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
   },
   todayTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 8,
+    letterSpacing: -0.2,
   },
   todayText: {
-    fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
+    fontSize: 15,
+    color: 'rgba(135, 206, 250, 0.7)',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    fontWeight: '500',
   },
   todayButton: {
     minWidth: 200,
   },
   emptyCard: {
     alignItems: 'center',
-    padding: 32,
+    padding: 40,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.3)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   emptyIcon: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 10,
+    letterSpacing: -0.2,
   },
   emptyText: {
-    fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
+    fontSize: 15,
+    color: 'rgba(135, 206, 250, 0.7)',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
+    fontWeight: '500',
   },
   list: {
-    gap: 12,
+    gap: 16,
   },
   listTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 16,
+    letterSpacing: -0.3,
+  },
+  journalCardWrapper: {
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.4)',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 5,
   },
   journalCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#0C0C10',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    gap: 12,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    borderRadius: 20,
+    padding: 18,
+    overflow: 'hidden',
+  },
+  glassHighlightCard: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
   },
   journalIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(20, 30, 50, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(135, 206, 250, 0.25)',
+    marginRight: 14,
   },
   journalContent: {
     flex: 1,
-    gap: 8,
+    gap: 10,
   },
   journalHeader: {
+    marginBottom: 4,
+  },
+  journalHeaderLeft: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
   },
   journalDate: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: -0.2,
+    flex: 1,
+  },
+  journalMoodBadge: {
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.25)',
   },
   journalMood: {
-    fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
+    fontSize: 12,
+    color: 'rgba(135, 206, 250, 0.9)',
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   journalPreview: {
-    fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
-    lineHeight: 20,
+    fontSize: 15,
+    color: 'rgba(220, 220, 220, 0.75)',
+    lineHeight: 22,
+    fontWeight: '400',
+    letterSpacing: 0.1,
   },
   footer: {
     position: 'absolute',
