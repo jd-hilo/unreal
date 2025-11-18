@@ -11,6 +11,7 @@ import {
 } from '@/lib/mixpanel';
 import adjustService from '@/adjustService';
 import { ElevenLabsProvider } from '@elevenlabs/react-native';
+import { ErrorBoundary } from '@/components/errorBoundry';
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -56,34 +57,32 @@ export default function RootLayout() {
   }, [user?.id]);
 
   return (
-    <ElevenLabsProvider>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: '#0C0C10' },
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: '#0C0C10' },
+      }}
+    >
+      <Stack.Screen name="welcome" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="auth" />
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen
+        name="ai-onboarding"
+        options={{
+          presentation: 'fullScreenModal',
+          gestureEnabled: false,
+          animation: 'none',
         }}
-      >
-        <Stack.Screen name="welcome" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="auth" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen 
-          name="ai-onboarding" 
-          options={{
-            presentation: 'fullScreenModal',
-            gestureEnabled: false,
-            animation: 'none',
-          }}
-        />
-        <Stack.Screen name="decision" />
-        <Stack.Screen name="whatif" />
-        <Stack.Screen name="relationships" />
-        <Stack.Screen name="journal" />
-        <Stack.Screen name="profile" />
-        <Stack.Screen name="premium" />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+      />
+      <Stack.Screen name="decision" />
+      <Stack.Screen name="whatif" />
+      <Stack.Screen name="relationships" />
+      <Stack.Screen name="journal" />
+      <Stack.Screen name="profile" />
+      <Stack.Screen name="premium" />
+      <Stack.Screen name="+not-found" />
       <StatusBar style="light" />
-    </ElevenLabsProvider>
+    </Stack>
   );
 }

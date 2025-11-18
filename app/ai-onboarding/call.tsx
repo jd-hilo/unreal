@@ -1,11 +1,20 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, AppState } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  AppState,
+} from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { Phone, PhoneOff, Mic, MicOff, Check } from 'lucide-react-native';
 import { Audio } from 'expo-av';
 import { Button } from '@/components/Button';
 import { Orb } from '@/components/Orb';
-import { useConversation } from '@elevenlabs/react-native';
+import { ElevenLabsProvider, useConversation } from '@elevenlabs/react-native';
 
 const ELEVENLABS_AGENT_ID = 'agent_7501k9x1w3qneqtb2hyz9vth6267';
 
@@ -25,7 +34,7 @@ interface OnboardingData {
   relationships?: string;
 }
 
-export default function AIOnboardingCall() {
+function AIOnboardingCall() {
   console.log('🟢 AI CALL SCREEN: Component rendering');
   const router = useRouter();
   const navigation = useNavigation();
@@ -33,55 +42,68 @@ export default function AIOnboardingCall() {
   const [conversationStarted, setConversationStarted] = useState(false);
   const [conversationComplete, setConversationComplete] = useState(false);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({});
-  const [micPermission, setMicPermission] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
+  const [micPermission, setMicPermission] = useState<
+    'granted' | 'denied' | 'undetermined'
+  >('undetermined');
   const [userConfirmedMic, setUserConfirmedMic] = useState(false);
   const [checkingPermission, setCheckingPermission] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const callStateRef = useRef({ started: false, complete: false });
-  
+
   // Keep ref in sync with state
   useEffect(() => {
-    callStateRef.current = { started: conversationStarted, complete: conversationComplete };
+    callStateRef.current = {
+      started: conversationStarted,
+      complete: conversationComplete,
+    };
   }, [conversationStarted, conversationComplete]);
 
   useEffect(() => {
     console.log('🟢 AI CALL SCREEN: Component mounted');
-    
+
     // Override router methods to prevent navigation during call
     const originalReplace = router.replace;
     const originalPush = router.push;
     const originalBack = router.back;
-    
+
     router.replace = ((...args: any[]) => {
       const { started, complete } = callStateRef.current;
       if (started && !complete) {
-        console.log('🚫 AI CALL SCREEN: BLOCKED router.replace attempt during active call!', args);
+        console.log(
+          '🚫 AI CALL SCREEN: BLOCKED router.replace attempt during active call!',
+          args
+        );
         return;
       }
       console.log('✅ AI CALL SCREEN: Allowing router.replace', args);
       return originalReplace.apply(router, args);
     }) as any;
-    
+
     router.push = ((...args: any[]) => {
       const { started, complete } = callStateRef.current;
       if (started && !complete) {
-        console.log('🚫 AI CALL SCREEN: BLOCKED router.push attempt during active call!', args);
+        console.log(
+          '🚫 AI CALL SCREEN: BLOCKED router.push attempt during active call!',
+          args
+        );
         return;
       }
       console.log('✅ AI CALL SCREEN: Allowing router.push', args);
       return originalPush.apply(router, args);
     }) as any;
-    
+
     router.back = (() => {
       const { started, complete } = callStateRef.current;
       if (started && !complete) {
-        console.log('🚫 AI CALL SCREEN: BLOCKED router.back attempt during active call!');
+        console.log(
+          '🚫 AI CALL SCREEN: BLOCKED router.back attempt during active call!'
+        );
         return;
       }
       console.log('✅ AI CALL SCREEN: Allowing router.back');
       return originalBack.apply(router);
     }) as any;
-    
+
     return () => {
       console.log('🔴 AI CALL SCREEN: Component unmounting');
       // Restore original router methods
@@ -95,6 +117,7 @@ export default function AIOnboardingCall() {
   const conversation = useConversation({
     onConnect: () => {
       console.log('✅ Connected to Eleven Labs agent');
+      setConversationStarted(true);
       // Don't set conversationStarted here - it's already set when starting
     },
     onDisconnect: () => {
@@ -106,17 +129,23 @@ export default function AIOnboardingCall() {
     },
     onMessage: (message: any) => {
       console.log('💬 Message:', message);
-      
+
       const role = message.source === 'user' ? 'user' : 'assistant';
-      const content = typeof message === 'string' ? message : (message.message || message.text || '');
-      
+      const content =
+        typeof message === 'string'
+          ? message
+          : message.message || message.text || '';
+
       if (content) {
-        setMessages(prev => [...prev, {
-          role,
-          content,
-          timestamp: new Date(),
-        }]);
-        
+        setMessages((prev) => [
+          ...prev,
+          {
+            role,
+            content,
+            timestamp: new Date(),
+          },
+        ]);
+
         // Extract onboarding data from user messages
         if (role === 'user') {
           extractDataFromMessage(content);
@@ -157,7 +186,10 @@ export default function AIOnboardingCall() {
 
   // Check if conversation is complete and end session
   useEffect(() => {
-    if (isConversationComplete(onboardingData) && conversation.status === 'connected') {
+    if (
+      isConversationComplete(onboardingData) &&
+      conversation.status === 'connected'
+    ) {
       console.log('✅ Conversation complete - all data collected');
       // Wait a moment for final message to be heard, then end session
       setTimeout(async () => {
@@ -180,17 +212,21 @@ export default function AIOnboardingCall() {
       console.log('⚠️ AI CALL SCREEN: Navigation attempt detected!', {
         conversationComplete,
         conversationStarted,
-        action: e.data.action
+        action: e.data.action,
       });
-      
+
       // Allow navigation if conversation is complete or never started
       if (conversationComplete || !conversationStarted) {
-        console.log('✅ AI CALL SCREEN: Allowing navigation (conversation complete or not started)');
+        console.log(
+          '✅ AI CALL SCREEN: Allowing navigation (conversation complete or not started)'
+        );
         return;
       }
 
       // Prevent default navigation
-      console.log('🚫 AI CALL SCREEN: BLOCKING navigation - showing confirmation dialog');
+      console.log(
+        '🚫 AI CALL SCREEN: BLOCKING navigation - showing confirmation dialog'
+      );
       e.preventDefault();
 
       // Show confirmation dialog
@@ -198,7 +234,11 @@ export default function AIOnboardingCall() {
         'End conversation?',
         'Are you sure you want to end your conversation with Sol? Your progress will be lost.',
         [
-          { text: "Stay", style: 'cancel', onPress: () => console.log('User chose to stay') },
+          {
+            text: 'Stay',
+            style: 'cancel',
+            onPress: () => console.log('User chose to stay'),
+          },
           {
             text: 'End Call',
             style: 'destructive',
@@ -237,26 +277,26 @@ export default function AIOnboardingCall() {
 
   function extractDataFromMessage(message: string) {
     // Extract data intelligently based on conversation context
-    const userMessages = messages.filter(m => m.role === 'user');
+    const userMessages = messages.filter((m) => m.role === 'user');
     const messageIndex = userMessages.length;
-    
+
     // Extract based on which question we're on
     if (messageIndex === 0 && !onboardingData.firstName) {
       // First user message is the name
       const name = extractFirstName(message);
-      setOnboardingData(prev => ({ ...prev, firstName: name }));
+      setOnboardingData((prev) => ({ ...prev, firstName: name }));
     } else if (messageIndex === 1 && !onboardingData.lifeSituation) {
-      setOnboardingData(prev => ({ ...prev, lifeSituation: message }));
+      setOnboardingData((prev) => ({ ...prev, lifeSituation: message }));
     } else if (messageIndex === 2 && !onboardingData.lifeJourney) {
-      setOnboardingData(prev => ({ ...prev, lifeJourney: message }));
+      setOnboardingData((prev) => ({ ...prev, lifeJourney: message }));
     } else if (messageIndex === 3 && !onboardingData.stressHandling) {
-      setOnboardingData(prev => ({ ...prev, stressHandling: message }));
+      setOnboardingData((prev) => ({ ...prev, stressHandling: message }));
     } else if (messageIndex === 4 && !onboardingData.hometown) {
-      setOnboardingData(prev => ({ ...prev, hometown: message }));
+      setOnboardingData((prev) => ({ ...prev, hometown: message }));
     } else if (messageIndex === 5 && !onboardingData.college) {
-      setOnboardingData(prev => ({ ...prev, college: message }));
+      setOnboardingData((prev) => ({ ...prev, college: message }));
     } else if (messageIndex === 6 && !onboardingData.relationships) {
-      setOnboardingData(prev => ({ ...prev, relationships: message }));
+      setOnboardingData((prev) => ({ ...prev, relationships: message }));
     }
   }
 
@@ -274,7 +314,9 @@ export default function AIOnboardingCall() {
     for (const pattern of patterns) {
       const match = message.match(pattern);
       if (match && match[1]) {
-        return match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+        return (
+          match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase()
+        );
       }
     }
 
@@ -285,7 +327,7 @@ export default function AIOnboardingCall() {
         return word;
       }
     }
-    
+
     // Otherwise, take first word that looks like a name
     for (const word of words) {
       if (word.length > 1 && /^[A-Za-z]+$/.test(word)) {
@@ -297,7 +339,9 @@ export default function AIOnboardingCall() {
   }
 
   async function checkMicrophonePermission() {
-    console.log('🔍 Permission check skipped - user must tap Enable Microphone button');
+    console.log(
+      '🔍 Permission check skipped - user must tap Enable Microphone button'
+    );
     setMicPermission('undetermined');
   }
 
@@ -310,20 +354,20 @@ export default function AIOnboardingCall() {
     setCheckingPermission(true);
     try {
       console.log('🎤 Requesting iOS microphone permission...');
-      
+
       const { status, granted } = await Audio.requestPermissionsAsync();
       console.log('📱 Permission result:', { status, granted });
-      
+
       if (status === 'granted') {
         console.log('✅ Microphone permission GRANTED!');
-        
+
         // Ensure app is in foreground before testing recording
         if (AppState.currentState !== 'active') {
           console.log('⚠️ App not in foreground, waiting...');
           // Wait a bit and check again
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
-        
+
         // Verify with recording test
         try {
           // Ensure app is active before activating audio session
@@ -333,14 +377,14 @@ export default function AIOnboardingCall() {
               playsInSilentModeIOS: true,
               playThroughEarpieceAndroid: false,
             });
-            
+
             const { recording } = await Audio.Recording.createAsync(
               Audio.RecordingOptionsPresets.HIGH_QUALITY
             );
-            
+
             console.log('✅ Recording test successful');
             await recording.stopAndUnloadAsync();
-            
+
             setMicPermission('granted');
             setUserConfirmedMic(true);
           } else {
@@ -352,7 +396,9 @@ export default function AIOnboardingCall() {
         } catch (recError: any) {
           // If error is about background state, still allow permission
           if (recError.message?.includes('background')) {
-            console.log('⚠️ Recording test failed due to background state, but permission granted');
+            console.log(
+              '⚠️ Recording test failed due to background state, but permission granted'
+            );
             setMicPermission('granted');
             setUserConfirmedMic(true);
           } else {
@@ -364,7 +410,6 @@ export default function AIOnboardingCall() {
         console.log('❌ Microphone permission DENIED');
         setMicPermission('denied');
       }
-      
     } catch (error: any) {
       console.error('❌ Failed to request permission:', error);
       setMicPermission('denied');
@@ -382,10 +427,13 @@ export default function AIOnboardingCall() {
 
     // Set conversationStarted BEFORE calling startSession to switch to call UI
     console.log('🎙️ AI CALL SCREEN: Setting conversationStarted = true');
-    setConversationStarted(true);
+    //  setConversationStarted(true);
 
     try {
-      console.log('🚀 AI CALL SCREEN: Starting conversation with agent:', ELEVENLABS_AGENT_ID);
+      console.log(
+        '🚀 AI CALL SCREEN: Starting conversation with agent:',
+        ELEVENLABS_AGENT_ID
+      );
       await conversation.startSession({
         agentId: ELEVENLABS_AGENT_ID,
       });
@@ -393,7 +441,7 @@ export default function AIOnboardingCall() {
     } catch (error) {
       console.error('❌ AI CALL SCREEN: Failed to start session:', error);
       alert('Failed to start conversation. Please try again.');
-      setConversationStarted(false); // Reset on error
+      //setConversationStarted(false); // Reset on error
     }
   }
 
@@ -419,7 +467,8 @@ export default function AIOnboardingCall() {
   }
 
   function getCallStatus() {
-    if (!conversation || conversation.status !== 'connected') return 'disconnected';
+    if (!conversation || conversation.status !== 'connected')
+      return 'disconnected';
     if (conversation.isSpeaking) return 'speaking';
     return 'listening';
   }
@@ -444,7 +493,8 @@ export default function AIOnboardingCall() {
 
           <Text style={styles.title}>Ready to chat with Sol?</Text>
           <Text style={styles.subtitle}>
-            This will be a quick 3-5 minute conversation. Sol will ask you a few questions to build your twin.
+            This will be a quick 3-5 minute conversation. Sol will ask you a few
+            questions to build your twin.
           </Text>
         </View>
 
@@ -461,10 +511,12 @@ export default function AIOnboardingCall() {
             activeOpacity={0.7}
           >
             <View style={styles.micPermissionContent}>
-              <View style={[
-                styles.checkbox,
-                micPermission === 'granted' && styles.checkboxChecked,
-              ]}>
+              <View
+                style={[
+                  styles.checkbox,
+                  micPermission === 'granted' && styles.checkboxChecked,
+                ]}
+              >
                 {micPermission === 'granted' && (
                   <Check size={16} color="#FFFFFF" strokeWidth={3} />
                 )}
@@ -475,8 +527,10 @@ export default function AIOnboardingCall() {
                 </Text>
                 <Text style={styles.micPermissionSubtitle}>
                   {micPermission === 'granted' && 'Microphone enabled ✓'}
-                  {micPermission === 'denied' && 'Permission denied - Check settings'}
-                  {micPermission === 'undetermined' && 'Tap to enable microphone access'}
+                  {micPermission === 'denied' &&
+                    'Permission denied - Check settings'}
+                  {micPermission === 'undetermined' &&
+                    'Tap to enable microphone access'}
                 </Text>
               </View>
               {checkingPermission && (
@@ -502,8 +556,11 @@ export default function AIOnboardingCall() {
             icon={<Phone size={20} color="#FFFFFF" />}
             disabled={!userConfirmedMic || micPermission !== 'granted'}
           />
-          
-          <TouchableOpacity onPress={() => router.back()} style={styles.cancelButton}>
+
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.cancelButton}
+          >
             <Text style={styles.cancelText}>Go back</Text>
           </TouchableOpacity>
         </View>
@@ -514,7 +571,12 @@ export default function AIOnboardingCall() {
   const callStatus = getCallStatus();
 
   // Debug render
-  console.log('🎨 Rendering call screen, conversationStarted:', conversationStarted, 'status:', conversation?.status);
+  console.log(
+    '🎨 Rendering call screen, conversationStarted:',
+    conversationStarted,
+    'status:',
+    conversation?.status
+  );
 
   // Active call screen
   return (
@@ -524,14 +586,25 @@ export default function AIOnboardingCall() {
         <View style={styles.callHeader}>
           <Text style={styles.callHeaderTitle}>Voice Call with Sol</Text>
           <View style={styles.statusIndicatorContainer}>
-            <View style={[
-              styles.statusDot,
-              { backgroundColor: callStatus === 'listening' ? '#10B981' : 
-                              callStatus === 'speaking' ? '#F59E0B' : '#6B7280' }
-            ]} />
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor:
+                    callStatus === 'listening'
+                      ? '#10B981'
+                      : callStatus === 'speaking'
+                      ? '#F59E0B'
+                      : '#6B7280',
+                },
+              ]}
+            />
             <Text style={styles.statusText}>
-              {callStatus === 'speaking' ? 'Sol is speaking...' : 
-               callStatus === 'listening' ? 'Listening...' : 'Connecting...'}
+              {callStatus === 'speaking'
+                ? 'Sol is speaking...'
+                : callStatus === 'listening'
+                ? 'Listening...'
+                : 'Connecting...'}
             </Text>
           </View>
         </View>
@@ -588,7 +661,10 @@ export default function AIOnboardingCall() {
           </View>
 
           {/* End Call Button */}
-          <TouchableOpacity onPress={handleEndCall} style={styles.endCallButton}>
+          <TouchableOpacity
+            onPress={handleEndCall}
+            style={styles.endCallButton}
+          >
             <PhoneOff size={28} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.endCallText}>End Call</Text>
@@ -598,6 +674,13 @@ export default function AIOnboardingCall() {
   );
 }
 
+export default function Page() {
+  return (
+    <ElevenLabsProvider>
+      <AIOnboardingCall />
+    </ElevenLabsProvider>
+  );
+}
 const styles = StyleSheet.create({
   container: {
     flex: 1,

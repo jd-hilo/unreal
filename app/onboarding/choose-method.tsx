@@ -156,7 +156,7 @@ export default function ChooseOnboardingMethod() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (selectedMethod === 'ai') {
       console.log('🎯 CHOOSE METHOD: User selected AI, REPLACING with /ai-onboarding/call');
-      router.replace('/ai-onboarding/call');
+      router.push('/ai-onboarding/call');
     } else if (selectedMethod === 'manual') {
       console.log('🎯 CHOOSE METHOD: User selected manual, navigating to /onboarding/00-name');
       router.push('/onboarding/00-name');
