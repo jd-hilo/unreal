@@ -79,21 +79,9 @@ export default function WelcomeScreen() {
     // Success haptic after final line
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // Wait before fading out "ready to begin?" line (give user time to read)
+    // Wait before showing logo and button (give user time to read all text)
     setTimeout(() => {
-      const lastLineIndex = WELCOME_LINES.length - 1;
-      lastLineOpacity.value = withTiming(0, {
-        duration: 400,
-        easing: Easing.in(Easing.ease),
-      });
-      lastLineTranslateY.value = withTiming(-30, {
-        duration: 400,
-        easing: Easing.in(Easing.ease),
-      });
-    }, 1500); // Show "ready to begin?" for 1.5 seconds before fading
-
-    // Fade in logo in the middle
-    setTimeout(() => {
+      // Fade in logo in the middle
       logoOpacity.value = withTiming(1, {
         duration: 600,
         easing: Easing.out(Easing.ease),
@@ -102,10 +90,8 @@ export default function WelcomeScreen() {
         damping: 15,
         stiffness: 150,
       });
-    }, 1800); // Start logo fade-in after "ready to begin?" starts fading
 
-    // Show button at bottom after delay
-    setTimeout(() => {
+      // Show button at bottom at the same time
       setButtonVisible(true);
       buttonOpacity.value = withTiming(1, {
         duration: 500,
@@ -115,7 +101,7 @@ export default function WelcomeScreen() {
         damping: 15,
         stiffness: 150,
       });
-    }, 2300); // Show button after logo has started appearing
+    }, 1500); // Show logo and button after 1.5 seconds, keeping all text visible
   };
 
   const { displayedLines, isComplete } = useTypewriter(WELCOME_LINES, {

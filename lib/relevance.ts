@@ -3,38 +3,60 @@ import { getProfile, getRelationships, getCareerEntries, getJournals, getDecisio
 import { embedText } from './ai';
 
 export async function buildCorePack(primaryUserId: string, allUserIds?: string[]): Promise<string> {
+  const buildStartTime = performance.now();
+  console.log('[CorePack] Starting buildCorePack at', new Date().toISOString());
+  
   // If no additional users specified, just use the primary user
   const userIds = allUserIds && allUserIds.length > 0 ? allUserIds : [primaryUserId];
+  console.log(`[CorePack] Building pack for ${userIds.length} user(s)`);
   
   // If only one user (no additional twins), use original logic
   if (userIds.length === 1) {
-    return buildSingleUserCorePack(primaryUserId);
+    const result = await buildSingleUserCorePack(primaryUserId);
+    const buildEndTime = performance.now();
+    console.log(`[CorePack] Single user pack built in ${(buildEndTime - buildStartTime).toFixed(2)}ms`);
+    return result;
   }
   
-  // Build packs for all users and combine them
-  const allSections: string[] = [];
+  // Build packs for all users in parallel
+  const parallelStartTime = performance.now();
+  const userPacks = await Promise.all(
+    userIds.map(async (userId, i) => {
+      const userStartTime = performance.now();
+      const isPrimary = userId === primaryUserId;
+      const label = isPrimary ? 'PRIMARY TWIN' : `TWIN ${i}`;
+      const userPack = await buildSingleUserCorePack(userId);
+      const userEndTime = performance.now();
+      console.log(`[CorePack] ${label} pack built in ${(userEndTime - userStartTime).toFixed(2)}ms`);
+      return `\n=== ${label} ===\n${userPack}`;
+    })
+  );
+  const parallelEndTime = performance.now();
+  console.log(`[CorePack] All ${userIds.length} packs built in parallel in ${(parallelEndTime - parallelStartTime).toFixed(2)}ms`);
   
-  for (let i = 0; i < userIds.length; i++) {
-    const userId = userIds[i];
-    const isPrimary = userId === primaryUserId;
-    const label = isPrimary ? 'PRIMARY TWIN' : `TWIN ${i}`;
-    
-    allSections.push(`\n=== ${label} ===`);
-    const userPack = await buildSingleUserCorePack(userId);
-    allSections.push(userPack);
-  }
-  
-  const result = allSections.join('\n\n');
-  console.log(`Core Pack built for ${userIds.length} twins:`, result.substring(0, 200) + '...');
+  const result = userPacks.join('\n\n');
+  const buildEndTime = performance.now();
+  console.log(`[CorePack] Total buildCorePack time: ${(buildEndTime - buildStartTime).toFixed(2)}ms`);
+  console.log(`[CorePack] Result length: ${result.length} characters`);
   return result;
 }
 
 async function buildSingleUserCorePack(userId: string): Promise<string> {
-  const profile = await getProfile(userId);
-  const relationships = await getRelationships(userId);
-  const careers = await getCareerEntries(userId);
+  const packStartTime = performance.now();
+  console.log(`[CorePack] Building single user pack for userId: ${userId}`);
+  
+  // Parallelize database calls for better performance
+  const dbStartTime = performance.now();
+  const [profile, relationships, careers] = await Promise.all([
+    getProfile(userId),
+    getRelationships(userId),
+    getCareerEntries(userId),
+  ]);
+  const dbEndTime = performance.now();
+  console.log(`[CorePack] Database calls completed in ${(dbEndTime - dbStartTime).toFixed(2)}ms`);
 
   if (!profile) {
+    console.log(`[CorePack] No profile data available for userId: ${userId}`);
     return 'No profile data available yet.';
   }
 
@@ -104,7 +126,10 @@ async function buildSingleUserCorePack(userId: string): Promise<string> {
     sections.push(profile.core_json.motivation);
   }
 
-  return sections.join('\n');
+  const result = sections.join('\n');
+  const packEndTime = performance.now();
+  console.log(`[CorePack] Single user pack built in ${(packEndTime - packStartTime).toFixed(2)}ms, result length: ${result.length} chars`);
+  return result;
 }
 
 /**

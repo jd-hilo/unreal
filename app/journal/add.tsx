@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Animated, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/store/useAuth';
@@ -148,29 +148,36 @@ export default function AddJournalScreen() {
 
   // Step 1: Text Entry (Apple Notes Style)
   function renderStep1() {
+    const charCount = text.length;
+    const isOverLimit = charCount > 2000;
+    
     return (
-      <View style={styles.stepContainer}>
-        <View style={styles.dateHeader}>
-          <Text style={styles.dateText}>
+      <View style={styles.stepContainerFullScreen}>
+        <View style={styles.dateHeaderFullScreen}>
+          <Text style={styles.dateTextFullScreen}>
             {new Date().toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              month: 'long', 
+              weekday: 'short', 
+              month: 'short', 
               day: 'numeric' 
             })}
           </Text>
         </View>
 
-        <FloatingLabelInput
-          label="What's on your mind?"
+        <TextInput
           placeholder={PLACEHOLDER_PROMPTS[placeholderIndex]}
+          placeholderTextColor="rgba(255, 255, 255, 0.3)"
           value={text}
           onChangeText={setText}
           multiline
-          showCharCount
-          maxCharCount={2000}
-          containerStyle={styles.textInput}
-          style={styles.notesTextArea}
+          style={styles.notesTextAreaFullScreen}
+          autoFocus
         />
+        
+        <View style={styles.charCountContainer}>
+          <Text style={[styles.charCountText, isOverLimit && styles.charCountError]}>
+            {charCount}/2000
+          </Text>
+        </View>
       </View>
     );
   }
@@ -292,32 +299,58 @@ export default function AddJournalScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => currentStep > 1 ? goToStep(currentStep - 1) : router.back()} 
-          style={styles.backButton}
-        >
-          <ArrowLeft size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.title}>New Journal Entry</Text>
-          <Text style={styles.subtitle}>Step {currentStep} of {TOTAL_STEPS}</Text>
+      {/* Minimal Header - only show on step 1 */}
+      {currentStep === 1 ? (
+        <View style={styles.minimalHeader}>
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={styles.backButton}
+          >
+            <ArrowLeft size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
+          <TouchableOpacity
+            onPress={handleNextStep}
+            disabled={!canProceed}
+            style={styles.saveButton}
+          >
+            <Text style={[styles.saveButtonText, !canProceed && styles.saveButtonTextDisabled]}>
+              Continue
+            </Text>
+          </TouchableOpacity>
         </View>
-      </View>
+      ) : (
+        <>
+          {/* Full Header for step 2 */}
+          <View style={styles.header}>
+            <TouchableOpacity 
+              onPress={() => goToStep(currentStep - 1)} 
+              style={styles.backButton}
+            >
+              <ArrowLeft size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <View style={styles.headerContent}>
+              <Text style={styles.title}>How are you feeling?</Text>
+            </View>
+          </View>
 
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <ProgressBar progress={progress} showLabel={false} />
-      </View>
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <ProgressBar progress={progress} showLabel={false} />
+          </View>
+        </>
+      )}
 
       <View style={styles.contentWrapper}>
         <ScrollView
           style={styles.content}
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[
+            styles.contentContainer,
+            currentStep === 1 && styles.contentContainerFullScreen
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -334,41 +367,43 @@ export default function AddJournalScreen() {
           </Animated.View>
         </ScrollView>
 
-        {/* Action Button */}
-        <View style={styles.floatingButtonContainer}>
-          <View style={styles.floatingButtonWrapper}>
-            <BlurView 
-              intensity={80} 
-              tint="dark" 
-              style={[
-                styles.floatingButton,
-                !canProceed && styles.floatingButtonDisabled
-              ]}
-            >
-              {/* Classic glass border */}
-              <View style={styles.buttonGlassBorder} />
-              {/* Subtle inner highlight */}
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.buttonGlassHighlight}
-                pointerEvents="none"
-              />
-              <TouchableOpacity
-                onPress={handleNextStep}
-                disabled={!canProceed}
-                activeOpacity={0.9}
-                style={styles.floatingButtonInner}
+        {/* Action Button - only show on step 2 */}
+        {currentStep === 2 && (
+          <View style={styles.floatingButtonContainer}>
+            <View style={styles.floatingButtonWrapper}>
+              <BlurView 
+                intensity={80} 
+                tint="dark" 
+                style={[
+                  styles.floatingButton,
+                  !canProceed && styles.floatingButtonDisabled
+                ]}
               >
-                <Text style={styles.floatingButtonText}>
-                  {getButtonLabel()}
-                </Text>
-                {!saving && <ChevronRight size={20} color="#FFFFFF" />}
-              </TouchableOpacity>
-            </BlurView>
+                {/* Classic glass border */}
+                <View style={styles.buttonGlassBorder} />
+                {/* Subtle inner highlight */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.buttonGlassHighlight}
+                  pointerEvents="none"
+                />
+                <TouchableOpacity
+                  onPress={handleNextStep}
+                  disabled={!canProceed}
+                  activeOpacity={0.9}
+                  style={styles.floatingButtonInner}
+                >
+                  <Text style={styles.floatingButtonText}>
+                    {getButtonLabel()}
+                  </Text>
+                  {!saving && <ChevronRight size={20} color="#FFFFFF" />}
+                </TouchableOpacity>
+              </BlurView>
+            </View>
           </View>
-        </View>
+        )}
       </View>
 
       {error && (
@@ -384,6 +419,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0C0C10',
+  },
+  minimalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingBottom: 12,
+    backgroundColor: '#0C0C10',
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  saveButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  saveButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: 'rgba(135, 206, 250, 0.9)',
+  },
+  saveButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.3)',
   },
   header: {
     flexDirection: 'row',
@@ -430,13 +488,57 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 24,
     paddingTop: 24,
-    paddingBottom: 20,
+    paddingBottom: 100,
+  },
+  contentContainerFullScreen: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 100,
+    flexGrow: 1,
   },
   animatedContent: {
     flex: 1,
   },
   stepContainer: {
     gap: 24,
+  },
+  stepContainerFullScreen: {
+    flex: 1,
+    paddingTop: 8,
+  },
+  dateHeaderFullScreen: {
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  dateTextFullScreen: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.5)',
+    letterSpacing: 0.3,
+  },
+  textInputFullScreen: {
+    marginTop: 0,
+  },
+  notesTextAreaFullScreen: {
+    fontSize: 17,
+    lineHeight: 26,
+    minHeight: 400,
+    color: '#FFFFFF',
+    flex: 1,
+    textAlignVertical: 'top',
+  },
+  charCountContainer: {
+    alignItems: 'flex-end',
+    marginTop: 8,
+    paddingBottom: 20,
+  },
+  charCountText: {
+    fontSize: 12,
+    color: 'rgba(200, 200, 200, 0.5)',
+    fontWeight: '500',
+  },
+  charCountError: {
+    color: '#EF4444',
   },
   stepHeader: {
     marginBottom: 8,

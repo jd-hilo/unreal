@@ -7,6 +7,7 @@ import { generateTimelineSimulation } from '@/lib/ai';
 import { buildCorePack } from '@/lib/relevance';
 import { ArrowLeft, Sparkles, Zap, Brain } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import type { TimelineSimulation } from '@/types/database';
 import Animated, {
   useSharedValue,
@@ -30,6 +31,9 @@ export default function SimulationScreen() {
   const [simulatedPaths, setSimulatedPaths] = useState(0);
   const [probabilitiesCalculated, setProbabilitiesCalculated] = useState(0);
   const [participants, setParticipants] = useState<any[]>([]);
+  const [progressStatus, setProgressStatus] = useState('Initializing simulation...');
+  const [progressPercent, setProgressPercent] = useState(0);
+  const progressAnim = useSharedValue(0);
 
   // Matrix background columns - simplified for performance
   const numColumns = 12;
@@ -79,25 +83,36 @@ export default function SimulationScreen() {
   async function loadData() {
     if (!id || typeof id !== 'string' || !user) return;
 
+    const startTime = performance.now();
+    console.log('[Simulation] Starting loadData at', new Date().toISOString());
+
     try {
+      const dbStartTime = performance.now();
       const [decisionData, participantsData] = await Promise.all([
         getDecision(id),
         getDecisionParticipants(id as string),
       ]);
+      const dbEndTime = performance.now();
+      console.log(`[Simulation] Database calls completed in ${(dbEndTime - dbStartTime).toFixed(2)}ms`);
       
       setDecision(decisionData);
       setParticipants(participantsData || []);
+      setLoading(false); // Show UI immediately after data loads
+      
+      const uiLoadTime = performance.now();
+      console.log(`[Simulation] UI loaded in ${(uiLoadTime - startTime).toFixed(2)}ms`);
       
       // Set initial selected option to the predicted choice
       const initialOption = decisionData.prediction?.prediction || '';
       setSelectedOption(initialOption);
       
-      // Generate timeline for predicted choice
+      // Generate timeline for predicted choice in background
       if (initialOption) {
-        await generateSimulationForOption(decisionData, initialOption);
+        console.log(`[Simulation] Starting background simulation for option: "${initialOption}"`);
+        generateSimulationForOption(decisionData, initialOption);
       }
     } catch (error) {
-      console.error('Failed to load data:', error);
+      console.error('[Simulation] Failed to load data:', error);
       setLoading(false);
     }
   }
@@ -108,43 +123,100 @@ export default function SimulationScreen() {
       return;
     }
 
+    const simulationStartTime = performance.now();
+    console.log('[Simulation] Starting generateSimulationForOption at', new Date().toISOString());
+    console.log('[Simulation] Option:', option);
+    console.log('[Simulation] Participants count:', participants.length);
+
     setGenerating(true);
-    
-    // Start loading animation sequence
-    setLoadingPhase(0);
-    setSimulatedPaths(1000000);
-    setProbabilitiesCalculated(1000000);
-    
-    // Animate loading phases - show 1 message every 2 seconds
-    const phaseInterval = setInterval(() => {
-      setLoadingPhase(prev => (prev + 1) % 4);
-    }, 2000);
-    
-    // Animate counters - increment by 1 every 2 milliseconds, up to 5 million
-    const counterInterval = setInterval(() => {
-      setSimulatedPaths(prev => Math.min(prev + 1, 5000000));
-      setProbabilitiesCalculated(prev => Math.min(prev + 1, 5000000));
-    }, 2);
+    setProgressPercent(100); // Start at 100% and count down
+    setProgressStatus('Initializing simulation...');
+    progressAnim.value = 100;
+
+    let aiProgressInterval: NodeJS.Timeout | null = null;
 
     try {
-      // Get all participant user IDs
+      // Step 1: Building core pack
+      setProgressStatus('Analyzing your profile...');
+      setProgressPercent(80);
+      progressAnim.value = withTiming(80, { duration: 500 });
+      
       const allUserIds = [user.id, ...participants.map(p => p.participant_user_id)];
+      console.log('[Simulation] Building core pack for', allUserIds.length, 'user(s)');
+      
+      const corePackStartTime = performance.now();
       const corePack = await buildCorePack(user.id, allUserIds);
+      const corePackEndTime = performance.now();
+      console.log(`[Simulation] Core pack built in ${(corePackEndTime - corePackStartTime).toFixed(2)}ms`);
+      console.log(`[Simulation] Core pack length: ${corePack.length} characters`);
 
+      // Step 2: Generating timeline
+      setProgressStatus('Simulating life trajectories...');
+      setProgressPercent(70);
+      progressAnim.value = withTiming(70, { duration: 500 });
+
+      const aiStartTime = performance.now();
+      console.log('[Simulation] Starting AI timeline generation...');
+      
+      // Animate progress bar counting down during AI call
+      aiProgressInterval = setInterval(() => {
+        setProgressPercent(prev => {
+          if (prev <= 5) {
+            if (aiProgressInterval) clearInterval(aiProgressInterval);
+            return prev;
+          }
+          const newValue = Math.max(5, prev - 0.5);
+          progressAnim.value = withTiming(newValue, { duration: 100 });
+          return newValue;
+        });
+      }, 200);
+      
       const timelineData = await generateTimelineSimulation(
         corePack,
         decisionData.question,
         option,
         allUserIds.length
       );
+      
+      if (aiProgressInterval) {
+        clearInterval(aiProgressInterval);
+        aiProgressInterval = null;
+      }
+      const aiEndTime = performance.now();
+      console.log(`[Simulation] AI timeline generation completed in ${(aiEndTime - aiStartTime).toFixed(2)}ms`);
 
+      // Step 3: Finalizing
+      setProgressStatus('Finalizing timeline...');
+      setProgressPercent(5);
+      progressAnim.value = withTiming(5, { duration: 300 });
+
+      const totalTime = performance.now() - simulationStartTime;
+      console.log(`[Simulation] Total simulation time: ${(totalTime / 1000).toFixed(2)}s`);
+      console.log('[Simulation] Timeline data received:', {
+        one_year: timelineData.one_year?.length || 0,
+        three_year: timelineData.three_year?.length || 0,
+        five_year: timelineData.five_year?.length || 0,
+        ten_year: timelineData.ten_year?.length || 0,
+      });
+
+      // Complete - count down to 0%
+      setProgressStatus('Complete!');
+      setProgressPercent(0);
+      progressAnim.value = withTiming(0, { duration: 300 });
+      
+      // Set timeline immediately after showing complete
       setTimeline(timelineData);
     } catch (error) {
-      console.error('Timeline simulation error:', error);
+      if (aiProgressInterval) {
+        clearInterval(aiProgressInterval);
+      }
+      const errorTime = performance.now() - simulationStartTime;
+      console.error(`[Simulation] Timeline simulation error after ${(errorTime / 1000).toFixed(2)}s:`, error);
+      setProgressStatus('Error generating simulation');
+      setProgressPercent(100);
+      progressAnim.value = 100;
       alert('Failed to generate timeline simulation');
     } finally {
-      clearInterval(phaseInterval);
-      clearInterval(counterInterval);
       setGenerating(false);
       setLoading(false);
     }
@@ -439,6 +511,90 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
+  progressCard: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 24,
+    padding: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  progressCardBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  progressCardHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  progressCardContent: {
+    alignItems: 'center',
+    gap: 20,
+    zIndex: 1,
+  },
+  progressIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  progressStatusText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: 0.2,
+  },
+  progressBarWrapper: {
+    width: '100%',
+    gap: 8,
+  },
+  progressBarBackground: {
+    width: '100%',
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  progressBarGradient: {
+    flex: 1,
+    borderRadius: 4,
+  },
+  progressPercentText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(135, 206, 250, 0.9)',
+    textAlign: 'right',
+    alignSelf: 'flex-end',
+  },
   loadingText: {
     fontSize: 28,
     fontWeight: '700',
@@ -469,10 +625,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(135, 206, 250, 0.9)',
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
   },
   errorContainer: {
     flex: 1,

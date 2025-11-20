@@ -620,7 +620,13 @@ export async function generateTimelineSimulation(
   chosenOption: string,
   participantCount: number = 1
 ): Promise<TimelineSimulation> {
+  const aiStartTime = performance.now();
+  console.log('[AI] Starting generateTimelineSimulation at', new Date().toISOString());
+  console.log(`[AI] Core pack length: ${corePack.length} chars, Decision: "${decision}", Option: "${chosenOption}"`);
+  console.log(`[AI] Participant count: ${participantCount}`);
+  
   if (DEV_MODE) {
+    console.log('[AI] DEV_MODE: Using mock timeline simulation');
     return mockTimelineSimulation();
   }
 
@@ -640,6 +646,7 @@ export async function generateTimelineSimulation(
     '- Example individual: {"time": "Month 2", "title": "Sarah Launches Side Business", "description": "Sarah starts consulting on weekends...", "people": ["Sarah"]}\n' +
     '- Example joint: {"time": "Month 5", "title": "You and Alex Buy House Together", "description": "You both close on property...", "people": ["Primary", "Alex"]}\n' +
     '- Be HYPER-SPECIFIC with exact numbers, costs, percentages, timeframes\n' +
+    '- TIME FORMAT: Use simple timeframes ONLY - "Month X" or "Year X" or "Year X.Y" (e.g., "Month 2", "Year 1.5"). NEVER use combinations like "Month 2, Week 3"\n' +
     '- NO brand names - use generic descriptors'
     :
     'You are a life trajectory simulator. Generate HYPER-SPECIFIC, concrete events with real details. ' +
@@ -664,7 +671,7 @@ export async function generateTimelineSimulation(
     '- Generic locations (coffee shop, downtown, convention center, office) - NO brand names\n' +
     '- Named people when relevant (can be hypothetical: "colleague Alex", "friend Jamie")\n' +
     '- Concrete activities (meeting, trip, project launch, purchase, move)\n' +
-    '- Precise timeframes (Month 3, Week 2, Year 1.5)\n' +
+    '- TIME FORMAT: Use simple timeframes ONLY - "Month X" or "Year X" or "Year X.Y" (e.g., "Month 2", "Year 1.5", "Year 3"). NEVER use combinations like "Month 2, Week 3" or "Year 1, Month 6"\n' +
     '- SHORT descriptions (1-2 sentences ONLY, prefer single sentence)\n\n' +
     'GOOD examples (specific, second person, no brands):\n' +
     '- "You save $2,400 in high-yield savings account at 4.5% APY"\n' +
@@ -674,7 +681,8 @@ export async function generateTimelineSimulation(
     'BAD examples:\n' +
     '- Generic: "Professional growth continues" or "Financial situation improves"\n' +
     '- Brand names: "Open Marcus savings account" or "Buy Starbucks franchise"\n' +
-    '- Third person: "User saves money" or "They move to new apartment"\n\n' +
+    '- Third person: "User saves money" or "They move to new apartment"\n' +
+    '- Complex timeframes: "Month 2, Week 3" or "Year 1, Month 6" - use simple "Month 2" or "Year 1.5" instead\n\n' +
     'Return JSON:\n\n' +
     '{\n' +
     '  "one_year": [\n' +
@@ -708,8 +716,16 @@ export async function generateTimelineSimulation(
     '}';
 
   try {
+    const promptPrepTime = performance.now();
+    const promptTime = promptPrepTime - aiStartTime;
+    console.log(`[AI] Prompt preparation took ${promptTime.toFixed(2)}ms`);
+    console.log(`[AI] System prompt length: ${systemPrompt.length} chars`);
+    console.log(`[AI] User prompt length: ${userPrompt.length} chars`);
+    
+    const apiCallStartTime = performance.now();
+    console.log('[AI] Making OpenAI API call...');
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini', // Using faster model for timeline generation
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -717,13 +733,36 @@ export async function generateTimelineSimulation(
       response_format: { type: 'json_object' },
       temperature: 0.7,
     });
+    const apiCallEndTime = performance.now();
+    const apiCallDuration = apiCallEndTime - apiCallStartTime;
+    console.log(`[AI] OpenAI API call completed in ${(apiCallDuration / 1000).toFixed(2)}s`);
+    console.log(`[AI] Response usage:`, {
+      prompt_tokens: response.usage?.prompt_tokens,
+      completion_tokens: response.usage?.completion_tokens,
+      total_tokens: response.usage?.total_tokens,
+    });
 
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error('No response from AI');
 
-    return JSON.parse(content) as TimelineSimulation;
+    const parseStartTime = performance.now();
+    const timelineData = JSON.parse(content) as TimelineSimulation;
+    const parseEndTime = performance.now();
+    console.log(`[AI] JSON parsing took ${(parseEndTime - parseStartTime).toFixed(2)}ms`);
+    
+    const totalTime = performance.now() - aiStartTime;
+    console.log(`[AI] Total generateTimelineSimulation time: ${(totalTime / 1000).toFixed(2)}s`);
+    console.log(`[AI] Timeline events:`, {
+      one_year: timelineData.one_year?.length || 0,
+      three_year: timelineData.three_year?.length || 0,
+      five_year: timelineData.five_year?.length || 0,
+      ten_year: timelineData.ten_year?.length || 0,
+    });
+
+    return timelineData;
   } catch (error) {
-    console.error('Timeline simulation error:', error);
+    const errorTime = performance.now() - aiStartTime;
+    console.error(`[AI] Timeline simulation error after ${(errorTime / 1000).toFixed(2)}s:`, error);
     throw error;
   }
 }
