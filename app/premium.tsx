@@ -162,57 +162,61 @@ export default function PremiumScreen() {
 
           {/* Billing Period Toggle */}
           <View style={styles.billingToggle}>
-            <TouchableOpacity
-              style={[
-                styles.billingOption,
-                selectedPeriod === 'monthly' && styles.billingOptionSelected,
-              ]}
-              onPress={() => setSelectedPeriod('monthly')}
-              activeOpacity={0.7}
-            >
-              <BlurView intensity={80} tint="dark" style={styles.billingOptionBlur}>
-                <Text style={[
-                  styles.billingOptionTitle,
-                  selectedPeriod === 'monthly' && styles.billingOptionTitleSelected,
-                ]}>
-                  Monthly
-                </Text>
-                <Text style={[
-                  styles.billingOptionPrice,
-                  selectedPeriod === 'monthly' && styles.billingOptionPriceSelected,
-                ]}>
-                  $9.99/mo
-                </Text>
-              </BlurView>
-            </TouchableOpacity>
+            <View style={styles.monthlyOptionWrapper}>
+              <TouchableOpacity
+                style={[
+                  styles.billingOption,
+                  selectedPeriod === 'monthly' && styles.billingOptionSelected,
+                ]}
+                onPress={() => setSelectedPeriod('monthly')}
+                activeOpacity={0.7}
+              >
+                <BlurView intensity={80} tint="dark" style={styles.billingOptionBlur}>
+                  <Text style={[
+                    styles.billingOptionTitle,
+                    selectedPeriod === 'monthly' && styles.billingOptionTitleSelected,
+                  ]}>
+                    Monthly
+                  </Text>
+                  <Text style={[
+                    styles.billingOptionPrice,
+                    selectedPeriod === 'monthly' && styles.billingOptionPriceSelected,
+                  ]}>
+                    $9.99/mo
+                  </Text>
+                </BlurView>
+              </TouchableOpacity>
+            </View>
 
-            <TouchableOpacity
-              style={[
-                styles.billingOption,
-                selectedPeriod === 'yearly' && styles.billingOptionSelected,
-              ]}
-              onPress={() => setSelectedPeriod('yearly')}
-              activeOpacity={0.7}
-            >
+            <View style={styles.yearlyOptionWrapper}>
               <View style={styles.saveBadge}>
                 <Text style={styles.saveBadgeText}>SAVE 20%</Text>
               </View>
-              <BlurView intensity={80} tint="dark" style={styles.billingOptionBlur}>
-                <Text style={[
-                  styles.billingOptionTitle,
-                  selectedPeriod === 'yearly' && styles.billingOptionTitleSelected,
-                ]}>
-                  Yearly
-                </Text>
-                <Text style={[
-                  styles.billingOptionPrice,
-                  selectedPeriod === 'yearly' && styles.billingOptionPriceSelected,
-                ]}>
-                  $94.99/yr
-                </Text>
-                <Text style={styles.billingOptionDetail}>$7.92/mo</Text>
-              </BlurView>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.billingOption,
+                  selectedPeriod === 'yearly' && styles.billingOptionSelected,
+                ]}
+                onPress={() => setSelectedPeriod('yearly')}
+                activeOpacity={0.7}
+              >
+                <BlurView intensity={80} tint="dark" style={styles.billingOptionBlur}>
+                  <Text style={[
+                    styles.billingOptionTitle,
+                    selectedPeriod === 'yearly' && styles.billingOptionTitleSelected,
+                  ]}>
+                    Yearly
+                  </Text>
+                  <Text style={[
+                    styles.billingOptionPrice,
+                    selectedPeriod === 'yearly' && styles.billingOptionPriceSelected,
+                  ]}>
+                    $94.99/yr
+                  </Text>
+                  <Text style={styles.billingOptionDetail}>$7.92/mo</Text>
+                </BlurView>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Features List */}
@@ -359,19 +363,26 @@ const styles = StyleSheet.create({
   },
   billingToggle: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     marginBottom: 40,
   },
-  billingOption: {
+  monthlyOptionWrapper: {
     flex: 1,
+  },
+  billingOption: {
+    width: '100%',
     backgroundColor: 'rgba(20, 30, 50, 0.3)',
     borderWidth: 2,
     borderColor: 'rgba(135, 206, 250, 0.3)',
     borderRadius: 16,
-    padding: 20,
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
+    minHeight: 120,
+  },
+  yearlyOptionWrapper: {
+    flex: 1,
+    position: 'relative',
   },
   billingOptionSelected: {
     borderColor: 'rgba(135, 206, 250, 0.6)',
@@ -379,20 +390,24 @@ const styles = StyleSheet.create({
   },
   billingOptionBlur: {
     width: '100%',
-    height: '100%',
-    borderRadius: 14,
     padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   saveBadge: {
     position: 'absolute',
-    top: -10,
+    top: -8,
     right: 8,
     backgroundColor: '#10B981',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    zIndex: 10,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   saveBadgeText: {
     fontSize: 11,

@@ -1246,3 +1246,154 @@ export async function generateSuggestions({
     throw error;
   }
 }
+
+export interface OnboardingSummaryData {
+  birthYear?: string;
+  values?: {
+    selected: string[];
+    context?: string;
+  };
+  lifeSituation?: {
+    workStatus: string;
+    workStatusOther?: string;
+    livingSituation: string;
+    livingSituationOther?: string;
+    relationshipStatus: string;
+    relationshipStatusOther?: string;
+    financialSituation: string;
+    financialSituationOther?: string;
+    lifeStage: string;
+    lifeStageOther?: string;
+    currentGoals?: string;
+    interests?: string[];
+  };
+  lifeJourney?: {
+    hometown: string;
+    hometownOther?: string;
+    wentToCollege?: string;
+    collegeName?: string;
+    careerStart: string;
+    careerStartOther?: string;
+    turningPoint: string;
+    turningPointOther?: string;
+    shapedMost: string;
+    shapedMostOther?: string;
+  };
+  challenges?: string;
+  decisionStyle?: string;
+  interests?: string[];
+  stressHandling?: string;
+}
+
+export interface OnboardingSummaryResult {
+  '01-now': string; // Current life situation summary
+  '02-path': string; // Life journey summary
+  '06-stress'?: string; // Stress handling (if provided)
+  '04-style'?: string; // Decision style (if provided)
+  interests?: string[]; // User interests (if provided)
+  values_json?: string[]; // Extracted values array
+  age?: number; // Calculated age
+}
+
+export async function summarizeOnboardingGroup(data: OnboardingSummaryData): Promise<OnboardingSummaryResult> {
+  if (DEV_MODE) {
+    return {
+      '01-now': 'Mock summary of current life situation',
+      '02-path': 'Mock summary of life journey',
+      values_json: data.values?.selected || [],
+      age: data.birthYear ? new Date().getFullYear() - parseInt(data.birthYear) : undefined,
+    };
+  }
+
+  const openai = getOpenAI();
+
+  // Calculate age if birth year provided
+  const age = data.birthYear ? new Date().getFullYear() - parseInt(data.birthYear) : undefined;
+
+  const systemPrompt = `You are an expert at transforming structured onboarding responses into coherent, natural narratives. 
+Create concise summaries (3-6 sentences) that capture the essence of the user's responses while maintaining a natural, flowing narrative style.
+Include age in the summary where relevant if provided.`;
+
+  // Build prompts for each summary
+  const nowPrompt = data.lifeSituation ? [
+    'Transform these life situation responses into a coherent narrative summary (3-6 sentences):',
+    '',
+    `Work Status: ${data.lifeSituation.workStatus}${data.lifeSituation.workStatusOther ? ` (${data.lifeSituation.workStatusOther})` : ''}`,
+    `Living Situation: ${data.lifeSituation.livingSituation}${data.lifeSituation.livingSituationOther ? ` (${data.lifeSituation.livingSituationOther})` : ''}`,
+    `Relationship Status: ${data.lifeSituation.relationshipStatus}${data.lifeSituation.relationshipStatusOther ? ` (${data.lifeSituation.relationshipStatusOther})` : ''}`,
+    `Financial Situation: ${data.lifeSituation.financialSituation}${data.lifeSituation.financialSituationOther ? ` (${data.lifeSituation.financialSituationOther})` : ''}`,
+    `Life Stage: ${data.lifeSituation.lifeStage}${data.lifeSituation.lifeStageOther ? ` (${data.lifeSituation.lifeStageOther})` : ''}`,
+    data.lifeSituation.currentGoals ? `Current Goals: ${data.lifeSituation.currentGoals}` : '',
+    data.challenges ? `Challenges: ${data.challenges}` : '',
+    age ? `Age: ${age} years old` : '',
+    '',
+    'Write a natural, flowing summary in second person (you/your) that captures their current life situation.',
+  ].filter(Boolean).join('\n') : '';
+
+  const pathPrompt = data.lifeJourney ? [
+    'Transform these life journey responses into a coherent narrative summary (3-6 sentences):',
+    '',
+    `Hometown: ${data.lifeJourney.hometownOther || data.lifeJourney.hometown}`,
+    data.lifeJourney.wentToCollege === 'Yes' && data.lifeJourney.collegeName 
+      ? `Education: Attended ${data.lifeJourney.collegeName}`
+      : data.lifeJourney.wentToCollege === 'No' 
+        ? `Education: Did not attend college`
+        : '',
+    `Career Start: ${data.lifeJourney.careerStart}${data.lifeJourney.careerStartOther ? ` (${data.lifeJourney.careerStartOther})` : ''}`,
+    `Turning Point: ${data.lifeJourney.turningPoint}${data.lifeJourney.turningPointOther ? ` (${data.lifeJourney.turningPointOther})` : ''}`,
+    `Shaped Most By: ${data.lifeJourney.shapedMost}${data.lifeJourney.shapedMostOther ? ` (${data.lifeJourney.shapedMostOther})` : ''}`,
+    '',
+    'Write a natural, flowing summary in second person (you/your) that tells the story of how they got to where they are today.',
+  ].filter(Boolean).join('\n') : '';
+
+  try {
+    const summaries: OnboardingSummaryResult = {
+      '01-now': '',
+      '02-path': '',
+      values_json: data.values?.selected || [],
+      age,
+    };
+
+    // Generate 01-now summary
+    if (nowPrompt) {
+      const nowResponse = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: nowPrompt },
+        ],
+        temperature: 0.7,
+      });
+      summaries['01-now'] = nowResponse.choices[0]?.message?.content?.trim() || '';
+    }
+
+    // Generate 02-path summary
+    if (pathPrompt) {
+      const pathResponse = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: pathPrompt },
+        ],
+        temperature: 0.7,
+      });
+      summaries['02-path'] = pathResponse.choices[0]?.message?.content?.trim() || '';
+    }
+
+    // Add optional summaries if provided
+    if (data.stressHandling) {
+      summaries['06-stress'] = data.stressHandling;
+    }
+    if (data.decisionStyle) {
+      summaries['04-style'] = data.decisionStyle;
+    }
+    if (data.interests && data.interests.length > 0) {
+      summaries.interests = data.interests;
+    }
+
+    return summaries;
+  } catch (error) {
+    console.error('Onboarding summarization error:', error);
+    throw error;
+  }
+}

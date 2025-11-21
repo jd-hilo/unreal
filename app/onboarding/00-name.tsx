@@ -56,7 +56,7 @@ export default function OnboardingStep0() {
         console.error('Error details:', JSON.stringify(error, null, 2));
       }
     }
-    router.push('/onboarding/01-values');
+    router.push('/onboarding/00-birth-year');
   }
 
   return (
@@ -77,6 +77,7 @@ export default function OnboardingStep0() {
           onChangeText={setFirstName}
           autoCapitalize="words"
           autoCorrect={false}
+          autoFocus={true}
           returnKeyType="next"
           onSubmitEditing={handleNext}
           style={styles.input}

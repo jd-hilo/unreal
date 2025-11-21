@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Input } from '@/components/Input';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { saveOnboardingResponse, getProfile } from '@/lib/storage';
 
@@ -62,6 +62,7 @@ export default function OnboardingStep5() {
           multiline
           numberOfLines={8}
           textAlignVertical="top"
+          autoFocus={true}
           style={styles.input}
           containerStyle={styles.inputContainer}
           placeholderTextColor="rgba(255, 255, 255, 0.5)"

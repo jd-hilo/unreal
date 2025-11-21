@@ -84,9 +84,11 @@ export default function EditLifeSituationScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.description}>
-          Where are you in life right now? Describe your current situation, what you're doing, and where you're at.
-        </Text>
+        <View style={styles.aiNote}>
+          <Text style={styles.aiNoteText}>
+            AI generated this response, please add context to it to improve accuracy
+          </Text>
+        </View>
 
         <Input
           placeholder="e.g., I'm a software engineer at a startup in Austin, recently moved here, enjoying the tech scene..."
@@ -123,7 +125,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: 20,
+    paddingBottom: 0,
     gap: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(59, 37, 109, 0.2)',
@@ -152,7 +154,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: 'rgba(200, 200, 200, 0.85)',
+    marginBottom: 16,
+  },
+  aiNote: {
+    backgroundColor: 'rgba(135, 206, 250, 0.1)',
+    borderLeftWidth: 3,
+    borderLeftColor: 'rgba(135, 206, 250, 0.5)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
     marginBottom: 24,
+  },
+  aiNoteText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: 'rgba(135, 206, 250, 0.9)',
+    fontStyle: 'italic',
   },
   inputContainer: {
     marginBottom: 24,

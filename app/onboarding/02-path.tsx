@@ -62,6 +62,7 @@ export default function OnboardingStep2() {
           multiline
           numberOfLines={8}
           textAlignVertical="top"
+          autoFocus={true}
           style={styles.input}
           containerStyle={styles.inputContainer}
           returnKeyType="done"

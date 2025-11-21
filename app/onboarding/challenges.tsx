@@ -4,13 +4,12 @@ import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Input } from '@/components/Input';
 import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/store/useAuth';
-import { saveOnboardingResponse } from '@/lib/storage';
+import { getProfile, saveOnboardingResponse } from '@/lib/storage';
 
-export default function OnboardingStep2() {
+export default function ChallengesScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
-  const [text, setText] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [challenges, setChallenges] = useState('');
 
   useEffect(() => {
     loadExistingData();
@@ -20,44 +19,33 @@ export default function OnboardingStep2() {
     if (!user) return;
     
     try {
-      const { getProfile } = await import('@/lib/storage');
       const profile = await getProfile(user.id);
-      const existingResponse = profile?.core_json?.onboarding_responses?.['01-now'] || profile?.core_json?.onboarding_responses?.['02-now'];
+      const existingResponse = profile?.core_json?.onboarding_responses?.['challenges'];
       if (existingResponse) {
-        setText(existingResponse);
+        setChallenges(existingResponse);
       }
     } catch (error) {
       console.error('Failed to load existing data:', error);
-    } finally {
-      setLoading(false);
     }
   }
 
   async function handleNext() {
-    if (user && text.trim()) {
+    if (user && challenges.trim()) {
       try {
-        console.log('💾 Saving onboarding response for 02-now:', text.trim());
-        const result = await saveOnboardingResponse(user.id, '02-now', text.trim());
-        console.log('✅ Successfully saved onboarding response:', result);
+        await saveOnboardingResponse(user.id, 'challenges', challenges.trim());
       } catch (error) {
-        console.error('❌ Failed to save onboarding response:', error);
-        alert('Failed to save your response. Please try again.');
-        return; // Don't navigate if save failed
+        console.error('Failed to save challenges:', error);
       }
     }
-    router.push('/onboarding/02-path');
-  }
-
-  function handleBack() {
-    router.back();
+    router.push('/onboarding/04-style');
   }
 
   return (
     <OnboardingScreen
-      title="Tell us about your current situation"
-      progress={50}
+      title="What are some of your biggest challenges right now?"
+      progress={40}
       onNext={handleNext}
-      canContinue={text.trim().length > 0}
+      canContinue={challenges.trim().length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
       buttonGradient={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
       progressBarGradient={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
@@ -65,9 +53,9 @@ export default function OnboardingStep2() {
     >
       <View style={styles.inputWrapper}>
         <Input
-          placeholder="E.g., I'm a software engineer at a tech startup, recently moved to a new city, and thinking about my career direction..."
-          value={text}
-          onChangeText={setText}
+          placeholder="E.g., Balancing work and personal life, financial stress, career uncertainty, health concerns..."
+          value={challenges}
+          onChangeText={setChallenges}
           multiline
           numberOfLines={8}
           textAlignVertical="top"
@@ -79,10 +67,6 @@ export default function OnboardingStep2() {
           placeholderTextColor="rgba(255, 255, 255, 0.5)"
         />
       </View>
-      
-      <Text style={styles.helperText}>
-        The more information, the more accurate your digital twin will be.
-      </Text>
     </OnboardingScreen>
   );
 }
@@ -104,12 +88,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 0,
     minHeight: 120,
-  },
-  helperText: {
-    fontSize: 15,
-    color: 'rgba(200, 200, 200, 0.7)',
-    marginTop: 16,
-    fontWeight: '400',
   },
 });
 

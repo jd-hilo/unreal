@@ -11,7 +11,7 @@ interface ProgressBarProps {
   progress: number;
   showLabel?: boolean;
   height?: number;
-  gradientColors?: string[];
+  gradientColors?: readonly [string, string, ...string[]];
 }
 
 export function ProgressBar({ progress, showLabel = true, height = 8, gradientColors = ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] }: ProgressBarProps) {

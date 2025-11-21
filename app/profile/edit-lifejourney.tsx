@@ -79,9 +79,11 @@ export default function EditLifeJourneyScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.description}>
-          How did you get here? Share your journey - key decisions, transitions, and experiences that shaped who you are today.
-        </Text>
+        <View style={styles.aiNote}>
+          <Text style={styles.aiNoteText}>
+            AI generated this response, please add context to it to improve accuracy
+          </Text>
+        </View>
 
         <Input
           placeholder="e.g., Grew up in a small town, went to college for engineering, started my career in SF, made a big move to Austin for better quality of life..."
@@ -118,7 +120,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: 20,
+    paddingBottom: 0,
     gap: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(59, 37, 109, 0.2)',
@@ -147,7 +149,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: 'rgba(200, 200, 200, 0.85)',
+    marginBottom: 16,
+  },
+  aiNote: {
+    backgroundColor: 'rgba(135, 206, 250, 0.1)',
+    borderLeftWidth: 3,
+    borderLeftColor: 'rgba(135, 206, 250, 0.5)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
     marginBottom: 24,
+  },
+  aiNoteText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: 'rgba(135, 206, 250, 0.9)',
+    fontStyle: 'italic',
   },
   inputContainer: {
     marginBottom: 24,
