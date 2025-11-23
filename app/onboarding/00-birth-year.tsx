@@ -41,10 +41,9 @@ export default function BirthYearScreen() {
     router.push('/onboarding/01-values-multiselect');
   }
 
-  // Generate year options from current year down to 1950
-  const currentYear = new Date().getFullYear();
+  // Generate year options from 2012 down to 1950
   const years: string[] = [];
-  for (let year = currentYear; year >= 1950; year--) {
+  for (let year = 2012; year >= 1950; year--) {
     years.push(String(year));
   }
 

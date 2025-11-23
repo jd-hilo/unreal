@@ -6,7 +6,8 @@ This guide covers the RevenueCat premium subscription integration for the Unreal
 
 The app now includes:
 - ✅ RevenueCat subscription management
-- ✅ Monthly ($9.99) and Yearly ($94.99) subscription options
+- ✅ Weekly ($5/week) subscription option
+- ✅ Lifetime ($30 one-time) purchase option
 - ✅ Premium gating for biometrics and life trajectory simulations
 - ✅ Beautiful premium paywall screen
 - ✅ Profile upgrade option
@@ -26,12 +27,15 @@ This will install `react-native-purchases` (v8.2.3) which has been added to pack
 1. Go to [RevenueCat Dashboard](https://app.revenuecat.com/)
 2. Create or configure your app with the iOS API key: `appl_hsvLarkYcuThwdbbYQbCpOfHUuV`
 3. Set up your products in App Store Connect:
-   - Monthly subscription: `$9.99/month`
-   - Yearly subscription: `$94.99/year` (20% discount)
+   - **Weekly subscription**: `$4.99/week` (Product Type: Auto-Renewable Subscription, Duration: 1 Week)
+   - **Lifetime purchase**: `$29.99` (Product Type: Non-Consumable)
 
 4. Create an entitlement called `premium` in RevenueCat dashboard
-5. Attach both subscription products to the `premium` entitlement
-6. Configure offerings with your products
+5. Attach both products (weekly subscription AND lifetime non-consumable) to the `premium` entitlement
+6. Configure offerings with your products:
+   - Create a "current" offering
+   - Add weekly subscription package
+   - Add lifetime non-consumable package
 
 ### 3. Database Migration
 
@@ -65,7 +69,7 @@ WHERE user_id = 'your-user-id-here';
 
 ### 1. Premium Paywall (`/premium`)
 - Beautiful, high-converting design
-- Monthly and yearly subscription toggle
+- Weekly subscription and lifetime purchase toggle
 - Feature highlights
 - Purchase and restore functionality
 - Shows active subscription status for premium users
@@ -132,7 +136,7 @@ The status is:
 
 ### Premium Purchase Flow
 - [ ] Premium screen loads available packages
-- [ ] Can toggle between monthly and yearly
+- [ ] Can toggle between weekly subscription and lifetime purchase
 - [ ] Purchase completes successfully
 - [ ] After purchase, redirects back with confirmation
 - [ ] Premium status updates immediately
@@ -152,9 +156,9 @@ The status is:
 
 ### For Testing Without Real Purchases
 
-Your actual Product IDs:
-- Monthly: `unreal_monthly_sub`
-- Yearly: `unreal_yearly_sub`
+Your actual Product IDs (configure these in App Store Connect):
+- Weekly: `unreal_weekly_sub` (or similar)
+- Lifetime: `unreal_lifetime` (or similar)
 
 1. **Set user as premium in Supabase:**
    ```sql
@@ -183,7 +187,8 @@ Your actual Product IDs:
    - This is checked in `lib/revenuecat.ts` → `isPremiumActive()`
 
 2. **Product Identifiers (in App Store Connect):**
-   - Suggested: `unreal_monthly` and `unreal_yearly`
+   - Weekly subscription: `unreal_weekly_sub` (Auto-Renewable Subscription, 1 Week duration)
+   - Lifetime purchase: `unreal_lifetime` (Non-Consumable product)
    - Must match what you configure in RevenueCat offerings
 
 3. **Offerings:**
@@ -225,11 +230,118 @@ For production, consider using environment-specific keys.
 - Check that user is authenticated
 - Ensure premium status was synced from RevenueCat
 
+## Step-by-Step Pricing Setup Guide
+
+### Changing from Monthly/Yearly to Weekly/Lifetime
+
+To change your pricing to **$5/week** and **$30 lifetime**, follow these steps:
+
+#### Step 1: App Store Connect Setup
+
+1. **Log into App Store Connect** → Your App → Features → In-App Purchases
+2. **Create Weekly Subscription:**
+   - Click "+" to create new in-app purchase
+   - Select "Auto-Renewable Subscription"
+   - Product ID: `unreal_weekly_sub` (or your preferred ID)
+   - Subscription Group: Create new or use existing
+   - Duration: 1 Week
+   - Price: $4.99 (App Store will show as $5/week)
+   - Localization: Add display name and description
+   - Submit for review
+
+3. **Create Lifetime Purchase:**
+   - Click "+" to create new in-app purchase
+   - Select "Non-Consumable"
+   - Product ID: `unreal_lifetime` (or your preferred ID)
+   - Price: $29.99 (App Store will show as $30)
+   - Localization: Add display name and description
+   - Submit for review
+
+#### Step 2: RevenueCat Dashboard Setup
+
+1. **Log into RevenueCat Dashboard** → Your Project → Products
+2. **Add Weekly Subscription Product:**
+   - Click "Add Product"
+   - Select "iOS App Store"
+   - Enter Product ID: `unreal_weekly_sub` (must match App Store Connect)
+   - RevenueCat will sync the product details
+
+3. **Add Lifetime Product:**
+   - Click "Add Product"
+   - Select "iOS App Store"
+   - Enter Product ID: `unreal_lifetime` (must match App Store Connect)
+   - RevenueCat will sync the product details
+
+4. **Configure Entitlement:**
+   - Go to Entitlements → `premium` (or create if doesn't exist)
+   - Attach both products:
+     - `unreal_weekly_sub` (weekly subscription)
+     - `unreal_lifetime` (non-consumable)
+   - Both should grant the `premium` entitlement
+
+5. **Configure Offerings:**
+   - Go to Offerings → Current Offering (or create new)
+   - Add Package for weekly subscription:
+     - Identifier: `$rc_weekly` (or custom)
+     - Product: `unreal_weekly_sub`
+   - Add Package for lifetime:
+     - Identifier: `$rc_lifetime` (or custom)
+     - Product: `unreal_lifetime`
+   - Save the offering
+
+#### Step 3: Code Updates (Already Done)
+
+The code has been updated to:
+- ✅ Display weekly ($5/week) and lifetime ($30) options
+- ✅ Detect weekly subscription packages
+- ✅ Detect lifetime non-consumable packages
+- ✅ Handle both purchase types correctly
+
+#### Step 4: Testing
+
+1. **Test Weekly Subscription:**
+   - Use iOS Sandbox Tester account
+   - Navigate to premium screen
+   - Select "Weekly" option
+   - Complete purchase flow
+   - Verify premium status activates
+
+2. **Test Lifetime Purchase:**
+   - Use iOS Sandbox Tester account
+   - Navigate to premium screen
+   - Select "Lifetime" option
+   - Complete purchase flow
+   - Verify premium status activates
+   - Verify it persists after app restart
+
+3. **Test Restore Purchases:**
+   - After making a purchase, delete and reinstall app
+   - Use "Restore Purchases" button
+   - Verify both weekly and lifetime purchases restore correctly
+
+#### Step 5: Important Notes
+
+- **Lifetime purchases** are handled as non-consumables in iOS, which means:
+  - They grant permanent access through the `premium` entitlement
+  - They can be restored across devices
+  - RevenueCat will track them in customer info
+
+- **Weekly subscriptions** will:
+  - Auto-renew every week
+  - Grant `premium` entitlement while active
+  - Require cancellation in App Store settings
+
+- **Product IDs** must match exactly between:
+  - App Store Connect
+  - RevenueCat Dashboard
+  - Your code (if you use specific identifiers)
+
 ## Support
 
 For RevenueCat-specific issues:
 - [RevenueCat Documentation](https://docs.revenuecat.com/)
 - [RevenueCat Community](https://community.revenuecat.com/)
+- [RevenueCat Non-Consumables Guide](https://docs.revenuecat.com/docs/non-subscriptions)
 
 For app-specific issues:
 - Check implementation in files listed above

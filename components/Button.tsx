@@ -29,26 +29,20 @@ export function Button({
   const isDisabled = disabled || loading;
 
   const buttonContent = (
-    <>
-      {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#FFFFFF' : '#000000'} />
-      ) : (
-        <View style={styles.contentRow}>
-          {icon}
-          <Text
-            style={[
-              styles.text,
-              styles[`text_${variant}`],
-              styles[`text_${size}`],
-              isDisabled && styles.text_disabled,
-              textStyle,
-            ]}
-          >
-            {title}
-          </Text>
-        </View>
-      )}
-    </>
+    <View style={styles.contentRow}>
+      {icon}
+      <Text
+        style={[
+          styles.text,
+          styles[`text_${variant}`],
+          styles[`text_${size}`],
+          isDisabled && styles.text_disabled,
+          textStyle,
+        ]}
+      >
+        {title}
+      </Text>
+    </View>
   );
 
   if (variant === 'primary') {

@@ -184,7 +184,7 @@ export default function LifeJourneyGroupScreen() {
       'Did you go to college?',
       'How did you start your career?',
       'What was a key turning point?',
-      'What shaped you most?',
+      'What shaped you the most?',
     ];
     return titles[currentQuestion] || '';
   }

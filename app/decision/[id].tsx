@@ -8,6 +8,7 @@ import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
 import { ArrowLeft, Sparkles, Users, Lock } from 'lucide-react-native';
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTwin } from '@/store/useTwin';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
@@ -327,7 +328,9 @@ export default function DecisionResultScreen() {
               <View style={styles.section}>
                 <View style={styles.sectionCard}>
                   <View style={styles.sectionHeader}>
-                    <Sparkles size={20} color="rgba(135, 206, 250, 0.9)" />
+                    <View style={styles.sparklesIconContainer}>
+                      <Sparkles size={20} color="rgba(135, 206, 250, 0.9)" />
+                    </View>
                     <Text style={styles.sectionTitle}>If things were different…</Text>
                   </View>
                   {loadingSuggestions ? (
@@ -371,36 +374,20 @@ export default function DecisionResultScreen() {
               </View>
             )}
 
-            <View style={isPremium ? styles.simulateButtonWrapper : styles.simulateButtonWrapperNonPremium}>
+            <View style={styles.simulateButtonWrapper}>
               <TouchableOpacity
-                style={[styles.simulateButton, isPremium && styles.simulateButtonPremium]}
-                onPress={handleSimulate}
+                style={styles.simulateButtonPremium}
+                onPress={isPremium ? handleSimulate : () => router.push('/premium' as any)}
                 activeOpacity={0.8}
               >
-                  {isPremium ? (
-                    <LinearGradient
-                      colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.simulateButtonGradient}
-                    >
-                      <Text style={styles.simulateButtonTextActive}>Simulate Decisions</Text>
-                    </LinearGradient>
-                  ) : (
-                    <View style={styles.simulateButtonInner}>
-                      <View style={styles.simulateButtonContent}>
-                        <Lock size={22} color="rgba(255, 255, 255, 0.7)" strokeWidth={2.5} />
-                        <View style={styles.simulateTextContainer}>
-                          <Text style={styles.simulateButtonText}>
-                            Simulate Each Choice
-                          </Text>
-                          <Text style={styles.simulateButtonSubtext}>
-                            See your future timeline - unreal+
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  )}
+                <LinearGradient
+                  colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.simulateButtonGradient}
+                >
+                  <Text style={styles.simulateButtonTextActive}>Simulate Each Choice</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
 
@@ -603,6 +590,9 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 24,
   },
+  lockIcon: {
+    marginRight: 0,
+  },
   simulateButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -658,6 +648,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 12,
+  },
+  sparklesIconContainer: {
+    marginTop: -5,
   },
   sectionLoader: {
     marginVertical: 16,

@@ -8,6 +8,7 @@ import { completeOnboarding, getProfile, saveOnboardingResponse } from '@/lib/st
 import { trackEvent, MixpanelEvents, setUserProperty } from '@/lib/mixpanel';
 import { summarizeOnboardingGroup, type OnboardingSummaryData } from '@/lib/ai';
 import { useTypewriter } from '@/hooks/useTypewriter';
+import * as Haptics from 'expo-haptics';
 
 export default function OnboardingStep7() {
   const router = useRouter();
@@ -16,10 +17,18 @@ export default function OnboardingStep7() {
   const [isSummarizing, setIsSummarizing] = useState(false);
   
   // Typewriter animation for title
-  const titleText = "it's time to create your AI twin";
+  const titleText = "it's time to create your digital twin";
   const { displayedLines: titleLines, isComplete: titleComplete } = useTypewriter(
     [titleText],
-    { speed: 50 }
+    { 
+      speed: 15, // Super fast typing for rapid haptics
+      onLineStart: () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+      onCharTyped: () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+    }
   );
   
   // Cursor blink animation
@@ -52,10 +61,10 @@ export default function OnboardingStep7() {
   // Start fade in animation when loading
   useEffect(() => {
     if (isSummarizing) {
-      // Fade in animation
+      // Slow fade in animation for cube
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 800,
+        duration: 2000, // 2 seconds for slow fade
         useNativeDriver: true,
       }).start();
     } else {
@@ -220,7 +229,7 @@ export default function OnboardingStep7() {
       title={animatedTitle}
       progress={90}
       onNext={handleComplete}
-      nextLabel={isSummarizing ? "Processing..." : "Create AI Twin"}
+      nextLabel={isSummarizing ? "Creating" : "Create Digital Twin"}
       loading={isSummarizing}
       canContinue={!isSummarizing}
       animatedButton={!isSummarizing}
@@ -250,17 +259,6 @@ export default function OnboardingStep7() {
             />
           </Animated.View>
           
-          {/* Loading text with animation */}
-          <Animated.View
-            style={[
-              styles.textContainer,
-              {
-                opacity: fadeAnim,
-              },
-            ]}
-          >
-            <Text style={styles.loadingTitle}>Creating your AI twin</Text>
-          </Animated.View>
         </Animated.View>
       ) : null}
     </OnboardingScreen>
@@ -284,17 +282,6 @@ const styles = StyleSheet.create({
   cubeImage: {
     width: '100%',
     height: '100%',
-  },
-  textContainer: {
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  loadingTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    letterSpacing: 0.5,
   },
   animatedTitle: {
     fontSize: 32,

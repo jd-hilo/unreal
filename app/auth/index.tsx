@@ -18,19 +18,20 @@ import { BlurView } from 'expo-blur';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { Input } from '@/components/Input';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight, ArrowLeft } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import { PhoneAuth } from '@/components/phoneAuth';
 export default function AuthScreen() {
   const router = useRouter();
-  const { user, initialized, signIn, signUp ,appleSignIn} = useAuth();
+  const { user, initialized, signIn, signUp, appleSignIn, resetPassword } = useAuth();
   const { checkOnboardingStatus } = useTwin();
+  const [step, setStep] = useState<'email' | 'password'>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
+  const [resetPasswordSent, setResetPasswordSent] = useState(false);
 
   // Animation values
   const titleOpacity = useRef(new Animated.Value(0)).current;
@@ -72,9 +73,40 @@ export default function AuthScreen() {
     }
   }, [user, initialized, loading, router, isSigningUp]);
  
-  async function handleAuth() {
-    if (!email || !password) {
-      setError('Please fill in all fields');
+  function validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  function handleContinue() {
+    if (!email) {
+      setError('Please enter your email');
+      return;
+    }
+    
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setError('');
+    setStep('password');
+  }
+
+  function handleBack() {
+    setStep('email');
+    setError('');
+    setPassword('');
+  }
+
+  async function handleForgotPassword() {
+    if (!email) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
       return;
     }
 
@@ -82,30 +114,30 @@ export default function AuthScreen() {
     setError('');
 
     try {
-      if (isSignUp) {
-        setIsSigningUp(true);
-        await signUp(email, password);
+      await resetPassword(email);
+      // Navigate to reset password screen with email
+      router.push({
+        pathname: '/auth/reset-password',
+        params: { email },
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to send password reset email. Please try again.');
+      setLoading(false);
+    }
+  }
 
-        // Wait a moment for state to update
-        await new Promise((resolve) => setTimeout(resolve, 300));
+  async function handleAuth() {
+    if (!password) {
+      setError('Please enter your password');
+      return;
+    }
 
-        const currentUser = useAuth.getState().user;
+    setLoading(true);
+    setError('');
 
-        if (currentUser) {
-          // Clear form
-          setEmail('');
-          setPassword('');
-          setIsSigningUp(false);
-
-          // For new sign ups, go to choose-method screen (AI call or manual)
-          router.replace('/onboarding/choose-method');
-          return;
-        } else {
-          setIsSigningUp(false);
-          setLoading(false);
-          setError('Failed to create account. Please try again.');
-        }
-      } else {
+    try {
+      // Try to sign in first (user exists)
+      try {
         await signIn(email, password);
 
         // Wait a moment for state to update
@@ -117,6 +149,7 @@ export default function AuthScreen() {
           // Clear form
           setEmail('');
           setPassword('');
+          setStep('email');
 
           // For sign in, navigate to index - it will handle routing based on onboarding status
           router.replace('/');
@@ -124,11 +157,58 @@ export default function AuthScreen() {
         } else {
           setLoading(false);
           setError('Failed to sign in. Please try again.');
+          return;
+        }
+      } catch (signInError: any) {
+        // If sign in fails, check if it's because user doesn't exist
+        // Supabase returns "Invalid login credentials" for both wrong password and user not found
+        // We'll try to sign up - if user exists, sign up will fail with "User already registered"
+        // If user doesn't exist, sign up will succeed
+        
+        try {
+          setIsSigningUp(true);
+          await signUp(email, password);
+
+          // Wait a moment for state to update
+          await new Promise((resolve) => setTimeout(resolve, 300));
+
+          const currentUser = useAuth.getState().user;
+
+          if (currentUser) {
+            // Clear form
+            setEmail('');
+            setPassword('');
+            setIsSigningUp(false);
+            setStep('email');
+
+            // For new sign ups, go to choose-method screen (AI call or manual)
+            router.replace('/onboarding/choose-method');
+            return;
+          } else {
+            setIsSigningUp(false);
+            setLoading(false);
+            setError('Failed to create account. Please try again.');
+            return;
+          }
+        } catch (signUpError: any) {
+          // If sign up also fails, it means user exists but password was wrong
+          setIsSigningUp(false);
+          setLoading(false);
+          
+          // Check if it's because user already exists
+          if (signUpError.message?.includes('already registered') || signUpError.message?.includes('already exists')) {
+            setError('This email is already registered. Please check your password.');
+          } else if (signInError.message?.includes('Invalid login credentials')) {
+            setError('Invalid email or password. Please try again.');
+          } else {
+            setError(signUpError.message || signInError.message || 'Authentication failed');
+          }
         }
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
       setLoading(false);
+      setIsSigningUp(false);
     }
   }
   if (showPhoneAuth) {
@@ -139,57 +219,189 @@ export default function AuthScreen() {
       />
     );
   }
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+
+  // Email Page
+  if (step === 'email') {
+    return (
+      <LinearGradient
+        colors={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.gradientBackground}
       >
-        <Animated.View style={{ opacity: titleOpacity }}>
-          <Image
-            source={require('@/assets/images/unreallogo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </Animated.View>
-        <Animated.Text style={[styles.subtitle, { opacity: subtitleOpacity }]}>
-          Simulate your life.
-        </Animated.Text>
-
-        <View style={styles.form}>
-          <View style={styles.inputWrapper}>
-            <Input
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="your@email.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              containerStyle={styles.inputContainer}
-              style={styles.inputText}
-            />
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
+          {/* Header */}
+          <View style={styles.header}>
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Input
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              secureTextEntry
-              containerStyle={styles.inputContainer}
-              style={styles.inputText}
-            />
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={styles.contentContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Title Section */}
+            <View style={styles.titleSection}>
+              <Text style={styles.title}>
+                Let's get started
+              </Text>
+              <Text style={styles.subtitle}>
+                Enter your email to continue
+              </Text>
+            </View>
+
+            {/* Content */}
+            <View style={styles.body}>
+              <View style={styles.inputWrapper}>
+                <Input
+                  placeholder="your@email.com"
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    setError('');
+                  }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoFocus={true}
+                  returnKeyType="next"
+                  onSubmitEditing={handleContinue}
+                  style={styles.input}
+                  containerStyle={styles.inputContainer}
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                />
+              </View>
+
+              {error && <Text style={styles.error}>{error}</Text>}
+            </View>
+          </ScrollView>
+
+          {/* Floating Action Button */}
+          <View style={styles.floatingButtonContainer}>
+            <View style={styles.buttonWrapper}>
+              <BlurView intensity={80} tint="dark" style={[
+                styles.floatingButton,
+                (loading || !email) && styles.floatingButtonDisabled
+              ]}>
+                {/* Classic glass border */}
+                <View style={styles.buttonGlassBorder} />
+                {/* Subtle inner highlight */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.buttonGlassHighlight}
+                  pointerEvents="none"
+                />
+                <TouchableOpacity
+                  onPress={handleContinue}
+                  disabled={loading || !email}
+                  activeOpacity={0.9}
+                  style={[styles.floatingButtonInner, loading && styles.floatingButtonInnerCentered]}
+                >
+                  {loading ? (
+                    <Text style={styles.floatingButtonText}>Updating</Text>
+                  ) : (
+                    <>
+                      <Text style={styles.floatingButtonText}>Continue</Text>
+                      <ChevronRight size={20} color="#FFFFFF" />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </BlurView>
+            </View>
+
+            <TouchableOpacity
+              onPress={appleSignIn}
+              disabled={loading}
+              activeOpacity={0.8}
+              style={[styles.appleButton, loading && styles.buttonDisabled]}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <View style={styles.appleButtonContent}>
+                  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"
+                      fill="#FFFFFF"
+                    />
+                  </Svg>
+                  <Text style={styles.appleButtonText}>Continue with Apple</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </LinearGradient>
+    );
+  }
+
+  // Password Page
+  return (
+    <LinearGradient
+      colors={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={styles.gradientBackground}
+    >
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backButton}
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Title Section */}
+          <View style={styles.titleSection}>
+            <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
+              Enter your password
+            </Text>
+            <Text style={styles.subtitle}>
+              {`Enter the password for ${email}`}
+            </Text>
           </View>
 
-          {isSignUp && (
+          {/* Content */}
+          <View style={styles.body}>
+            <View style={styles.inputWrapper}>
+              <Input
+                placeholder="••••••••"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setError('');
+                }}
+                secureTextEntry
+                autoFocus={true}
+                returnKeyType="done"
+                onSubmitEditing={handleAuth}
+                style={styles.input}
+                containerStyle={styles.inputContainer}
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              />
+            </View>
+
             <Text style={styles.termsText}>
-              By continuing to sign up you agree to our{' '}
+              By continuing you agree to our{' '}
               <Text
                 style={styles.linkText}
                 onPress={() =>
@@ -202,167 +414,159 @@ export default function AuthScreen() {
               </Text>
               .
             </Text>
-          )}
 
-          {error && <Text style={styles.error}>{error}</Text>}
-        </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <View style={styles.buttonWrapper}>
-          <BlurView intensity={80} tint="dark" style={[
-            styles.button,
-            (loading || !email || !password) && styles.buttonDisabled
-          ]}>
-            {/* Classic glass border */}
-            <View style={styles.glassBorder} />
-            {/* Subtle inner highlight */}
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.glassHighlight}
-              pointerEvents="none"
-            />
             <TouchableOpacity
-              onPress={handleAuth}
-              disabled={loading || !email || !password}
-              activeOpacity={0.9}
-              style={styles.buttonInner}
+              onPress={handleForgotPassword}
+              style={styles.forgotPasswordButton}
+              activeOpacity={0.7}
+              disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Text style={styles.buttonText}>
-                    {isSignUp ? 'Sign Up' : 'Sign In'}
-                  </Text>
-                  <ChevronRight size={20} color="#FFFFFF" />
-                </>
-              )}
+              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
             </TouchableOpacity>
-          </BlurView>
+
+            {error && <Text style={styles.error}>{error}</Text>}
+          </View>
+        </ScrollView>
+
+        {/* Floating Action Button */}
+        <View style={styles.floatingButtonContainer}>
+          <View style={styles.buttonWrapper}>
+            <BlurView intensity={80} tint="dark" style={[
+              styles.floatingButton,
+              (loading || !password) && styles.floatingButtonDisabled
+            ]}>
+              {/* Classic glass border */}
+              <View style={styles.buttonGlassBorder} />
+              {/* Subtle inner highlight */}
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.buttonGlassHighlight}
+                pointerEvents="none"
+              />
+              <TouchableOpacity
+                onPress={handleAuth}
+                disabled={loading || !password}
+                activeOpacity={0.9}
+                style={[styles.floatingButtonInner, loading && styles.floatingButtonInnerCentered]}
+              >
+                {loading ? (
+                  <Text style={styles.floatingButtonText}>Updating</Text>
+                ) : (
+                  <>
+                    <Text style={styles.floatingButtonText}>Continue</Text>
+                    <ChevronRight size={20} color="#FFFFFF" />
+                  </>
+                )}
+              </TouchableOpacity>
+            </BlurView>
+          </View>
         </View>
-         <TouchableOpacity 
-        onPress={() => setShowPhoneAuth(true)}
-        style={styles.appleButton}
-      >
-        <Text style={{ color: 'white', fontSize: 16 }}>Sign in with Phone</Text>
-      </TouchableOpacity>
-        <TouchableOpacity
-          onPress={appleSignIn}
-          disabled={loading}
-          activeOpacity={0.8}
-          style={[styles.appleButton, loading && styles.buttonDisabled]}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <View style={styles.appleButtonContent}>
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"
-                  fill="#FFFFFF"
-                />
-              </Svg>
-              <Text style={styles.appleButtonText}>Continue with Apple</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          onPress={() => {
-            setIsSignUp(!isSignUp);
-            setError('');
-          }}
-          style={styles.toggleButton}
-        >
-          <Text style={styles.toggleText}>
-            {isSignUp
-              ? 'Already have an account? Sign In'
-              : "Don't have an account? Sign Up"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientBackground: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#0C0C10',
   },
-  logo: {
-    height: 48,
-    width: 200,
-    alignSelf: 'center',
-    marginBottom: 12,
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
+    position: 'relative',
   },
-  scrollView: {
-    flex: 1,
+  backButton: {
+    position: 'absolute',
+    top: 60,
+    left: 24,
+    zIndex: 10,
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(20, 30, 50, 0.5)',
   },
   content: {
-    padding: 24,
-    paddingTop: 14,
-    paddingBottom: 200,
-    minHeight: '100%',
-    justifyContent: 'center',
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 120,
+  },
+  titleSection: {
+    marginBottom: 32,
   },
   title: {
-    fontSize: 48,
+    fontSize: 32,
     fontWeight: '700',
     color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 12,
-    letterSpacing: -1,
+    lineHeight: 36,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 18,
-    color: 'rgba(200, 200, 200, 0.85)',
-    textAlign: 'center',
-    marginBottom: 32,
-    fontWeight: '500',
+    fontSize: 16,
+    color: 'rgba(200, 200, 200, 0.75)',
+    lineHeight: 24,
   },
-  form: {
-    gap: 4,
+  body: {
+    gap: 16,
   },
   inputWrapper: {
-    paddingVertical: 4,
+    marginTop: 8,
   },
   inputContainer: {
-    paddingVertical: 16,
+    marginBottom: 0,
+    padding: 0,
   },
-  inputText: {
-    fontSize: 18,
-    paddingVertical: 14,
+  input: {
+    fontSize: 24,
+    fontWeight: '500',
+    letterSpacing: -0.3,
+    color: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 0,
   },
   error: {
     color: '#EF4444',
     fontSize: 14,
-    marginBottom: 8,
+    marginTop: 8,
+  },
+  floatingButtonContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 36,
+    backgroundColor: 'transparent',
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(59, 37, 109, 0.2)',
   },
   buttonWrapper: {
     borderRadius: 24,
-    overflow: 'hidden',
+    overflow: 'visible',
     shadowColor: 'rgba(30, 50, 80, 0.5)',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 8,
-    marginBottom: 12,
   },
-  button: {
+  floatingButton: {
     borderRadius: 24,
     backgroundColor: 'rgba(20, 30, 50, 0.3)',
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(135, 206, 250, 0.3)',
   },
-  buttonDisabled: {
+  floatingButtonDisabled: {
     opacity: 0.6,
   },
-  glassBorder: {
+  buttonGlassBorder: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -373,7 +577,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(135, 206, 250, 0.4)',
     pointerEvents: 'none',
   },
-  glassHighlight: {
+  buttonGlassHighlight: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -383,7 +587,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
-  buttonInner: {
+  floatingButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -393,7 +597,10 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     zIndex: 1,
   },
-  buttonText: {
+  floatingButtonInnerCentered: {
+    gap: 0,
+  },
+  floatingButtonText: {
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
@@ -405,9 +612,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 0,
     borderWidth: 1,
-    borderColor: '#FFFFFF',
+    borderColor: '#000000',
   },
   appleButtonContent: {
     flexDirection: 'row',
@@ -425,21 +631,23 @@ const styles = StyleSheet.create({
       default: 'System',
     }),
   },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   toggleButton: {
-    marginTop: 8,
     alignItems: 'center',
-    paddingVertical: 4,
-    marginBottom: 12,
+    paddingVertical: 12,
   },
   toggleText: {
-    fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.85)',
-    fontWeight: '500',
+    fontSize: 16,
+    color: 'rgba(200, 200, 200, 0.75)',
+    fontWeight: '600',
   },
   termsText: {
     fontSize: 12,
     color: 'rgba(200, 200, 200, 0.75)',
-    marginTop: 6,
+    marginTop: 16,
+    marginBottom: 2,
     lineHeight: 16,
   },
   linkText: {
@@ -447,14 +655,27 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     fontWeight: '600',
   },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 24,
-    paddingBottom: 14,
-    backgroundColor: '#0C0C10',
-    gap: 8,
+  forgotPasswordButton: {
+    marginTop: 2,
+    paddingVertical: 8,
+    alignItems: 'flex-start',
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: 'rgba(135, 206, 250, 0.9)',
+    fontWeight: '600',
+  },
+  resetPasswordSuccess: {
+    marginTop: 12,
+    padding: 16,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  resetPasswordSuccessText: {
+    fontSize: 14,
+    color: '#10B981',
+    lineHeight: 20,
   },
 });

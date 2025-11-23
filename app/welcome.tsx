@@ -105,8 +105,8 @@ export default function WelcomeScreen() {
   };
 
   const { displayedLines, isComplete } = useTypewriter(WELCOME_LINES, {
-    speed: 40, // 30-50ms per character
-    pauseBetweenLines: 500, // 400-600ms pause
+    speed: 15, // Super fast typing for rapid haptics
+    pauseBetweenLines: 300, // Shorter pause between lines
     onLineStart: handleLineStart,
     onLineComplete: handleLineComplete,
     onAllComplete: handleAllComplete,

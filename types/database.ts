@@ -280,6 +280,91 @@ export interface Database {
           created_at?: string;
         };
       };
+      interest_responses: {
+        Row: {
+          id: string;
+          user_id: string;
+          category: string;
+          option_a: string;
+          option_b: string;
+          option_a_image_url: string;
+          option_b_image_url: string;
+          option_a_description: string | null;
+          option_b_description: string | null;
+          selected_option: 'a' | 'b';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          category: string;
+          option_a: string;
+          option_b: string;
+          option_a_image_url: string;
+          option_b_image_url: string;
+          option_a_description?: string | null;
+          option_b_description?: string | null;
+          selected_option: 'a' | 'b';
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          category?: string;
+          option_a?: string;
+          option_b?: string;
+          option_a_image_url?: string;
+          option_b_image_url?: string;
+          option_a_description?: string | null;
+          option_b_description?: string | null;
+          selected_option?: 'a' | 'b';
+          created_at?: string;
+        };
+      };
+      interest_questions: {
+        Row: {
+          id: string;
+          category: string;
+          option_a: string;
+          option_b: string;
+          option_a_image_url: string;
+          option_b_image_url: string;
+          option_a_description: string | null;
+          option_b_description: string | null;
+          is_active: boolean;
+          display_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          category: string;
+          option_a: string;
+          option_b: string;
+          option_a_image_url: string;
+          option_b_image_url: string;
+          option_a_description?: string | null;
+          option_b_description?: string | null;
+          is_active?: boolean;
+          display_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          category?: string;
+          option_a?: string;
+          option_b?: string;
+          option_a_image_url?: string;
+          option_b_image_url?: string;
+          option_a_description?: string | null;
+          option_b_description?: string | null;
+          is_active?: boolean;
+          display_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 }
@@ -379,4 +464,18 @@ export interface ClarifierQuestion {
   type: 'picker-month-year' | 'slider-years' | 'city-autocomplete' | 'text' | 'chips';
   label: string;
   options?: string[];
+}
+
+export interface InterestResponse {
+  id: string;
+  user_id: string;
+  category: string;
+  option_a: string;
+  option_b: string;
+  option_a_image_url: string;
+  option_b_image_url: string;
+  option_a_description: string | null;
+  option_b_description: string | null;
+  selected_option: 'a' | 'b';
+  created_at: string;
 }

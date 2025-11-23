@@ -8,7 +8,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { CheckCircle2, Circle as CircleIcon, Edit3, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut } from 'lucide-react-native';
-import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode } from '@/lib/storage';
+import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode, getInterestProgress } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,6 +36,7 @@ export default function ProfileScreen() {
   const [hasRelationships, setHasRelationships] = useState(false);
   const [twinCode, setTwinCode] = useState<string>('');
   const [infoModalVisible, setInfoModalVisible] = useState(false);
+  const [interestProgress, setInterestProgress] = useState(0);
   const animatedTwinCode = useTextScramble(twinCode, 1500);
 
   // Reload profile data when screen comes into focus
@@ -58,16 +59,18 @@ export default function ProfileScreen() {
     if (!user) return;
     
     try {
-      const [profile, todayJournal, relationships, code] = await Promise.all([
+      const [profile, todayJournal, relationships, code, progress] = await Promise.all([
         getProfile(user.id),
         getTodayJournal(user.id),
         getRelationships(user.id),
-        ensureTwinCode(user.id)
+        ensureTwinCode(user.id),
+        getInterestProgress(user.id).catch(() => 0)
       ]);
       setProfileData(profile);
       setJournalComplete(!!todayJournal);
       setHasRelationships(relationships && relationships.length > 0);
       setTwinCode(code);
+      setInterestProgress(progress);
     } catch (error) {
       console.error('Failed to load profile:', error);
     } finally {
@@ -213,6 +216,15 @@ export default function ProfileScreen() {
       route: '/relationships',
       completed: hasRelationships,
     },
+    // {
+    //   id: 'interests',
+    //   title: 'Interests',
+    //   subtitle: interestProgress > 0
+    //     ? `${interestProgress}% complete - This or That preferences`
+    //     : 'Share your preferences with This or That questions',
+    //   route: '/interests',
+    //   completed: interestProgress > 0,
+    // },
   ];
 
   const completedCount = cards.filter(card => card.completed).length;
@@ -392,7 +404,10 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* Unreal+ Premium Card */}
+            {/* Premium Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionHeaderText}>Premium</Text>
+            </View>
             <TouchableOpacity
               style={styles.premiumCardWrapper}
               onPress={() => !isPremium && router.push('/premium' as any)}
@@ -443,7 +458,10 @@ export default function ProfileScreen() {
               </BlurView>
             </TouchableOpacity>
 
-            {/* Daily Journal Card */}
+            {/* Daily Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionHeaderText}>Daily</Text>
+            </View>
             <TouchableOpacity
               style={styles.journalCardWrapper}
               onPress={() => router.push('/journal' as any)}
@@ -484,49 +502,102 @@ export default function ProfileScreen() {
               </BlurView>
             </TouchableOpacity>
 
-            {/* Profile sections */}
-            <View style={styles.cards}>
-              {cards.map((card) => (
-                <TouchableOpacity
-                  key={card.id}
-                  style={styles.cardWrapper}
-                  onPress={() => handleCardPress(card)}
-                  activeOpacity={0.85}
-                >
-                  <BlurView intensity={80} tint="dark" style={styles.card}>
-                    {/* Classic glass border */}
-                    <View style={styles.cardGlassBorder} />
-                    {/* Subtle inner highlight */}
-                    <LinearGradient
-                      colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={styles.cardGlassHighlight}
-                      pointerEvents="none"
-                    />
-                    <View style={styles.cardInner}>
-                      <View style={styles.cardIconContainer}>
-                        {card.completed ? (
-                          <CheckCircle2 size={20} color="rgba(135, 206, 250, 0.9)" strokeWidth={2.5} />
-                        ) : (
+            {/* Incomplete Profile Cards - Show at top */}
+            {cards.filter(card => !card.completed).length > 0 && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionHeaderText}>To Complete</Text>
+                </View>
+                <View style={styles.cards}>
+                {cards.filter(card => !card.completed).map((card) => (
+                  <TouchableOpacity
+                    key={card.id}
+                    style={styles.cardWrapper}
+                    onPress={() => handleCardPress(card)}
+                    activeOpacity={0.85}
+                  >
+                    <BlurView intensity={80} tint="dark" style={styles.card}>
+                      {/* Classic glass border */}
+                      <View style={styles.cardGlassBorder} />
+                      {/* Subtle inner highlight */}
+                      <LinearGradient
+                        colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={styles.cardGlassHighlight}
+                        pointerEvents="none"
+                      />
+                      <View style={styles.cardInner}>
+                        <View style={styles.cardIconContainer}>
                           <CircleIcon size={20} color="rgba(150, 150, 150, 0.6)" strokeWidth={2} />
-                        )}
+                        </View>
+                        <View style={styles.cardContent}>
+                          <Text style={styles.cardTitle}>{card.title}</Text>
+                          <Text style={styles.cardSubtitle} numberOfLines={2}>
+                            {card.subtitle}
+                          </Text>
+                        </View>
+                        <View style={styles.cardAction}>
+                          <Edit3 size={18} color="rgba(150, 150, 150, 0.6)" />
+                        </View>
                       </View>
-                      <View style={styles.cardContent}>
-                        <Text style={styles.cardTitle}>{card.title}</Text>
-                        <Text style={styles.cardSubtitle} numberOfLines={2}>
-                          {card.subtitle}
-                        </Text>
-                      </View>
-                      <View style={styles.cardAction}>
-                        <Edit3 size={18} color="rgba(150, 150, 150, 0.6)" />
-                      </View>
-                    </View>
-                  </BlurView>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    </BlurView>
+                  </TouchableOpacity>
+                ))}
+                </View>
+              </>
+            )}
 
+            {/* Completed Profile Cards */}
+            {cards.filter(card => card.completed).length > 0 && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionHeaderText}>Profile</Text>
+                </View>
+                <View style={styles.cards}>
+                {cards.filter(card => card.completed).map((card) => (
+                  <TouchableOpacity
+                    key={card.id}
+                    style={styles.cardWrapper}
+                    onPress={() => handleCardPress(card)}
+                    activeOpacity={0.85}
+                  >
+                    <BlurView intensity={80} tint="dark" style={styles.card}>
+                      {/* Classic glass border */}
+                      <View style={styles.cardGlassBorder} />
+                      {/* Subtle inner highlight */}
+                      <LinearGradient
+                        colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={styles.cardGlassHighlight}
+                        pointerEvents="none"
+                      />
+                      <View style={styles.cardInner}>
+                        <View style={styles.cardIconContainer}>
+                          <CheckCircle2 size={20} color="rgba(135, 206, 250, 0.9)" strokeWidth={2.5} />
+                        </View>
+                        <View style={styles.cardContent}>
+                          <Text style={styles.cardTitle}>{card.title}</Text>
+                          <Text style={styles.cardSubtitle} numberOfLines={2}>
+                            {card.subtitle}
+                          </Text>
+                        </View>
+                        <View style={styles.cardAction}>
+                          <Edit3 size={18} color="rgba(150, 150, 150, 0.6)" />
+                        </View>
+                      </View>
+                    </BlurView>
+                  </TouchableOpacity>
+                ))}
+                </View>
+              </>
+            )}
+
+            {/* Account Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionHeaderText}>Account</Text>
+            </View>
             <View style={styles.feedbackButtonWrapper}>
               <BlurView intensity={80} tint="dark" style={styles.feedbackButton}>
                 {/* Classic glass border */}
@@ -1068,6 +1139,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(200, 200, 200, 0.75)',
     lineHeight: 18,
+  },
+  sectionHeader: {
+    marginTop: 24,
+    marginBottom: 12,
+    paddingHorizontal: 24,
+  },
+  sectionHeaderText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.6)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   cards: {
     gap: 12,

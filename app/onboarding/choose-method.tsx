@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/Button';
@@ -14,126 +14,79 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTypewriter } from '@/hooks/useTypewriter';
+import { ChevronRight } from 'lucide-react-native';
 
 const TITLE_LINES = [
-  "let's build your twin",
-  "We recommend you call with our AI Twin Builder, Sol. But if you can't talk right now then select you rather complete manually.",
+  "let's build your digital twin",
+  "we'll ask you questions to understand who you are",
+  "so we can create an accurate digital version of you",
+  "then you can run it through simulations",
+  "to help you make the best decisions",
+  "please answer truthfully",
 ];
+
+const LINE_FONT_SIZES = [32, 20, 20, 20, 20, 18];
+const LIFT_AMOUNT = 0; // Don't lift lines - keep all visible
+const LIFT_DURATION = 250; // ms
 
 export default function ChooseOnboardingMethod() {
   const router = useRouter();
-  const [selectedMethod, setSelectedMethod] = useState<'ai' | 'manual' | null>(null);
-  const [showOptions, setShowOptions] = useState(false);
   const [showButton, setShowButton] = useState(false);
+  const [isContinuing, setIsContinuing] = useState(false);
 
-  // Animation values
-  const titleOpacity = useSharedValue(0);
-  const questionOpacity = useSharedValue(0);
-  const primaryCardOpacity = useSharedValue(0);
-  const primaryCardScale = useSharedValue(0.9);
-  const primaryCardGlow = useSharedValue(0);
-  const secondaryCardOpacity = useSharedValue(0);
-  const secondaryCardScale = useSharedValue(0.9);
+  // Create shared values for each line's offset and opacity
+  const lineOffsets = TITLE_LINES.map(() => useSharedValue(0));
+  const lineOpacities = TITLE_LINES.map(() => useSharedValue(0));
   const buttonOpacity = useSharedValue(0);
   const buttonScale = useSharedValue(0.96);
   const backgroundPulse = useSharedValue(0);
 
-  // Typewriter for title (slower)
-  const { displayedLines: titleLines, isComplete: titleComplete } = useTypewriter(
-    [TITLE_LINES[0]],
-    {
-      speed: 40, // Same as welcome screen
-      pauseBetweenLines: 0,
-      onLineStart: () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        titleOpacity.value = withTiming(1, {
-          duration: 250,
-          easing: Easing.out(Easing.ease),
-        });
-      },
-      onCharTyped: () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      },
-    }
-  );
+  const handleLineStart = (lineIndex: number) => {
+    // Trigger haptic at start of each line
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-  // Typewriter for question (faster and smaller) - starts after title completes
-  const [startQuestion, setStartQuestion] = useState(false);
-  const { displayedLines: questionLines, isComplete: questionComplete } = useTypewriter(
-    startQuestion ? [TITLE_LINES[1]] : [],
-    {
-      speed: 30, // Faster than title
-      pauseBetweenLines: 0,
-      onLineStart: () => {
-        questionOpacity.value = withTiming(1, {
-          duration: 250,
-          easing: Easing.out(Easing.ease),
-        });
-      },
-    }
-  );
+    // Fade in current line
+    lineOpacities[lineIndex].value = withTiming(1, {
+      duration: 250,
+      easing: Easing.out(Easing.ease),
+    });
 
-  // Start question after title completes
-  useEffect(() => {
-    if (titleComplete && !startQuestion) {
-      setTimeout(() => {
-        setStartQuestion(true);
-      }, 500);
-    }
-  }, [titleComplete, startQuestion]);
+    // Don't lift previous lines - keep all visible
+  };
 
-  const allComplete = titleComplete && questionComplete;
+  const handleCharTyped = () => {
+    // Light haptic for each character typed
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
-  // Show options after all text completes
-  useEffect(() => {
-    if (allComplete) {
-      setTimeout(() => {
-        setShowOptions(true);
-        // Animate primary card
-        primaryCardOpacity.value = withTiming(1, {
-          duration: 600,
-          easing: Easing.out(Easing.ease),
-        });
-        primaryCardScale.value = withSpring(1.0, {
-          damping: 15,
-          stiffness: 150,
-        });
-        primaryCardGlow.value = withRepeat(
-          withSequence(
-            withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-            withTiming(0.5, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-          ),
-          -1,
-          false
-        );
+  const handleAllComplete = () => {
+    // Success haptic after final line
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        // Animate secondary card after delay
-        setTimeout(() => {
-          secondaryCardOpacity.value = withTiming(1, {
-            duration: 600,
-            easing: Easing.out(Easing.ease),
-          });
-          secondaryCardScale.value = withSpring(1.0, {
-            damping: 15,
-            stiffness: 150,
-          });
-        }, 300);
+    // Show button after all text completes
+    setTimeout(() => {
+      setShowButton(true);
+      buttonOpacity.value = withTiming(1, {
+        duration: 500,
+        easing: Easing.out(Easing.ease),
+      });
+      buttonScale.value = withSpring(1.0, {
+        damping: 15,
+        stiffness: 150,
+      });
+    }, 1000);
+  };
 
-        // Show button after cards
-        setTimeout(() => {
-          setShowButton(true);
-          buttonOpacity.value = withTiming(1, {
-            duration: 500,
-            easing: Easing.out(Easing.ease),
-          });
-          buttonScale.value = withSpring(1.0, {
-            damping: 15,
-            stiffness: 150,
-          });
-        }, 800);
-      }, 1000);
-    }
-  }, [allComplete]);
+  const { displayedLines, isComplete } = useTypewriter(TITLE_LINES, {
+    speed: 15, // Super fast typing for rapid haptics
+    pauseBetweenLines: 600, // Delay between lines
+    onLineStart: handleLineStart,
+    onAllComplete: handleAllComplete,
+    onCharTyped: handleCharTyped,
+  });
+
+  const allComplete = isComplete;
+
 
   // Background pulse effect
   useEffect(() => {
@@ -147,44 +100,27 @@ export default function ChooseOnboardingMethod() {
     );
   }, []);
 
-  function handleSelectMethod(method: 'ai' | 'manual') {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSelectedMethod(method);
-  }
-
   function handleContinue() {
+    if (isContinuing) return; // Prevent double-clicks
+    
+    setIsContinuing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (selectedMethod === 'ai') {
-      console.log('🎯 CHOOSE METHOD: User selected AI, REPLACING with /ai-onboarding/call');
-      router.push('/ai-onboarding/call');
-    } else if (selectedMethod === 'manual') {
-      console.log('🎯 CHOOSE METHOD: User selected manual, navigating to /onboarding/00-name');
+    console.log('🎯 CHOOSE METHOD: Navigating to /onboarding/00-name');
+    
+    // Small delay to show "Saving" state before navigation
+    setTimeout(() => {
       router.push('/onboarding/00-name');
-    }
+    }, 300);
   }
 
-  // Animated styles
-  const titleAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: titleOpacity.value,
-  }));
-
-  const questionAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: questionOpacity.value,
-  }));
-
-  const primaryCardAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: primaryCardOpacity.value,
-    transform: [{ scale: primaryCardScale.value }],
-  }));
-
-  const primaryCardGlowStyle = useAnimatedStyle(() => ({
-    opacity: primaryCardGlow.value * 0.3,
-  }));
-
-  const secondaryCardAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: secondaryCardOpacity.value,
-    transform: [{ scale: secondaryCardScale.value }],
-  }));
+  // Create animated styles for each line
+  const lineAnimatedStyles = TITLE_LINES.map((_, index) =>
+    useAnimatedStyle(() => {
+      return {
+        opacity: lineOpacities[index].value,
+      };
+    })
+  );
 
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     opacity: buttonOpacity.value,
@@ -211,70 +147,51 @@ export default function ChooseOnboardingMethod() {
       </Animated.View>
 
       <View style={styles.content}>
-        <View style={styles.header}>
-          <Animated.View style={titleAnimatedStyle}>
-            <Text style={styles.title}>
-              {titleLines[0] || ''}
-            </Text>
-          </Animated.View>
-          <Animated.View style={questionAnimatedStyle}>
-            <Text style={styles.question}>
-              {questionLines[0] || ''}
-            </Text>
-          </Animated.View>
+        <View style={styles.textContainer}>
+          {TITLE_LINES.map((_, index) => {
+            const fontSize = LINE_FONT_SIZES[index];
+            const lineHeight = fontSize * 1.15;
+
+            return (
+              <Animated.View
+                key={index}
+                style={[
+                  styles.lineWrapper,
+                  lineAnimatedStyles[index],
+                  { marginBottom: 20 }, // Spacing between lines
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.lineText,
+                    {
+                      fontSize,
+                      lineHeight,
+                      fontFamily: Platform.select({
+                        ios: index === 0 ? 'Inter-Bold' : 'Inter-Regular',
+                        android: index === 0 ? 'Inter-Bold' : 'Inter-Regular',
+                        default: 'Inter',
+                      }),
+                      fontWeight: index === 0 ? '700' : '400',
+                    },
+                  ]}
+                >
+                  {displayedLines[index]}
+                </Text>
+              </Animated.View>
+            );
+          })}
         </View>
-
-        {showOptions && (
-          <View style={styles.options}>
-            {/* AI Voice Option - Emphasized */}
-            <Animated.View style={[styles.cardWrapper, primaryCardAnimatedStyle]}>
-              <Animated.View style={[styles.glowEffect, primaryCardGlowStyle]} />
-              <TouchableOpacity
-                style={[
-                  styles.primaryCard,
-                  selectedMethod === 'ai' && styles.primaryCardSelected,
-                ]}
-                onPress={() => handleSelectMethod('ai')}
-                activeOpacity={0.8}
-              >
-                <View style={styles.optionContent}>
-                  <Text style={styles.primaryTitle}>Yes, let's talk</Text>
-                </View>
-                <View style={styles.radioOuter}>
-                  {selectedMethod === 'ai' && <View style={styles.radioInner} />}
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-
-            {/* Manual Option - De-emphasized */}
-            <Animated.View style={secondaryCardAnimatedStyle}>
-              <TouchableOpacity
-                style={[
-                  styles.secondaryCard,
-                  selectedMethod === 'manual' && styles.secondaryCardSelected,
-                ]}
-                onPress={() => handleSelectMethod('manual')}
-                activeOpacity={0.8}
-              >
-                <View style={styles.optionContent}>
-                  <Text style={styles.secondaryTitle}>I rather complete manually</Text>
-                </View>
-                <View style={styles.radioOuter}>
-                  {selectedMethod === 'manual' && <View style={styles.radioInner} />}
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
-        )}
       </View>
 
       {showButton && (
         <Animated.View style={[styles.footer, buttonAnimatedStyle]}>
           <Button
-            title="Continue"
+            title={isContinuing ? "Saving" : "Continue"}
             onPress={handleContinue}
             size="large"
-            disabled={!selectedMethod}
+            disabled={isContinuing}
+            icon={isContinuing ? <ChevronRight size={20} color="#FFFFFF" /> : <ChevronRight size={20} color="#FFFFFF" />}
           />
         </Animated.View>
       )}
@@ -293,127 +210,22 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  cardWrapper: {
-    position: 'relative',
-  },
-  glowEffect: {
-    position: 'absolute',
-    top: -20,
-    left: -20,
-    right: -20,
-    bottom: -20,
-    borderRadius: 44,
-    backgroundColor: 'rgba(135, 206, 250, 0.9)',
-    shadowColor: 'rgba(135, 206, 250, 0.5)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 30,
-    elevation: 20,
-    zIndex: 0,
-  },
   content: {
     flex: 1,
-    padding: 24,
-    paddingTop: 80,
+    paddingHorizontal: 24,
+    paddingTop: 120,
+    justifyContent: 'flex-start',
   },
-  header: {
-    marginBottom: 40,
+  textContainer: {
+    alignItems: 'flex-start', // Left-aligned for consistency
   },
-  title: {
-    fontSize: 23,
-    fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.92)',
+  lineWrapper: {
     marginBottom: 0,
-    letterSpacing: -0.8,
-    textAlign: 'left',
-    fontFamily: Platform.select({
-      ios: 'Inter-Bold',
-      android: 'Inter-Bold',
-      default: 'Inter',
-    }),
   },
-  question: {
-    fontSize: 17,
+  lineText: {
     color: 'rgba(255, 255, 255, 0.92)',
-    lineHeight: 22,
-    fontWeight: '700',
     letterSpacing: -0.8,
     textAlign: 'left',
-    marginTop: 12,
-    fontFamily: Platform.select({
-      ios: 'Inter-Bold',
-      android: 'Inter-Bold',
-      default: 'Inter',
-    }),
-  },
-  options: {
-    gap: 16,
-    marginTop: 40,
-  },
-  optionContent: {
-    flex: 1,
-  },
-  // Primary option (AI Voice) - Emphasized
-  primaryCard: {
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
-    borderWidth: 2,
-    borderColor: 'rgba(135, 206, 250, 0.9)',
-    borderRadius: 24,
-    padding: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#4169E1',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
-    position: 'relative',
-    zIndex: 1,
-  },
-  primaryCardSelected: {
-    backgroundColor: 'rgba(135, 206, 250, 0.25)',
-    borderColor: 'rgba(135, 206, 250, 0.9)',
-  },
-  primaryTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  // Secondary option (Manual) - De-emphasized
-  secondaryCard: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-    borderRadius: 24,
-    padding: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  secondaryCardSelected: {
-    borderColor: 'rgba(135, 206, 250, 0.6)',
-    backgroundColor: 'rgba(135, 206, 250, 0.1)',
-  },
-  secondaryTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'rgba(200, 200, 200, 0.7)',
-  },
-  radioOuter: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(135, 206, 250, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#4169E1',
   },
   footer: {
     padding: 24,

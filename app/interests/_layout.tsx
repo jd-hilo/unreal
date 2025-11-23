@@ -1,29 +1,8 @@
 import { Stack } from 'expo-router';
 
-export default function JournalLayout() {
+export default function InterestsLayout() {
   return <Stack screenOptions={{ headerShown: false }} />;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

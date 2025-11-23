@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Animated } from 'react-native';
 import { ReactNode, useState, useRef, useEffect } from 'react';
 import { Button } from './Button';
 import { ProgressBar } from './ProgressBar';
@@ -197,7 +197,8 @@ export function OnboardingScreen({
           )}
           <BlurView intensity={animatedButton ? 40 : 80} tint="dark" style={[
             styles.floatingButton,
-            (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled,
+            (!canContinue && !loading && !isProcessing) && styles.floatingButtonDisabled,
+            (loading || isProcessing) && styles.floatingButtonDisabled,
             animatedButton && canContinue && !loading && !isProcessing && styles.floatingButtonAnimated
           ]}>
             {/* Animated gradient background for bright button */}
@@ -239,20 +240,11 @@ export function OnboardingScreen({
               activeOpacity={0.9}
               style={styles.floatingButtonInner}
             >
-              {loading || isProcessing ? (
-                <View style={styles.processingContainer}>
-                  <ActivityIndicator size="small" color="#FFFFFF" style={styles.processingSpinner} />
-                  <Text style={styles.floatingButtonText}>Processing...</Text>
-                </View>
-              ) : (
-                <>
-                  <Text style={[
-                    styles.floatingButtonText,
-                    animatedButton && canContinue && !loading && !isProcessing && styles.floatingButtonTextBright
-                  ]}>{nextLabel}</Text>
-                  <ChevronRight size={20} color="#FFFFFF" />
-                </>
-              )}
+              <Text style={[
+                styles.floatingButtonText,
+                animatedButton && canContinue && !loading && !isProcessing && styles.floatingButtonTextBright
+              ]}>{loading || isProcessing ? "Saving" : nextLabel}</Text>
+              <ChevronRight size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </BlurView>
         </Animated.View>
@@ -410,14 +402,5 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(255, 255, 255, 0.5)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
-  },
-  processingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  processingSpinner: {
-    marginRight: 0,
   },
 });

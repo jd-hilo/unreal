@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Linking } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Linking, Animated } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -9,12 +9,16 @@ import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
-type BillingPeriod = 'monthly' | 'yearly';
+type PurchaseOption = 'weekly' | 'lifetime';
 
 export default function PremiumScreen() {
   const router = useRouter();
   const { isPremium, packages, loading, purchasing, restoring, purchase, restore } = usePremium();
-  const [selectedPeriod, setSelectedPeriod] = useState<BillingPeriod>('yearly');
+  const [selectedOption, setSelectedOption] = useState<PurchaseOption>('weekly');
+  
+  // Animation values for button effects
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   // Track premium screen viewed
   useEffect(() => {
@@ -23,50 +27,90 @@ export default function PremiumScreen() {
     });
   }, []);
 
+  // Pulse animation
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.02,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+
+
+  // Shimmer animation
+  useEffect(() => {
+    const shimmer = Animated.loop(
+      Animated.timing(shimmerAnim, {
+        toValue: 1,
+        duration: 3000,
+        useNativeDriver: true,
+      })
+    );
+    shimmer.start();
+    return () => shimmer.stop();
+  }, []);
+
   async function handlePurchase() {
     if (!packages || packages.length === 0) {
       Alert.alert('Error', 'No packages available. Please try again later.');
       return;
     }
 
-    // Find the appropriate package based on selected period
-    let pkg = selectedPeriod === 'monthly' 
+    // Find the appropriate package based on selected option
+    let pkg = selectedOption === 'weekly' 
       ? packages.find(p => 
-          p.packageType === 'MONTHLY' || 
-          p.identifier === '$rc_monthly' ||
-          p.product.identifier === 'unreal_monthly_sub' ||
-          p.identifier.includes('monthly')
+          p.packageType === 'WEEKLY' || 
+          p.identifier === '$rc_weekly' ||
+          p.product.identifier === 'unreal_weekly_sub' ||
+          p.identifier.includes('weekly') ||
+          p.identifier.includes('week')
         )
       : packages.find(p => 
-          p.packageType === 'ANNUAL' || 
-          p.identifier === '$rc_annual' ||
-          p.product.identifier === 'unreal_yearly_sub' ||
-          p.identifier.includes('annual') || 
-          p.identifier.includes('yearly')
+          p.packageType === 'CUSTOM' || 
+          p.packageType === 'LIFETIME' ||
+          p.identifier === '$rc_lifetime' ||
+          p.product.identifier === 'unreal_lifetime' ||
+          p.identifier.includes('lifetime') ||
+          p.product.productType === 'NON_CONSUMABLE'
         );
 
     if (!pkg) {
       // Debug: log available packages
-      console.log('❌ Could not find package for:', selectedPeriod);
+      console.log('❌ Could not find package for:', selectedOption);
       console.log('Available packages:', packages.map(p => ({
         identifier: p.identifier,
         type: p.packageType,
-        product: p.product.identifier
+        product: p.product.identifier,
+        productType: p.product.productType
       })));
       
-      Alert.alert('Error', `Could not find ${selectedPeriod} subscription package. Please try again.`);
+      Alert.alert('Error', `Could not find ${selectedOption} package. Please try again.`);
       return;
     }
 
     // Track purchase started
     trackEvent(MixpanelEvents.PREMIUM_PURCHASE_STARTED, {
-      plan_type: selectedPeriod,
+      plan_type: selectedOption,
       product_id: pkg.product.identifier
     });
 
     const success = await purchase(pkg);
     if (success) {
-      Alert.alert('Welcome to unreal+!', 'You now have access to all premium features.', [
+      const message = selectedOption === 'lifetime' 
+        ? 'You now have lifetime access to all premium features!'
+        : 'You now have access to all premium features.';
+      Alert.alert('Welcome to unreal+!', message, [
         { text: 'Get Started', onPress: () => router.back() }
       ]);
     }
@@ -113,14 +157,14 @@ export default function PremiumScreen() {
 
   const features = [
     {
-      icon: Brain,
-      title: 'Full Bio Metrics',
-      description: 'See detailed biometric predictions for all your what-if scenarios',
+      icon: Zap,
+      title: 'Life Trajectory',
+      description: 'Simulate the long-term outcomes of every decision you make',
     },
     {
-      icon: Zap,
-      title: 'Life Trajectory Simulations',
-      description: 'Simulate the long-term outcomes of every decision you make',
+      icon: Brain,
+      title: 'Full Bio Metric Simulations',
+      description: 'See detailed biometric predictions for all your what-if scenarios',
     },
     {
       icon: TrendingUp,
@@ -160,60 +204,78 @@ export default function PremiumScreen() {
             </Text>
           </View>
 
-          {/* Billing Period Toggle */}
+          {/* Purchase Options Toggle */}
           <View style={styles.billingToggle}>
-            <View style={styles.monthlyOptionWrapper}>
+            <View style={styles.weeklyOptionWrapper}>
               <TouchableOpacity
                 style={[
                   styles.billingOption,
-                  selectedPeriod === 'monthly' && styles.billingOptionSelected,
+                  selectedOption === 'weekly' && styles.billingOptionSelected,
                 ]}
-                onPress={() => setSelectedPeriod('monthly')}
+                onPress={() => setSelectedOption('weekly')}
                 activeOpacity={0.7}
               >
                 <BlurView intensity={80} tint="dark" style={styles.billingOptionBlur}>
                   <Text style={[
                     styles.billingOptionTitle,
-                    selectedPeriod === 'monthly' && styles.billingOptionTitleSelected,
+                    selectedOption === 'weekly' && styles.billingOptionTitleSelected,
                   ]}>
-                    Monthly
+                    Weekly
                   </Text>
-                  <Text style={[
-                    styles.billingOptionPrice,
-                    selectedPeriod === 'monthly' && styles.billingOptionPriceSelected,
-                  ]}>
-                    $9.99/mo
-                  </Text>
+                  <View style={styles.priceContainer}>
+                    <Text 
+                      style={[
+                        styles.billingOptionPrice,
+                        selectedOption === 'weekly' && styles.billingOptionPriceSelected,
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      $4.99
+                    </Text>
+                    <Text style={[
+                      styles.billingOptionPeriod,
+                      selectedOption === 'weekly' && styles.billingOptionPeriodSelected,
+                    ]}>
+                      /week
+                    </Text>
+                  </View>
+                  <Text style={styles.billingOptionDetailPlaceholder}> </Text>
                 </BlurView>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.yearlyOptionWrapper}>
-              <View style={styles.saveBadge}>
-                <Text style={styles.saveBadgeText}>SAVE 20%</Text>
-              </View>
+            <View style={styles.lifetimeOptionWrapper}>
+              <LinearGradient
+                colors={['#FFEB3B', '#FFC107', '#FFA000']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.saveBadge}
+              >
+                <Text style={styles.saveBadgeText}>BEST VALUE</Text>
+              </LinearGradient>
               <TouchableOpacity
                 style={[
                   styles.billingOption,
-                  selectedPeriod === 'yearly' && styles.billingOptionSelected,
+                  selectedOption === 'lifetime' && styles.billingOptionSelected,
                 ]}
-                onPress={() => setSelectedPeriod('yearly')}
+                onPress={() => setSelectedOption('lifetime')}
                 activeOpacity={0.7}
               >
                 <BlurView intensity={80} tint="dark" style={styles.billingOptionBlur}>
                   <Text style={[
                     styles.billingOptionTitle,
-                    selectedPeriod === 'yearly' && styles.billingOptionTitleSelected,
+                    selectedOption === 'lifetime' && styles.billingOptionTitleSelected,
                   ]}>
-                    Yearly
+                    Lifetime
                   </Text>
                   <Text style={[
                     styles.billingOptionPrice,
-                    selectedPeriod === 'yearly' && styles.billingOptionPriceSelected,
+                    selectedOption === 'lifetime' && styles.billingOptionPriceSelected,
                   ]}>
-                    $94.99/yr
+                    $29.99
                   </Text>
-                  <Text style={styles.billingOptionDetail}>$7.92/mo</Text>
+                  <Text style={styles.billingOptionDetail}>One-time payment</Text>
                 </BlurView>
               </TouchableOpacity>
             </View>
@@ -227,7 +289,7 @@ export default function PremiumScreen() {
               return (
                 <View key={index} style={styles.featureRow}>
                   <View style={styles.featureIcon}>
-                    <Icon size={24} color="rgba(135, 206, 250, 0.9)" strokeWidth={2} />
+                    <Icon size={24} color="#FFEB3B" strokeWidth={2} />
                   </View>
                   <View style={styles.featureContent}>
                     <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -239,30 +301,55 @@ export default function PremiumScreen() {
           </View>
 
           {/* Purchase Button */}
-          <TouchableOpacity
-            style={[styles.purchaseButton, (purchasing || loading) && styles.purchaseButtonDisabled]}
-            onPress={handlePurchase}
-            disabled={purchasing || loading}
-            activeOpacity={0.8}
+          <Animated.View 
+            style={[
+              styles.purchaseButtonWrapper,
+              {
+                transform: [{ scale: pulseAnim }],
+              }
+            ]}
           >
-            <LinearGradient
-              colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.purchaseButtonGradient}
+            <TouchableOpacity
+              style={[styles.purchaseButton, (purchasing || loading) && styles.purchaseButtonDisabled]}
+              onPress={handlePurchase}
+              disabled={purchasing || loading}
+              activeOpacity={0.9}
             >
-              {purchasing ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Lock size={20} color="#FFFFFF" strokeWidth={2.5} />
+              <LinearGradient
+                colors={['#FFEB3B', '#FFC107', '#FFA000']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.purchaseButtonGradient}
+              >
+                <Animated.View
+                  style={[
+                    styles.shimmerOverlay,
+                    {
+                      opacity: shimmerAnim.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: [0, 0.3, 0],
+                      }),
+                      transform: [
+                        {
+                          translateX: shimmerAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [-200, 200],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                />
+                {purchasing ? (
+                  <ActivityIndicator size="small" color="#000000" />
+                ) : (
                   <Text style={styles.purchaseButtonText}>
-                    {selectedPeriod === 'monthly' ? 'Start Monthly Subscription' : 'Start Yearly Subscription'}
+                    {selectedOption === 'weekly' ? 'Start Weekly Subscription' : 'Purchase Lifetime Access'}
                   </Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
 
           {/* Restore Button */}
           <TouchableOpacity
@@ -272,7 +359,7 @@ export default function PremiumScreen() {
             activeOpacity={0.7}
           >
             {restoring ? (
-              <ActivityIndicator size="small" color="rgba(135, 206, 250, 0.9)" />
+              <ActivityIndicator size="small" color="#FFEB3B" />
             ) : (
               <Text style={styles.restoreButtonText}>Restore Purchases</Text>
             )}
@@ -280,7 +367,9 @@ export default function PremiumScreen() {
 
           {/* Fine Print */}
           <Text style={styles.finePrint}>
-            Subscription will auto-renew unless cancelled. Cancel anytime in App Store settings.
+            {selectedOption === 'weekly' 
+              ? 'Subscription will auto-renew unless cancelled. Cancel anytime in App Store settings.'
+              : 'Lifetime access is a one-time payment. No recurring charges.'}
           </Text>
 
           {/* Terms and Privacy Links */}
@@ -366,53 +455,54 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 40,
   },
-  monthlyOptionWrapper: {
+  weeklyOptionWrapper: {
     flex: 1,
   },
   billingOption: {
     width: '100%',
     backgroundColor: 'rgba(20, 30, 50, 0.3)',
     borderWidth: 2,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderColor: 'rgba(255, 215, 0, 0.3)',
     borderRadius: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
     overflow: 'hidden',
     minHeight: 120,
   },
-  yearlyOptionWrapper: {
+  lifetimeOptionWrapper: {
     flex: 1,
     position: 'relative',
   },
   billingOptionSelected: {
-    borderColor: 'rgba(135, 206, 250, 0.6)',
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
+    borderColor: 'rgba(255, 215, 0, 0.6)',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
   },
   billingOptionBlur: {
     width: '100%',
     padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 120,
   },
   saveBadge: {
     position: 'absolute',
     top: -8,
     right: 8,
-    backgroundColor: '#10B981',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     zIndex: 10,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: '#FFEB3B',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.5,
     shadowRadius: 4,
   },
   saveBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000',
     letterSpacing: 0.5,
   },
   billingOptionTitle: {
@@ -423,6 +513,18 @@ const styles = StyleSheet.create({
   },
   billingOptionTitleSelected: {
     color: '#FFFFFF',
+  },
+  priceContainer: {
+    alignItems: 'center',
+  },
+  billingOptionPeriod: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.75)',
+    marginTop: 2,
+  },
+  billingOptionPeriodSelected: {
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   billingOptionPrice: {
     fontSize: 24,
@@ -435,6 +537,11 @@ const styles = StyleSheet.create({
   billingOptionDetail: {
     fontSize: 13,
     color: 'rgba(200, 200, 200, 0.65)',
+    marginTop: 4,
+  },
+  billingOptionDetailPlaceholder: {
+    fontSize: 13,
+    color: 'transparent',
     marginTop: 4,
   },
   featuresSection: {
@@ -456,11 +563,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderColor: 'rgba(255, 215, 0, 0.3)',
   },
   featureContent: {
     flex: 1,
@@ -476,15 +583,20 @@ const styles = StyleSheet.create({
     color: 'rgba(200, 200, 200, 0.75)',
     lineHeight: 20,
   },
+  purchaseButtonWrapper: {
+    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   purchaseButton: {
-    borderRadius: 16,
+    borderRadius: 18,
+    width: '100%',
     overflow: 'hidden',
-    marginBottom: 16,
-    shadowColor: 'rgba(135, 206, 250, 0.5)',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.4,
     shadowRadius: 20,
-    elevation: 12,
+    elevation: 10,
   },
   purchaseButtonDisabled: {
     opacity: 0.6,
@@ -493,13 +605,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
-    gap: 10,
+    paddingVertical: 20,
+    gap: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  shimmerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#FFFFFF',
+    width: 100,
   },
   purchaseButtonText: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000',
   },
   restoreButton: {
     paddingVertical: 16,
@@ -509,7 +632,7 @@ const styles = StyleSheet.create({
   restoreButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: '#FFEB3B',
   },
   finePrint: {
     fontSize: 12,
@@ -528,7 +651,7 @@ const styles = StyleSheet.create({
   },
   legalLinkText: {
     fontSize: 12,
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: '#FFEB3B',
     textDecorationLine: 'underline',
   },
   legalSeparator: {

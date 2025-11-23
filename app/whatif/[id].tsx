@@ -80,6 +80,7 @@ export default function WhatIfResultScreen() {
     primary?: string;
     secondary?: string;
     detail?: string;
+    editRoute?: string;
   };
 
   const biometricsEntries: BiometricEntry[] = [];
@@ -97,7 +98,8 @@ export default function WhatIfResultScreen() {
       label: 'Relationship Status',
       icon: <Heart size={18} color="#EF4444" />,
       primary: capitalize(biometricsData.relationshipStatus.alternate || biometricsData.relationshipStatus.current || '—'),
-      secondary: biometricsData.relationshipStatus.current ? `Current: ${capitalize(biometricsData.relationshipStatus.current)}` : undefined,
+      secondary: biometricsData.relationshipStatus.current ? `Current: ${capitalize(biometricsData.relationshipStatus.current)}` : 'Update on Profile',
+      editRoute: '/profile/edit-context',
     });
   }
 
@@ -107,8 +109,9 @@ export default function WhatIfResultScreen() {
       label: 'Net Worth',
       icon: <DollarSign size={18} color="#10B981" />,
       primary: biometricsData.netWorth.alternate || biometricsData.netWorth.current || '—',
-      secondary: biometricsData.netWorth.current ? `Current: ${biometricsData.netWorth.current}` : undefined,
+      secondary: biometricsData.netWorth.current ? `Current: ${biometricsData.netWorth.current}` : 'Update on Profile',
       detail: biometricsData.netWorth.percentChange,
+      editRoute: '/profile/edit-networth',
     });
   }
 
@@ -118,7 +121,7 @@ export default function WhatIfResultScreen() {
       label: 'Weight',
       icon: <Weight size={18} color="rgba(135, 206, 250, 0.9)" />,
       primary: biometricsData.weight.alternate || biometricsData.weight.current || '—',
-      secondary: biometricsData.weight.current ? `Current: ${biometricsData.weight.current}` : undefined,
+      secondary: biometricsData.weight.current ? `Current: ${biometricsData.weight.current}` : 'Update on Profile',
       detail: biometricsData.weight.change,
     });
   }
@@ -129,7 +132,8 @@ export default function WhatIfResultScreen() {
       label: 'Location',
       icon: <MapPin size={18} color="#F59E0B" />,
       primary: biometricsData.location.alternate || biometricsData.location.current || '—',
-      secondary: biometricsData.location.current ? `Current: ${biometricsData.location.current}` : undefined,
+      secondary: biometricsData.location.current ? `Current: ${biometricsData.location.current}` : 'Update on Profile',
+      editRoute: '/profile/edit-location',
     });
   }
 
@@ -300,7 +304,16 @@ export default function WhatIfResultScreen() {
                           <Text style={styles.biometricPrimary}>{item.primary}</Text>
                         )}
                         {item.secondary && (
-                          <Text style={styles.biometricSecondary}>{item.secondary}</Text>
+                          item.secondary === 'Update on Profile' && item.editRoute ? (
+                            <TouchableOpacity 
+                              onPress={() => router.push(item.editRoute as any)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={styles.biometricUpdateLink}>{item.secondary}</Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <Text style={styles.biometricSecondary}>{item.secondary}</Text>
+                          )
                         )}
                         {item.detail && (
                           <Text style={getDetailStyle(item.detail)}>{item.detail}</Text>
@@ -583,6 +596,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(200, 200, 200, 0.7)',
     flexShrink: 1,
+  },
+  biometricUpdateLink: {
+    fontSize: 13,
+    color: 'rgba(135, 206, 250, 0.9)',
+    flexShrink: 1,
+    textDecorationLine: 'underline',
   },
   biometricDetail: {
     fontSize: 13,

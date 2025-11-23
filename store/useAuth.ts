@@ -16,6 +16,9 @@ interface AuthState {
   appleSignIn: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  verifyPasswordResetOtp: (email: string, token: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
   initialize: () => Promise<void>;
   sendPhoneOtp: (phone: string) => Promise<void>;
   verifyPhoneOtp: (phone: string, otp: string) => Promise<void>;
@@ -132,6 +135,72 @@ export const useAuth = create<AuthState>((set) => ({
     trackEvent(MixpanelEvents.SIGN_OUT);
     await resetMixpanel();
     set({ session: null, user: null });
+  },
+
+  resetPassword: async (email: string) => {
+    // Send OTP code for password reset via email
+    // Using signInWithOtp with shouldCreateUser: false for password recovery
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false, // Don't create user if doesn't exist
+        emailRedirectTo: 'unreal://reset-password',
+      },
+    });
+
+    if (error) {
+      trackEvent('Password Reset Failed', { email, error: error.message });
+      throw error;
+    }
+
+    trackEvent('Password Reset Requested', { email });
+  },
+
+  verifyPasswordResetOtp: async (email: string, token: string) => {
+    // Verify the OTP token from email
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'recovery',
+    });
+
+    if (error) {
+      trackEvent('Password Reset OTP Verification Failed', { email, error: error.message });
+      throw error;
+    }
+
+    // If successful, we'll have a session that allows password update
+    if (data.session) {
+      set({ session: data.session, user: data.session.user || data.user });
+    }
+
+    trackEvent('Password Reset OTP Verified', { email });
+  },
+
+  updatePassword: async (newPassword: string) => {
+    // Update password (requires recovery session from verifyPasswordResetOtp)
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      trackEvent('Password Update Failed', { error: error.message });
+      throw error;
+    }
+
+    // Ensure session is set
+    if (data.user) {
+      // Get the current session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        set({ session: sessionData.session, user: sessionData.session.user || data.user });
+        trackEvent(MixpanelEvents.SIGN_IN_COMPLETED, {
+          user_id: data.user.id,
+        });
+      }
+    }
+
+    trackEvent('Password Updated', {});
   },
 
   initialize: async () => {

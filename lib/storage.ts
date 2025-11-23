@@ -8,6 +8,7 @@ import type {
   SimulationScenario,
   WhatIfMetrics,
   WhatIfBiometrics,
+  InterestResponse,
 } from '@/types/database';
 
 export async function upsertProfileCore(
@@ -737,6 +738,205 @@ export async function removeDecisionParticipant(decisionId: string, participantU
 }
 
 /**
+ * Save an interest response (This or That choice)
+ */
+export async function saveInterestResponse(
+  userId: string,
+  category: string,
+  optionA: string,
+  optionB: string,
+  selectedOption: 'a' | 'b',
+  imageUrls: { a: string; b: string },
+  descriptions: { a: string | null; b: string | null }
+) {
+  const { data, error } = await supabase
+    .from('interest_responses')
+    .insert({
+      user_id: userId,
+      category,
+      option_a: optionA,
+      option_b: optionB,
+      option_a_image_url: imageUrls.a,
+      option_b_image_url: imageUrls.b,
+      option_a_description: descriptions.a,
+      option_b_description: descriptions.b,
+      selected_option: selectedOption,
+    } as any)
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Get interest responses for a user, optionally filtered by category
+ */
+export async function getInterestResponses(userId: string, category?: string) {
+  let query = supabase
+    .from('interest_responses')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (category) {
+    query = query.eq('category', category);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Get the next interest question for a category (in order, up to 10 questions)
+ * Returns null if all 10 questions have been answered
+ */
+export async function getNextInterestQuestion(
+  userId: string,
+  category: string
+): Promise<{
+  id: string;
+  category: string;
+  option_a: string;
+  option_b: string;
+  option_a_image_url: string;
+  option_b_image_url: string;
+  option_a_description: string | null;
+  option_b_description: string | null;
+  question_number: number;
+} | null> {
+  // Get count of questions user has already answered for this category
+  const { count: answeredCount } = await supabase
+    .from('interest_responses')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('category', category);
+
+  const currentQuestionNumber = (answeredCount || 0) + 1;
+
+  // Quiz is limited to 10 questions
+  if (currentQuestionNumber > 10) return null;
+
+  // Get all active questions for this category, ordered by display_order
+  const { data: questions, error } = await supabase
+    .from('interest_questions')
+    .select('*')
+    .eq('category', category)
+    .eq('is_active', true)
+    .order('display_order', { ascending: true })
+    .limit(10);
+
+  if (error) {
+    console.error('Supabase error fetching interest questions:', error);
+    throw error;
+  }
+  
+  if (!questions || questions.length === 0) {
+    console.warn(`No questions found in Supabase for category: ${category}`);
+    return null;
+  }
+  
+  console.log(`Found ${questions.length} questions in Supabase for category: ${category}`);
+
+  // Get the question at the current position (1-indexed)
+  const question = questions[currentQuestionNumber - 1];
+  
+  if (!question) return null;
+
+  return {
+    ...question,
+    question_number: currentQuestionNumber,
+  };
+}
+
+/**
+ * Check if user has completed all 10 questions for a category
+ */
+export async function hasCompletedCategory(
+  userId: string,
+  category: string
+): Promise<boolean> {
+  const { count } = await supabase
+    .from('interest_responses')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('category', category);
+
+  return (count || 0) >= 10;
+}
+
+/**
+ * Get current question number for a category (0-10)
+ */
+export async function getCurrentQuestionNumber(
+  userId: string,
+  category: string
+): Promise<number> {
+  const { count } = await supabase
+    .from('interest_responses')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('category', category);
+
+  return count || 0;
+}
+
+/**
+ * Get all 10 questions for a category (for full preloading)
+ */
+export async function getAllInterestQuestions(
+  category: string
+): Promise<Array<{
+  id: string;
+  category: string;
+  option_a: string;
+  option_b: string;
+  option_a_image_url: string;
+  option_b_image_url: string;
+  option_a_description: string | null;
+  option_b_description: string | null;
+  display_order: number;
+}>> {
+  const { data: questions, error } = await supabase
+    .from('interest_questions')
+    .select('*')
+    .eq('category', category)
+    .eq('is_active', true)
+    .order('display_order', { ascending: true })
+    .limit(10);
+
+  if (error) throw error;
+  return questions || [];
+}
+
+/**
+ * Calculate interest progress percentage
+ * Returns a number between 0 and 100
+ */
+export async function getInterestProgress(userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('interest_responses')
+    .select('category')
+    .eq('user_id', userId);
+
+  if (error) throw error;
+
+  // Count unique categories with responses
+  const uniqueCategories = new Set((data || []).map(r => r.category));
+  const totalCategories = 6; // fashion, food, music_genres, music_artists, cities, music
+
+  // Progress is based on having at least some responses (not necessarily all categories)
+  // We'll use a simple formula: responses / (totalCategories * 5) capped at 100%
+  // This means 30 responses = 100% progress
+  const responseCount = (data || []).length;
+  const progress = Math.min(100, Math.round((responseCount / 30) * 100));
+
+  return progress;
+}
+
+/**
  * Delete all user-owned data from application tables.
  * Note: Deleting the auth user requires a server-side admin function;
  * this client method only removes app data scoped by user_id.
@@ -751,6 +951,7 @@ export async function deleteAccountData(userId: string): Promise<void> {
     'journals',
     'relationships',
     'career_entries',
+    'interest_responses',
     // profiles last
   ];
 
