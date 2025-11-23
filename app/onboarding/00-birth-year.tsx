@@ -5,6 +5,7 @@ import { ChoiceQuestion } from '@/components/ChoiceQuestion';
 import { View, StyleSheet } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function BirthYearScreen() {
   const router = useRouter();
@@ -34,6 +35,10 @@ export default function BirthYearScreen() {
       try {
         const { saveOnboardingResponse } = await import('@/lib/storage');
         await saveOnboardingResponse(user.id, 'birth-year', selectedYear);
+        trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
+          step: '00-birth-year',
+          step_name: 'Birth Year'
+        });
       } catch (error) {
         console.error('Failed to save birth year:', error);
       }
@@ -50,7 +55,7 @@ export default function BirthYearScreen() {
   return (
     <OnboardingScreen
       title="What year were you born?"
-      progress={5}
+      progress={30}
       onNext={handleNext}
       canContinue={selectedYear.length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

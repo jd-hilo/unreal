@@ -62,7 +62,7 @@ export default function OnboardingStep0() {
   return (
     <OnboardingScreen
       title="What's your first name?"
-      progress={0}
+      progress={25}
       onNext={handleNext}
       canContinue={firstName.trim().length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

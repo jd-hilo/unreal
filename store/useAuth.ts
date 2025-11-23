@@ -74,7 +74,32 @@ export const useAuth = create<AuthState>((set) => ({
           token: credential.identityToken,
         });
         console.log(JSON.stringify({ error, user }, null, 2));
-        if (!error) {
+        if (!error && user) {
+          // Check if this is a new user by checking if profile exists
+          const { getProfile } = await import('@/lib/storage');
+          const existingProfile = await getProfile(user.id);
+          const isNewUser = !existingProfile;
+          
+          // Track sign up for new users
+          if (isNewUser) {
+            trackEvent(MixpanelEvents.SIGN_UP_STARTED, { 
+              method: 'apple',
+              email: user.email 
+            });
+            trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
+              user_id: user.id,
+              email: user.email,
+              method: 'apple',
+            });
+          } else {
+            // Track sign in for existing users
+            trackEvent(MixpanelEvents.SIGN_IN_COMPLETED, {
+              user_id: user.id,
+              email: user.email,
+              method: 'apple',
+            });
+          }
+          
           // Apple only provides the user's full name on the first sign-in
           // Save it to user metadata if available
           if (credential.fullName) {

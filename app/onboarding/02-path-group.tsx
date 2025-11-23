@@ -6,6 +6,7 @@ import { Input } from '@/components/Input';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { getProfile, updateProfileFields } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 interface LifeJourneyAnswers {
   hometown: string;
@@ -142,6 +143,10 @@ export default function LifeJourneyGroupScreen() {
         if (answers.collegeName?.trim()) {
           await updateProfileFields(user.id, { university: answers.collegeName.trim() });
         }
+        trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
+          step: '02-path-group',
+          step_name: 'Life Journey'
+        });
       } catch (error) {
         console.error('Failed to save answers:', error);
       }
@@ -183,14 +188,14 @@ export default function LifeJourneyGroupScreen() {
       'Where did you grow up?',
       'Did you go to college?',
       'How did you start your career?',
-      'What was a key turning point?',
+      'What was a key turning point in your life?',
       'What shaped you the most?',
     ];
     return titles[currentQuestion] || '';
   }
 
   function getProgress(): number {
-    return 30 + (currentQuestion / 5) * 10; // 30-40% range
+    return 45 + (currentQuestion / 5) * 5; // 45-50% range
   }
 
   return (

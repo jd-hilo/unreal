@@ -5,6 +5,7 @@ import { ChoiceQuestion } from '@/components/ChoiceQuestion';
 import { View, StyleSheet } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { saveOnboardingResponse, getProfile } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function OnboardingStep6() {
   const router = useRouter();
@@ -53,6 +54,10 @@ export default function OnboardingStep6() {
         if (answer) {
           await saveOnboardingResponse(user.id, '06-stress', answer);
         }
+        trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
+          step: '06-stress',
+          step_name: 'Stress Handling'
+        });
       } catch (error) {
         console.error('❌ Failed to save onboarding response:', error);
       }

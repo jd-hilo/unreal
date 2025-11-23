@@ -5,6 +5,7 @@ import { ChoiceQuestion } from '@/components/ChoiceQuestion';
 import { View, StyleSheet } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { getProfile, updateProfileFields } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function PoliticsScreen() {
   const router = useRouter();
@@ -32,6 +33,10 @@ export default function PoliticsScreen() {
       try {
         await updateProfileFields(user.id, {
           political_views: selectedValue,
+        });
+        trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
+          step: 'politics',
+          step_name: 'Political Views'
         });
       } catch (error) {
         console.error('Failed to save political views:', error);

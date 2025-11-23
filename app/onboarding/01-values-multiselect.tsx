@@ -5,6 +5,7 @@ import { MultiSelectValues } from '@/components/MultiSelectValues';
 import { View, StyleSheet } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { getProfile, saveOnboardingResponse } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function ValuesMultiselectScreen() {
   const router = useRouter();
@@ -55,6 +56,10 @@ export default function ValuesMultiselectScreen() {
           };
           await saveOnboardingResponse(user.id, 'values-data', JSON.stringify(valuesData));
         }
+        trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
+          step: '01-values-multiselect',
+          step_name: 'Values'
+        });
       } catch (error) {
         console.error('Failed to save values:', error);
       }
@@ -75,7 +80,7 @@ export default function ValuesMultiselectScreen() {
   return (
     <OnboardingScreen
       title="What matters most to you?"
-      progress={10}
+      progress={35}
       onNext={handleNext}
       canContinue={selectedValues.length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

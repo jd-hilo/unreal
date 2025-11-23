@@ -5,6 +5,7 @@ import { ChoiceQuestion } from '@/components/ChoiceQuestion';
 import { View, StyleSheet } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { saveOnboardingResponse, getProfile } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function OnboardingStep4() {
   const router = useRouter();
@@ -45,6 +46,10 @@ export default function OnboardingStep4() {
         if (answer) {
           await saveOnboardingResponse(user.id, '04-style', answer);
         }
+        trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
+          step: '04-style',
+          step_name: 'Decision Style'
+        });
       } catch (error) {
         console.error('❌ Failed to save onboarding response:', error);
       }
@@ -55,7 +60,7 @@ export default function OnboardingStep4() {
   return (
     <OnboardingScreen
       title="How do you usually make big decisions?"
-      progress={50}
+      progress={60}
       onNext={handleNext}
       canContinue={selectedValue.length > 0 && (selectedValue !== 'Other' || otherValue.trim().length > 0)}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

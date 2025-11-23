@@ -4,6 +4,7 @@ import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Platform, Animated } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { saveOnboardingResponse, getProfile } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import * as Haptics from 'expo-haptics';
 
 const INTERESTS = [
@@ -131,6 +132,10 @@ export default function InterestsScreen() {
           'interests',
           JSON.stringify(selectedInterests)
         );
+        trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
+          step: 'interests',
+          step_name: 'Interests'
+        });
       } catch (error) {
         console.error('Failed to save interests:', error);
       }
@@ -141,7 +146,7 @@ export default function InterestsScreen() {
   return (
     <OnboardingScreen
       title="What are you interested in?"
-      progress={62.5}
+      progress={65}
       onNext={handleNext}
       canContinue={selectedInterests.length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

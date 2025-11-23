@@ -5,6 +5,7 @@ import { Input } from '@/components/Input';
 import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { getProfile, saveOnboardingResponse } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function ChallengesScreen() {
   const router = useRouter();
@@ -33,6 +34,10 @@ export default function ChallengesScreen() {
     if (user && challenges.trim()) {
       try {
         await saveOnboardingResponse(user.id, 'challenges', challenges.trim());
+        trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
+          step: 'challenges',
+          step_name: 'Challenges'
+        });
       } catch (error) {
         console.error('Failed to save challenges:', error);
       }
@@ -43,7 +48,7 @@ export default function ChallengesScreen() {
   return (
     <OnboardingScreen
       title="What are some of your biggest challenges right now?"
-      progress={40}
+      progress={55}
       onNext={handleNext}
       canContinue={challenges.trim().length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

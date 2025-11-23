@@ -7,6 +7,7 @@ import { HappinessSlider } from '@/components/HappinessSlider';
 import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import * as Haptics from 'expo-haptics';
 
 const INTERESTS = [
@@ -305,6 +306,10 @@ export default function LifeSituationGroupScreen() {
         const { saveOnboardingResponse } = await import('@/lib/storage');
         // Save answers temporarily for AI summarization
         await saveOnboardingResponse(user.id, '01-now-group', JSON.stringify(answers));
+        trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
+          step: '01-now-group',
+          step_name: 'Life Situation'
+        });
       } catch (error) {
         console.error('Failed to save answers:', error);
       }
@@ -402,8 +407,9 @@ export default function LifeSituationGroupScreen() {
 
   function getProgress(): number {
     // Progress calculation is approximate since we have dynamic sub-questions
-    const baseProgress = 20 + (currentQuestion / 7) * 10;
-    return Math.min(baseProgress, 30);
+    // Start higher and progress more slowly to give users sense of progress
+    const baseProgress = 40 + (currentQuestion / 7) * 5;
+    return Math.min(baseProgress, 45);
   }
 
   function toggleInterest(interest: string) {

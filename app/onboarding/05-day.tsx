@@ -5,6 +5,7 @@ import { Input } from '@/components/Input';
 import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { saveOnboardingResponse, getProfile } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function OnboardingStep5() {
   const router = useRouter();
@@ -34,6 +35,10 @@ export default function OnboardingStep5() {
         console.log('💾 Saving onboarding response for 05-day:', text.trim());
         const result = await saveOnboardingResponse(user.id, '05-day', text.trim());
         console.log('✅ Successfully saved onboarding response:', result);
+        trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
+          step: '05-day',
+          step_name: 'Typical Day'
+        });
       } catch (error) {
         console.error('❌ Failed to save onboarding response:', error);
         alert('Failed to save your response. Please try again.');
@@ -46,7 +51,7 @@ export default function OnboardingStep5() {
   return (
     <OnboardingScreen
       title="Walk me through a typical day"
-      progress={62.5}
+      progress={70}
       onNext={handleNext}
       canContinue={text.trim().length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
