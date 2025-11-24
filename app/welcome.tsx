@@ -24,19 +24,16 @@ const WELCOME_LINES = [
   'ready to begin?',
 ];
 
-const LINE_FONT_SIZES = [23, 23, 20, 23, 23, 25];
-const LIFT_AMOUNT = 8; // pixels to lift previous lines
+const LINE_FONT_SIZES = [23, 20, 20, 20, 20, 20]; // Same size for all except first line
+const LIFT_AMOUNT = 0; // Don't lift lines - keep all visible
 const LIFT_DURATION = 250; // ms
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const [buttonVisible, setButtonVisible] = useState(false);
   
-  // Create shared values for each line's offset and opacity
-  const lineOffsets = WELCOME_LINES.map(() => useSharedValue(0));
+  // Create shared values for each line's opacity
   const lineOpacities = WELCOME_LINES.map(() => useSharedValue(0));
-  const lastLineOpacity = useSharedValue(1); // For fading out "ready to begin?"
-  const lastLineTranslateY = useSharedValue(0); // For moving "ready to begin?" up
   const buttonOpacity = useSharedValue(0);
   const buttonScale = useSharedValue(0.96);
   const logoOpacity = useSharedValue(0);
@@ -46,24 +43,13 @@ export default function WelcomeScreen() {
     // Trigger haptic at start of each line
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Fade in current line
+    // Fade in current line and keep it visible
     lineOpacities[lineIndex].value = withTiming(1, {
       duration: 250,
       easing: Easing.out(Easing.ease),
     });
 
-    // Lift previous lines
-    if (lineIndex > 0) {
-      for (let i = 0; i < lineIndex; i++) {
-        lineOffsets[i].value = withTiming(
-          lineOffsets[i].value.value - LIFT_AMOUNT,
-          {
-            duration: LIFT_DURATION,
-            easing: Easing.bezier(0.16, 1, 0.3, 1),
-          }
-        );
-      }
-    }
+    // Don't lift previous lines - keep all visible
   };
 
   const handleLineComplete = (lineIndex: number) => {
@@ -79,34 +65,45 @@ export default function WelcomeScreen() {
     // Success haptic after final line
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // Wait before showing logo and button (give user time to read all text)
+    // Wait 4 seconds after "ready to begin?" shows, then fade out all text
     setTimeout(() => {
-      // Fade in logo in the middle
-      logoOpacity.value = withTiming(1, {
-        duration: 600,
-        easing: Easing.out(Easing.ease),
-      });
-      logoScale.value = withSpring(1.0, {
-        damping: 15,
-        stiffness: 150,
+      // Fade out all text lines
+      WELCOME_LINES.forEach((_, index) => {
+        lineOpacities[index].value = withTiming(0, {
+          duration: 500,
+          easing: Easing.out(Easing.ease),
+        });
       });
 
-      // Show button at bottom at the same time
-      setButtonVisible(true);
-      buttonOpacity.value = withTiming(1, {
-        duration: 500,
-        easing: Easing.out(Easing.ease),
-      });
-      buttonScale.value = withSpring(1.0, {
-        damping: 15,
-        stiffness: 150,
-      });
-    }, 1500); // Show logo and button after 1.5 seconds, keeping all text visible
+      // After text fades out, fade in logo and button
+      setTimeout(() => {
+        // Fade in logo in the middle
+        logoOpacity.value = withTiming(1, {
+          duration: 600,
+          easing: Easing.out(Easing.ease),
+        });
+        logoScale.value = withSpring(1.0, {
+          damping: 15,
+          stiffness: 150,
+        });
+
+        // Show button at bottom at the same time
+        setButtonVisible(true);
+        buttonOpacity.value = withTiming(1, {
+          duration: 500,
+          easing: Easing.out(Easing.ease),
+        });
+        buttonScale.value = withSpring(1.0, {
+          damping: 15,
+          stiffness: 150,
+        });
+      }, 500); // Wait for text fade out to complete
+    }, 4000); // Wait 4 seconds after "ready to begin?" shows
   };
 
   const { displayedLines, isComplete } = useTypewriter(WELCOME_LINES, {
-    speed: 15, // Super fast typing for rapid haptics
-    pauseBetweenLines: 300, // Shorter pause between lines
+    speed: 30, // Slower typing speed
+    pauseBetweenLines: 400, // Pause between lines
     onLineStart: handleLineStart,
     onLineComplete: handleLineComplete,
     onAllComplete: handleAllComplete,
@@ -127,14 +124,8 @@ export default function WelcomeScreen() {
   // Create animated styles for each line (must be at top level)
   const lineAnimatedStyles = WELCOME_LINES.map((_, index) =>
     useAnimatedStyle(() => {
-      const isLastLine = index === WELCOME_LINES.length - 1;
       return {
-        transform: [
-          { translateY: lineOffsets[index].value + (isLastLine ? lastLineTranslateY.value : 0) }
-        ],
-        opacity: isLastLine 
-          ? Math.min(lineOpacities[index].value, lastLineOpacity.value)
-          : lineOpacities[index].value,
+        opacity: lineOpacities[index].value,
       };
     })
   );
@@ -174,7 +165,7 @@ export default function WelcomeScreen() {
                 style={[
                   styles.lineWrapper,
                   lineAnimatedStyles[index],
-                  { marginBottom: index === 2 ? 12 : 0 }, // Extra spacing for parenthetical line
+                  { marginBottom: 20 }, // Spacing between lines
                 ]}
               >
                 <Text
@@ -184,11 +175,11 @@ export default function WelcomeScreen() {
                       fontSize,
                       lineHeight,
                       fontFamily: Platform.select({
-                        ios: 'Inter-Bold',
-                        android: 'Inter-Bold',
+                        ios: index === 0 ? 'Inter-Bold' : 'Inter-Regular',
+                        android: index === 0 ? 'Inter-Bold' : 'Inter-Regular',
                         default: 'Inter',
                       }),
-                      fontWeight: '700',
+                      fontWeight: index === 0 ? '700' : '400',
                     },
                   ]}
                 >
