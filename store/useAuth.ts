@@ -111,16 +111,41 @@ export const useAuth = create<AuthState>((set) => ({
             if (credential.fullName.familyName)
               nameParts.push(credential.fullName.familyName);
             const fullName = nameParts.join(' ');
-            await supabase.auth.updateUser({
+            const firstName = credential.fullName.givenName || fullName.split(' ')[0] || fullName;
+            
+            // Update user metadata
+            const { data: updateData } = await supabase.auth.updateUser({
               data: {
                 full_name: fullName,
                 given_name: credential.fullName.givenName,
                 family_name: credential.fullName.familyName,
               },
             });
+            
+            // Also save directly to profile so it's available immediately
+            try {
+              const { updateProfileFields } = await import('@/lib/storage');
+              await updateProfileFields(user.id, { first_name: firstName });
+              console.log('Saved Apple name to profile:', firstName);
+            } catch (profileError) {
+              console.error('Failed to save name to profile:', profileError);
+            }
+            
+            // Use the updated user from the response if available
+            if (updateData?.user) {
+              set({ session: updateData.session || session, user: updateData.user });
+            } else {
+              // Refresh session to get updated user metadata
+              const { data: refreshData } = await supabase.auth.refreshSession();
+              if (refreshData?.session) {
+                set({ session: refreshData.session, user: refreshData.session.user });
+              } else {
+                set({ session: session, user: user });
+              }
+            }
+          } else {
+            set({ session: session, user: user });
           }
-          
-          set({ session: session, user: user });
           // For new sign ups, go to choose-method screen (AI call or manual)
    // User is signed in.
         }

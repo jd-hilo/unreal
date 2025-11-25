@@ -35,7 +35,7 @@ export function OnboardingScreen({
   canContinue = true,
   backgroundGradient = ['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E'],
   buttonGradient = ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'],
-  progressBarGradient = ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'],
+  progressBarGradient = ['rgba(173, 216, 230, 0.95)', 'rgba(100, 149, 237, 0.9)', 'rgba(65, 105, 225, 0.85)'],
   buttonShadowColor = 'rgba(135, 206, 250, 0.5)',
   animatedButton = false,
 }: OnboardingScreenProps) {
@@ -243,7 +243,7 @@ export function OnboardingScreen({
               <Text style={[
                 styles.floatingButtonText,
                 animatedButton && canContinue && !loading && !isProcessing && styles.floatingButtonTextBright
-              ]}>{loading || isProcessing ? "Saving" : nextLabel}</Text>
+              ]}>{loading || isProcessing ? "Continuing" : nextLabel}</Text>
               <ChevronRight size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </BlurView>

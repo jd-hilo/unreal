@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Platform, Modal, Easing } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf } from '@/lib/storage';
-import { Compass, Sparkles, Zap, X, Trash2 } from 'lucide-react-native';
+import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, getInterestProgress, getTodayJournal } from '@/lib/storage';
+import { Compass, Sparkles, Zap, X, Trash2, Lock, ChevronRight } from 'lucide-react-native';
 import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -15,28 +15,102 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as StoreReview from 'expo-store-review';
 import * as Haptics from 'expo-haptics';
 import { Asset } from 'expo-asset';
+import { ProductGuide } from '@/components/ProductGuide';
+import { getHasSeenDecisionGuide, setHasSeenDecisionGuide } from '@/lib/guideStorage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
-  const { checkOnboardingStatus } = useTwin();
-  const [userName, setUserName] = useState('there');
+  const { checkOnboardingStatus, isPremium } = useTwin();
+  const [userName, setUserName] = useState('');
   const [recentDecisions, setRecentDecisions] = useState<any[]>([]);
   const [recentWhatIfs, setRecentWhatIfs] = useState<any[]>([]);
   const [isLoadingDecisions, setIsLoadingDecisions] = useState(true);
   const [profileProgress, setProfileProgress] = useState(100); // Default to 100 to hide initially
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'decision' | 'whatif'; title: string } | null>(null);
+  const [interestProgress, setInterestProgress] = useState(0);
+  const [hasTodayJournal, setHasTodayJournal] = useState(false);
+  const [showDecisionGuide, setShowDecisionGuide] = useState(false);
+  const [hasCheckedGuide, setHasCheckedGuide] = useState(false);
+  const [decisionCardLayout, setDecisionCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
+  const [whatIfCardLayout, setWhatIfCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
+  const [guideStep, setGuideStep] = useState(0);
+  const whatIfHoverAnim = useRef(new Animated.Value(0)).current;
+  const decisionCardRef = useRef<Animated.View>(null);
+  const whatIfCardRef = useRef<Animated.View>(null);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const cardHoverAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Preload images
     Asset.fromModule(require('@/assets/images/compass.png')).downloadAsync();
     Asset.fromModule(require('@/assets/images/star.png')).downloadAsync();
   }, []);
+
+  // Hover animation for decision card - only when guide is visible and on step 0
+  useEffect(() => {
+    if (showDecisionGuide && guideStep === 0) {
+      cardHoverAnim.setValue(0);
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(cardHoverAnim, {
+            toValue: 1,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(cardHoverAnim, {
+            toValue: 0,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+      return () => {
+        animation.stop();
+        cardHoverAnim.setValue(0);
+      };
+    } else {
+      cardHoverAnim.setValue(0);
+    }
+  }, [showDecisionGuide, guideStep]);
+
+  // Hover animation for what-if card - only when guide is on step 1
+  useEffect(() => {
+    if (showDecisionGuide && guideStep === 1) {
+      whatIfHoverAnim.setValue(0);
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(whatIfHoverAnim, {
+            toValue: 1,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(whatIfHoverAnim, {
+            toValue: 0,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+      return () => {
+        animation.stop();
+        whatIfHoverAnim.setValue(0);
+      };
+    } else {
+      whatIfHoverAnim.setValue(0);
+    }
+  }, [showDecisionGuide, guideStep]);
 
   useEffect(() => {
     if (!user) {
@@ -66,9 +140,30 @@ export default function HomeScreen() {
       if (user && useTwin.getState().onboardingComplete) {
         console.log('Home screen focused - reloading data');
         loadData();
+        // Check if guide should be shown when navigating to home
+        // Check if guide was reset (user might have clicked "Show Product Guide" from profile)
+        checkGuideStatus();
       }
     }, [user])
   );
+
+  async function checkGuideStatus() {
+    if (!user) return;
+    try {
+      const hasSeenGuide = await getHasSeenDecisionGuide();
+      // If guide hasn't been seen (either first time or manually reset from profile), show it
+      if (!hasSeenGuide) {
+        const decisions = await getDecisions(user.id, 1);
+        // Always show guide if it hasn't been seen (either first time or manually reset)
+        setGuideStep(0);
+        setShowDecisionGuide(true);
+        trackEvent(decisions.length === 0 ? 'Product Guide Viewed' : 'Product Guide Replayed');
+        setHasCheckedGuide(true);
+      }
+    } catch (error) {
+      console.error('Failed to check guide status:', error);
+    }
+  }
 
   async function loadData() {
     if (!user) return;
@@ -79,29 +174,31 @@ export default function HomeScreen() {
       console.log('Home screen - loaded profile:', profile);
       console.log('Home screen - first_name from profile:', profile?.first_name);
       
-      // Priority: profile.first_name, then metadata name, then email
+      // Only use first_name from profile, don't use fallbacks
       if (profile?.first_name) {
         console.log('Setting userName to first_name:', profile.first_name);
         setUserName(profile.first_name);
       } else {
-        console.log('first_name not found, checking fallbacks');
-        const metadataName = (user.user_metadata as any)?.full_name || (user.user_metadata as any)?.name;
-        if (metadataName) {
-          console.log('Using metadata name:', metadataName);
-          setUserName(String(metadataName).split(' ')[0]);
-        } else if (user.email) {
-          console.log('Using email fallback:', user.email);
-          setUserName(user.email.split('@')[0]);
-        }
+        // Set to empty string if no first_name, so we don't show "there"
+        console.log('first_name not found, setting userName to empty');
+        setUserName('');
       }
 
-      const [decisions, whatIfs, relationships] = await Promise.all([
+      const [decisions, whatIfs, relationships, progress, todayJournal] = await Promise.all([
         getDecisions(user.id, 5),
         getWhatIfs(user.id, 5),
-        getRelationships(user.id)
+        getRelationships(user.id),
+        getInterestProgress(user.id).catch(() => 0),
+        getTodayJournal(user.id).catch(() => null)
       ]);
       setRecentDecisions(decisions);
       setRecentWhatIfs(whatIfs);
+      setInterestProgress(progress);
+      setHasTodayJournal(!!todayJournal);
+
+      // Check if we should show the decision guide
+      // Show if: onboarding complete, hasn't seen guide, and has 0 decisions
+      await checkGuideStatus();
       
       // Calculate profile progress
       if (profile) {
@@ -130,9 +227,6 @@ export default function HomeScreen() {
         const progress = Math.round((completedSections / totalSections) * 100);
         setProfileProgress(progress);
       }
-      
-      // Check if we should show rating prompt
-      await checkAndShowRatingPrompt();
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -162,21 +256,11 @@ export default function HomeScreen() {
       const hasRequestedRating = await AsyncStorage.getItem('hasRequestedRating');
       if (hasRequestedRating) return;
 
-      // Check if this is first visit after onboarding
-      const isFirstVisit = await AsyncStorage.getItem('isFirstHomeVisit');
-      if (isFirstVisit !== null) return; // Not first visit
-
-      // Mark as first visit completed
-      await AsyncStorage.setItem('isFirstHomeVisit', 'true');
-
-      // Wait 3 seconds before showing rating prompt
-      setTimeout(async () => {
-        const isAvailable = await StoreReview.hasAction();
-        if (isAvailable) {
-          await StoreReview.requestReview();
-          await AsyncStorage.setItem('hasRequestedRating', 'true');
-        }
-      }, 3000);
+      const isAvailable = await StoreReview.hasAction();
+      if (isAvailable) {
+        await StoreReview.requestReview();
+        await AsyncStorage.setItem('hasRequestedRating', 'true');
+      }
     } catch (error) {
       console.warn('Failed to show rating prompt:', error);
     }
@@ -270,8 +354,10 @@ export default function HomeScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.header}>
-              <Text style={styles.greeting}>Welcome back,</Text>
-              <Text style={styles.userName}>{userName}</Text>
+              <Text style={styles.greeting}>Welcome back{userName && userName !== 'there' ? ',' : ''}</Text>
+              {userName && userName !== 'there' && (
+                <Text style={styles.userName}>{userName}</Text>
+              )}
             </View>
 
             {/* Twin's Understanding Progress Bar - Only show if not complete */}
@@ -298,13 +384,42 @@ export default function HomeScreen() {
                   </View>
                   <View style={styles.thinProgressBar}>
                     <LinearGradient
-                      colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
+                      colors={['rgba(173, 216, 230, 0.95)', 'rgba(100, 149, 237, 0.9)', 'rgba(65, 105, 225, 0.85)']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={[styles.thinProgressFill, { width: `${profileProgress}%` }]}
                     />
                   </View>
                 </LinearGradient>
+              </TouchableOpacity>
+            )}
+
+            {/* Journal Reminder Banner */}
+            {!hasTodayJournal && (
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/journal' as any);
+                }}
+                activeOpacity={0.85}
+                style={styles.journalBannerContainer}
+              >
+                <BlurView intensity={80} tint="dark" style={styles.journalBanner}>
+                  <View style={styles.journalBannerBorder} />
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={styles.journalBannerHighlight}
+                    pointerEvents="none"
+                  />
+                  <View style={styles.journalBannerContent}>
+                    <View style={styles.journalBannerTextRow}>
+                      <Text style={styles.journalBannerText}>📖 Complete your daily journal</Text>
+                    </View>
+                    <ChevronRight size={18} color="rgba(255, 255, 255, 0.7)" />
+                  </View>
+                </BlurView>
               </TouchableOpacity>
             )}
 
@@ -317,7 +432,19 @@ export default function HomeScreen() {
                 }}
                 activeOpacity={0.9}
               >
-                <View style={styles.cardWrapperPrimary}>
+                <Animated.View 
+                  style={[
+                    styles.cardWrapperPrimary,
+                    {
+                      transform: [{
+                        translateY: cardHoverAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, -6],
+                        }),
+                      }],
+                    },
+                  ]}
+                >
                   <BlurView intensity={80} tint="dark" style={styles.actionCard}>
                     {/* Classic glass border */}
                     <View style={styles.glassBorder} />
@@ -349,7 +476,7 @@ export default function HomeScreen() {
                       </View>
                     </View>
                   </BlurView>
-                </View>
+                </Animated.View>
               </TouchableOpacity>
 
               {/* What If Card */}
@@ -360,7 +487,25 @@ export default function HomeScreen() {
                 }}
                 activeOpacity={0.9}
               >
-                <View style={styles.cardWrapperSecondary}>
+                <Animated.View 
+                  ref={whatIfCardRef}
+                  style={[
+                    styles.cardWrapperSecondary,
+                    {
+                      transform: [{
+                        translateY: whatIfHoverAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, -6],
+                        }),
+                      }],
+                    },
+                  ]}
+                  onLayout={() => {
+                    whatIfCardRef.current?.measureInWindow((x, y, width, height) => {
+                      setWhatIfCardLayout({ x, y, width, height });
+                    });
+                  }}
+                >
                   <BlurView intensity={80} tint="dark" style={styles.actionCard}>
                     {/* Classic glass border */}
                     <View style={styles.glassBorder} />
@@ -388,8 +533,62 @@ export default function HomeScreen() {
                       </View>
                     </View>
                   </BlurView>
-                </View>
+                </Animated.View>
               </TouchableOpacity>
+
+              {/* Unreal Recommendations Banner - Commented out for now */}
+              {false && (
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/recommendations' as any);
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <View style={styles.recommendationsBannerWrapper}>
+                    <BlurView intensity={100} tint="dark" style={styles.recommendationsBanner}>
+                      <LinearGradient
+                        colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)', 'rgba(255, 255, 255, 0.05)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.recommendationsGlassOverlay}
+                        pointerEvents="none"
+                      />
+                      <LinearGradient
+                        colors={['rgba(255, 255, 255, 0.12)', 'transparent']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 0.5 }}
+                        style={styles.recommendationsGlassHighlight}
+                        pointerEvents="none"
+                      />
+                      <View style={styles.recommendationsGlassBorder} />
+                      
+                      <View style={styles.recommendationsBannerContent}>
+                        <View style={styles.recommendationsBannerText}>
+                          <View style={styles.recommendationsTitleRow}>
+                            <View style={styles.recommendationsIconCircle}>
+                              <Sparkles size={18} color="rgba(255, 255, 255, 0.9)" />
+                            </View>
+                            <Text style={styles.recommendationsTitle}>Unreal Recommendations</Text>
+                          </View>
+                          <Text style={styles.recommendationsSubtitle}>
+                            Personalized picks just for you
+                          </Text>
+                        </View>
+                        {isPremium && interestProgress >= 50 ? (
+                          <View style={styles.recommendationsChevronContainer}>
+                            <ChevronRight size={20} color="rgba(255, 255, 255, 0.8)" />
+                          </View>
+                        ) : !isPremium ? (
+                          <View style={styles.recommendationsLockContainer}>
+                            <Lock size={18} color="rgba(255, 255, 255, 0.7)" />
+                          </View>
+                        ) : null}
+                      </View>
+                    </BlurView>
+                  </View>
+                </TouchableOpacity>
+              )}
             </View>
 
             {echoEntries.length > 0 && (
@@ -445,6 +644,37 @@ export default function HomeScreen() {
           </Animated.ScrollView>
         </SafeAreaView>
       </View>
+
+      {/* Product Guide */}
+      {showDecisionGuide && (
+        <ProductGuide
+          visible={showDecisionGuide}
+          onDismiss={async () => {
+            await setHasSeenDecisionGuide();
+            setShowDecisionGuide(false);
+            setGuideStep(0);
+            trackEvent('Product Guide Skipped');
+            // Show rating request after guide is dismissed
+            setTimeout(() => {
+              checkAndShowRatingPrompt();
+            }, 1000);
+          }}
+          onComplete={async () => {
+            await setHasSeenDecisionGuide();
+            setShowDecisionGuide(false);
+            setGuideStep(0);
+            trackEvent('Product Guide Completed');
+            // Show rating request after guide is completed
+            setTimeout(() => {
+              checkAndShowRatingPrompt();
+            }, 1000);
+          }}
+          targetCardLayout={decisionCardLayout}
+          whatIfCardLayout={whatIfCardLayout}
+          userId={user?.id}
+          onStepChange={setGuideStep}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       <Modal
@@ -586,6 +816,108 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 8,
+  },
+  recommendationsBannerWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.3)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  recommendationsBanner: {
+    borderRadius: 20,
+    backgroundColor: 'rgba(40, 40, 50, 0.4)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    position: 'relative',
+  },
+  recommendationsGlassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
+  },
+  recommendationsGlassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderRadius: 20,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  recommendationsGlassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    pointerEvents: 'none',
+  },
+  recommendationsBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 18,
+    zIndex: 1,
+  },
+  recommendationsBannerText: {
+    flex: 1,
+  },
+  recommendationsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 4,
+  },
+  recommendationsIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backdropFilter: 'blur(10px)',
+  },
+  recommendationsTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.95)',
+    fontFamily: 'Inter-SemiBold',
+    letterSpacing: -0.2,
+  },
+  recommendationsSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.7)',
+    lineHeight: 18,
+    marginLeft: 42, // Align with title text (icon width + gap)
+  },
+  recommendationsLockContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  recommendationsChevronContainer: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionCard: {
     borderRadius: 24,
@@ -926,5 +1258,62 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  journalBannerContainer: {
+    marginBottom: 24,
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.3)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  journalBanner: {
+    borderRadius: 14,
+    backgroundColor: 'rgba(20, 30, 50, 0.4)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.25)',
+  },
+  journalBannerBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+    pointerEvents: 'none',
+  },
+  journalBannerHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 14,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  journalBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    zIndex: 1,
+  },
+  journalBannerTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  journalBannerText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.85)',
+    letterSpacing: -0.2,
   },
 });

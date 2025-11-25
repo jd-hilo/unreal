@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
-import { getCurrentQuestionNumber } from '@/lib/storage';
+import { getUserInterests, getInterestProgressNew, hasCompletedInterestCategory } from '@/lib/storage';
 import { ProgressBar } from '@/components/ProgressBar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -12,12 +12,10 @@ import { ArrowLeft, ChevronRight, CheckCircle2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 const CATEGORIES = [
-  { id: 'fashion', label: 'Fashion', emoji: '👗' },
-  { id: 'food', label: 'Food Types', emoji: '🍕' },
-  { id: 'music_genres', label: 'Song Genres', emoji: '🎵' },
-  { id: 'music_artists', label: 'Song Artists', emoji: '🎤' },
-  { id: 'cities', label: 'Cities', emoji: '🏙️' },
-  { id: 'music', label: 'Music', emoji: '🎶' },
+  { id: 'food', label: 'Food Types', emoji: '🍕', description: 'Select 5 favorite types of food' },
+  { id: 'music_artists', label: 'Music Artists', emoji: '🎤', description: 'Select your favorite artists' },
+  { id: 'movies', label: 'Movies', emoji: '🎬', description: 'Select your favorite movies' },
+  { id: 'fashion', label: 'Fashion', emoji: '👗', description: 'Select your favorite fashion styles' },
 ];
 
 export default function InterestsIndexScreen() {
@@ -25,7 +23,7 @@ export default function InterestsIndexScreen() {
   const user = useAuth((state) => state.user);
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [categoryCompletions, setCategoryCompletions] = useState<Record<string, boolean>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -37,19 +35,19 @@ export default function InterestsIndexScreen() {
     if (!user) return;
     
     try {
-      // Load answered counts for each category
-      const countsEntries = await Promise.all(
+      // Load completion status for each category
+      const completionEntries = await Promise.all(
         CATEGORIES.map(async (c) => {
-          const count = await getCurrentQuestionNumber(user.id!, c.id);
-          return [c.id, count] as const;
+          const completed = await hasCompletedInterestCategory(user.id!, c.id);
+          return [c.id, completed] as const;
         })
       );
-      const counts: Record<string, number> = Object.fromEntries(countsEntries);
-      setCategoryCounts(counts);
-      const totalAnswered = Object.values(counts).reduce((sum, n) => sum + Math.min(n, 10), 0);
-      const totalPossible = CATEGORIES.length * 10;
-      const pct = Math.round((totalAnswered / totalPossible) * 100);
-      setProgress(pct);
+      const completions: Record<string, boolean> = Object.fromEntries(completionEntries);
+      setCategoryCompletions(completions);
+      
+      // Get progress using new calculation
+      const progress = await getInterestProgressNew(user.id!);
+      setProgress(progress);
     } catch (error) {
       console.error('Failed to load progress:', error);
     } finally {
@@ -104,9 +102,9 @@ export default function InterestsIndexScreen() {
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.sectionTitle}>This or That</Text>
+            <Text style={styles.sectionTitle}>Your Interests</Text>
             <Text style={styles.sectionSubtitle}>
-              Choose your preferences to help your twin understand you better
+              Select your favorites to help your twin understand you better
             </Text>
 
             <View style={styles.categories}>
@@ -133,12 +131,12 @@ export default function InterestsIndexScreen() {
                         <Text style={styles.categoryEmoji}>{category.emoji}</Text>
                       </View>
                       <View style={styles.categoryContent}>
-                        <Text style={styles.categoryTitle}>This or That: {category.label}</Text>
+                        <Text style={styles.categoryTitle}>{category.label}</Text>
                         <Text style={styles.categorySubtitle}>
-                          {(categoryCounts[category.id] ?? 0)}/10 answered
+                          {category.description}
                         </Text>
                       </View>
-                      {(categoryCounts[category.id] ?? 0) >= 10 ? (
+                      {categoryCompletions[category.id] ? (
                         <CheckCircle2 size={20} color="rgba(135, 206, 250, 0.9)" strokeWidth={2.5} />
                       ) : (
                         <ChevronRight size={20} color="rgba(255,255,255,0.6)" />

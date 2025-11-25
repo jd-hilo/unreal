@@ -19,7 +19,8 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSMicrophoneUsageDescription": "This app needs microphone access to enable voice conversations with your AI twin builder, Sol."
+        "NSMicrophoneUsageDescription": "This app needs microphone access to enable voice conversations with your AI twin builder, Sol.",
+        "NSLocationWhenInUseUsageDescription": "This app needs location access to provide personalized local recommendations for restaurants, bars, and things to do near you."
       }
     },
     "web": {
@@ -34,7 +35,13 @@
       ["expo-apple-authentication"],
       "@config-plugins/react-native-adjust",
       "expo-asset",
-      ["expo-build-properties", {}]
+      ["expo-build-properties", {}],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "This app needs location access to provide personalized local recommendations for restaurants, bars, and things to do near you."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

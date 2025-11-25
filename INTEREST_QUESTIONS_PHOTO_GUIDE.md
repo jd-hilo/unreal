@@ -552,3 +552,6 @@ Each user response creates a new row in the `interest_responses` table with:
 5. **Public Domain**: Ensure images are from public domain or properly licensed sources
 
 
+
+
+

@@ -790,6 +790,19 @@ export async function getInterestResponses(userId: string, category?: string) {
 }
 
 /**
+ * Delete all interest responses for a specific category (to allow redoing the quiz)
+ */
+export async function deleteCategoryResponses(userId: string, category: string): Promise<void> {
+  const { error } = await supabase
+    .from('interest_responses')
+    .delete()
+    .eq('user_id', userId)
+    .eq('category', category);
+
+  if (error) throw error;
+}
+
+/**
  * Get the next interest question for a category (in order, up to 10 questions)
  * Returns null if all 10 questions have been answered
  */
@@ -914,6 +927,7 @@ export async function getAllInterestQuestions(
 /**
  * Calculate interest progress percentage
  * Returns a number between 0 and 100
+ * Based on total questions answered out of 60 possible (6 categories * 10 questions each)
  */
 export async function getInterestProgress(userId: string): Promise<number> {
   const { data, error } = await supabase
@@ -923,15 +937,16 @@ export async function getInterestProgress(userId: string): Promise<number> {
 
   if (error) throw error;
 
-  // Count unique categories with responses
-  const uniqueCategories = new Set((data || []).map(r => r.category));
   const totalCategories = 6; // fashion, food, music_genres, music_artists, cities, music
+  const questionsPerCategory = 10;
+  const totalPossible = totalCategories * questionsPerCategory; // 60 total questions
 
-  // Progress is based on having at least some responses (not necessarily all categories)
-  // We'll use a simple formula: responses / (totalCategories * 5) capped at 100%
-  // This means 30 responses = 100% progress
+  // Count total responses (each response is one question answered)
   const responseCount = (data || []).length;
-  const progress = Math.min(100, Math.round((responseCount / 30) * 100));
+  
+  // Progress is based on total questions answered out of total possible
+  // Cap at 100%
+  const progress = Math.min(100, Math.round((responseCount / totalPossible) * 100));
 
   return progress;
 }
@@ -967,4 +982,131 @@ export async function deleteAccountData(userId: string): Promise<void> {
   if (profileError) {
     console.warn('Failed to delete profile row:', profileError.message);
   }
+}
+
+/**
+ * Save user interests (multi-select format)
+ */
+export async function saveUserInterests(
+  userId: string,
+  category: string,
+  items: Array<{ name: string; id?: string; metadata?: Record<string, any> }>
+): Promise<void> {
+  // First, delete existing interests for this category
+  await deleteUserInterestsByCategory(userId, category);
+
+  // Then insert new interests
+  if (items.length === 0) return;
+
+  const interestsToInsert = items.map(item => ({
+    user_id: userId,
+    category,
+    item_name: item.name,
+    item_id: item.id || null,
+    item_metadata: item.metadata || null,
+  }));
+
+  const { error } = await supabase
+    .from('user_interests')
+    .insert(interestsToInsert);
+
+  if (error) throw error;
+}
+
+/**
+ * Get user interests for a category
+ */
+export async function getUserInterests(
+  userId: string,
+  category?: string
+): Promise<Array<{
+  id: string;
+  category: string;
+  item_name: string;
+  item_id: string | null;
+  item_metadata: Record<string, any> | null;
+  created_at: string;
+}>> {
+  let query = supabase
+    .from('user_interests')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (category) {
+    query = query.eq('category', category);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Delete user interests for a specific category
+ */
+export async function deleteUserInterestsByCategory(
+  userId: string,
+  category: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('user_interests')
+    .delete()
+    .eq('user_id', userId)
+    .eq('category', category);
+
+  if (error) throw error;
+}
+
+/**
+ * Check if user has completed a category (has at least one interest selected)
+ */
+export async function hasCompletedInterestCategory(
+  userId: string,
+  category: string
+): Promise<boolean> {
+  const { count } = await supabase
+    .from('user_interests')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('category', category);
+
+  // For food, need 5 selections; for others, at least 1
+  if (category === 'food') {
+    return (count || 0) >= 5;
+  }
+  return (count || 0) >= 1;
+}
+
+/**
+ * Get interest progress for new multi-select format
+ */
+export async function getInterestProgressNew(userId: string): Promise<number> {
+  // Categories: food (5 required), music_artists, movies, fashion (1+ each)
+  const categories = ['food', 'music_artists', 'movies', 'fashion'];
+  const categoryRequirements: Record<string, number> = {
+    food: 5,
+    music_artists: 1,
+    movies: 1,
+    fashion: 1,
+  };
+
+  const categoryProgress = await Promise.all(
+    categories.map(async (category) => {
+      const { count } = await supabase
+        .from('user_interests')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('category', category);
+
+      const selected = count || 0;
+      const required = categoryRequirements[category] || 1;
+      return Math.min(100, Math.round((selected / required) * 100));
+    })
+  );
+
+  // Average progress across all categories
+  const totalProgress = categoryProgress.reduce((sum, progress) => sum + progress, 0);
+  return Math.round(totalProgress / categories.length);
 }

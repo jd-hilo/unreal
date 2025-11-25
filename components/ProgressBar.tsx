@@ -26,25 +26,27 @@ export function ProgressBar({ progress, showLabel = true, height = 8, gradientCo
   }, [progress]);
 
   const animatedStyle = useAnimatedStyle(() => {
+    // Ensure progress is between 0 and 1, then convert to percentage
+    const clampedProgress = Math.min(1, Math.max(0, animatedProgress.value));
     return {
-      width: `${animatedProgress.value}%`,
+      width: `${clampedProgress * 100}%`,
     };
   });
 
   return (
     <View style={styles.container}>
       <View style={[styles.track, { height }]}>
-        <View style={[{ height, borderRadius: 100, overflow: 'hidden', width: `${progress}%` }]}>
+        <Animated.View style={[{ height, borderRadius: 100, overflow: 'hidden' }, animatedStyle]}>
           <LinearGradient
             colors={gradientColors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFill}
           />
-        </View>
+        </Animated.View>
       </View>
       {showLabel && (
-        <Text style={styles.label}>{Math.round(progress)}%</Text>
+        <Text style={styles.label}>{Math.round(progress * 100)}%</Text>
       )}
     </View>
   );

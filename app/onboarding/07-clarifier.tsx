@@ -227,7 +227,7 @@ export default function OnboardingStep7() {
   return (
     <OnboardingScreen
       title={animatedTitle}
-      progress={90}
+      progress={0.90}
       onNext={handleComplete}
       nextLabel={isSummarizing ? "Creating" : "Create Digital Twin"}
       loading={isSummarizing}

@@ -527,7 +527,7 @@ export default function NewDecisionScreen() {
     );
   }
 
-  const progress = (currentStep / TOTAL_STEPS) * 100;
+  const progress = currentStep / TOTAL_STEPS;
   const canProceedStep1 = question.trim().length > 10 && !isDerivingOptions;
   const canProceedStep2 = derivedOptions.length >= 2;
   const canProceedStep3 = true; // Optional step
@@ -580,7 +580,11 @@ export default function NewDecisionScreen() {
 
       {/* Progress Bar */}
       <View style={styles.progressContainer}>
-        <ProgressBar progress={progress} showLabel={false} />
+        <ProgressBar 
+          progress={progress} 
+          showLabel={false}
+          gradientColors={['rgba(173, 216, 230, 0.95)', 'rgba(100, 149, 237, 0.9)', 'rgba(65, 105, 225, 0.85)']}
+        />
       </View>
 
       <View style={styles.contentWrapper}>

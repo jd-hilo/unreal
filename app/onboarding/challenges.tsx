@@ -48,7 +48,7 @@ export default function ChallengesScreen() {
   return (
     <OnboardingScreen
       title="What are some of your biggest challenges right now?"
-      progress={55}
+      progress={0.55}
       onNext={handleNext}
       canContinue={challenges.trim().length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

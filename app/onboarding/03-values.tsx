@@ -46,7 +46,7 @@ export default function OnboardingStep3() {
   return (
     <OnboardingScreen
       title="What matters most to you?"
-      progress={37.5}
+      progress={0.375}
       onNext={handleNext}
       canContinue={text.trim().length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

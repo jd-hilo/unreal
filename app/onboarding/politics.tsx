@@ -48,7 +48,7 @@ export default function PoliticsScreen() {
   return (
     <OnboardingScreen
       title="What are your political views?"
-      progress={81.25}
+      progress={0.8125}
       onNext={handleNext}
       canContinue={selectedValue.length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

@@ -55,7 +55,7 @@ export default function OnboardingStep2() {
   return (
     <OnboardingScreen
       title="Tell us about your current situation"
-      progress={50}
+      progress={0.50}
       onNext={handleNext}
       canContinue={text.trim().length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

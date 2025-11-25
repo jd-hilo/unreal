@@ -60,7 +60,7 @@ export default function OnboardingStep4() {
   return (
     <OnboardingScreen
       title="How do you usually make big decisions?"
-      progress={60}
+      progress={0.60}
       onNext={handleNext}
       canContinue={selectedValue.length > 0 && (selectedValue !== 'Other' || otherValue.trim().length > 0)}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

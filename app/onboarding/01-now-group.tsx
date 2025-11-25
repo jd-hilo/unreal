@@ -408,8 +408,9 @@ export default function LifeSituationGroupScreen() {
   function getProgress(): number {
     // Progress calculation is approximate since we have dynamic sub-questions
     // Start higher and progress more slowly to give users sense of progress
-    const baseProgress = 40 + (currentQuestion / 7) * 5;
-    return Math.min(baseProgress, 45);
+    // Convert to decimal (0-1) instead of percentage (0-100)
+    const baseProgress = 0.40 + (currentQuestion / 7) * 0.05;
+    return Math.min(baseProgress, 0.45);
   }
 
   function toggleInterest(interest: string) {

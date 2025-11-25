@@ -84,7 +84,7 @@ export default function JournalScreen() {
         </TouchableOpacity>
         <Text style={styles.title}>Journal</Text>
         <Text style={styles.subtitle}>
-          Track your daily mood and thoughts
+          Share your daily experiences to help your digital twin understand you better
         </Text>
       </View>
 
@@ -123,11 +123,8 @@ export default function JournalScreen() {
                 <BookOpen size={32} color="rgba(135, 206, 250, 0.8)" />
               </View>
               <Text style={styles.todayTitle}>How are you feeling today?</Text>
-              <Text style={styles.todayText}>
-                Take a moment to journal about your day
-              </Text>
               <Button
-                title="Journal Today"
+                title="Begin"
                 onPress={handleAddJournal}
                 size="medium"
                 style={styles.todayButton}
@@ -293,6 +290,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 8,
     letterSpacing: -0.2,
+    textAlign: 'center',
   },
   todayText: {
     fontSize: 15,

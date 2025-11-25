@@ -68,7 +68,7 @@ export default function OnboardingStep6() {
   return (
     <OnboardingScreen
       title="When things get hard, how do you usually react?"
-      progress={75}
+      progress={0.75}
       onNext={handleNext}
       canContinue={selectedValue.length > 0 && (selectedValue !== 'Other' || otherValue.trim().length > 0)}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

@@ -76,27 +76,27 @@ export default function WelcomeScreen() {
       });
 
       // After text fades out, fade in logo and button
-      setTimeout(() => {
-        // Fade in logo in the middle
-        logoOpacity.value = withTiming(1, {
-          duration: 600,
-          easing: Easing.out(Easing.ease),
-        });
-        logoScale.value = withSpring(1.0, {
-          damping: 15,
-          stiffness: 150,
-        });
+    setTimeout(() => {
+      // Fade in logo in the middle
+      logoOpacity.value = withTiming(1, {
+        duration: 600,
+        easing: Easing.out(Easing.ease),
+      });
+      logoScale.value = withSpring(1.0, {
+        damping: 15,
+        stiffness: 150,
+      });
 
-        // Show button at bottom at the same time
-        setButtonVisible(true);
-        buttonOpacity.value = withTiming(1, {
-          duration: 500,
-          easing: Easing.out(Easing.ease),
-        });
-        buttonScale.value = withSpring(1.0, {
-          damping: 15,
-          stiffness: 150,
-        });
+      // Show button at bottom at the same time
+      setButtonVisible(true);
+      buttonOpacity.value = withTiming(1, {
+        duration: 500,
+        easing: Easing.out(Easing.ease),
+      });
+      buttonScale.value = withSpring(1.0, {
+        damping: 15,
+        stiffness: 150,
+      });
       }, 500); // Wait for text fade out to complete
     }, 4000); // Wait 4 seconds after "ready to begin?" shows
   };

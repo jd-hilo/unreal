@@ -187,7 +187,7 @@ export default function ChooseOnboardingMethod() {
       {showButton && (
         <Animated.View style={[styles.footer, buttonAnimatedStyle]}>
           <Button
-            title={isContinuing ? "Saving" : "Continue"}
+            title={isContinuing ? "Continuing" : "Continue"}
             onPress={handleContinue}
             size="large"
             disabled={isContinuing}

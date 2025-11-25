@@ -85,3 +85,6 @@ INSERT INTO interest_questions (category, option_a, option_b, option_a_image_url
 ('music', 'Music Discovery', 'Classic Hits', 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400', 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400', 'Music discovery - finding new artists and songs', 'Classic hits - timeless favorites and nostalgia', 10, true);
 
 
+
+
+

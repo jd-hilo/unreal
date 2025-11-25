@@ -7,8 +7,11 @@ import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { CheckCircle2, Circle as CircleIcon, Edit3, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut } from 'lucide-react-native';
-import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode, getInterestProgress } from '@/lib/storage';
+import { Input } from '@/components/Input';
+import { CheckCircle2, Circle as CircleIcon, Edit3, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut, Sparkles } from 'lucide-react-native';
+import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode, getInterestProgressNew, updateProfileFields } from '@/lib/storage';
+import { resetDecisionGuide } from '@/lib/guideStorage';
+import { trackEvent } from '@/lib/mixpanel';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -37,6 +40,8 @@ export default function ProfileScreen() {
   const [twinCode, setTwinCode] = useState<string>('');
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const [interestProgress, setInterestProgress] = useState(0);
+  const [firstName, setFirstName] = useState('');
+  const [savingFirstName, setSavingFirstName] = useState(false);
   const animatedTwinCode = useTextScramble(twinCode, 1500);
 
   // Reload profile data when screen comes into focus
@@ -64,13 +69,14 @@ export default function ProfileScreen() {
         getTodayJournal(user.id),
         getRelationships(user.id),
         ensureTwinCode(user.id),
-        getInterestProgress(user.id).catch(() => 0)
+        getInterestProgressNew(user.id).catch(() => 0)
       ]);
       setProfileData(profile);
       setJournalComplete(!!todayJournal);
       setHasRelationships(relationships && relationships.length > 0);
       setTwinCode(code);
       setInterestProgress(progress);
+      setFirstName(profile?.first_name || '');
     } catch (error) {
       console.error('Failed to load profile:', error);
     } finally {
@@ -102,6 +108,17 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error('Failed to open email:', error);
       Alert.alert('Error', 'Unable to open email app');
+    }
+  }
+
+  async function handleShowProductGuide() {
+    try {
+      await resetDecisionGuide();
+      trackEvent('Product Guide Replayed');
+      // Use replace to ensure home screen reloads and shows guide
+      router.replace('/(tabs)/home');
+    } catch (error) {
+      console.error('Failed to reset product guide:', error);
     }
   }
 
@@ -220,8 +237,8 @@ export default function ProfileScreen() {
     //   id: 'interests',
     //   title: 'Interests',
     //   subtitle: interestProgress > 0
-    //     ? `${interestProgress}% complete - This or That preferences`
-    //     : 'Share your preferences with This or That questions',
+    //     ? `${interestProgress}% complete - Your interests`
+    //     : 'Select your favorite food, music, movies, and more',
     //   route: '/interests',
     //   completed: interestProgress > 0,
     // },
@@ -289,9 +306,9 @@ export default function ProfileScreen() {
                 <Svg width={140} height={140} style={styles.progressRing}>
                   <Defs>
                     <SvgLinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <Stop offset="0%" stopColor="rgba(135, 206, 250, 0.9)" />
-                      <Stop offset="50%" stopColor="rgba(100, 181, 246, 0.8)" />
-                      <Stop offset="100%" stopColor="rgba(135, 206, 250, 0.7)" />
+                      <Stop offset="0%" stopColor="rgba(173, 216, 230, 0.95)" />
+                      <Stop offset="50%" stopColor="rgba(100, 149, 237, 0.9)" />
+                      <Stop offset="100%" stopColor="rgba(65, 105, 225, 0.85)" />
                     </SvgLinearGradient>
                   </Defs>
                   {/* Background circle */}
@@ -403,6 +420,54 @@ export default function ProfileScreen() {
                 )}
               </View>
             </View>
+
+            {/* First Name Input - Show if first_name is null */}
+            {!profileData?.first_name && (
+              <View style={styles.firstNameSection}>
+                <BlurView intensity={80} tint="dark" style={styles.firstNameCard}>
+                  <View style={styles.glassBorder} />
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={styles.glassHighlight}
+                    pointerEvents="none"
+                  />
+                  <View style={styles.firstNameCardInner}>
+                    <Text style={styles.firstNameTitle}>What's your first name?</Text>
+                    <Input
+                      placeholder="Enter your first name"
+                      value={firstName}
+                      onChangeText={setFirstName}
+                      autoCapitalize="words"
+                      autoCorrect={false}
+                      style={styles.firstNameInput}
+                      containerStyle={styles.firstNameInputContainer}
+                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                    />
+                    <Button
+                      title={savingFirstName ? 'Saving...' : 'Save'}
+                      onPress={async () => {
+                        if (!firstName.trim() || !user) return;
+                        setSavingFirstName(true);
+                        try {
+                          await updateProfileFields(user.id, { first_name: firstName.trim() });
+                          await loadProfileData(); // Reload to refresh the UI
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        } catch (error) {
+                          console.error('Failed to save first name:', error);
+                          Alert.alert('Error', 'Failed to save first name. Please try again.');
+                        } finally {
+                          setSavingFirstName(false);
+                        }
+                      }}
+                      disabled={!firstName.trim() || savingFirstName}
+                      style={styles.firstNameButton}
+                    />
+                  </View>
+                </BlurView>
+              </View>
+            )}
 
             {/* Premium Section */}
             <View style={styles.sectionHeader}>
@@ -617,6 +682,30 @@ export default function ProfileScreen() {
                 >
                   <Mail size={20} color="#FFFFFF" />
                   <Text style={styles.feedbackText}>Send Feedback</Text>
+                  <ChevronRight size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </BlurView>
+            </View>
+
+            <View style={styles.feedbackButtonWrapper}>
+              <BlurView intensity={80} tint="dark" style={styles.feedbackButton}>
+                {/* Classic glass border */}
+                <View style={styles.buttonGlassBorder} />
+                {/* Subtle inner highlight */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.buttonGlassHighlight}
+                  pointerEvents="none"
+                />
+                <TouchableOpacity
+                  onPress={handleShowProductGuide}
+                  activeOpacity={0.9}
+                  style={styles.feedbackButtonInner}
+                >
+                  <Sparkles size={20} color="#FFFFFF" />
+                  <Text style={styles.feedbackText}>Show Product Guide</Text>
                   <ChevronRight size={20} color="#FFFFFF" />
                 </TouchableOpacity>
               </BlurView>
@@ -1422,5 +1511,44 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(200, 200, 200, 0.75)',
     lineHeight: 16,
+  },
+  firstNameSection: {
+    marginBottom: 20,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  firstNameCard: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  firstNameCardInner: {
+    padding: 20,
+    zIndex: 1,
+  },
+  firstNameTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  firstNameInputContainer: {
+    marginBottom: 16,
+  },
+  firstNameInput: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  firstNameButton: {
+    width: '100%',
   },
 });

@@ -55,7 +55,7 @@ export default function BirthYearScreen() {
   return (
     <OnboardingScreen
       title="What year were you born?"
-      progress={30}
+      progress={0.30}
       onNext={handleNext}
       canContinue={selectedYear.length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

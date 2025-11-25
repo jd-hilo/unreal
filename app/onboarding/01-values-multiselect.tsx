@@ -39,14 +39,39 @@ export default function ValuesMultiselectScreen() {
   async function handleNext() {
     if (user) {
       try {
-        // Save values_json immediately
-        if (selectedValues.length > 0) {
-          const { supabase } = await import('@/lib/supabase');
-          await supabase
-            .from('profiles')
-            .update({ values_json: selectedValues })
-            .eq('user_id', user.id);
+        const { supabase } = await import('@/lib/supabase');
+        const { getProfile } = await import('@/lib/storage');
+        
+        // Get existing profile to preserve core_json
+        const existingProfile = await getProfile(user.id);
+        const existingCoreJson = existingProfile?.core_json || {};
+        
+        // Update core_json with core_values (always update, even if empty array)
+        const updatedCoreJson = {
+          ...existingCoreJson,
+          core_values: selectedValues
+        };
+        
+        // Save values_json and also save to core_json.core_values
+        const { error, data } = await supabase
+          .from('profiles')
+          .update({ 
+            values_json: selectedValues,
+            core_json: updatedCoreJson
+          } as any)
+          .eq('user_id', user.id)
+          .select();
+        
+        if (error) {
+          console.error('❌ Failed to save values to profile:', error);
+          throw error;
         }
+        
+        console.log('✅ Saved values_json and core_json.core_values:', {
+          values_json: selectedValues,
+          core_values: updatedCoreJson.core_values,
+          updatedProfile: data?.[0]
+        });
         
         // Save values and context temporarily for AI summarization
         if (selectedValues.length > 0 || additionalContext.trim()) {
@@ -80,7 +105,7 @@ export default function ValuesMultiselectScreen() {
   return (
     <OnboardingScreen
       title="What matters most to you?"
-      progress={35}
+      progress={0.35}
       onNext={handleNext}
       canContinue={selectedValues.length > 0}
       backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}

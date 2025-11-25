@@ -195,7 +195,8 @@ export default function LifeJourneyGroupScreen() {
   }
 
   function getProgress(): number {
-    return 45 + (currentQuestion / 5) * 5; // 45-50% range
+    // Convert to decimal (0-1) instead of percentage (0-100)
+    return 0.45 + (currentQuestion / 5) * 0.05; // 0.45-0.50 range
   }
 
   return (
