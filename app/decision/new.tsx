@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { SwipeableOptionCard } from '@/components/SwipeableOptionCard';
-import { ArrowLeft, ChevronRight, X, UserPlus, Clock, Sparkles, Check } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, X, UserPlus, Clock, Sparkles, Check, Plus } from 'lucide-react-native';
 import { insertDecision, updateDecisionPrediction, getUserByTwinCode, addDecisionParticipant } from '@/lib/storage';
 import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
@@ -452,36 +452,18 @@ export default function NewDecisionScreen() {
           <View style={styles.collaboratorSection}>
             <TouchableOpacity
               onPress={() => setShowTwinModal(true)}
-              style={styles.addTwinCardEnhanced}
+              style={styles.addTwinSquareButton}
               activeOpacity={0.7}
             >
-              <LinearGradient
-                colors={['rgba(135, 206, 250, 0.15)', 'rgba(135, 206, 250, 0.05)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.addTwinGradient}
-              >
-                <BlurView intensity={20} tint="dark" style={styles.addTwinBlurEnhanced}>
-                  <View style={styles.addTwinContentEnhanced}>
-                    <View style={styles.iconCircle}>
-                      <UserPlus size={28} color="rgba(135, 206, 250, 0.9)" />
-                    </View>
-                    <View style={styles.addTwinTextContainer}>
-                      <Text style={styles.addTwinTextEnhanced}>Add Another Twin</Text>
-                      <Text style={styles.addTwinSubtext}>Collaborate on this decision</Text>
-                    </View>
-                    <ChevronRight size={24} color="rgba(135, 206, 250, 0.6)" />
-                  </View>
-                </BlurView>
-              </LinearGradient>
+              <Image 
+                source={require('@/assets/images/cube.png')}
+                style={styles.addTwinCubeBackground}
+                resizeMode="cover"
+              />
+              <View style={styles.addTwinSquareContent}>
+                <Plus size={48} color="rgba(150, 150, 150, 0.7)" strokeWidth={2.5} />
+              </View>
             </TouchableOpacity>
-
-            {/* Mannequin Image */}
-            <Image 
-              source={require('@/app/man.png')}
-              style={styles.mannequinCollaborator}
-              resizeMode="contain"
-            />
           </View>
         )}
       </View>
@@ -1020,59 +1002,31 @@ const styles = StyleSheet.create({
   collaboratorSection: {
     position: 'relative',
     minHeight: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  addTwinCardEnhanced: {
+  addTwinSquareButton: {
+    width: 280,
+    height: 280,
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderColor: 'rgba(150, 150, 150, 0.4)',
     marginBottom: 20,
+    position: 'relative',
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
   },
-  addTwinGradient: {
-    borderRadius: 18,
+  addTwinCubeBackground: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    opacity: 0.03,
   },
-  addTwinBlurEnhanced: {
-    backgroundColor: 'rgba(20, 18, 30, 0.4)',
-    overflow: 'hidden',
-  },
-  addTwinContentEnhanced: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    gap: 16,
-  },
-  iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(135, 206, 250, 0.2)',
+  addTwinSquareContent: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-  },
-  addTwinTextContainer: {
-    flex: 1,
-  },
-  addTwinTextEnhanced: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  addTwinSubtext: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: 'rgba(200, 200, 200, 0.7)',
-  },
-  mannequinCollaborator: {
-    position: 'absolute',
-    right: -30,
-    bottom: -40,
-    width: 180,
-    height: 180,
-    opacity: 0.3,
-    zIndex: -1,
+    padding: 24,
   },
   reviewCard: {
     borderRadius: 16,
