@@ -80,6 +80,7 @@ export default function PremiumScreen() {
           p.packageType === 'CUSTOM' || 
           p.packageType === 'LIFETIME' ||
           p.identifier === '$rc_lifetime' ||
+          p.product.identifier === 'unreal_lifetime_v2' ||
           p.product.identifier === 'unreal_lifetime' ||
           p.identifier.includes('lifetime') ||
           p.product.productType === 'NON_CONSUMABLE'
