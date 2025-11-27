@@ -12,7 +12,7 @@ class AdjustService {
     if (this.isInitialized) return;
 
     const adjustConfig = new AdjustConfig(
-      'Key',
+      '9xs312sd0t8g',
       __DEV__
         ? AdjustConfig.EnvironmentSandbox
         : AdjustConfig.EnvironmentProduction

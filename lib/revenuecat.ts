@@ -5,7 +5,8 @@ import { supabase } from './supabase';
 const REVENUECAT_API_KEY = Constants.expoConfig?.extra?.revenuecatApiKey || '';
 
 // Set this to true to bypass RevenueCat and only use Supabase (for testing)
-const BYPASS_REVENUECAT_FOR_TESTING = true;
+// IMPORTANT: This should be false in production builds submitted to the App Store.
+const BYPASS_REVENUECAT_FOR_TESTING = false;
 
 if (!REVENUECAT_API_KEY) {
   console.warn('RevenueCat API key not found in app.json');
