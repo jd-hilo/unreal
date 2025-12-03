@@ -455,11 +455,11 @@ export default function NewDecisionScreen() {
               style={styles.addTwinSquareButton}
               activeOpacity={0.7}
             >
-              <Image 
+            <Image 
                 source={require('@/assets/images/cube.png')}
                 style={styles.addTwinCubeBackground}
                 resizeMode="cover"
-              />
+            />
               <View style={styles.addTwinSquareContent}>
                 <Plus size={48} color="rgba(150, 150, 150, 0.7)" strokeWidth={2.5} />
               </View>

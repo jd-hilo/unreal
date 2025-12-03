@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { getDecision, updateDecisionPrediction, getDecisionParticipants } from '@/lib/storage';
@@ -7,11 +8,14 @@ import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
-import { ArrowLeft, Sparkles, Users, Lock } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Users, Lock, Zap, Share as ShareIcon } from 'lucide-react-native';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useTwin } from '@/store/useTwin';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
 export default function DecisionResultScreen() {
   const router = useRouter();
@@ -24,6 +28,8 @@ export default function DecisionResultScreen() {
   const [suggestions, setSuggestions] = useState<any>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [participants, setParticipants] = useState<any[]>([]);
+  const viewShotRef = useRef(null);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -183,11 +189,39 @@ export default function DecisionResultScreen() {
     router.push(`/decision/simulate/${decision.id}` as any);
   }
 
+  async function handleShare() {
+    if (sharing) return;
+    setSharing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      const uri = await captureRef(viewShotRef, {
+        format: 'png',
+        quality: 0.9,
+        result: 'tmpfile',
+      });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          UTI: 'public.image',
+          mimeType: 'image/png',
+          dialogTitle: 'Share your Decision',
+        });
+        trackEvent('Decision Shared', { decision_id: decision.id });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      Alert.alert('Error', 'Failed to generate share image.');
+    } finally {
+      setSharing(false);
+    }
+  }
+
   if (loading || predicting) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.backButton}>
             <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.title}>Decision Result</Text>
@@ -219,10 +253,27 @@ export default function DecisionResultScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.backButton}>
           <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.title}>Decision Result</Text>
+        {prediction && (
+          <TouchableOpacity 
+            onPress={handleShare} 
+            style={styles.shareButton}
+            disabled={sharing}
+          >
+            {sharing ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <View style={styles.shareIconContainer}>
+                {/* 3D-ish Share Icon Effect */}
+                <View style={styles.shareIconShadow} />
+                <ShareIcon size={22} color="#FFFFFF" />
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
@@ -275,7 +326,28 @@ export default function DecisionResultScreen() {
             <View style={styles.section}>
               <View style={styles.sectionCard}>
                 <Text style={styles.sectionTitle}>Why this choice?</Text>
-                <Text style={styles.rationale}>{prediction.rationale}</Text>
+                {isPremium ? (
+                  <Text style={styles.rationale}>{prediction.rationale}</Text>
+                ) : (
+                  <View style={styles.rationaleContainer}>
+                    <Text style={styles.rationale}>
+                      {prediction.rationale}
+                      {'\n\n'}
+                      Detailed breakdown of why this choice aligns with your values and long-term goals...
+                    </Text>
+                    <View style={styles.blurContainer}>
+                      <BlurView intensity={40} tint="dark" style={styles.absoluteBlur}>
+                        <TouchableOpacity 
+                          style={styles.unlockButton}
+                          onPress={() => router.push('/premium' as any)}
+                        >
+                          <Zap size={16} color="#000" fill="#000" />
+                          <Text style={styles.unlockButtonText}>unreal+ to unlock analysis</Text>
+                        </TouchableOpacity>
+                      </BlurView>
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -337,33 +409,64 @@ export default function DecisionResultScreen() {
                     <ActivityIndicator size="small" color="rgba(135, 206, 250, 0.9)" style={styles.sectionLoader} />
                   ) : suggestions?.suggestions ? (
                     <View style={styles.suggestionsContainer}>
-                      {suggestions.suggestions.map((suggestion: any, index: number) => (
-                        <View key={index} style={styles.suggestionCard}>
-                          <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
-                          {suggestion.probs && (
-                            <View style={styles.suggestionProbs}>
-                              {Object.entries(suggestion.probs).map(([option, prob]: [string, any]) => {
-                                const currentProb = decision.prediction.probs[option] || 0;
-                                const delta = prob - currentProb;
-                                return (
-                                  <View key={option} style={styles.suggestionProbRow}>
-                                    <Text style={styles.suggestionOption}>{option}</Text>
-                                    <Text style={styles.suggestionProb}>{(prob * 100).toFixed(0)}%</Text>
-                                    {delta !== 0 && (
-                                      <Text style={[styles.suggestionDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
-                                        {delta > 0 ? '+' : ''}{(delta * 100).toFixed(0)}%
-                                      </Text>
-                                    )}
-                                  </View>
-                                );
-                              })}
-                            </View>
-                          )}
-                          {suggestion.delta && (
-                            <Text style={styles.suggestionDeltaText}>{suggestion.delta}</Text>
-                          )}
-                        </View>
-                      ))}
+                      {suggestions.suggestions.map((suggestion: any, index: number) => {
+                        // If premium, show all. If not, only show first one, then blur the rest.
+                        if (!isPremium && index > 0) {
+                          // Only render the blur overlay once (at index 1) covering the rest or just one placeholder
+                          if (index === 1) {
+                            return (
+                              <View key="blocked-suggestions" style={styles.blockedSuggestionsContainer}>
+                                {/* Render a blurred dummy card to simulate content */}
+                                <View style={[styles.suggestionCard, { opacity: 0.5 }]}>
+                                  <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
+                                  <View style={{ height: 60 }} />
+                                </View>
+                                
+                                <View style={styles.suggestionsBlurOverlay}>
+                                  <BlurView intensity={80} tint="dark" style={styles.absoluteBlur}>
+                                    <TouchableOpacity 
+                                      style={styles.unlockButton}
+                                      onPress={() => router.push('/premium' as any)}
+                                    >
+                                      <Lock size={16} color="#000" />
+                                      <Text style={styles.unlockButtonText}>Upgrade to see all scenarios</Text>
+                                    </TouchableOpacity>
+                                  </BlurView>
+                                </View>
+                              </View>
+                            );
+                          }
+                          return null;
+                        }
+
+                        return (
+                          <View key={index} style={styles.suggestionCard}>
+                            <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
+                            {suggestion.probs && (
+                              <View style={styles.suggestionProbs}>
+                                {Object.entries(suggestion.probs).map(([option, prob]: [string, any]) => {
+                                  const currentProb = decision.prediction.probs[option] || 0;
+                                  const delta = prob - currentProb;
+                                  return (
+                                    <View key={option} style={styles.suggestionProbRow}>
+                                      <Text style={styles.suggestionOption}>{option}</Text>
+                                      <Text style={styles.suggestionProb}>{(prob * 100).toFixed(0)}%</Text>
+                                      {delta !== 0 && (
+                                        <Text style={[styles.suggestionDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
+                                          {delta > 0 ? '+' : ''}{(delta * 100).toFixed(0)}%
+                                        </Text>
+                                      )}
+                                    </View>
+                                  );
+                                })}
+                              </View>
+                            )}
+                            {suggestion.delta && (
+                              <Text style={styles.suggestionDeltaText}>{suggestion.delta}</Text>
+                            )}
+                          </View>
+                        );
+                      })}
                     </View>
                   ) : (
                     <Text style={styles.emptyStateText}>
@@ -402,6 +505,73 @@ export default function DecisionResultScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Hidden Share Card */}
+      {decision && prediction && (
+        <View 
+          ref={viewShotRef} 
+          style={styles.shareCardContainer}
+          collapsable={false}
+        >
+          <LinearGradient
+            colors={['#0C0C10', '#1A1D26']}
+            style={styles.shareCard}
+          >
+            <View style={styles.shareHeader}>
+              <Image 
+                source={require('@/assets/images/unreallogo.png')}
+                style={styles.shareLogo}
+                resizeMode="contain"
+              />
+              <Text style={styles.shareAppName}>UNREAL</Text>
+            </View>
+
+            <View style={styles.shareContent}>
+              <Text style={styles.shareQuestion}>{decision.question}</Text>
+              
+              <View style={styles.shareResultBox}>
+                <Text style={styles.shareLabel}>AI PREDICTION</Text>
+                <Text style={styles.shareResult}>{prediction.prediction}</Text>
+                <Text style={styles.shareConfidence}>
+                  {Math.max(...Object.values(prediction.probs as Record<string, number>)).toFixed(0) * 100}% Confidence
+                </Text>
+              </View>
+
+              <View style={styles.shareAnalysis}>
+                <Text style={styles.shareSectionTitle}>Analysis</Text>
+                <Text style={styles.shareText} numberOfLines={4}>
+                  {prediction.rationale}
+                </Text>
+              </View>
+
+              {suggestions?.suggestions && suggestions.suggestions.length > 0 && (
+                <View style={styles.shareWhatIf}>
+                  <Text style={styles.shareSectionTitle}>Alternate Path</Text>
+                  <View style={styles.shareSuggestion}>
+                    <Text style={styles.shareSuggestionText} numberOfLines={2}>
+                      {suggestions.suggestions[0].label}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.shareFooter}>
+              <View style={styles.shareFooterContent}>
+                <Text style={styles.shareGeneratedBy}>Generated by your AI Twin</Text>
+                <Text style={styles.shareLink}>Try it: apps.apple.com/app/id6754901842</Text>
+              </View>
+              <View style={styles.shareAppIcon}>
+                 <Image 
+                  source={require('@/assets/images/icon.png')}
+                  style={styles.shareAppIconImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+      )}
     </View>
   );
 }
@@ -418,6 +588,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 20,
     gap: 16,
+    position: 'relative',
   },
   backButton: {
     width: 40,
@@ -814,5 +985,210 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  rationaleContainer: {
+    position: 'relative',
+    height: 160,
+    overflow: 'hidden',
+  },
+  blurContainer: {
+    position: 'absolute',
+    top: 72, // After approx 3 lines (24px * 3)
+    bottom: 0,
+    left: -20, // Extend blur to edges of card
+    right: -20,
+    zIndex: 10,
+  },
+  absoluteBlur: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unlockButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFEB3B',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  unlockButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  blockedSuggestionsContainer: {
+    position: 'relative',
+    marginTop: 14,
+    overflow: 'hidden',
+    borderRadius: 12,
+  },
+  suggestionsBlurOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  shareButton: {
+    position: 'absolute',
+    right: 24,
+    top: 60,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    marginTop: 0,
+  },
+  shareIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(135, 206, 250, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+  },
+  shareIconShadow: {
+    position: 'absolute',
+    bottom: -2,
+    width: 20,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    zIndex: -1,
+  },
+  shareCardContainer: {
+    position: 'absolute',
+    left: -10000,
+    top: 0,
+    width: 375,
+    backgroundColor: '#0C0C10',
+  },
+  shareCard: {
+    padding: 24,
+    minHeight: 600,
+    justifyContent: 'space-between',
+  },
+  shareHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 32,
+  },
+  shareLogo: {
+    width: 32,
+    height: 32,
+  },
+  shareAppName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 2,
+  },
+  shareContent: {
+    flex: 1,
+    gap: 24,
+  },
+  shareQuestion: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 34,
+  },
+  shareResultBox: {
+    backgroundColor: 'rgba(135, 206, 250, 0.1)',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  shareLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgba(135, 206, 250, 0.8)',
+    marginBottom: 8,
+    letterSpacing: 1,
+  },
+  shareResult: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  shareConfidence: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  shareAnalysis: {
+    gap: 8,
+  },
+  shareSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  shareText: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 24,
+  },
+  shareWhatIf: {
+    marginTop: 8,
+    gap: 8,
+  },
+  shareSuggestion: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  shareSuggestionText: {
+    fontSize: 15,
+    color: '#FFFFFF',
+    fontStyle: 'italic',
+  },
+  shareFooter: {
+    marginTop: 40,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    paddingTop: 20,
+  },
+  shareFooterContent: {
+    gap: 4,
+  },
+  shareGeneratedBy: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  shareLink: {
+    fontSize: 12,
+    color: 'rgba(135, 206, 250, 0.8)',
+    fontWeight: '600',
+  },
+  shareAppIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  shareAppIconImage: {
+    width: '100%',
+    height: '100%',
   },
 });

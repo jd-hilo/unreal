@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Linking, Animated } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Sparkles, Zap, Lock, TrendingUp, Brain, Clock } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Zap, Lock, TrendingUp, Brain, Clock, X } from 'lucide-react-native';
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
@@ -13,6 +13,8 @@ type PurchaseOption = 'weekly' | 'lifetime';
 
 export default function PremiumScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const fromOnboarding = params.fromOnboarding === 'true';
   const { isPremium, packages, loading, purchasing, restoring, purchase, restore } = usePremium();
   const [selectedOption, setSelectedOption] = useState<PurchaseOption>('weekly');
   
@@ -112,7 +114,12 @@ export default function PremiumScreen() {
         ? 'You now have lifetime access to all premium features!'
         : 'You now have access to all premium features.';
       Alert.alert('Welcome to unreal+!', message, [
-        { text: 'Get Started', onPress: () => router.back() }
+        { 
+          text: 'Get Started', 
+          onPress: () => fromOnboarding 
+            ? router.replace('/onboarding/07-clarifier') 
+            : router.back() 
+        }
       ]);
     }
   }
@@ -121,7 +128,12 @@ export default function PremiumScreen() {
     const success = await restore();
     if (success) {
       Alert.alert('Success!', 'Your premium subscription has been restored.', [
-        { text: 'Continue', onPress: () => router.back() }
+        { 
+          text: 'Continue', 
+          onPress: () => fromOnboarding 
+            ? router.replace('/onboarding/07-clarifier') 
+            : router.back() 
+        }
       ]);
     } else {
       Alert.alert('No Purchases Found', 'We could not find any previous purchases to restore.');
@@ -134,9 +146,20 @@ export default function PremiumScreen() {
         <StatusBar style="light" />
         <SafeAreaView style={styles.safeArea} edges={['top']}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <ArrowLeft size={24} color="#FFFFFF" />
-            </TouchableOpacity>
+            {fromOnboarding ? (
+              <View style={styles.headerRight}>
+                <TouchableOpacity 
+                  onPress={() => router.replace('/onboarding/07-clarifier')} 
+                  style={styles.closeButton}
+                >
+                  <X size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <ArrowLeft size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
           </View>
           <View style={styles.alreadyPremiumContainer}>
             <View style={styles.premiumBadgeContainer}>
@@ -184,9 +207,20 @@ export default function PremiumScreen() {
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+          {fromOnboarding ? (
+            <View style={styles.headerRight}>
+              <TouchableOpacity 
+                onPress={() => router.replace('/onboarding/07-clarifier')} 
+                style={styles.closeButton}
+              >
+                <X size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <ArrowLeft size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
         </View>
 
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
@@ -366,6 +400,17 @@ export default function PremiumScreen() {
             )}
           </TouchableOpacity>
 
+          {/* Skip Button (only for onboarding) */}
+          {fromOnboarding && (
+            <TouchableOpacity
+              style={styles.skipButton}
+              onPress={() => router.replace('/onboarding/07-clarifier')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.skipButtonText}>Skip for now</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Fine Print */}
           <Text style={styles.finePrint}>
             {selectedOption === 'weekly' 
@@ -408,11 +453,23 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 8,
   },
+  headerRight: {
+    width: '100%',
+    alignItems: 'flex-end',
+  },
   backButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
   },
   content: {
     flex: 1,
@@ -634,6 +691,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFEB3B',
+  },
+  skipButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  skipButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.6)',
+    textDecorationLine: 'underline',
   },
   finePrint: {
     fontSize: 12,

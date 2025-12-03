@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Image, Dimensions } from 'react-native';
 import { useEffect, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { X, ChevronRight } from 'lucide-react-native';
+import { ChevronRight, Zap, Compass, Star, Book, User } from 'lucide-react-native';
 
 interface ProductGuideProps {
   visible: boolean;
@@ -22,12 +22,14 @@ interface ProductGuideProps {
   onStepChange?: (step: number) => void;
 }
 
-export function ProductGuide({ visible, onDismiss, onComplete, targetCardLayout, whatIfCardLayout, userId, onStepChange }: ProductGuideProps) {
+const { width } = Dimensions.get('window');
+
+export function ProductGuide({ visible, onDismiss, onComplete, onStepChange }: ProductGuideProps) {
   const [currentStep, setCurrentStep] = useState(0);
   
   const modalOpacity = useSharedValue(0);
-  const contentScale = useSharedValue(0.9);
-  const contentOpacity = useSharedValue(0);
+  const contentTranslateY = useSharedValue(50);
+  const contentScale = useSharedValue(0.95);
 
   // Notify parent of step changes
   useEffect(() => {
@@ -37,12 +39,12 @@ export function ProductGuide({ visible, onDismiss, onComplete, targetCardLayout,
   useEffect(() => {
     if (visible) {
       modalOpacity.value = withTiming(1, { duration: 300 });
-      contentScale.value = withSpring(1, { damping: 15, stiffness: 150 });
-      contentOpacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) });
+      contentTranslateY.value = withSpring(0, { damping: 15, stiffness: 100 });
+      contentScale.value = withSpring(1, { damping: 15, stiffness: 100 });
     } else {
       modalOpacity.value = withTiming(0, { duration: 200 });
-      contentScale.value = withTiming(0.9, { duration: 200 });
-      contentOpacity.value = withTiming(0, { duration: 200 });
+      contentTranslateY.value = withTiming(50, { duration: 200 });
+      contentScale.value = withTiming(0.95, { duration: 200 });
     }
   }, [visible]);
 
@@ -50,13 +52,6 @@ export function ProductGuide({ visible, onDismiss, onComplete, targetCardLayout,
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
-      // Reset animation for next step
-      contentOpacity.value = 0;
-      contentScale.value = 0.9;
-      setTimeout(() => {
-        contentOpacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) });
-        contentScale.value = withSpring(1, { damping: 15, stiffness: 150 });
-      }, 200);
     } else {
       onComplete();
     }
@@ -72,31 +67,150 @@ export function ProductGuide({ visible, onDismiss, onComplete, targetCardLayout,
   }));
 
   const contentAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: contentOpacity.value,
-    transform: [{ scale: contentScale.value }],
+    transform: [
+      { translateY: contentTranslateY.value },
+      { scale: contentScale.value }
+    ],
   }));
 
   const steps = [
     {
-      title: "stuck between choices and not sure what to do? ask your twin.",
-      cardType: 'decision' as const,
+      title: "Make Better Decisions",
+      description: "Stuck between choices? Your Twin simulates outcomes based on your values to help you choose wisely.",
+      color: '#87CEFA', // App Blue
+      cardType: 'decision',
     },
     {
-      title: "ever wondered what your life would look like if you hadn't done that one thing? ask here.",
-      cardType: 'whatif' as const,
+      title: "Explore 'What Ifs'",
+      description: "Curious about the road not taken? Simulate alternate realities to see how different choices shape your future.",
+      color: '#87CEFA', // App Blue
+      cardType: 'whatif',
     },
     {
-      title: "build a deeper connection with your twin by completing your profile.",
-      cardType: 'profile' as const,
+      title: "Train Your Twin",
+      description: "The more you share in your Profile, the smarter and more accurate your Twin becomes.",
+      color: '#87CEFA', // App Blue
+      cardType: 'profile',
     },
     {
-      title: "share your daily experiences through journaling to keep your twin updated.",
-      cardType: 'journal' as const,
+      title: "Stay in Sync",
+      description: "Daily journaling keeps your Twin updated on your life, feelings, and evolving perspective.",
+      color: '#87CEFA', // App Blue
+      cardType: 'journal',
     },
   ];
 
   const currentStepData = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
+
+  const renderPreview = () => {
+    switch (currentStepData.cardType) {
+      case 'decision':
+        return (
+          <View style={styles.miniCard}>
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.02)']}
+              style={styles.miniCardContent}
+            >
+              <View style={styles.miniHeader}>
+                <Compass size={20} color="#87CEFA" />
+                <Text style={styles.miniTitle}>Should I move?</Text>
+              </View>
+              <View style={styles.miniOption}>
+                <Text style={styles.miniLabel}>San Francisco</Text>
+                <View style={styles.miniBarBg}>
+                  <LinearGradient colors={['#87CEFA', '#5CA8FF']} style={[styles.miniBarFill, { width: '75%' }]} />
+                </View>
+              </View>
+              <View style={styles.miniOption}>
+                <Text style={styles.miniLabel}>Stay in London</Text>
+                <View style={styles.miniBarBg}>
+                  <View style={[styles.miniBarFill, { width: '25%', backgroundColor: 'rgba(255,255,255,0.1)' }]} />
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+        );
+      case 'whatif':
+        return (
+          <View style={styles.miniCard}>
+             <LinearGradient
+              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.02)']}
+              style={styles.miniCardContent}
+            >
+              <View style={styles.miniHeader}>
+                <Star size={20} color="#87CEFA" />
+                <Text style={styles.miniTitle}>Taken that job...</Text>
+              </View>
+              <View style={styles.miniMetricRow}>
+                <Text style={styles.miniMetricLabel}>Income</Text>
+                <Text style={[styles.miniMetricValue, { color: '#87CEFA' }]}>+45%</Text>
+              </View>
+              <View style={styles.miniMetricRow}>
+                <Text style={styles.miniMetricLabel}>Happiness</Text>
+                <Text style={[styles.miniMetricValue, { color: '#EF4444' }]}>-12%</Text>
+              </View>
+              <View style={styles.miniMetricRow}>
+                <Text style={styles.miniMetricLabel}>Free Time</Text>
+                <Text style={[styles.miniMetricValue, { color: '#EF4444' }]}>-30%</Text>
+              </View>
+            </LinearGradient>
+          </View>
+        );
+      case 'profile':
+        return (
+           <View style={styles.miniCard}>
+             <LinearGradient
+              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.02)']}
+              style={styles.miniCardContent}
+            >
+              <View style={styles.miniProfileHeader}>
+                <View style={styles.miniAvatar}>
+                   <Image 
+                      source={require('@/assets/images/cube.png')}
+                      style={styles.miniCube}
+                      resizeMode="contain"
+                   />
+                </View>
+                <View>
+                  <Text style={styles.miniTitle}>Digital Twin</Text>
+                  <Text style={styles.miniSubtitle}>Level 4</Text>
+                </View>
+              </View>
+              <View style={styles.miniProgressSection}>
+                <Text style={styles.miniLabel}>Understanding</Text>
+                <View style={styles.miniBarBg}>
+                  <LinearGradient colors={['#87CEFA', '#5CA8FF']} style={[styles.miniBarFill, { width: '68%' }]} />
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+        );
+      case 'journal':
+        return (
+          <View style={styles.miniCard}>
+             <LinearGradient
+              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.02)']}
+              style={styles.miniCardContent}
+            >
+              <View style={styles.miniHeader}>
+                 <Book size={20} color="#87CEFA" />
+                 <Text style={styles.miniTitle}>Today</Text>
+                 <Text style={styles.miniDate}>Oct 24</Text>
+              </View>
+              <View style={styles.miniJournalText}>
+                <View style={[styles.textLine, { width: '100%' }]} />
+                <View style={[styles.textLine, { width: '90%' }]} />
+                <View style={[styles.textLine, { width: '95%' }]} />
+                 <View style={[styles.textLine, { width: '60%' }]} />
+              </View>
+            </LinearGradient>
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <Modal
@@ -106,184 +220,69 @@ export function ProductGuide({ visible, onDismiss, onComplete, targetCardLayout,
       onRequestClose={onDismiss}
     >
       <Animated.View style={[styles.modalContainer, modalAnimatedStyle]}>
-        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
         
-        <Animated.View style={[styles.contentContainer, contentAnimatedStyle]}>
-          <BlurView intensity={100} tint="dark" style={styles.modalContent}>
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.glassHighlight}
-              pointerEvents="none"
-            />
-            <View style={styles.glassBorder} />
+        {/* Dimmed overlay for focus */}
+        <View style={styles.dimOverlay} />
 
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.stepIndicator}>
+        <Animated.View style={[styles.contentContainer, contentAnimatedStyle]}>
+          <LinearGradient
+            colors={['#1a1d26', '#101216']}
+            style={styles.card}
+          >
+            {/* Top Image Area */}
+            <View style={styles.imageArea}>
+              <LinearGradient
+                colors={[currentStepData.color + '20', 'transparent']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+              />
+              
+              {/* Render dynamic preview instead of icon */}
+              <View style={styles.previewContainer}>
+                {renderPreview()}
+              </View>
+
+              {/* Decorative elements */}
+              <View style={[styles.decorativeDot, { top: 20, right: 40, backgroundColor: currentStepData.color, opacity: 0.4 }]} />
+              <View style={[styles.decorativeDot, { bottom: 30, left: 30, width: 6, height: 6, backgroundColor: currentStepData.color, opacity: 0.3 }]} />
+            </View>
+
+            {/* Content Area */}
+            <View style={styles.textArea}>
+              <Text style={styles.title}>{currentStepData.title}</Text>
+              <Text style={styles.description}>{currentStepData.description}</Text>
+              
+              {/* Progress Indicators */}
+              <View style={styles.indicators}>
                 {steps.map((_, index) => (
-                  <View
-                    key={index}
+                  <View 
+                    key={index} 
                     style={[
-                      styles.stepDot,
-                      index === currentStep && styles.stepDotActive,
-                      index < currentStep && styles.stepDotCompleted,
-                    ]}
+                      styles.dot, 
+                      index === currentStep && { backgroundColor: currentStepData.color, width: 20 },
+                      index > currentStep && styles.dotInactive
+                    ]} 
                   />
                 ))}
               </View>
             </View>
 
-            {/* Content */}
-            <View style={styles.content}>
-              <Text style={styles.title}>{currentStepData.title}</Text>
-              
-              {/* Mini card preview */}
-              <View style={styles.cardPreview}>
-                {currentStepData.cardType === 'decision' ? (
-                  <View style={styles.miniCard}>
-                    <BlurView intensity={80} tint="dark" style={styles.miniCardBlur}>
-                      <View style={styles.miniCardBorder} />
-                      <LinearGradient
-                        colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={styles.miniCardHighlight}
-                        pointerEvents="none"
-                      />
-                      <View style={styles.miniCardContent}>
-                        <View style={styles.miniIconCircle}>
-                          <View style={styles.miniIconRotate}>
-                            <Image 
-                              source={require('@/assets/images/compass.png')}
-                              style={styles.miniCompassIcon}
-                              resizeMode="contain"
-                            />
-                          </View>
-                        </View>
-                        <View style={styles.miniCardText}>
-                          <Text style={styles.miniCardTitle}>What Should{"\n"}I Choose?</Text>
-                          <Text style={styles.miniCardSubtitle}>
-                            Compare options{"\n"}simulate outcomes
-                          </Text>
-                        </View>
-                      </View>
-                    </BlurView>
-                  </View>
-                ) : currentStepData.cardType === 'whatif' ? (
-                  <View style={styles.miniCard}>
-                    <BlurView intensity={80} tint="dark" style={styles.miniCardBlur}>
-                      <View style={styles.miniCardBorder} />
-                      <LinearGradient
-                        colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={styles.miniCardHighlight}
-                        pointerEvents="none"
-                      />
-                      <View style={styles.miniCardContent}>
-                        <View style={styles.miniIconCircle}>
-                          <Image 
-                            source={require('@/assets/images/star.png')}
-                            style={styles.miniStarIcon}
-                            resizeMode="contain"
-                          />
-                        </View>
-                        <View style={styles.miniCardText}>
-                          <Text style={styles.miniCardTitle}>What If?</Text>
-                          <Text style={styles.miniCardSubtitle}>
-                            Explore alternate realities
-                          </Text>
-                        </View>
-                      </View>
-                    </BlurView>
-                  </View>
-                ) : currentStepData.cardType === 'profile' ? (
-                  <View style={styles.miniProgressCard}>
-                    <BlurView intensity={80} tint="dark" style={styles.miniCardBlur}>
-                      <View style={styles.miniCardBorder} />
-                      <LinearGradient
-                        colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.3)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.miniProgressGradient}
-                        pointerEvents="none"
-                      />
-                      <View style={styles.miniProgressContent}>
-                        <View style={styles.miniProgressHeader}>
-                          <Image 
-                            source={require('@/assets/images/cube.png')}
-                            style={styles.miniCubeIcon}
-                            resizeMode="contain"
-                          />
-                          <Text style={styles.miniProgressTitle}>Twin's Understanding</Text>
-                          <Text style={styles.miniProgressPercent}>45%</Text>
-                        </View>
-                        <View style={styles.miniProgressBar}>
-                          <LinearGradient
-                            colors={['rgba(173, 216, 230, 0.95)', 'rgba(100, 149, 237, 0.9)', 'rgba(65, 105, 225, 0.85)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={[styles.miniProgressFill, { width: '45%' }]}
-                          />
-                        </View>
-                      </View>
-                    </BlurView>
-                  </View>
-                ) : (
-                  <View style={styles.miniJournalCard}>
-                    <BlurView intensity={80} tint="dark" style={styles.miniCardBlur}>
-                      <View style={styles.miniCardBorder} />
-                      <LinearGradient
-                        colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={styles.miniCardHighlight}
-                        pointerEvents="none"
-                      />
-                      <View style={styles.miniJournalContent}>
-                        <View style={styles.miniJournalRow}>
-                          <View style={styles.miniJournalIcon}>
-                            <Text style={styles.miniJournalEmoji}>📖</Text>
-                          </View>
-                          <Text style={styles.miniJournalText}>Complete your daily journal</Text>
-                        </View>
-                      </View>
-                    </BlurView>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Footer */}
+            {/* Action Buttons */}
             <View style={styles.footer}>
-              <TouchableOpacity
-                onPress={handleSkip}
-                style={styles.skipButton}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.skipButtonText}>Skip</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity 
+                style={[styles.nextButton, { backgroundColor: currentStepData.color }]} 
                 onPress={handleNext}
-                style={styles.nextButton}
-                activeOpacity={0.9}
+                activeOpacity={0.8}
               >
-                <LinearGradient
-                  colors={['rgba(65, 105, 225, 0.95)', 'rgba(30, 144, 255, 0.9)', 'rgba(0, 71, 171, 0.85)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.nextButtonGradient}
-                >
-                  <Text style={styles.nextButtonText}>
-                    {isLastStep ? 'Got it' : 'Next'}
-                  </Text>
-                  {!isLastStep && <ChevronRight size={20} color="#FFFFFF" />}
-                </LinearGradient>
+                <Text style={[styles.nextText, { color: '#000' }]}>
+                  {isLastStep ? 'Get Started' : 'Next'}
+                </Text>
+                {!isLastStep && <ChevronRight size={18} color="#000" />}
               </TouchableOpacity>
             </View>
-          </BlurView>
+          </LinearGradient>
         </Animated.View>
       </Animated.View>
     </Modal>
@@ -295,276 +294,207 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  dimOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   contentContainer: {
-    width: '90%',
-    maxWidth: 400,
+    width: width * 0.85,
+    maxWidth: 380,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+    elevation: 10,
   },
-  modalContent: {
+  card: {
     borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.95)',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#15171E',
   },
-  glassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  glassBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
-  },
-  header: {
-    flexDirection: 'row',
+  imageArea: {
+    height: 220,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
+    position: 'relative',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.03)',
   },
-  stepIndicator: {
+  previewContainer: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  miniCard: {
+    width: '80%',
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
+    transform: [{ rotate: '-2deg' }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+  },
+  miniCardContent: {
+    padding: 16,
+    gap: 12,
+  },
+  miniHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+    marginBottom: 4,
+  },
+  miniProfileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  miniAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  miniCube: {
+    width: 24,
+    height: 24,
+  },
+  miniTitle: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  miniSubtitle: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+  },
+  miniDate: {
+    marginLeft: 'auto',
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
+  },
+  miniOption: {
+    gap: 4,
+  },
+  miniLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+  },
+  miniBarBg: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  miniBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  miniMetricRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  stepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  miniMetricLabel: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
   },
-  stepDotActive: {
-    width: 24,
-    backgroundColor: 'rgba(65, 105, 225, 0.9)',
+  miniMetricValue: {
+    fontSize: 13,
+    fontWeight: '600',
   },
-  stepDotCompleted: {
-    backgroundColor: 'rgba(65, 105, 225, 0.6)',
+  miniProgressSection: {
+    gap: 6,
   },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+  miniJournalText: {
+    gap: 8,
+  },
+  textLine: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 3,
+  },
+  decorativeDot: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  textArea: {
+    padding: 24,
+    paddingBottom: 10,
     alignItems: 'center',
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: '700',
     color: '#FFFFFF',
+    marginBottom: 12,
     textAlign: 'center',
-    lineHeight: 26,
+    letterSpacing: 0.5,
+  },
+  description: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+    lineHeight: 24,
     marginBottom: 24,
-    letterSpacing: -0.3,
   },
-  cardPreview: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  miniCard: {
-    width: '70%',
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  miniCardBlur: {
-    borderRadius: 16,
-    padding: 12,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  miniCardBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
-  },
-  miniCardHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 16,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  miniCardContent: {
+  indicators: {
     flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+    height: 6,
     alignItems: 'center',
-    gap: 12,
-    zIndex: 1,
   },
-  miniIconCircle: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFF',
   },
-  miniIconRotate: {
-    transform: [{ rotate: '-30deg' }],
-  },
-  miniCompassIcon: {
-    width: 32,
-    height: 32,
-  },
-  miniStarIcon: {
-    width: 32,
-    height: 32,
-  },
-  miniCardText: {
-    flex: 1,
-  },
-  miniCardTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    lineHeight: 18,
-    marginBottom: 2,
-  },
-  miniCardSubtitle: {
-    fontSize: 11,
-    color: 'rgba(200, 200, 200, 0.7)',
-    lineHeight: 14,
+  dotInactive: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   footer: {
     flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    paddingTop: 8,
+    padding: 24,
+    paddingTop: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   skipButton: {
-    flex: 1,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: 'none',
   },
-  skipButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.6)',
+  skipText: {
+    display: 'none',
   },
   nextButton: {
-    flex: 2,
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: 'rgba(65, 105, 225, 0.5)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  nextButtonGradient: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 30,
     gap: 8,
-  },
-  nextButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  miniProgressCard: {
-    width: '85%',
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  miniProgressGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 16,
-  },
-  miniProgressContent: {
-    padding: 10,
-    zIndex: 1,
-  },
-  miniProgressHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  miniCubeIcon: {
-    width: 16,
-    height: 16,
-  },
-  miniProgressTitle: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  miniProgressPercent: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: 'rgba(135, 206, 250, 0.9)',
-  },
-  miniProgressBar: {
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  miniProgressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  miniJournalCard: {
-    width: '85%',
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  miniJournalContent: {
-    padding: 10,
-    zIndex: 1,
-  },
-  miniJournalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  miniJournalIcon: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
+    minWidth: 200,
     justifyContent: 'center',
   },
-  miniJournalEmoji: {
+  nextText: {
     fontSize: 16,
-  },
-  miniJournalText: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.85)',
+    fontWeight: '700',
   },
 });

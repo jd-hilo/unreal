@@ -42,7 +42,7 @@ export default function PoliticsScreen() {
         console.error('Failed to save political views:', error);
       }
     }
-    router.push('/onboarding/07-clarifier');
+    router.push('/premium?fromOnboarding=true');
   }
 
   return (
