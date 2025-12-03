@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Clipboard, Modal, Linking, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -8,7 +8,8 @@ import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
-import { ArrowLeft, Sparkles, Users, Lock, Zap, Share as ShareIcon } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Users, Lock, Zap, Share as ShareIcon, Instagram, Ghost } from 'lucide-react-native';
+import * as FileSystem from 'expo-file-system';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -16,6 +17,8 @@ import { useTwin } from '@/store/useTwin';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 export default function DecisionResultScreen() {
   const router = useRouter();
@@ -30,6 +33,8 @@ export default function DecisionResultScreen() {
   const [participants, setParticipants] = useState<any[]>([]);
   const viewShotRef = useRef(null);
   const [sharing, setSharing] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareImageUri, setShareImageUri] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -201,36 +206,113 @@ export default function DecisionResultScreen() {
         result: 'tmpfile',
       });
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          UTI: 'public.image',
-          mimeType: 'image/png',
-          dialogTitle: 'Share your Decision',
-        });
-        trackEvent('Decision Shared', { decision_id: decision.id });
-      }
+      setShareImageUri(uri);
+      setShowShareModal(true);
+      trackEvent(MixpanelEvents.DECISION_SHARE_OPENED, { decision_id: decision.id });
     } catch (error) {
-      console.error('Error sharing:', error);
+      console.error('Error generating share image:', error);
       Alert.alert('Error', 'Failed to generate share image.');
     } finally {
       setSharing(false);
     }
   }
 
+  async function shareToInstagram() {
+    if (!shareImageUri) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    try {
+      // Copy app store link to clipboard
+      const appStoreLink = 'https://apps.apple.com/us/app/unreal-simulate-your-life/id6754901842';
+      Clipboard.setString(appStoreLink);
+
+      // For Instagram Stories, we need to use the share sheet
+      // Instagram doesn't support direct image sharing via URL scheme
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(shareImageUri, {
+          UTI: 'public.image',
+          mimeType: 'image/png',
+          dialogTitle: 'Share to Instagram',
+        });
+        trackEvent(MixpanelEvents.DECISION_SHARED, { decision_id: decision.id, platform: 'instagram' });
+      }
+      setShowShareModal(false);
+    } catch (error) {
+      console.error('Error sharing to Instagram:', error);
+      Alert.alert('Error', 'Failed to share to Instagram.');
+    }
+  }
+
+  async function shareToSnapchat() {
+    if (!shareImageUri) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    try {
+      // Copy app store link to clipboard
+      const appStoreLink = 'https://apps.apple.com/us/app/unreal-simulate-your-life/id6754901842';
+      Clipboard.setString(appStoreLink);
+
+      // Snapchat also uses the native share sheet
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(shareImageUri, {
+          UTI: 'public.image',
+          mimeType: 'image/png',
+          dialogTitle: 'Share to Snapchat',
+        });
+        trackEvent(MixpanelEvents.DECISION_SHARED, { decision_id: decision.id, platform: 'snapchat' });
+      }
+      setShowShareModal(false);
+    } catch (error) {
+      console.error('Error sharing to Snapchat:', error);
+      Alert.alert('Error', 'Failed to share to Snapchat.');
+    }
+  }
+
+  async function shareMore() {
+    if (!shareImageUri) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    try {
+      // Copy app store link to clipboard
+      const appStoreLink = 'https://apps.apple.com/us/app/unreal-simulate-your-life/id6754901842';
+      Clipboard.setString(appStoreLink);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(shareImageUri, {
+          UTI: 'public.image',
+          mimeType: 'image/png',
+          dialogTitle: 'Share your Decision',
+        });
+        trackEvent(MixpanelEvents.DECISION_SHARED, { decision_id: decision.id, platform: 'other' });
+      }
+      setShowShareModal(false);
+    } catch (error) {
+      console.error('Error sharing:', error);
+      Alert.alert('Error', 'Failed to share.');
+    }
+  }
+
   if (loading || predicting) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.backButton}>
-            <ArrowLeft size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Decision Result</Text>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="rgba(135, 206, 250, 0.9)" />
-          <Text style={styles.loadingText}>
-            {predicting ? 'Generating prediction...' : 'Loading...'}
-          </Text>
+      <View style={styles.screen}>
+        <View style={styles.backgroundGradient}>
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <View style={styles.topBar}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="rgba(135, 206, 250, 0.9)" />
+              <Text style={styles.loadingText}>
+                {predicting ? 'Generating prediction...' : 'Loading...'}
+              </Text>
+            </View>
+          </SafeAreaView>
         </View>
       </View>
     );
@@ -238,8 +320,20 @@ export default function DecisionResultScreen() {
 
   if (!decision) {
     return (
-      <View style={styles.container}>
-        <Text>Decision not found</Text>
+      <View style={styles.screen}>
+        <View style={styles.backgroundGradient}>
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <View style={styles.topBar}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Decision not found</Text>
+            </View>
+          </SafeAreaView>
+        </View>
       </View>
     );
   }
@@ -251,33 +345,39 @@ export default function DecisionResultScreen() {
     : 0;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.backButton}>
-          <ArrowLeft size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Decision Result</Text>
-        {prediction && (
-          <TouchableOpacity 
-            onPress={handleShare} 
-            style={styles.shareButton}
-            disabled={sharing}
-          >
-            {sharing ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <View style={styles.shareIconContainer}>
-                {/* 3D-ish Share Icon Effect */}
-                <View style={styles.shareIconShadow} />
-                <ShareIcon size={22} color="#FFFFFF" />
-              </View>
+    <View style={styles.screen}>
+      <View style={styles.backgroundGradient}>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          {/* Top Bar */}
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+              <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+            </TouchableOpacity>
+            {prediction && (
+              <TouchableOpacity 
+                onPress={handleShare} 
+                style={styles.shareButton}
+                disabled={sharing}
+              >
+                {sharing ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <View style={styles.shareIconContainer}>
+                    <ShareIcon size={22} color="#FFFFFF" />
+                  </View>
+                )}
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
-        )}
-      </View>
+          </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        <Text style={styles.question}>{decision.question}</Text>
+          <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+            {/* Main Header */}
+            <View style={styles.header}>
+              <Text style={styles.greeting}>
+                <Text style={styles.greetingRest}>{decision.question}</Text>
+              </Text>
+            </View>
 
         {/* Show participants if any */}
         {participants.length > 0 && (
@@ -342,7 +442,7 @@ export default function DecisionResultScreen() {
                           onPress={() => router.push('/premium' as any)}
                         >
                           <Zap size={16} color="#000" fill="#000" />
-                          <Text style={styles.unlockButtonText}>unreal+ to unlock analysis</Text>
+                          <Text style={styles.unlockButtonText}>upgrade to unreal+ to unlock</Text>
                         </TouchableOpacity>
                       </BlurView>
                     </View>
@@ -429,7 +529,7 @@ export default function DecisionResultScreen() {
                                       onPress={() => router.push('/premium' as any)}
                                     >
                                       <Lock size={16} color="#000" />
-                                      <Text style={styles.unlockButtonText}>Upgrade to see all scenarios</Text>
+                                      <Text style={styles.unlockButtonText}>upgrade to unreal+ to unlock</Text>
                                     </TouchableOpacity>
                                   </BlurView>
                                 </View>
@@ -504,7 +604,9 @@ export default function DecisionResultScreen() {
             )}
           </>
         )}
-      </ScrollView>
+          </ScrollView>
+        </SafeAreaView>
+      </View>
 
       {/* Hidden Share Card */}
       {decision && prediction && (
@@ -523,7 +625,6 @@ export default function DecisionResultScreen() {
                 style={styles.shareLogo}
                 resizeMode="contain"
               />
-              <Text style={styles.shareAppName}>UNREAL</Text>
             </View>
 
             <View style={styles.shareContent}>
@@ -533,7 +634,7 @@ export default function DecisionResultScreen() {
                 <Text style={styles.shareLabel}>AI PREDICTION</Text>
                 <Text style={styles.shareResult}>{prediction.prediction}</Text>
                 <Text style={styles.shareConfidence}>
-                  {Math.max(...Object.values(prediction.probs as Record<string, number>)).toFixed(0) * 100}% Confidence
+                  {confidence.toFixed(0)}% Confidence
                 </Text>
               </View>
 
@@ -572,60 +673,128 @@ export default function DecisionResultScreen() {
           </LinearGradient>
         </View>
       )}
+
+      {/* Custom Share Modal */}
+      <Modal
+        visible={showShareModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowShareModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowShareModal(false)}
+        >
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.shareModalContent}>
+              <Text style={styles.shareModalTitle}>Share to</Text>
+              
+              <View style={styles.socialButtons}>
+                <TouchableOpacity 
+                  style={styles.socialButton}
+                  onPress={shareToInstagram}
+                >
+                  <LinearGradient
+                    colors={['#833AB4', '#FD1D1D', '#FCAF45']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.socialButtonGradient}
+                  >
+                    <Instagram size={32} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.socialButtonLabel}>Instagram</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.socialButton}
+                  onPress={shareToSnapchat}
+                >
+                  <View style={[styles.socialButtonGradient, { backgroundColor: '#FFFC00' }]}>
+                    <Ghost size={32} color="#000000" />
+                  </View>
+                  <Text style={styles.socialButtonLabel}>Snapchat</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.socialButton}
+                  onPress={shareMore}
+                >
+                  <View style={[styles.socialButtonGradient, { backgroundColor: 'rgba(135, 206, 250, 0.2)' }]}>
+                    <ShareIcon size={32} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.socialButtonLabel}>More</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity 
+                style={styles.cancelButton}
+                onPress={() => setShowShareModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: '#0C0C10',
+    backgroundColor: '#000000',
+  },
+  backgroundGradient: {
+    flex: 1,
+    backgroundColor: '#050505',
+  },
+  safeArea: {
+    flex: 1,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  iconButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 20,
-    gap: 16,
-    position: 'relative',
+    marginBottom: 32,
+    paddingHorizontal: 20,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
+  greeting: {
+    fontSize: 42,
     fontWeight: '700',
+    lineHeight: 48,
+    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
+    letterSpacing: -0.5,
+  },
+  greetingRest: {
     color: '#FFFFFF',
-    flex: 1,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  question: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 24,
-  },
   predictionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 0,
-    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 0,
   },
   predictionLabel: {
     fontSize: 14,
@@ -648,15 +817,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 0,
-    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
     padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 0,
   },
   sectionTitle: {
     fontSize: 18,
@@ -1008,6 +1173,8 @@ const styles = StyleSheet.create({
   unlockButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: 8,
     backgroundColor: '#FFEB3B',
     paddingHorizontal: 16,
@@ -1020,9 +1187,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   unlockButtonText: {
+    flexShrink: 1,
     fontSize: 13,
     fontWeight: '700',
     color: '#000000',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   blockedSuggestionsContainer: {
     position: 'relative',
@@ -1040,34 +1210,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   shareButton: {
-    position: 'absolute',
-    right: 24,
-    top: 60,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-    marginTop: 0,
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
   },
   shareIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(135, 206, 250, 0.2)',
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-  },
-  shareIconShadow: {
-    position: 'absolute',
-    bottom: -2,
-    width: 20,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    zIndex: -1,
   },
   shareCardContainer: {
     position: 'absolute',
@@ -1082,20 +1233,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   shareHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    alignItems: 'flex-start',
     marginBottom: 32,
   },
   shareLogo: {
-    width: 32,
-    height: 32,
-  },
-  shareAppName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 2,
+    width: 80,
+    height: 80,
   },
   shareContent: {
     flex: 1,
@@ -1190,5 +1333,64 @@ const styles = StyleSheet.create({
   shareAppIconImage: {
     width: '100%',
     height: '100%',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  shareModalContent: {
+    backgroundColor: '#1a1d26',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  shareModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  socialButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 24,
+    flexWrap: 'wrap',
+    gap: 20,
+  },
+  socialButton: {
+    alignItems: 'center',
+    gap: 10,
+    width: 90,
+  },
+  socialButtonGradient: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  socialButtonLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
+  },
+  cancelButton: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

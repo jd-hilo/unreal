@@ -9,9 +9,12 @@ import { insertWhatIf } from '@/lib/storage';
 import { runWhatIf } from '@/lib/ai';
 import { getProfile, getRelationships } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { computeScenarioAlignment } from '@/lib/relevance';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 export default function NewWhatIfScreen() {
   const router = useRouter();
@@ -107,179 +110,212 @@ export default function NewWhatIfScreen() {
   const canSubmit = whatIfText.trim();
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.title}>What If?</Text>
-          <Text style={styles.subtitle}>Explore alternate realities</Text>
-        </View>
+    <View style={styles.screen}>
+      <View style={styles.backgroundGradient}>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          <KeyboardAvoidingView
+            style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            {/* Top Bar */}
+            <View style={styles.topBar}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Main Header */}
+            <View style={styles.header}>
+              <Text style={styles.greeting}>
+                <Text style={styles.greetingRest}>What if?</Text>
+              </Text>
+              <Text style={styles.greetingSubtext}>See your alternate life</Text>
+            </View>
+
+            <ScrollView
+              style={styles.content}
+              contentContainerStyle={styles.contentContainer}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Scenario Input */}
+              <View style={styles.section}>
+                <FloatingLabelInput
+                  ref={scenarioInputRef}
+                  label="Your scenario"
+                  value={whatIfText}
+                  onChangeText={setWhatIfText}
+                  multiline
+                  placeholder="What if I..."
+                  returnKeyType="done"
+                  containerStyle={styles.scenarioInput}
+                  style={styles.scenarioInputText}
+                />
+              </View>
+
+              {/* Example Scenarios */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Lightbulb size={18} color="rgba(135, 206, 250, 0.9)" />
+                  <Text style={styles.sectionLabel}>Try these examples</Text>
+                </View>
+
+                <View style={styles.examplesGrid}>
+                  <TouchableOpacity
+                    style={styles.exampleCard}
+                    onPress={() => setWhatIfText('What if I had studied engineering instead of my current major?')}
+                    activeOpacity={0.7}
+                  >
+                    <BlurView intensity={20} tint="dark" style={styles.exampleCardBlur}>
+                      <View style={styles.exampleIcon}>
+                        <GraduationCap size={20} color="rgba(135, 206, 250, 0.9)" />
+                      </View>
+                      <View style={styles.exampleContent}>
+                        <Text style={styles.exampleTitle}>Different major</Text>
+                        <Text style={styles.exampleDesc}>Academic path</Text>
+                      </View>
+                      <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
+                    </BlurView>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.exampleCard}
+                    onPress={() => setWhatIfText('What if I had stayed in my hometown instead of moving?')}
+                    activeOpacity={0.7}
+                  >
+                    <BlurView intensity={20} tint="dark" style={styles.exampleCardBlur}>
+                      <View style={styles.exampleIcon}>
+                        <MapPin size={20} color="rgba(135, 206, 250, 0.9)" />
+                      </View>
+                      <View style={styles.exampleContent}>
+                        <Text style={styles.exampleTitle}>Different location</Text>
+                        <Text style={styles.exampleDesc}>Where you live</Text>
+                      </View>
+                      <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
+                    </BlurView>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.exampleCard}
+                    onPress={() => setWhatIfText('What if I had started my own business instead of working a corporate job?')}
+                    activeOpacity={0.7}
+                  >
+                    <BlurView intensity={20} tint="dark" style={styles.exampleCardBlur}>
+                      <View style={styles.exampleIcon}>
+                        <Briefcase size={20} color="rgba(135, 206, 250, 0.9)" />
+                      </View>
+                      <View style={styles.exampleContent}>
+                        <Text style={styles.exampleTitle}>Career path</Text>
+                        <Text style={styles.exampleDesc}>Professional choice</Text>
+                      </View>
+                      <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
+                    </BlurView>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Floating Action Button */}
+            <View style={styles.floatingButtonContainer}>
+              <TouchableOpacity
+                onPress={handleSubmit}
+                disabled={!canSubmit || loading}
+                activeOpacity={0.9}
+                style={[
+                  styles.floatingButton,
+                  (!canSubmit || loading) && styles.floatingButtonDisabled
+                ]}
+              >
+                <LinearGradient
+                  colors={canSubmit && !loading ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[
+                    styles.floatingButtonGradient,
+                    canSubmit && !loading && styles.floatingButtonActiveBorder
+                  ]}
+                >
+                  <Image 
+                    source={require('@/assets/images/cube.png')}
+                    style={styles.cubeIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={[
+                    styles.floatingButtonText,
+                    (!canSubmit || loading) && styles.floatingButtonTextDisabled
+                  ]}>
+                    {loading ? 'Exploring...' : 'Explore Timeline'}
+                  </Text>
+                  {!loading && (
+                    <ChevronRight 
+                      size={20} 
+                      color={(!canSubmit || loading) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
+                    />
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </View>
-
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Scenario Input */}
-        <View style={styles.section}>
-          <FloatingLabelInput
-            ref={scenarioInputRef}
-            label="Your scenario"
-          value={whatIfText}
-          onChangeText={setWhatIfText}
-          multiline
-            placeholder="What if I..."
-            returnKeyType="done"
-            containerStyle={styles.scenarioInput}
-            style={styles.scenarioInputText}
-            />
-        </View>
-
-        {/* Example Scenarios */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Lightbulb size={18} color="rgba(135, 206, 250, 0.9)" />
-            <Text style={styles.sectionLabel}>Try these examples</Text>
-          </View>
-
-          <View style={styles.examplesGrid}>
-          <TouchableOpacity
-              style={styles.exampleCard}
-              onPress={() => setWhatIfText('What if I had studied engineering instead of my current major?')}
-              activeOpacity={0.7}
-          >
-              <View style={styles.exampleIcon}>
-                <GraduationCap size={20} color="rgba(135, 206, 250, 0.9)" />
-              </View>
-              <View style={styles.exampleContent}>
-                <Text style={styles.exampleTitle}>Different major</Text>
-                <Text style={styles.exampleDesc}>Academic path</Text>
-              </View>
-              <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-              style={styles.exampleCard}
-              onPress={() => setWhatIfText('What if I had stayed in my hometown instead of moving?')}
-              activeOpacity={0.7}
-          >
-              <View style={styles.exampleIcon}>
-                <MapPin size={20} color="rgba(135, 206, 250, 0.9)" />
-              </View>
-              <View style={styles.exampleContent}>
-                <Text style={styles.exampleTitle}>Different location</Text>
-                <Text style={styles.exampleDesc}>Where you live</Text>
-              </View>
-              <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-              style={styles.exampleCard}
-              onPress={() => setWhatIfText('What if I had started my own business instead of working a corporate job?')}
-              activeOpacity={0.7}
-          >
-              <View style={styles.exampleIcon}>
-                <Briefcase size={20} color="rgba(135, 206, 250, 0.9)" />
-              </View>
-              <View style={styles.exampleContent}>
-                <Text style={styles.exampleTitle}>Career path</Text>
-                <Text style={styles.exampleDesc}>Professional choice</Text>
-              </View>
-              <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
-          </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Helper Card */}
-        <View style={styles.helperCard}>
-          <Text style={styles.helperText}>
-            🔮 Your AI twin will analyze how this alternate choice would have affected your happiness, relationships, career, and overall life trajectory.
-          </Text>
-        </View>
-      </ScrollView>
-
-      {/* Floating Action Button */}
-      <View style={styles.floatingButtonContainer}>
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={!canSubmit || loading}
-          activeOpacity={0.9}
-          style={[
-            styles.floatingButton,
-            (!canSubmit || loading) && styles.floatingButtonDisabled
-          ]}
-        >
-          <LinearGradient
-            colors={canSubmit && !loading ? ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.floatingButtonGradient}
-          >
-            <Image 
-              source={require('@/assets/images/cube.png')}
-              style={styles.cubeIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.floatingButtonText}>
-              {loading ? 'Exploring...' : 'Explore Timeline'}
-            </Text>
-            {!loading && <ChevronRight size={20} color="#FFFFFF" />}
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  backgroundGradient: {
+    flex: 1,
+    backgroundColor: '#050505',
+  },
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#0C0C10',
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  iconButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 24,
-    gap: 16,
-    backgroundColor: '#0C0C10',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(135, 206, 250, 0.2)',
+    marginBottom: 32,
+    paddingHorizontal: 20,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerContent: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 28,
+  greeting: {
+    fontSize: 42,
     fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
+    lineHeight: 48,
+    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
+    letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: 15,
-    color: 'rgba(200, 200, 200, 0.75)',
+  greetingRest: {
+    color: '#FFFFFF',
+  },
+  greetingSubtext: {
+    color: '#999999',
+    fontSize: 18,
+    fontWeight: '500',
+    marginTop: 4,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingHorizontal: 20,
     paddingBottom: 120,
   },
   section: {
@@ -311,12 +347,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   exampleCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  exampleCardBlur: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(30, 64, 175, 0.4)',
-    borderRadius: 16,
     padding: 16,
     gap: 12,
   },
@@ -344,28 +383,15 @@ const styles = StyleSheet.create({
     color: 'rgba(200, 200, 200, 0.6)',
     flexShrink: 1,
   },
-  helperCard: {
-    backgroundColor: 'rgba(135, 206, 250, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.2)',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 8,
-  },
-  helperText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: 'rgba(200, 200, 200, 0.85)',
-  },
   floatingButtonContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 40,
-    backgroundColor: '#0C0C10',
+    backgroundColor: '#050505',
   },
   floatingButton: {
     borderRadius: 24,
@@ -389,10 +415,17 @@ const styles = StyleSheet.create({
     gap: 10,
     borderRadius: 24,
   },
+  floatingButtonActiveBorder: {
+    borderWidth: 1,
+    borderColor: '#87CEFA',
+  },
   floatingButtonText: {
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  floatingButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.5)',
   },
   cubeIcon: {
     width: 22,

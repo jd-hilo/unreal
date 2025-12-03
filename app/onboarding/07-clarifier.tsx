@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cursor: {
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: 'rgba(65, 105, 225, 0.9)',
     fontWeight: '400',
   },
 });

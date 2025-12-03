@@ -249,6 +249,8 @@ export const MixpanelEvents = {
   DECISION_CREATED: 'Decision Created',
   DECISION_ANALYZED: 'Decision Analyzed',
   DECISION_SIMULATED: 'Decision Simulated',
+  DECISION_SHARED: 'Decision Shared',
+  DECISION_SHARE_OPENED: 'Decision Share Opened',
 
   // Premium
   PREMIUM_SCREEN_VIEWED: 'Premium Screen Viewed',
@@ -267,5 +269,8 @@ export const MixpanelEvents = {
   PROFILE_UPDATED: 'Profile Updated',
   RELATIONSHIP_ADDED: 'Relationship Added',
   JOURNAL_ENTRY_CREATED: 'Journal Entry Created',
+
+  // Reviews
+  REVIEW_PROMPT_REQUESTED: 'Review Prompt Requested',
 } as const;
 

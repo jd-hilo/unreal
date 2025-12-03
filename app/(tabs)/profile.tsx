@@ -1,14 +1,14 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, Clipboard, Linking, Modal, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, Clipboard, Linking, Modal, Animated, Dimensions } from 'react-native';
 import Svg, { Circle, Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { CheckCircle2, Circle as CircleIcon, Edit3, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut, Sparkles } from 'lucide-react-native';
+import { CheckCircle2, Circle as CircleIcon, Edit3, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut, Sparkles, Trash2 } from 'lucide-react-native';
 import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode, getInterestProgressNew, updateProfileFields } from '@/lib/storage';
 import { resetDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent } from '@/lib/mixpanel';
@@ -18,6 +18,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useTextScramble } from '@/hooks/useTextScramble';
 import * as Haptics from 'expo-haptics';
+
+const { width } = Dimensions.get('window');
+const CARD_GAP = 12;
+const GRID_CARD_WIDTH = (width - 40 - CARD_GAP) / 2;
 
 interface ProfileCard {
   id: string;
@@ -137,111 +141,88 @@ export default function ProfileScreen() {
   const cards: ProfileCard[] = [
     {
       id: '02-now',
-      title: 'Current Life Situation',
-      subtitle: lifeSituationResp
-        ? (lifeSituationResp as string).substring(0, 50) + '...'
-        : 'Where are you in life right now?',
+      title: 'Life Situation',
+      subtitle: 'Where are you now?',
       route: '/profile/edit-lifesituation' as any,
       completed: !!lifeSituationResp,
     },
     {
       id: '02-path',
       title: 'Life Journey',
-      subtitle: onboardingResponses['02-path']
-        ? onboardingResponses['02-path'].substring(0, 50) + '...'
-        : 'How did you get here?',
+      subtitle: 'How did you get here?',
       route: '/profile/edit-lifejourney' as any,
       completed: !!onboardingResponses['02-path'],
     },
     {
       id: '01-values',
       title: 'Core Values',
-      subtitle: coreValuesResp
-        ? (coreValuesResp as string).substring(0, 50) + '...'
-        : 'What matters most to you?',
+      subtitle: 'What matters most?',
       route: '/profile/edit-values' as any,
       completed: !!coreValuesResp,
     },
     {
       id: '04-style',
-      title: 'Decision-Making Style',
-      subtitle: onboardingResponses['04-style']
-        ? onboardingResponses['04-style'].substring(0, 50) + '...'
-        : 'How do you usually make big decisions?',
+      title: 'Decision Style',
+      subtitle: 'How do you decide?',
       route: '/profile/edit-decisionstyle' as any,
       completed: !!onboardingResponses['04-style'],
     },
     {
       id: '05-day',
       title: 'Typical Day',
-      subtitle: onboardingResponses['05-day']
-        ? onboardingResponses['05-day'].substring(0, 50) + '...'
-        : 'Walk me through a typical day',
+      subtitle: 'Walk through a day',
       route: '/profile/edit-typicalday' as any,
       completed: !!onboardingResponses['05-day'],
     },
     {
       id: '06-stress',
       title: 'Stress Response',
-      subtitle: onboardingResponses['06-stress']
-        ? onboardingResponses['06-stress'].substring(0, 50) + '...'
-        : 'When things get hard, how do you react?',
+      subtitle: 'Reaction to stress',
       route: '/profile/edit-stress' as any,
       completed: !!onboardingResponses['06-stress'],
     },
     {
       id: 'university',
       title: 'Education',
-      subtitle: university || 'Add your university',
+      subtitle: 'University details',
       route: '/profile/edit-university' as any,
       completed: !!university,
     },
     {
       id: 'hometown',
       title: 'Hometown',
-      subtitle: hometown || 'Where did you grow up?',
+      subtitle: 'Where you grew up',
       route: '/profile/edit-hometown' as any,
       completed: !!hometown,
     },
     {
       id: 'current_location',
-      title: 'Current Location',
-      subtitle: currentLocation || 'Where do you live now?',
+      title: 'Location',
+      subtitle: 'Where you live',
       route: '/profile/edit-location' as any,
       completed: !!currentLocation,
     },
     {
       id: 'net_worth',
       title: 'Net Worth',
-      subtitle: netWorth || 'Your approximate net worth',
+      subtitle: 'Financial status',
       route: '/profile/edit-networth' as any,
       completed: !!netWorth,
     },
     {
       id: 'political_views',
-      title: 'Political Views',
-      subtitle: politicalViews || 'Your political perspective',
+      title: 'Politics',
+      subtitle: 'Your perspective',
       route: '/profile/edit-politics' as any,
       completed: !!politicalViews,
     },
     {
       id: 'relationships',
       title: 'Relationships',
-      subtitle: hasRelationships 
-        ? 'Manage your relationships'
-        : 'Add people who influence your decisions',
+      subtitle: 'Key people',
       route: '/relationships',
       completed: hasRelationships,
     },
-    // {
-    //   id: 'interests',
-    //   title: 'Interests',
-    //   subtitle: interestProgress > 0
-    //     ? `${interestProgress}% complete - Your interests`
-    //     : 'Select your favorite food, music, movies, and more',
-    //   route: '/interests',
-    //   completed: interestProgress > 0,
-    // },
   ];
 
   const completedCount = cards.filter(card => card.completed).length;
@@ -294,6 +275,14 @@ export default function ProfileScreen() {
       <View style={styles.backgroundGradient}>
         <StatusBar style="light" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          {/* Back Button */}
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={styles.backButton}
+          >
+            <ArrowLeft size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          
           <ScrollView 
             style={styles.scrollView}
             contentContainerStyle={styles.content}
@@ -301,7 +290,16 @@ export default function ProfileScreen() {
           >
             {/* Profile Avatar Section */}
             <View style={styles.profileSection}>
-              <View style={styles.avatarWrapper}>
+              {totalProgress === 100 && (
+                <LinearGradient
+                  colors={['rgba(135, 206, 250, 0.3)', 'rgba(100, 149, 237, 0.2)', 'rgba(65, 105, 225, 0.15)', 'transparent']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.fullyTrainedGlow}
+                  pointerEvents="none"
+                />
+              )}
+              <View style={[styles.avatarWrapper, totalProgress === 100 && styles.fullyTrainedWrapper]}>
                 {/* Circular Progress Ring */}
                 <Svg width={140} height={140} style={styles.progressRing}>
                   <Defs>
@@ -373,9 +371,6 @@ export default function ProfileScreen() {
                 {/* Percentage Badge */}
                 <View style={styles.percentageBadgeWrapper}>
                   <BlurView intensity={80} tint="dark" style={styles.percentageBadge}>
-                    {/* Classic glass border */}
-                    <View style={styles.badgeGlassBorder} />
-                    {/* Subtle inner highlight */}
                     <LinearGradient
                       colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
                       start={{ x: 0, y: 0 }}
@@ -425,14 +420,6 @@ export default function ProfileScreen() {
             {!profileData?.first_name && (
               <View style={styles.firstNameSection}>
                 <BlurView intensity={80} tint="dark" style={styles.firstNameCard}>
-                  <View style={styles.glassBorder} />
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={styles.glassHighlight}
-                    pointerEvents="none"
-                  />
                   <View style={styles.firstNameCardInner}>
                     <Text style={styles.firstNameTitle}>What's your first name?</Text>
                     <Input
@@ -470,29 +457,16 @@ export default function ProfileScreen() {
             )}
 
             {/* Premium Section */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionHeaderText}>Premium</Text>
-            </View>
             <TouchableOpacity
-              style={styles.premiumCardWrapper}
+              style={styles.largeCardWrapper}
               onPress={() => !isPremium && router.push('/premium' as any)}
               activeOpacity={isPremium ? 1 : 0.85}
               disabled={isPremium}
             >
-              <BlurView intensity={80} tint="dark" style={styles.premiumCard}>
-                {/* Classic glass border */}
-                <View style={styles.glassBorder} />
-                {/* Subtle inner highlight */}
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.glassHighlight}
-                  pointerEvents="none"
-                />
-                <View style={styles.premiumCardInner}>
+              <BlurView intensity={40} tint="dark" style={styles.largeCard}>
+                <View style={styles.largeCardContent}>
                   <View style={styles.premiumRow}>
-                    <View style={styles.premiumImageContainer}>
+                    <View style={styles.premiumIconContainer}>
                       <Image 
                         source={require('@/assets/images/premium.png')}
                         style={styles.premiumImage}
@@ -512,56 +486,43 @@ export default function ProfileScreen() {
                       )}
                       <Text style={styles.premiumSubtitle}>
                         {isPremium 
-                          ? 'Full access to biometrics & simulations'
-                          : 'Unlock biometrics and life trajectory simulations'
+                          ? 'Full access enabled'
+                          : 'Unlock biometrics & simulations'
                         }
                       </Text>
                     </View>
-                    {!isPremium && <ChevronRight size={20} color="rgba(255,255,255,0.6)" />}
+                    {!isPremium && <ChevronRight size={20} color="rgba(255,255,255,0.4)" />}
                   </View>
                 </View>
               </BlurView>
             </TouchableOpacity>
 
             {/* Daily Section */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionHeaderText}>Daily</Text>
-            </View>
             <TouchableOpacity
-              style={styles.journalCardWrapper}
+              style={styles.largeCardWrapper}
               onPress={() => router.push('/journal' as any)}
               activeOpacity={0.85}
             >
-              <BlurView intensity={80} tint="dark" style={styles.journalCard}>
-                {/* Classic glass border */}
-                <View style={styles.glassBorder} />
-                {/* Subtle inner highlight */}
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.glassHighlight}
-                  pointerEvents="none"
-                />
-                <View style={styles.journalCardInner}>
-                  <View style={styles.journalRow}>
+              <BlurView intensity={40} tint="dark" style={styles.largeCard}>
+                <View style={styles.largeCardContent}>
+                  <View style={styles.premiumRow}>
                     <View style={styles.journalIconContainer}>
                       {journalComplete ? (
-                        <CheckCircle2 size={24} color="rgba(135, 206, 250, 0.9)" strokeWidth={2.5} />
+                        <CheckCircle2 size={24} color="#87CEFA" strokeWidth={2.5} />
                       ) : (
-                        <BookOpen size={24} color="rgba(135, 206, 250, 0.9)" strokeWidth={2} />
+                        <BookOpen size={24} color="#FFFFFF" strokeWidth={2} />
                       )}
                     </View>
-                    <View style={styles.journalContent}>
-                      <Text style={styles.journalTitle}>Daily Journal</Text>
-                      <Text style={styles.journalSubtitle}>
+                    <View style={styles.premiumContent}>
+                      <Text style={styles.premiumTitle}>Daily Journal</Text>
+                      <Text style={styles.premiumSubtitle}>
                         {journalComplete 
                           ? "Today's journal complete"
-                          : 'Journal your days and help your twin understand you'
+                          : 'Log your day to train twin'
                         }
                       </Text>
                     </View>
-                    <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
+                    <ChevronRight size={20} color="rgba(255,255,255,0.4)" />
                   </View>
                 </View>
               </BlurView>
@@ -571,40 +532,25 @@ export default function ProfileScreen() {
             {cards.filter(card => !card.completed).length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionHeaderText}>To Complete</Text>
+                  <Text style={styles.sectionTitle}>To Complete</Text>
                 </View>
-                <View style={styles.cards}>
+                <View style={styles.gridContainer}>
                 {cards.filter(card => !card.completed).map((card) => (
                   <TouchableOpacity
                     key={card.id}
-                    style={styles.cardWrapper}
+                    style={styles.gridCardWrapper}
                     onPress={() => handleCardPress(card)}
                     activeOpacity={0.85}
                   >
-                    <BlurView intensity={80} tint="dark" style={styles.card}>
-                      {/* Classic glass border */}
-                      <View style={styles.cardGlassBorder} />
-                      {/* Subtle inner highlight */}
-                      <LinearGradient
-                        colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={styles.cardGlassHighlight}
-                        pointerEvents="none"
-                      />
-                      <View style={styles.cardInner}>
+                    <BlurView intensity={40} tint="dark" style={styles.gridCard}>
+                      <View style={styles.gridCardContent}>
                         <View style={styles.cardIconContainer}>
-                          <CircleIcon size={20} color="rgba(150, 150, 150, 0.6)" strokeWidth={2} />
+                          <CircleIcon size={24} color="rgba(255, 255, 255, 0.3)" strokeWidth={2} />
                         </View>
-                        <View style={styles.cardContent}>
-                          <Text style={styles.cardTitle}>{card.title}</Text>
-                          <Text style={styles.cardSubtitle} numberOfLines={2}>
-                            {card.subtitle}
-                          </Text>
-                        </View>
-                        <View style={styles.cardAction}>
-                          <Edit3 size={18} color="rgba(150, 150, 150, 0.6)" />
-                        </View>
+                        <Text style={styles.gridCardTitle} numberOfLines={1}>{card.title}</Text>
+                        <Text style={styles.gridCardSubtitle} numberOfLines={2}>
+                          {card.subtitle}
+                        </Text>
                       </View>
                     </BlurView>
                   </TouchableOpacity>
@@ -617,40 +563,25 @@ export default function ProfileScreen() {
             {cards.filter(card => card.completed).length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionHeaderText}>Profile</Text>
+                  <Text style={styles.sectionTitle}>Completed</Text>
                 </View>
-                <View style={styles.cards}>
+                <View style={styles.gridContainer}>
                 {cards.filter(card => card.completed).map((card) => (
                   <TouchableOpacity
                     key={card.id}
-                    style={styles.cardWrapper}
+                    style={styles.gridCardWrapper}
                     onPress={() => handleCardPress(card)}
                     activeOpacity={0.85}
                   >
-                    <BlurView intensity={80} tint="dark" style={styles.card}>
-                      {/* Classic glass border */}
-                      <View style={styles.cardGlassBorder} />
-                      {/* Subtle inner highlight */}
-                      <LinearGradient
-                        colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={styles.cardGlassHighlight}
-                        pointerEvents="none"
-                      />
-                      <View style={styles.cardInner}>
+                    <BlurView intensity={20} tint="dark" style={styles.gridCard}>
+                      <View style={styles.gridCardContent}>
                         <View style={styles.cardIconContainer}>
-                          <CheckCircle2 size={20} color="rgba(135, 206, 250, 0.9)" strokeWidth={2.5} />
+                          <CheckCircle2 size={24} color="#87CEFA" strokeWidth={2.5} />
                         </View>
-                        <View style={styles.cardContent}>
-                          <Text style={styles.cardTitle}>{card.title}</Text>
-                          <Text style={styles.cardSubtitle} numberOfLines={2}>
-                            {card.subtitle}
-                          </Text>
-                        </View>
-                        <View style={styles.cardAction}>
-                          <Edit3 size={18} color="rgba(150, 150, 150, 0.6)" />
-                        </View>
+                        <Text style={styles.gridCardTitle} numberOfLines={1}>{card.title}</Text>
+                        <Text style={styles.gridCardSubtitle} numberOfLines={2}>
+                          {card.subtitle}
+                        </Text>
                       </View>
                     </BlurView>
                   </TouchableOpacity>
@@ -661,94 +592,46 @@ export default function ProfileScreen() {
 
             {/* Account Section */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionHeaderText}>Account</Text>
+              <Text style={styles.sectionTitle}>Account</Text>
             </View>
-            <View style={styles.feedbackButtonWrapper}>
-              <BlurView intensity={80} tint="dark" style={styles.feedbackButton}>
-                {/* Classic glass border */}
-                <View style={styles.buttonGlassBorder} />
-                {/* Subtle inner highlight */}
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.buttonGlassHighlight}
-                  pointerEvents="none"
-                />
-                <TouchableOpacity
-                  onPress={handleSendFeedback}
-                  activeOpacity={0.9}
-                  style={styles.feedbackButtonInner}
-                >
-                  <Mail size={20} color="#FFFFFF" />
-                  <Text style={styles.feedbackText}>Send Feedback</Text>
-                  <ChevronRight size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </BlurView>
-            </View>
-
-            <View style={styles.feedbackButtonWrapper}>
-              <BlurView intensity={80} tint="dark" style={styles.feedbackButton}>
-                {/* Classic glass border */}
-                <View style={styles.buttonGlassBorder} />
-                {/* Subtle inner highlight */}
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.buttonGlassHighlight}
-                  pointerEvents="none"
-                />
-                <TouchableOpacity
-                  onPress={handleShowProductGuide}
-                  activeOpacity={0.9}
-                  style={styles.feedbackButtonInner}
-                >
-                  <Sparkles size={20} color="#FFFFFF" />
-                  <Text style={styles.feedbackText}>Show Product Guide</Text>
-                  <ChevronRight size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </BlurView>
-            </View>
-
-            <View style={styles.signOutButtonWrapper}>
-              <BlurView intensity={80} tint="dark" style={styles.signOutButton}>
-                {/* Classic glass border */}
-                <View style={styles.buttonGlassBorder} />
-                {/* Subtle inner highlight */}
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.buttonGlassHighlight}
-                  pointerEvents="none"
-                />
-                <TouchableOpacity
-                  onPress={handleSignOut}
-                  activeOpacity={0.9}
-                  style={styles.signOutButtonInner}
-                >
-                  <LogOut size={20} color="#FFFFFF" />
-                  <Text style={styles.signOutText}>Sign Out</Text>
-                  <ChevronRight size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </BlurView>
-            </View>
-
-            <TouchableOpacity
-              onPress={handleDeleteAccount}
-              style={styles.deleteButton}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={['rgba(25, 10, 10, 0.95)', 'rgba(60, 15, 15, 0.9)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.deleteButtonInner}
+            
+            <View style={styles.accountButtons}>
+              <TouchableOpacity
+                onPress={handleSendFeedback}
+                style={styles.accountButton}
               >
-                <Text style={styles.deleteText}>Delete Account</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <Mail size={20} color="#FFFFFF" />
+                <Text style={styles.accountButtonText}>Send Feedback</Text>
+                <ChevronRight size={20} color="#666" style={styles.chevron} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleShowProductGuide}
+                style={styles.accountButton}
+              >
+                <Sparkles size={20} color="#FFFFFF" />
+                <Text style={styles.accountButtonText}>Show Product Guide</Text>
+                <ChevronRight size={20} color="#666" style={styles.chevron} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleSignOut}
+                style={styles.accountButton}
+              >
+                <LogOut size={20} color="#FFFFFF" />
+                <Text style={styles.accountButtonText}>Sign Out</Text>
+                <ChevronRight size={20} color="#666" style={styles.chevron} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleDeleteAccount}
+                style={[styles.accountButton, styles.deleteButton]}
+              >
+                <Trash2 size={20} color="#EF4444" />
+                <Text style={[styles.accountButtonText, styles.deleteText]}>Delete Account</Text>
+              </TouchableOpacity>
+            </View>
+
           </ScrollView>
         </SafeAreaView>
 
@@ -829,22 +712,33 @@ const styles = StyleSheet.create({
   },
   backgroundGradient: {
     flex: 1,
-    backgroundColor: '#0C0C10',
+    backgroundColor: '#050505',
   },
   safeArea: {
     flex: 1,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 60,
     paddingBottom: 100,
   },
   profileSection: {
     alignItems: 'center',
     marginBottom: 32,
     marginTop: 8,
+    position: 'relative',
   },
   avatarWrapper: {
     width: 140,
@@ -853,6 +747,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
     position: 'relative',
+  },
+  fullyTrainedWrapper: {
+    shadowColor: '#87CEFA',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  fullyTrainedGlow: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    top: -20,
+    left: '50%',
+    marginLeft: -90,
+    zIndex: 0,
   },
   progressRing: {
     position: 'absolute',
@@ -875,27 +786,6 @@ const styles = StyleSheet.create({
     width: '80%',
     height: '80%',
   },
-  proBadge: {
-    position: 'absolute',
-    bottom: 0,
-    left: '50%',
-    transform: [{ translateX: -30 }],
-    backgroundColor: '#FFD700',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    minWidth: 60,
-    alignItems: 'center',
-    zIndex: 2,
-    borderWidth: 1,
-    borderColor: '#FFA500',
-  },
-  proBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#000000',
-    textTransform: 'uppercase',
-  },
   percentageBadgeWrapper: {
     position: 'absolute',
     bottom: -8,
@@ -915,17 +805,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  badgeGlassBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
   },
   badgeGlassHighlight: {
     position: 'absolute',
@@ -965,11 +844,6 @@ const styles = StyleSheet.create({
   copyButtonWrapper: {
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.3)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
   copyButton: {
     borderRadius: 12,
@@ -986,11 +860,6 @@ const styles = StyleSheet.create({
   infoButtonWrapper: {
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.3)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
   infoButton: {
     borderRadius: 12,
@@ -1004,21 +873,183 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     zIndex: 1,
   },
-  editProfileButton: {
+  largeCardWrapper: {
+    marginBottom: 16,
+    borderRadius: 32,
+    overflow: 'hidden',
+  },
+  largeCard: {
+    borderRadius: 32,
+    backgroundColor: '#1A1A1A',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  largeCardContent: {
+    padding: 20,
+  },
+  premiumRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  premiumIconContainer: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumImage: {
+    width: 48,
+    height: 48,
+  },
+  journalIconContainer: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumContent: {
+    flex: 1,
+  },
+  premiumTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    marginBottom: 4,
   },
-  editProfileText: {
+  premiumTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  activeTag: {
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  activeTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#000000',
+    textTransform: 'uppercase',
+  },
+  premiumSubtitle: {
     fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  sectionHeader: {
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: CARD_GAP,
+  },
+  gridCardWrapper: {
+    width: GRID_CARD_WIDTH,
+    height: GRID_CARD_WIDTH * 0.8,
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginBottom: CARD_GAP,
+  },
+  gridCard: {
+    flex: 1,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  gridCardContent: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'center',
+  },
+  cardIconContainer: {
+    marginBottom: 12,
+  },
+  gridCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  gridCardSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  accountButtons: {
+    gap: 8,
+    marginBottom: 40,
+  },
+  accountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    gap: 12,
+  },
+  accountButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  chevron: {
+    opacity: 0.5,
+  },
+  deleteButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  deleteText: {
+    color: '#EF4444',
+  },
+  firstNameSection: {
+    marginBottom: 20,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  firstNameCard: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  firstNameCardInner: {
+    padding: 20,
+    zIndex: 1,
+  },
+  firstNameTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  firstNameInputContainer: {
+    marginBottom: 16,
+  },
+  firstNameInput: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  firstNameButton: {
+    width: '100%',
   },
   infoModalOverlay: {
     flex: 1,
@@ -1059,13 +1090,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 2,
     borderColor: 'rgba(183, 149, 255, 0.3)',
-  },
-  infoModalTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    fontFamily: 'Courier New',
-    letterSpacing: 2,
   },
   codeDisplayBox: {
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -1138,417 +1162,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Courier New',
     color: 'rgba(183, 149, 255, 0.6)',
     letterSpacing: 1,
-  },
-  progressCard: {
-    marginBottom: 24,
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  progressCardInner: {
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
-    borderRadius: 24,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  compassIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(110, 61, 240, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cubeIcon: {
-    width: 24,
-    height: 24,
-  },
-  progressTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-  },
-  progressSubtitle: {
-    fontSize: 13,
-    color: 'rgba(200, 200, 200, 0.75)',
-    marginTop: 12,
-  },
-  journalCardWrapper: {
-    marginBottom: 32,
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  journalCard: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  journalCardInner: {
-    padding: 20,
-    borderRadius: 24,
-    zIndex: 1,
-  },
-  journalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  journalIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  journalContent: {
-    flex: 1,
-  },
-  journalTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 4,
-    fontFamily: 'Inter-SemiBold',
-  },
-  journalSubtitle: {
-    fontSize: 13,
-    color: 'rgba(200, 200, 200, 0.75)',
-    lineHeight: 18,
-  },
-  sectionHeader: {
-    marginTop: 24,
-    marginBottom: 12,
-    paddingHorizontal: 24,
-  },
-  sectionHeaderText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.6)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  cards: {
-    gap: 12,
-    marginBottom: 32,
-  },
-  cardWrapper: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.4)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  card: {
-    borderRadius: 20,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  cardGlassBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
-  },
-  cardGlassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 20,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  cardInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 18,
-    gap: 14,
-    zIndex: 1,
-  },
-  cardIconContainer: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardContent: {
-    flex: 1,
-    gap: 4,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 2,
-    fontFamily: 'Inter-SemiBold',
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    color: 'rgba(200, 200, 200, 0.75)',
-    lineHeight: 18,
-  },
-  cardAction: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  feedbackButtonWrapper: {
-    marginTop: 16,
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  feedbackButton: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  buttonGlassBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
-  },
-  buttonGlassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  feedbackButtonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    gap: 10,
-    borderRadius: 24,
-    zIndex: 1,
-  },
-  feedbackText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  signOutButtonWrapper: {
-    marginTop: 12,
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  signOutButton: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  signOutButtonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    gap: 10,
-    borderRadius: 24,
-    zIndex: 1,
-  },
-  signOutText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  deleteButton: {
-    marginTop: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  deleteButtonInner: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.4)',
-    borderRadius: 16,
-  },
-  deleteText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
-  premiumCardWrapper: {
-    marginBottom: 20,
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  premiumCard: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  glassBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
-  },
-  glassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  premiumCardInner: {
-    padding: 16,
-    borderRadius: 24,
-    zIndex: 1,
-  },
-  premiumRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  premiumImageContainer: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  premiumImage: {
-    width: 28,
-    height: 28,
-  },
-  premiumContent: {
-    flex: 1,
-  },
-  premiumTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
-  premiumTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-  },
-  activeTag: {
-    backgroundColor: '#FFD700',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  activeTagText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#000000',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  premiumSubtitle: {
-    fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.75)',
-    lineHeight: 16,
-  },
-  firstNameSection: {
-    marginBottom: 20,
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  firstNameCard: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  firstNameCardInner: {
-    padding: 20,
-    zIndex: 1,
-  },
-  firstNameTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 16,
-    fontFamily: 'Inter-SemiBold',
-  },
-  firstNameInputContainer: {
-    marginBottom: 16,
-  },
-  firstNameInput: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#FFFFFF',
-  },
-  firstNameButton: {
-    width: '100%',
   },
 });

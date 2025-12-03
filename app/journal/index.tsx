@@ -4,10 +4,12 @@ import { useState, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { getJournals, getTodayJournal } from '@/lib/storage';
 import { Button } from '@/components/Button';
-import { Plus, BookOpen, Smile, Meh, Frown } from 'lucide-react-native';
+import { Plus, BookOpen, Smile, Meh, Frown, ArrowLeft } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 interface Journal {
   id: string;
@@ -77,61 +79,71 @@ export default function JournalScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Journal</Text>
-        <Text style={styles.subtitle}>
-          Share your daily experiences to help your digital twin understand you better
-        </Text>
-      </View>
+    <View style={styles.screen}>
+      <StatusBar style="light" />
+      <LinearGradient
+        colors={['#050505', '#0F0F18', '#0D0D15', '#050505']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.backgroundGradient}
+      >
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <ArrowLeft size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Journal</Text>
+            <Text style={styles.subtitle}>
+              Share your daily experiences to help your digital twin understand you better
+            </Text>
+          </View>
 
       <ScrollView 
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        <BlurView intensity={80} tint="dark" style={styles.todayCard}>
-          <LinearGradient
-            colors={['rgba(135, 206, 250, 0.1)', 'transparent']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.glassHighlight}
-          />
-          {todayJournal ? (
-            <>
-              <View style={styles.todayComplete}>
-                {getMoodEmoji(todayJournal.mood)}
-              </View>
-              <Text style={styles.todayTitle}>Today's journal complete!</Text>
-              <Text style={styles.todayText}>
-                {getMoodLabel(todayJournal.mood)}
-              </Text>
-              <Button
-                title="View Today's Entry"
-                onPress={handleAddJournal}
-                size="medium"
-                variant="outline"
-                style={styles.todayButton}
-              />
-            </>
-          ) : (
-            <>
-              <View style={styles.todayIconContainer}>
-                <BookOpen size={32} color="rgba(135, 206, 250, 0.8)" />
-              </View>
-              <Text style={styles.todayTitle}>How are you feeling today?</Text>
-              <Button
-                title="Begin"
-                onPress={handleAddJournal}
-                size="medium"
-                style={styles.todayButton}
-              />
-            </>
-          )}
-        </BlurView>
+        <View style={styles.todayCardWrapper}>
+          <View style={styles.todayCard}>
+            <BlurView intensity={80} tint="dark" style={styles.todayCardBlur}>
+              {todayJournal ? (
+                <View style={styles.todayCardContent}>
+                  <View style={styles.todayIconContainer}>
+                    {getMoodEmoji(todayJournal.mood)}
+                  </View>
+                  <Text style={styles.todayCardTitle}>Today's journal complete!</Text>
+                  <Text style={styles.todayCardSubtitle}>
+                    {getMoodLabel(todayJournal.mood)}
+                  </Text>
+                  <View style={styles.todayButtonContainer}>
+                    <Button
+                      title="View Today's Entry"
+                      onPress={handleAddJournal}
+                      size="medium"
+                      variant="outline"
+                      style={styles.todayButton}
+                    />
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.todayCardContent}>
+                  <View style={styles.todayIconContainer}>
+                    <BookOpen size={32} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.todayCardTitle}>How are you feeling today?</Text>
+                  <View style={styles.todayButtonContainer}>
+                    <Button
+                      title="Begin"
+                      onPress={handleAddJournal}
+                      size="medium"
+                      style={styles.todayButton}
+                    />
+                  </View>
+                </View>
+              )}
+            </BlurView>
+          </View>
+        </View>
 
         {journals.length === 0 && !loading ? (
           <BlurView intensity={80} tint="dark" style={styles.emptyCard}>
@@ -157,68 +169,67 @@ export default function JournalScreen() {
                 activeOpacity={0.8}
               >
                 <View style={styles.journalCardWrapper}>
-                  <BlurView intensity={80} tint="dark" style={styles.journalCard}>
-                    <LinearGradient
-                      colors={['rgba(135, 206, 250, 0.08)', 'transparent']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.glassHighlightCard}
-                    />
-                    <View style={styles.journalIcon}>
-                      {getMoodEmoji(journal.mood)}
-                    </View>
-                    <View style={styles.journalContent}>
-                      <View style={styles.journalHeader}>
-                        <View style={styles.journalHeaderLeft}>
-                          <Text style={styles.journalDate}>
+                  <View style={styles.journalCard}>
+                    <BlurView intensity={80} tint="dark" style={styles.journalCardBlur}>
+                      <View style={styles.journalCardContent}>
+                        <View style={styles.journalIcon}>
+                          {getMoodEmoji(journal.mood)}
+                        </View>
+                        <View style={styles.journalTextContent}>
+                          <Text style={styles.journalCardTitle}>
                             {format(new Date(journal.created_at), 'MMM d, yyyy')}
                           </Text>
-                          <View style={styles.journalMoodBadge}>
-                            <Text style={styles.journalMood}>
-                              {getMoodLabel(journal.mood)}
+                          <Text style={styles.journalCardSubtitle}>
+                            {getMoodLabel(journal.mood)}
+                          </Text>
+                          {journal.text && (
+                            <Text style={styles.journalPreview} numberOfLines={2}>
+                              {journal.text}
                             </Text>
-                          </View>
+                          )}
                         </View>
                       </View>
-                      {journal.text && (
-                        <Text style={styles.journalPreview} numberOfLines={3}>
-                          {journal.text}
-                        </Text>
-                      )}
-                    </View>
-                  </BlurView>
+                    </BlurView>
+                  </View>
                 </View>
               </TouchableOpacity>
             ))}
           </View>
         )}
       </ScrollView>
+        </SafeAreaView>
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: '#0C0C10',
+    backgroundColor: '#000000',
+  },
+  backgroundGradient: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
   },
   header: {
-    paddingTop: 60,
     paddingHorizontal: 24,
+    paddingTop: 8,
     paddingBottom: 24,
-    backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(135, 206, 250, 0.15)',
+    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
   backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
   },
-  backText: {
-    fontSize: 16,
-    color: 'rgba(135, 206, 250, 0.8)',
-  },
   title: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 8,
@@ -226,78 +237,56 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(135, 206, 250, 0.7)',
-    fontWeight: '500',
+    color: 'rgba(200, 200, 200, 0.75)',
+    lineHeight: 24,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    padding: 24,
+    paddingHorizontal: 20,
+    paddingTop: 32,
     paddingBottom: 40,
     gap: 24,
   },
-  todayCard: {
-    alignItems: 'center',
-    padding: 32,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    borderRadius: 24,
-    borderWidth: 1.5,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+  todayCardWrapper: {
+    borderRadius: 32,
     overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 8,
   },
-  glassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
+  todayCard: {
+    borderRadius: 32,
+    overflow: 'hidden',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  todayCardBlur: {
+    padding: 20,
+  },
+  todayCardContent: {
+    alignItems: 'flex-start',
+    gap: 16,
   },
   todayIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(20, 30, 50, 0.4)',
-    alignItems: 'center',
+    width: 48,
+    height: 48,
     justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.2)',
+    marginBottom: 4,
   },
-  todayIcon: {
-    marginBottom: 12,
-  },
-  todayComplete: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  todayTitle: {
+  todayCardTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 8,
-    letterSpacing: -0.2,
-    textAlign: 'center',
+    marginBottom: 4,
   },
-  todayText: {
-    fontSize: 15,
-    color: 'rgba(135, 206, 250, 0.7)',
-    textAlign: 'center',
-    marginBottom: 20,
-    fontWeight: '500',
+  todayCardSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    marginBottom: 8,
+  },
+  todayButtonContainer: {
+    width: '100%',
+    marginTop: 8,
   },
   todayButton: {
     minWidth: 200,
@@ -307,14 +296,9 @@ const styles = StyleSheet.create({
     padding: 40,
     backgroundColor: 'rgba(20, 30, 50, 0.3)',
     borderRadius: 24,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: 'rgba(135, 206, 250, 0.3)',
     overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.3)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 4,
   },
   emptyIcon: {
     marginBottom: 20,
@@ -344,76 +328,43 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   journalCardWrapper: {
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderRadius: 32,
     overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.4)',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 5,
   },
   journalCard: {
+    borderRadius: 32,
+    overflow: 'hidden',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  journalCardBlur: {
+    padding: 20,
+  },
+  journalCardContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    borderRadius: 20,
-    padding: 18,
-    overflow: 'hidden',
-  },
-  glassHighlightCard: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
+    gap: 16,
   },
   journalIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(20, 30, 50, 0.5)',
-    alignItems: 'center',
+    width: 48,
+    height: 48,
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(135, 206, 250, 0.25)',
-    marginRight: 14,
   },
-  journalContent: {
+  journalTextContent: {
     flex: 1,
-    gap: 10,
+    gap: 4,
   },
-  journalHeader: {
-    marginBottom: 4,
-  },
-  journalHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  journalDate: {
-    fontSize: 17,
+  journalCardTitle: {
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: -0.2,
-    flex: 1,
+    marginBottom: 4,
   },
-  journalMoodBadge: {
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.25)',
-  },
-  journalMood: {
-    fontSize: 12,
-    color: 'rgba(135, 206, 250, 0.9)',
-    fontWeight: '600',
-    letterSpacing: 0.2,
+  journalCardSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    marginBottom: 8,
   },
   journalPreview: {
     fontSize: 15,

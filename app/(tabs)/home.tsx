@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Platform, Modal, Easing } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Platform, Modal, Easing, Dimensions } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, getInterestProgress, getTodayJournal } from '@/lib/storage';
-import { Compass, Sparkles, Zap, X, Trash2, Lock, ChevronRight } from 'lucide-react-native';
+import { Compass, Sparkles, Zap, X, Trash2, Lock, ChevronRight, HelpCircle, Book, User, History, LayoutGrid, ScanLine } from 'lucide-react-native';
 import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -18,6 +18,10 @@ import { Asset } from 'expo-asset';
 import { ProductGuide } from '@/components/ProductGuide';
 import { getHasSeenDecisionGuide, setHasSeenDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+
+const { width } = Dimensions.get('window');
+const CARD_GAP = 16;
+const CARD_WIDTH = (width - 40 - CARD_GAP) / 2;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -36,81 +40,24 @@ export default function HomeScreen() {
   const [hasCheckedGuide, setHasCheckedGuide] = useState(false);
   const [decisionCardLayout, setDecisionCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const [whatIfCardLayout, setWhatIfCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
+  const [journalCardLayout, setJournalCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
+  const [twinCardLayout, setTwinCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const [guideStep, setGuideStep] = useState(0);
   const whatIfHoverAnim = useRef(new Animated.Value(0)).current;
   const decisionCardRef = useRef<Animated.View>(null);
   const whatIfCardRef = useRef<Animated.View>(null);
+  const journalCardRef = useRef<View>(null);
+  const twinCardRef = useRef<View>(null);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-  const cardHoverAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Preload images
     Asset.fromModule(require('@/assets/images/compass.png')).downloadAsync();
     Asset.fromModule(require('@/assets/images/star.png')).downloadAsync();
   }, []);
-
-  // Hover animation for decision card - only when guide is visible and on step 0
-  useEffect(() => {
-    if (showDecisionGuide && guideStep === 0) {
-      cardHoverAnim.setValue(0);
-      const animation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(cardHoverAnim, {
-            toValue: 1,
-            duration: 2000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(cardHoverAnim, {
-            toValue: 0,
-            duration: 2000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      animation.start();
-      return () => {
-        animation.stop();
-        cardHoverAnim.setValue(0);
-      };
-    } else {
-      cardHoverAnim.setValue(0);
-    }
-  }, [showDecisionGuide, guideStep]);
-
-  // Hover animation for what-if card - only when guide is on step 1
-  useEffect(() => {
-    if (showDecisionGuide && guideStep === 1) {
-      whatIfHoverAnim.setValue(0);
-      const animation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(whatIfHoverAnim, {
-            toValue: 1,
-            duration: 2000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(whatIfHoverAnim, {
-            toValue: 0,
-            duration: 2000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      animation.start();
-      return () => {
-        animation.stop();
-        whatIfHoverAnim.setValue(0);
-      };
-    } else {
-      whatIfHoverAnim.setValue(0);
-    }
-  }, [showDecisionGuide, guideStep]);
 
   useEffect(() => {
     if (!user) {
@@ -171,16 +118,9 @@ export default function HomeScreen() {
     try {
       const profile = await getProfile(user.id);
       
-      console.log('Home screen - loaded profile:', profile);
-      console.log('Home screen - first_name from profile:', profile?.first_name);
-      
-      // Only use first_name from profile, don't use fallbacks
       if (profile?.first_name) {
-        console.log('Setting userName to first_name:', profile.first_name);
         setUserName(profile.first_name);
       } else {
-        // Set to empty string if no first_name, so we don't show "there"
-        console.log('first_name not found, setting userName to empty');
         setUserName('');
       }
 
@@ -197,7 +137,6 @@ export default function HomeScreen() {
       setHasTodayJournal(!!todayJournal);
 
       // Check if we should show the decision guide
-      // Show if: onboarding complete, hasn't seen guide, and has 0 decisions
       await checkGuideStatus();
       
       // Calculate profile progress
@@ -260,6 +199,9 @@ export default function HomeScreen() {
       if (isAvailable) {
         await StoreReview.requestReview();
         await AsyncStorage.setItem('hasRequestedRating', 'true');
+        
+        // Track review prompt requested
+        trackEvent(MixpanelEvents.REVIEW_PROMPT_REQUESTED);
       }
     } catch (error) {
       console.warn('Failed to show rating prompt:', error);
@@ -320,13 +262,13 @@ export default function HomeScreen() {
   const echoEntries = [
     ...recentDecisions.map((decision) => ({
         id: decision.id,
-      type: 'decision' as const,
-      title: decision.question || 'Untitled Decision',
+        type: 'decision' as const,
+        title: decision.question || 'Untitled Decision',
         subtitle: getRelativeUpdate(decision.updated_at || decision.created_at),
         detail: decision?.prediction?.prediction || 'Revisit this path.',
         route: `/decision/${decision.id}` as const,
         isPlaceholder: false,
-      timestamp: new Date(decision.updated_at || decision.created_at).getTime(),
+        timestamp: new Date(decision.updated_at || decision.created_at).getTime(),
     })),
     ...recentWhatIfs.map((whatIf) => ({
       id: whatIf.id,
@@ -353,248 +295,217 @@ export default function HomeScreen() {
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.header}>
-              <Text style={styles.greeting}>Welcome back{userName && userName !== 'there' ? ',' : ''}</Text>
-              {userName && userName !== 'there' && (
-                <Text style={styles.userName}>{userName}</Text>
+            {/* Top Bar */}
+            <View style={styles.topBar}>
+              <TouchableOpacity 
+                style={styles.iconButton}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setShowDecisionGuide(true);
+                  setGuideStep(0);
+                }}
+              >
+                <HelpCircle size={24} color="#FFFFFF" strokeWidth={2} />
+              </TouchableOpacity>
+              
+              {(!isPremium || isPremium === undefined) && (
+                <TouchableOpacity 
+                  style={styles.upgradeButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/premium');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['rgba(255, 215, 0, 0.15)', 'rgba(255, 165, 0, 0.1)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.upgradeButtonGradient}
+                  >
+                    <View style={styles.iconWrapper}>
+                      <Image 
+                        source={require('@/assets/images/premium.png')} 
+                        style={styles.premiumIcon} 
+                        resizeMode="contain" 
+                      />
+                    </View>
+                    <Text style={styles.upgradeButtonText}>unlock unreal+</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
               )}
             </View>
 
-            {/* Twin's Understanding Progress Bar - Only show if not complete */}
-            {profileProgress < 100 && (
-              <TouchableOpacity
-                onPress={() => router.push('/(tabs)/profile')}
-                activeOpacity={0.85}
-                style={styles.progressBarContainer}
-              >
-                <LinearGradient
-                  colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.3)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.progressBarGradient}
-                >
-                  <View style={styles.progressBarHeader}>
-                    <Image 
-                      source={require('@/assets/images/cube.png')}
-                      style={styles.progressCubeIcon}
-                      resizeMode="contain"
-                    />
-                    <Text style={styles.progressBarText}>Twin's Understanding</Text>
-                    <Text style={styles.progressPercentage}>{profileProgress}%</Text>
-                  </View>
-                  <View style={styles.thinProgressBar}>
-                    <LinearGradient
-                      colors={['rgba(173, 216, 230, 0.95)', 'rgba(100, 149, 237, 0.9)', 'rgba(65, 105, 225, 0.85)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.thinProgressFill, { width: `${profileProgress}%` }]}
-                    />
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
+            {/* Main Header */}
+            <View style={styles.header}>
+              <Text style={styles.greeting}>
+                <Text style={styles.greetingName}>Hi {userName || 'Friend'},{'\n'}</Text>
+                <Text style={styles.greetingRest}>How can I help{'\n'}you today?</Text>
+              </Text>
+            </View>
 
-            {/* Journal Reminder Banner */}
-            {!hasTodayJournal && (
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/journal' as any);
-                }}
-                activeOpacity={0.85}
-                style={styles.journalBannerContainer}
-              >
-                <BlurView intensity={80} tint="dark" style={styles.journalBanner}>
-                  <View style={styles.journalBannerBorder} />
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={styles.journalBannerHighlight}
-                    pointerEvents="none"
-                  />
-                  <View style={styles.journalBannerContent}>
-                    <View style={styles.journalBannerTextRow}>
-                      <Text style={styles.journalBannerText}>📖 Complete your daily journal</Text>
-                    </View>
-                    <ChevronRight size={18} color="rgba(255, 255, 255, 0.7)" />
-                  </View>
-                </BlurView>
-              </TouchableOpacity>
-            )}
-
-            <View style={styles.actions}>
-              {/* What Should I Choose Card */}
+            {/* Grid Actions */}
+            <View style={styles.gridContainer}>
+              {/* Card 1: Decision */}
               <TouchableOpacity
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   router.push('/decision/new');
                 }}
-                activeOpacity={0.9}
+                activeOpacity={0.8}
+                style={styles.gridCardWrapper}
               >
                 <Animated.View 
-                  style={[
-                    styles.cardWrapperPrimary,
-                    {
-                      transform: [{
-                        translateY: cardHoverAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, -6],
-                        }),
-                      }],
-                    },
-                  ]}
+                  ref={decisionCardRef}
+                  style={styles.gridCard}
+                  onLayout={() => {
+                    decisionCardRef.current?.measureInWindow((x, y, width, height) => {
+                      setDecisionCardLayout({ x, y, width, height });
+                    });
+                  }}
                 >
-                  <BlurView intensity={80} tint="dark" style={styles.actionCard}>
-                    {/* Classic glass border */}
-                    <View style={styles.glassBorder} />
-                    {/* Subtle inner highlight */}
-                    <LinearGradient
-                      colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={styles.glassHighlight}
-                      pointerEvents="none"
-                    />
-                    <View style={styles.cardContentRow}>
-                      <View style={styles.iconCircleContainer}>
-                        {/* Icon without background container */}
-                        <View style={styles.iconRotate}>
-                          <Image 
-                            source={require('@/assets/images/compass.png')}
-                            style={styles.compassImage}
-                            resizeMode="contain"
-                          />
-                        </View>
+                  <BlurView intensity={40} tint="dark" style={styles.gridCardBlur}>
+                    <View style={styles.gridCardContent}>
+                      <View style={styles.gridIconContainer}>
+                        <Image 
+                          source={require('@/assets/images/compass.png')}
+                          style={styles.gridIconImage}
+                          resizeMode="contain"
+                        />
                       </View>
-                      <View style={styles.cardTextContainer}>
-                        <Text style={[styles.actionTitlePrimary, styles.actionTitlePrimaryTight]}>What Should{"\n"}I Choose?</Text>
-                        <Text style={styles.actionSubtitlePrimary}>
-                          Compare options
-                          {"\n"}simulate outcomes
-                        </Text>
-                      </View>
+                      <Text style={styles.gridCardTitle}>Decide</Text>
+                      <Text style={styles.gridCardSubtitle}>Make a choice, simulate the outcomes</Text>
                     </View>
                   </BlurView>
                 </Animated.View>
               </TouchableOpacity>
 
-              {/* What If Card */}
+              {/* Card 2: What If */}
               <TouchableOpacity
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   router.push('/whatif/new');
                 }}
-                activeOpacity={0.9}
+                activeOpacity={0.8}
+                style={styles.gridCardWrapper}
               >
                 <Animated.View 
                   ref={whatIfCardRef}
-                  style={[
-                    styles.cardWrapperSecondary,
-                    {
-                      transform: [{
-                        translateY: whatIfHoverAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, -6],
-                        }),
-                      }],
-                    },
-                  ]}
+                  style={styles.gridCard}
                   onLayout={() => {
                     whatIfCardRef.current?.measureInWindow((x, y, width, height) => {
                       setWhatIfCardLayout({ x, y, width, height });
                     });
                   }}
                 >
-                  <BlurView intensity={80} tint="dark" style={styles.actionCard}>
-                    {/* Classic glass border */}
-                    <View style={styles.glassBorder} />
-                    {/* Subtle inner highlight */}
-                    <LinearGradient
-                      colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={styles.glassHighlight}
-                      pointerEvents="none"
-                    />
-                    <View style={styles.cardContentRow}>
-                      <View style={styles.iconCircleContainer}>
+                  <BlurView intensity={40} tint="dark" style={styles.gridCardBlur}>
+                    <View style={styles.gridCardContent}>
+                      <View style={styles.gridIconContainer}>
                         <Image 
                           source={require('@/assets/images/star.png')}
-                          style={styles.starImage}
+                          style={styles.gridIconImage}
                           resizeMode="contain"
                         />
                       </View>
-                      <View style={styles.cardTextContainer}>
-                        <Text style={styles.actionTitlePrimary}>What If?</Text>
-                        <Text style={styles.actionSubtitlePrimary}>
-                          Explore alternate realities
-                        </Text>
-                      </View>
+                      <Text style={styles.gridCardTitle}>Explore</Text>
+                      <Text style={styles.gridCardSubtitle}>See your alternate life</Text>
                     </View>
                   </BlurView>
                 </Animated.View>
               </TouchableOpacity>
 
-              {/* Unreal Recommendations Banner - Commented out for now */}
-              {false && (
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push('/recommendations' as any);
+              {/* Card 3: Journal */}
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/journal' as any);
+                }}
+                activeOpacity={0.8}
+                style={styles.gridCardWrapper}
+              >
+                <View 
+                  ref={journalCardRef}
+                  style={styles.gridCard}
+                  onLayout={() => {
+                    journalCardRef.current?.measureInWindow((x, y, width, height) => {
+                      setJournalCardLayout({ x, y, width, height });
+                    });
                   }}
-                  activeOpacity={0.9}
                 >
-                  <View style={styles.recommendationsBannerWrapper}>
-                    <BlurView intensity={100} tint="dark" style={styles.recommendationsBanner}>
-                      <LinearGradient
-                        colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)', 'rgba(255, 255, 255, 0.05)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.recommendationsGlassOverlay}
-                        pointerEvents="none"
-                      />
-                      <LinearGradient
-                        colors={['rgba(255, 255, 255, 0.12)', 'transparent']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 0.5 }}
-                        style={styles.recommendationsGlassHighlight}
-                        pointerEvents="none"
-                      />
-                      <View style={styles.recommendationsGlassBorder} />
-                      
-                      <View style={styles.recommendationsBannerContent}>
-                        <View style={styles.recommendationsBannerText}>
-                          <View style={styles.recommendationsTitleRow}>
-                            <View style={styles.recommendationsIconCircle}>
-                              <Sparkles size={18} color="rgba(255, 255, 255, 0.9)" />
-                            </View>
-                            <Text style={styles.recommendationsTitle}>Unreal Recommendations</Text>
-                          </View>
-                          <Text style={styles.recommendationsSubtitle}>
-                            Personalized picks just for you
-                          </Text>
-                        </View>
-                        {isPremium && interestProgress >= 50 ? (
-                          <View style={styles.recommendationsChevronContainer}>
-                            <ChevronRight size={20} color="rgba(255, 255, 255, 0.8)" />
-                          </View>
-                        ) : !isPremium ? (
-                          <View style={styles.recommendationsLockContainer}>
-                            <Lock size={18} color="rgba(255, 255, 255, 0.7)" />
-                          </View>
-                        ) : null}
+                  <BlurView intensity={40} tint="dark" style={styles.gridCardBlur}>
+                    {!hasTodayJournal && (
+                      <View style={styles.notificationDot} />
+                    )}
+                    <View style={styles.gridCardContent}>
+                      <View style={styles.gridIconContainer}>
+                         <Book size={32} color="#FFFFFF" strokeWidth={1.5} />
                       </View>
-                    </BlurView>
-                  </View>
-                </TouchableOpacity>
-              )}
+                      <Text style={styles.gridCardTitle}>Journal</Text>
+                      <Text style={styles.gridCardSubtitle}>
+                        {hasTodayJournal ? 'Entry complete' : 'Daily reflection'}
+                      </Text>
+                    </View>
+                  </BlurView>
+                </View>
+              </TouchableOpacity>
+
+              {/* Card 4: Twin Status */}
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/(tabs)/profile');
+                }}
+                activeOpacity={0.8}
+                style={styles.gridCardWrapper}
+              >
+                <View 
+                  ref={twinCardRef}
+                  style={[styles.gridCard, profileProgress === 100 && styles.fullyTrainedCard]}
+                  onLayout={() => {
+                    twinCardRef.current?.measureInWindow((x, y, width, height) => {
+                      setTwinCardLayout({ x, y, width, height });
+                    });
+                  }}
+                >
+                  {profileProgress === 100 && (
+                    <LinearGradient
+                      colors={['rgba(135, 206, 250, 0.3)', 'rgba(100, 149, 237, 0.2)', 'rgba(65, 105, 225, 0.15)', 'transparent']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.twinGlowOverlay}
+                      pointerEvents="none"
+                    />
+                  )}
+                  <BlurView intensity={40} tint="dark" style={styles.gridCardBlur}>
+                    {profileProgress < 100 && (
+                       <View style={styles.progressBadge}>
+                         <Text style={styles.progressBadgeText}>{profileProgress}%</Text>
+                       </View>
+                    )}
+                    <View style={styles.gridCardContent}>
+                      <View style={styles.gridIconContainer}>
+                        <Image 
+                          source={isPremium ? require('@/assets/images/premium.png') : require('@/assets/images/cube.png')}
+                          style={[styles.gridIconImage, { tintColor: undefined }]}
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <Text style={styles.gridCardTitle}>My Twin</Text>
+                      <Text style={styles.gridCardSubtitle}>
+                        {profileProgress === 100 ? 'Fully trained' : 'Training...'}
+                      </Text>
+                    </View>
+                  </BlurView>
+                </View>
+              </TouchableOpacity>
             </View>
 
+            {/* Recent Activity / Echoes */}
             {echoEntries.length > 0 && (
               <View style={styles.echoSection}>
-                <Text style={styles.sectionTitle}>Your Echoes</Text>
-
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Recent Activity</Text>
+                </View>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -614,28 +525,24 @@ export default function HomeScreen() {
                     onLongPress={() => handleLongPressEcho(echo)}
                     disabled={!echo.route}
                   >
-                    <LinearGradient
-                      colors={['#17161F', 'rgba(23, 22, 31, 0)']}
-                      start={{ x: 0, y: 0.5 }}
-                      end={{ x: 1, y: 0.5 }}
-                      style={styles.echoCard}
-                    >
-                      {!echo.isPlaceholder && (
-                        <View style={styles.echoTypeBadge}>
-                          {echo.type === 'whatif' ? (
-                            <Sparkles size={12} color="rgba(135, 206, 250, 0.9)" />
-                          ) : (
-                            <Compass size={12} color="rgba(135, 206, 250, 0.9)" />
-                          )}
-                        </View>
-                      )}
-                      <Text style={styles.echoTitle} numberOfLines={3}>
-                        {echo.title}
-                      </Text>
-                      <Text style={styles.echoMeta} numberOfLines={2}>
-                        {echo.subtitle}
-                      </Text>
-                    </LinearGradient>
+                    <BlurView intensity={20} tint="dark" style={styles.echoCard}>
+                      <View style={styles.echoIcon}>
+                        {echo.type === 'whatif' ? (
+                          <Sparkles size={16} color="#B4B4B4" />
+                        ) : (
+                          <Compass size={16} color="#B4B4B4" />
+                        )}
+                      </View>
+                      <View style={styles.echoContent}>
+                        <Text style={styles.echoTitle} numberOfLines={1}>
+                          {echo.title}
+                        </Text>
+                        <Text style={styles.echoMeta} numberOfLines={1}>
+                          {echo.subtitle}
+                        </Text>
+                      </View>
+                      <ChevronRight size={16} color="#666" />
+                    </BlurView>
                   </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -654,7 +561,6 @@ export default function HomeScreen() {
             setShowDecisionGuide(false);
             setGuideStep(0);
             trackEvent('Product Guide Skipped');
-            // Show rating request after guide is dismissed
             setTimeout(() => {
               checkAndShowRatingPrompt();
             }, 1000);
@@ -664,13 +570,14 @@ export default function HomeScreen() {
             setShowDecisionGuide(false);
             setGuideStep(0);
             trackEvent('Product Guide Completed');
-            // Show rating request after guide is completed
             setTimeout(() => {
               checkAndShowRatingPrompt();
             }, 1000);
           }}
           targetCardLayout={decisionCardLayout}
           whatIfCardLayout={whatIfCardLayout}
+          journalCardLayout={journalCardLayout}
+          twinCardLayout={twinCardLayout}
           userId={user?.id}
           onStepChange={setGuideStep}
         />
@@ -701,14 +608,8 @@ export default function HomeScreen() {
             </View>
 
             <Text style={styles.deleteModalTitle}>Delete {itemToDelete?.type === 'decision' ? 'Decision' : 'What If'}?</Text>
-            
-            <Text style={styles.deleteModalDescription}>
-              "{itemToDelete?.title}"
-            </Text>
-
-            <Text style={styles.deleteModalWarning}>
-              This action cannot be undone.
-            </Text>
+            <Text style={styles.deleteModalDescription}>"{itemToDelete?.title}"</Text>
+            <Text style={styles.deleteModalWarning}>This action cannot be undone.</Text>
 
             <View style={styles.deleteModalButtons}>
               <TouchableOpacity
@@ -750,17 +651,7 @@ const styles = StyleSheet.create({
   },
   backgroundGradient: {
     flex: 1,
-    backgroundColor: '#0C0C10',
-  },
-  glowContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  glowEffect: {
-    flex: 1,
+    backgroundColor: '#050505',
   },
   safeArea: {
     flex: 1,
@@ -770,319 +661,174 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingBottom: 60,
+    paddingBottom: 40,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  iconButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+  },
+  upgradeButton: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    minWidth: 140,
+  },
+  upgradeButtonGradient: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconWrapper: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumIcon: {
+    width: 18,
+    height: 18,
+  },
+  upgradeButtonText: {
+    color: '#999999',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   header: {
-    marginTop: 16,
     marginBottom: 32,
   },
   greeting: {
-    fontSize: 28,
-    fontWeight: '600',
+    fontSize: 42,
+    fontWeight: '700',
+    lineHeight: 48,
+    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
+    letterSpacing: -0.5,
+  },
+  greetingName: {
+    color: '#999999',
+  },
+  greetingRest: {
     color: '#FFFFFF',
-    letterSpacing: 0.3,
-    marginBottom: 0,
-    fontFamily: 'Inter-SemiBold',
   },
-  userName: {
-    fontSize: 28,
-    fontWeight: '400',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-    marginBottom: 0,
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: CARD_GAP,
+    marginBottom: 40,
   },
-  subheading: {
-    fontSize: 15,
-    color: 'rgba(200, 200, 200, 0.8)',
-    lineHeight: 20,
-  },
-  actions: {
-    gap: 16,
-  },
-  cardWrapperPrimary: {
-    borderRadius: 24,
+  gridCardWrapper: {
+    width: CARD_WIDTH,
+    height: CARD_WIDTH * 1.1, // Slightly taller than wide
+    borderRadius: 32,
     overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
   },
-  cardWrapperSecondary: {
-    borderRadius: 24,
+  gridCard: {
+    flex: 1,
+    borderRadius: 32,
     overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  recommendationsBannerWrapper: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: 'rgba(0, 0, 0, 0.3)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  recommendationsBanner: {
-    borderRadius: 20,
-    backgroundColor: 'rgba(40, 40, 50, 0.4)',
-    overflow: 'hidden',
+    backgroundColor: '#1A1A1A',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255,255,255,0.1)',
     position: 'relative',
   },
-  recommendationsGlassOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
-  },
-  recommendationsGlassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '50%',
-    borderRadius: 20,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  recommendationsGlassBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    pointerEvents: 'none',
-  },
-  recommendationsBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 18,
-    zIndex: 1,
-  },
-  recommendationsBannerText: {
-    flex: 1,
-  },
-  recommendationsTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 4,
-  },
-  recommendationsIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    backdropFilter: 'blur(10px)',
-  },
-  recommendationsTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.95)',
-    fontFamily: 'Inter-SemiBold',
-    letterSpacing: -0.2,
-  },
-  recommendationsSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.7)',
-    lineHeight: 18,
-    marginLeft: 42, // Align with title text (icon width + gap)
-  },
-  recommendationsLockContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  recommendationsChevronContainer: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionCard: {
-    borderRadius: 24,
-    padding: 22,
-    minHeight: 130,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
+  fullyTrainedCard: {
+    shadowColor: '#87CEFA',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 15,
+    elevation: 15,
     borderColor: 'rgba(135, 206, 250, 0.3)',
   },
-  glassBorder: {
+  twinGlowOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 24,
+    borderRadius: 32,
+    zIndex: 0,
+  },
+  gridCardBlur: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'space-between',
+    zIndex: 1,
+  },
+  gridCardContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  gridIconContainer: {
+    marginBottom: 16,
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+  },
+  gridIconImage: {
+    width: 48,
+    height: 48,
+  },
+  gridCardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  gridCardSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF453A',
+  },
+  progressBadge: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(135, 206, 250, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
   },
-  glassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  cardContentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-    zIndex: 1,
-  },
-  cardTextContainer: {
-    flex: 1,
-  },
-  iconCircleContainer: {
-    position: 'relative',
-    width: 80,
-    height: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconRotate: {
-    transform: [{ rotate: '-30deg' }],
-  },
-  compassImage: {
-    width: 64,
-    height: 64,
-    shadowColor: 'rgba(135, 206, 250, 0.5)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  starImage: {
-    width: 64,
-    height: 64,
-    shadowColor: 'rgba(135, 206, 250, 0.5)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  iconGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#9D5CFF',
-    shadowColor: '#9D5CFF',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.9,
-    shadowRadius: 16,
-    elevation: 16,
-    opacity: 0.4,
-  },
-  iconGlowPrimary: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#B77CFF',
-    shadowColor: '#B77CFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 18,
-    elevation: 18,
-    opacity: 0.45,
-  },
-  iconRing: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    padding: 2.2,
-    overflow: 'hidden',
-  },
-  iconCirclePrimary: {
-    flex: 1,
-    borderRadius: 24,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconCircle: {
-    position: 'relative',
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  actionTitle: {
-    fontSize: 19,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 0.1,
-    marginBottom: 6,
-    lineHeight: 24,
-    fontFamily: 'Inter-SemiBold',
-  },
-  actionTitlePrimary: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: 'rgba(240, 248, 255, 0.95)',
-    letterSpacing: 0.2,
-    lineHeight: 28,
-    fontFamily: 'Inter-SemiBold',
-  },
-  actionTitlePrimaryTight: {
-    lineHeight: 24,
-  },
-  actionSubtitle: {
-    fontSize: 13.5,
-    color: 'rgba(180, 180, 180, 0.85)',
-    lineHeight: 18,
-  },
-  actionSubtitlePrimary: {
-    fontSize: 15,
-    color: 'rgba(200, 220, 240, 0.85)',
-    lineHeight: 18,
+  progressBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#87CEFA',
   },
   echoSection: {
-    marginTop: 40,
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 20,
-    fontFamily: 'Inter-SemiBold',
   },
   echoScrollView: {
     marginHorizontal: -20,
@@ -1092,88 +838,40 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   echoCardWrapper: {
-    width: 220,
+    width: width * 0.7,
   },
   echoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 20,
-    padding: 20,
-    minHeight: 140,
-    justifyContent: 'space-between',
-    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    gap: 12,
   },
-  echoTypeBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(65, 105, 225, 0.15)',
+  echoIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(65, 105, 225, 0.3)',
+  },
+  echoContent: {
+    flex: 1,
   },
   echoTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#FFFFFF',
-    marginBottom: 10,
-    lineHeight: 22,
-    paddingRight: 36,
+    marginBottom: 2,
   },
   echoMeta: {
     fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.6)',
-    lineHeight: 16,
+    color: 'rgba(255,255,255,0.4)',
   },
-  echoDetail: {
-    marginTop: 8,
-    fontSize: 12,
-    color: 'rgba(220, 220, 220, 0.7)',
-    lineHeight: 16,
-  },
-  progressBarContainer: {
-    borderRadius: 16,
-    marginBottom: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(65, 105, 225, 0.3)',
-  },
-  progressBarGradient: {
-    padding: 16,
-  },
-  progressBarHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
-  },
-  progressCubeIcon: {
-    width: 20,
-    height: 20,
-  },
-  progressBarText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  progressPercentage: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(135, 206, 250, 0.9)',
-  },
-  thinProgressBar: {
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  thinProgressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
+  // Retain Modal Styles
   deleteModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -1184,11 +882,11 @@ const styles = StyleSheet.create({
   deleteModalContent: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: 'rgba(20, 18, 30, 0.98)',
+    backgroundColor: '#1A1A1A',
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   deleteModalHeader: {
     flexDirection: 'row',
@@ -1215,13 +913,12 @@ const styles = StyleSheet.create({
   },
   deleteModalDescription: {
     fontSize: 15,
-    color: 'rgba(200, 200, 200, 0.85)',
-    lineHeight: 22,
+    color: 'rgba(255,255,255,0.7)',
     marginBottom: 16,
   },
   deleteModalWarning: {
     fontSize: 13,
-    color: 'rgba(200, 200, 200, 0.6)',
+    color: 'rgba(255,255,255,0.4)',
     fontStyle: 'italic',
     marginBottom: 24,
   },
@@ -1231,13 +928,11 @@ const styles = StyleSheet.create({
   },
   deleteCancelButton: {
     flex: 1,
-    backgroundColor: 'rgba(59, 37, 109, 0.3)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
   },
   deleteCancelButtonText: {
     fontSize: 16,
@@ -1258,62 +953,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
-  },
-  journalBannerContainer: {
-    marginBottom: 24,
-    borderRadius: 14,
-    overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.3)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  journalBanner: {
-    borderRadius: 14,
-    backgroundColor: 'rgba(20, 30, 50, 0.4)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.25)',
-  },
-  journalBannerBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-    pointerEvents: 'none',
-  },
-  journalBannerHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 14,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  journalBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    zIndex: 1,
-  },
-  journalBannerTextRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  journalBannerText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.85)',
-    letterSpacing: -0.2,
   },
 });

@@ -118,7 +118,7 @@ export default function PremiumScreen() {
           text: 'Get Started', 
           onPress: () => fromOnboarding 
             ? router.replace('/onboarding/07-clarifier') 
-            : router.back() 
+            : router.replace('/(tabs)/home')
         }
       ]);
     }
@@ -132,7 +132,7 @@ export default function PremiumScreen() {
           text: 'Continue', 
           onPress: () => fromOnboarding 
             ? router.replace('/onboarding/07-clarifier') 
-            : router.back() 
+            : router.replace('/(tabs)/home')
         }
       ]);
     } else {
@@ -182,12 +182,12 @@ export default function PremiumScreen() {
   const features = [
     {
       icon: Zap,
-      title: 'Life Trajectory',
+      title: 'Simulate Life Choices',
       description: 'Simulate the long-term outcomes of every decision you make',
     },
     {
       icon: Brain,
-      title: 'Full Bio Metric Simulations',
+      title: 'Future Biometric Prediction',
       description: 'See detailed biometric predictions for all your what-if scenarios',
     },
     {

@@ -149,10 +149,10 @@ export default function InterestsScreen() {
       progress={0.65}
       onNext={handleNext}
       canContinue={selectedInterests.length > 0}
-      backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
-      buttonGradient={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
-      progressBarGradient={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
-      buttonShadowColor="rgba(135, 206, 250, 0.5)"
+      backgroundGradient={['#050505', '#0F0F18', '#0D0D15', '#050505']}
+      buttonGradient={['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)']}
+      progressBarGradient={['#87CEFA', '#87CEFA']}
+      buttonShadowColor="rgba(65, 105, 225, 0.5)"
     >
       <View style={styles.scrollContainer}>
         <ScrollView 
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   },
   scrollbarThumb: {
     width: 4,
-    backgroundColor: 'rgba(135, 206, 250, 0.6)',
+    backgroundColor: 'rgba(65, 105, 225, 0.6)',
     borderRadius: 2,
     position: 'absolute',
     left: 0,
@@ -268,12 +268,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.2)',
+    borderColor: 'rgba(65, 105, 225, 0.2)',
     width: '48%',
   },
   interestCardSelected: {
-    backgroundColor: 'rgba(135, 206, 250, 0.2)',
-    borderColor: 'rgba(135, 206, 250, 0.8)',
+    backgroundColor: 'rgba(65, 105, 225, 0.2)',
+    borderColor: 'rgba(65, 105, 225, 0.8)',
     borderWidth: 2,
   },
   emoji: {

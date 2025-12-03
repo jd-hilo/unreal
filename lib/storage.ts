@@ -525,6 +525,16 @@ export async function saveOnboardingResponse(
     console.log(`✅ [saveOnboardingResponse] Verification passed!`);
   }
   
+  // Ensure twin code is generated when profile is first created
+  if (data && !data.twin_code) {
+    try {
+      await ensureTwinCode(userId);
+    } catch (codeError) {
+      console.error('Failed to generate twin code during onboarding save:', codeError);
+      // Don't throw - code generation failure shouldn't block onboarding save
+    }
+  }
+  
   return data;
 }
 
@@ -586,6 +596,17 @@ export async function completeOnboarding(
     .maybeSingle();
 
   if (error) throw error;
+  
+  // Ensure twin code is generated when onboarding completes
+  if (data && !data.twin_code) {
+    try {
+      await ensureTwinCode(userId);
+    } catch (codeError) {
+      console.error('Failed to generate twin code during onboarding completion:', codeError);
+      // Don't throw - code generation failure shouldn't block onboarding completion
+    }
+  }
+  
   return data;
 }
 
@@ -618,12 +639,33 @@ export async function updateContributeToInsights(userId: string, enabled: boolea
  * Generate and assign a unique 6-digit twin code to a user
  */
 export async function generateUniqueTwinCode(userId: string): Promise<string> {
+  // Ensure profile exists first
+  let profile = await getProfile(userId);
+  if (!profile) {
+    // Create a basic profile if it doesn't exist
+    const { error: createError } = await supabase
+      .from('profiles')
+      .insert({ user_id: userId });
+    if (createError) {
+      console.error('Failed to create profile:', createError);
+      throw createError;
+    }
+    profile = await getProfile(userId);
+  }
+
   // Call the database function to generate a unique code
   const { data, error } = await supabase.rpc('generate_unique_twin_code');
   
-  if (error) throw error;
+  if (error) {
+    console.error('Failed to generate twin code:', error);
+    throw error;
+  }
   
   const twinCode = data as string;
+  
+  if (!twinCode) {
+    throw new Error('Failed to generate twin code: empty result');
+  }
   
   // Update the user's profile with the new code
   const { error: updateError } = await supabase
@@ -631,7 +673,17 @@ export async function generateUniqueTwinCode(userId: string): Promise<string> {
     .update({ twin_code: twinCode })
     .eq('user_id', userId);
   
-  if (updateError) throw updateError;
+  if (updateError) {
+    console.error('Failed to update profile with twin code:', updateError);
+    throw updateError;
+  }
+  
+  // Verify the code was saved
+  const updatedProfile = await getProfile(userId);
+  if (!updatedProfile?.twin_code || updatedProfile.twin_code !== twinCode) {
+    console.error('Twin code verification failed. Expected:', twinCode, 'Got:', updatedProfile?.twin_code);
+    throw new Error('Failed to verify twin code was saved');
+  }
   
   return twinCode;
 }
@@ -640,13 +692,38 @@ export async function generateUniqueTwinCode(userId: string): Promise<string> {
  * Get or generate a twin code for a user
  */
 export async function ensureTwinCode(userId: string): Promise<string> {
-  const profile = await getProfile(userId);
-  
-  if (profile?.twin_code) {
-    return profile.twin_code;
+  try {
+    const profile = await getProfile(userId);
+    
+    if (profile?.twin_code) {
+      return profile.twin_code;
+    }
+    
+    // Generate new code with retry logic
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        return await generateUniqueTwinCode(userId);
+      } catch (error) {
+        attempts++;
+        console.error(`Twin code generation attempt ${attempts} failed:`, error);
+        
+        if (attempts >= maxAttempts) {
+          throw error;
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+      }
+    }
+    
+    throw new Error('Failed to generate twin code after multiple attempts');
+  } catch (error) {
+    console.error('Error in ensureTwinCode:', error);
+    throw error;
   }
-  
-  return await generateUniqueTwinCode(userId);
 }
 
 /**

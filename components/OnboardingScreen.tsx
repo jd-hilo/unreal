@@ -33,9 +33,9 @@ export function OnboardingScreen({
   nextLabel = 'Continue',
   loading = false,
   canContinue = true,
-  backgroundGradient = ['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E'],
-  buttonGradient = ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'],
-  progressBarGradient = ['rgba(173, 216, 230, 0.95)', 'rgba(100, 149, 237, 0.9)', 'rgba(65, 105, 225, 0.85)'],
+  backgroundGradient = ['#050505', '#0F0F18', '#0D0D15', '#050505'],
+  buttonGradient = ['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)'],
+  progressBarGradient = ['#87CEFA', '#87CEFA'],
   buttonShadowColor = 'rgba(135, 206, 250, 0.5)',
   animatedButton = false,
 }: OnboardingScreenProps) {
@@ -141,7 +141,7 @@ export function OnboardingScreen({
     >
       {/* Progress Header */}
       <View style={styles.header}>
-          <ProgressBar progress={progress} showLabel={false} gradientColors={progressBarGradient} />
+          <ProgressBar progress={progress} showLabel={false} height={4} gradientColors={progressBarGradient} />
       </View>
 
       <ScrollView
@@ -176,78 +176,34 @@ export function OnboardingScreen({
           </TouchableOpacity>
         )}
         
-        <Animated.View 
-          style={[
-            styles.floatingButtonWrapper,
-            animatedButton && canContinue && !loading && !isProcessing && {
-              transform: [{ scale: pulseAnim }],
-            }
-          ]}
-        >
-          {animatedButton && canContinue && !loading && !isProcessing && (
-            <Animated.View
+          <TouchableOpacity
+            onPress={handleNext}
+            disabled={!canContinue || loading || isProcessing || isProcessingRef.current}
+            activeOpacity={0.9}
+            style={[
+              styles.floatingButtonWrapper,
+              (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled
+            ]}
+          >
+            <LinearGradient
+              colors={canContinue && !loading && !isProcessing ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={[
-                styles.buttonGlow,
-                {
-                  opacity: glowOpacity,
-                }
+                styles.floatingButton,
+                canContinue && !loading && !isProcessing && styles.floatingButtonActiveBorder
               ]}
-              pointerEvents="none"
-            />
-          )}
-          <BlurView intensity={animatedButton ? 40 : 80} tint="dark" style={[
-            styles.floatingButton,
-            (!canContinue && !loading && !isProcessing) && styles.floatingButtonDisabled,
-            (loading || isProcessing) && styles.floatingButtonDisabled,
-            animatedButton && canContinue && !loading && !isProcessing && styles.floatingButtonAnimated
-          ]}>
-            {/* Animated gradient background for bright button */}
-            {animatedButton && canContinue && !loading && !isProcessing ? (
-              <LinearGradient
-                colors={['rgba(135, 206, 250, 1)', 'rgba(100, 181, 246, 1)', 'rgba(135, 206, 250, 1)', 'rgba(147, 197, 253, 1)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              >
-                {/* Shimmer effect */}
-                <Animated.View
-                  style={[
-                    styles.shimmer,
-                    {
-                      transform: [{ translateX: shimmerTranslateX }],
-                    }
-                  ]}
-                  pointerEvents="none"
-                />
-              </LinearGradient>
-            ) : (
-              <>
-                {/* Classic glass border */}
-                <View style={styles.buttonGlassBorder} />
-                {/* Subtle inner highlight */}
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.buttonGlassHighlight}
-                  pointerEvents="none"
-                />
-              </>
-            )}
-            <TouchableOpacity
-              onPress={handleNext}
-              disabled={!canContinue || loading || isProcessing || isProcessingRef.current}
-              activeOpacity={0.9}
-              style={styles.floatingButtonInner}
             >
               <Text style={[
                 styles.floatingButtonText,
-                animatedButton && canContinue && !loading && !isProcessing && styles.floatingButtonTextBright
+                (!canContinue || loading || isProcessing) && styles.floatingButtonTextDisabled
               ]}>{loading || isProcessing ? "Continuing" : nextLabel}</Text>
-              <ChevronRight size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          </BlurView>
-        </Animated.View>
+              <ChevronRight 
+                size={20} 
+                color={(!canContinue || loading || isProcessing) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
+              />
+            </LinearGradient>
+          </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
     </LinearGradient>
@@ -315,11 +271,11 @@ const styles = StyleSheet.create({
   floatingButtonWrapper: {
     borderRadius: 24,
     overflow: 'visible',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowColor: 'rgba(135, 206, 250, 0.5)',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
   },
   buttonGlow: {
     position: 'absolute',
@@ -328,31 +284,30 @@ const styles = StyleSheet.create({
     right: -10,
     bottom: -10,
     borderRadius: 34,
-    backgroundColor: 'rgba(135, 206, 250, 0.4)',
-    shadowColor: 'rgba(135, 206, 250, 0.8)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 20,
-    elevation: 15,
+    backgroundColor: 'rgba(65, 105, 225, 0.4)',
   },
   floatingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
     borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
+  },
+  floatingButtonActiveBorder: {
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderColor: '#87CEFA',
   },
   floatingButtonAnimated: {
+    borderRadius: 24,
     backgroundColor: 'transparent',
+    overflow: 'hidden',
     borderWidth: 0,
-    shadowColor: 'rgba(135, 206, 250, 0.8)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 15,
-    elevation: 12,
   },
   floatingButtonDisabled: {
-    opacity: 0.6,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   shimmer: {
     position: 'absolute',
@@ -370,7 +325,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
+    borderColor: 'rgba(65, 105, 225, 0.4)',
     pointerEvents: 'none',
   },
   buttonGlassHighlight: {
@@ -397,6 +352,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  floatingButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.5)',
   },
   floatingButtonTextBright: {
     textShadowColor: 'rgba(255, 255, 255, 0.5)',

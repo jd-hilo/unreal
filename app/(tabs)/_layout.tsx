@@ -80,6 +80,11 @@ export default function TabLayout() {
           title: 'Home',
           // Keep screen mounted to prevent churn
           unmountOnBlur: false,
+          tabBarStyle: { 
+            height: 0,
+            display: 'none',
+            opacity: 0,
+          },
           tabBarIcon: ({ focused, size }) => 
             focused ? (
               <HomeGradientIcon size={size} />
@@ -93,6 +98,11 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           unmountOnBlur: false,
+          tabBarStyle: { 
+            height: 0,
+            display: 'none',
+            opacity: 0,
+          },
           tabBarIcon: ({ focused, size }) => 
             focused ? (
               <UserGradientIcon size={size} />

@@ -114,7 +114,7 @@ export default function ResetPasswordScreen() {
   if (step === 'token') {
     return (
       <LinearGradient
-        colors={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
+        colors={['#050505', '#0F0F18', '#0D0D15', '#050505']}
         style={styles.gradientBackground}
       >
         <KeyboardAvoidingView
@@ -170,12 +170,14 @@ export default function ResetPasswordScreen() {
           </ScrollView>
 
           <View style={styles.floatingButtonContainer}>
-            <View style={styles.buttonWrapper}>
+            <View style={styles.floatingButtonWrapper}>
               <BlurView intensity={80} tint="dark" style={[
                 styles.floatingButton,
                 (loading || !token || token.length !== 6) && styles.floatingButtonDisabled
               ]}>
+                {/* Classic glass border */}
                 <View style={styles.buttonGlassBorder} />
+                {/* Subtle inner highlight */}
                 <LinearGradient
                   colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
                   start={{ x: 0, y: 0 }}
@@ -187,14 +189,20 @@ export default function ResetPasswordScreen() {
                   onPress={handleVerifyToken}
                   disabled={loading || !token || token.length !== 6}
                   activeOpacity={0.9}
-                  style={[styles.floatingButtonInner, loading && styles.floatingButtonInnerCentered]}
+                  style={styles.floatingButtonInner}
                 >
                   {loading ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
-                      <Text style={styles.floatingButtonText}>Verify</Text>
-                      <ChevronRight size={20} color="#FFFFFF" />
+                      <Text style={[
+                        styles.floatingButtonText,
+                        (loading || !token || token.length !== 6) && styles.floatingButtonTextDisabled
+                      ]}>Verify</Text>
+                      <ChevronRight 
+                        size={20} 
+                        color={(loading || !token || token.length !== 6) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
+                      />
                     </>
                   )}
                 </TouchableOpacity>
@@ -209,7 +217,7 @@ export default function ResetPasswordScreen() {
   // Password Step
   return (
     <LinearGradient
-      colors={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
+      colors={['#050505', '#050505']}
       style={styles.gradientBackground}
     >
       <KeyboardAvoidingView
@@ -287,12 +295,14 @@ export default function ResetPasswordScreen() {
 
         {!success && (
           <View style={styles.floatingButtonContainer}>
-            <View style={styles.buttonWrapper}>
+            <View style={styles.floatingButtonWrapper}>
               <BlurView intensity={80} tint="dark" style={[
                 styles.floatingButton,
                 (loading || !newPassword || !confirmPassword) && styles.floatingButtonDisabled
               ]}>
+                {/* Classic glass border */}
                 <View style={styles.buttonGlassBorder} />
+                {/* Subtle inner highlight */}
                 <LinearGradient
                   colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
                   start={{ x: 0, y: 0 }}
@@ -304,14 +314,20 @@ export default function ResetPasswordScreen() {
                   onPress={handleUpdatePassword}
                   disabled={loading || !newPassword || !confirmPassword}
                   activeOpacity={0.9}
-                  style={[styles.floatingButtonInner, loading && styles.floatingButtonInnerCentered]}
+                  style={styles.floatingButtonInner}
                 >
                   {loading ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
-                      <Text style={styles.floatingButtonText}>Update Password</Text>
-                      <ChevronRight size={20} color="#FFFFFF" />
+                      <Text style={[
+                        styles.floatingButtonText,
+                        (loading || !newPassword || !confirmPassword) && styles.floatingButtonTextDisabled
+                      ]}>Update Password</Text>
+                      <ChevronRight 
+                        size={20} 
+                        color={(loading || !newPassword || !confirmPassword) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
+                      />
                     </>
                   )}
                 </TouchableOpacity>
@@ -415,21 +431,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(59, 37, 109, 0.2)',
   },
-  buttonWrapper: {
+  floatingButtonWrapper: {
     borderRadius: 24,
     overflow: 'visible',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
   },
   floatingButton: {
     borderRadius: 24,
     backgroundColor: 'rgba(20, 30, 50, 0.3)',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderColor: 'rgba(65, 105, 225, 0.3)',
   },
   floatingButtonDisabled: {
     opacity: 0.6,
@@ -442,7 +453,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
+    borderColor: 'rgba(65, 105, 225, 0.4)',
     pointerEvents: 'none',
   },
   buttonGlassHighlight: {
@@ -465,13 +476,13 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     zIndex: 1,
   },
-  floatingButtonInnerCentered: {
-    gap: 0,
-  },
   floatingButtonText: {
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  floatingButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.5)',
   },
 });
 

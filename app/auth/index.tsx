@@ -224,7 +224,7 @@ export default function AuthScreen() {
   if (step === 'email') {
     return (
       <LinearGradient
-        colors={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
+        colors={['#050505', '#0F0F18', '#0D0D15', '#050505']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.gradientBackground}
@@ -281,38 +281,43 @@ export default function AuthScreen() {
 
           {/* Floating Action Button */}
           <View style={styles.floatingButtonContainer}>
-            <View style={styles.buttonWrapper}>
-              <BlurView intensity={80} tint="dark" style={[
-                styles.floatingButton,
+            <TouchableOpacity
+              onPress={handleContinue}
+              disabled={loading || !email}
+              activeOpacity={0.9}
+              style={[
+                styles.floatingButtonWrapper,
                 (loading || !email) && styles.floatingButtonDisabled
-              ]}>
-                {/* Classic glass border */}
-                <View style={styles.buttonGlassBorder} />
-                {/* Subtle inner highlight */}
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.buttonGlassHighlight}
-                  pointerEvents="none"
-                />
-                <TouchableOpacity
-                  onPress={handleContinue}
-                  disabled={loading || !email}
-                  activeOpacity={0.9}
-                  style={[styles.floatingButtonInner, loading && styles.floatingButtonInnerCentered]}
-                >
-                  {loading ? (
-                    <Text style={styles.floatingButtonText}>Updating</Text>
-                  ) : (
-                    <>
-                      <Text style={styles.floatingButtonText}>Continue</Text>
-                      <ChevronRight size={20} color="#FFFFFF" />
-                    </>
-                  )}
-                </TouchableOpacity>
-              </BlurView>
-            </View>
+              ]}
+            >
+              <LinearGradient
+                colors={email && !loading ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[
+                  styles.floatingButton,
+                  email && !loading && styles.floatingButtonActiveBorder
+                ]}
+              >
+                {loading ? (
+                  <Text style={[
+                    styles.floatingButtonText,
+                    (loading || !email) && styles.floatingButtonTextDisabled
+                  ]}>Updating</Text>
+                ) : (
+                  <>
+                    <Text style={[
+                      styles.floatingButtonText,
+                      (loading || !email) && styles.floatingButtonTextDisabled
+                    ]}>Continue</Text>
+                    <ChevronRight 
+                      size={20} 
+                      color={(loading || !email) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
+                    />
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={appleSignIn}
@@ -343,7 +348,7 @@ export default function AuthScreen() {
   // Password Page
   return (
     <LinearGradient
-      colors={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
+      colors={['#050505', '#050505']}
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
       style={styles.gradientBackground}
@@ -429,39 +434,44 @@ export default function AuthScreen() {
         </ScrollView>
 
         {/* Floating Action Button */}
-        <View style={styles.floatingButtonContainer}>
-          <View style={styles.buttonWrapper}>
-            <BlurView intensity={80} tint="dark" style={[
-              styles.floatingButton,
-              (loading || !password) && styles.floatingButtonDisabled
-            ]}>
-              {/* Classic glass border */}
-              <View style={styles.buttonGlassBorder} />
-              {/* Subtle inner highlight */}
+          <View style={styles.floatingButtonContainer}>
+            <TouchableOpacity
+              onPress={handleAuth}
+              disabled={loading || !password}
+              activeOpacity={0.9}
+              style={[
+                styles.floatingButtonWrapper,
+                (loading || !password) && styles.floatingButtonDisabled
+              ]}
+            >
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                colors={password && !loading ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.buttonGlassHighlight}
-                pointerEvents="none"
-              />
-              <TouchableOpacity
-                onPress={handleAuth}
-                disabled={loading || !password}
-                activeOpacity={0.9}
-                style={[styles.floatingButtonInner, loading && styles.floatingButtonInnerCentered]}
+                end={{ x: 1, y: 0 }}
+                style={[
+                  styles.floatingButton,
+                  password && !loading && styles.floatingButtonActiveBorder
+                ]}
               >
                 {loading ? (
-                  <Text style={styles.floatingButtonText}>Updating</Text>
+                  <Text style={[
+                    styles.floatingButtonText,
+                    (loading || !password) && styles.floatingButtonTextDisabled
+                  ]}>Updating</Text>
                 ) : (
                   <>
-                    <Text style={styles.floatingButtonText}>Continue</Text>
-                    <ChevronRight size={20} color="#FFFFFF" />
+                    <Text style={[
+                      styles.floatingButtonText,
+                      (loading || !password) && styles.floatingButtonTextDisabled
+                    ]}>Continue</Text>
+                    <ChevronRight 
+                      size={20} 
+                      color={(loading || !password) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
+                    />
                   </>
                 )}
-              </TouchableOpacity>
-            </BlurView>
-          </View>
+              </LinearGradient>
+            </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -547,47 +557,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(59, 37, 109, 0.2)',
   },
-  buttonWrapper: {
+  floatingButtonWrapper: {
     borderRadius: 24,
     overflow: 'visible',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowColor: 'rgba(135, 206, 250, 0.5)',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
   },
   floatingButton: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  floatingButtonDisabled: {
-    opacity: 0.6,
-  },
-  buttonGlassBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
-  },
-  buttonGlassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  floatingButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -595,15 +574,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     borderRadius: 24,
-    zIndex: 1,
   },
-  floatingButtonInnerCentered: {
-    gap: 0,
+  floatingButtonActiveBorder: {
+    borderWidth: 1,
+    borderColor: '#87CEFA',
+  },
+  floatingButtonDisabled: {
+    borderRadius: 24,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   floatingButtonText: {
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  floatingButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.5)',
   },
   appleButton: {
     backgroundColor: '#000000',

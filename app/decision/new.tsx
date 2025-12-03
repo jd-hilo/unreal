@@ -13,8 +13,11 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
-import { ProgressBar } from '@/components/ProgressBar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ProgressBar } from '@/components/ProgressBar';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { Button } from '@/components/Button';
 
 const TOTAL_STEPS = 4;
 
@@ -369,10 +372,6 @@ export default function NewDecisionScreen() {
   function renderStep1() {
     return (
       <View style={styles.stepContainer}>
-        <View style={styles.stepHeader}>
-          <Text style={styles.stepTitle}>What's your decision?</Text>
-        </View>
-
         <FloatingLabelInput
           ref={questionInputRef}
           label="Your question"
@@ -392,10 +391,6 @@ export default function NewDecisionScreen() {
   function renderStep2() {
     return (
       <View style={styles.stepContainer}>
-        <View style={styles.stepHeader}>
-          <Text style={styles.stepTitle}>Your options</Text>
-        </View>
-
         <View style={styles.optionsContainer}>
           {derivedOptions.map((option, index) => (
             <SwipeableOptionCard
@@ -424,13 +419,6 @@ export default function NewDecisionScreen() {
   function renderStep3() {
     return (
       <View style={styles.stepContainer}>
-        <View style={styles.stepHeader}>
-          <Text style={styles.stepTitle}>Add someone else's twin</Text>
-          <Text style={styles.stepDescription}>
-            Get another perspective on your decision
-          </Text>
-        </View>
-
         {addedTwins.length > 0 ? (
           <View style={styles.twinAddedCard}>
             <BlurView intensity={30} tint="dark" style={styles.twinAddedBlur}>
@@ -474,10 +462,6 @@ export default function NewDecisionScreen() {
   function renderStep4() {
     return (
       <View style={styles.stepContainer}>
-        <View style={styles.stepHeader}>
-          <Text style={styles.stepTitle}>Review</Text>
-        </View>
-
         <View style={styles.reviewCard}>
           <BlurView intensity={30} tint="dark" style={styles.reviewBlur}>
             <View style={styles.reviewContent}>
@@ -539,112 +523,139 @@ export default function NewDecisionScreen() {
     }
   }
 
+  function getStepTitle() {
+    switch (currentStep) {
+      case 1: return "What's your decision?";
+      case 2: return "Your options";
+      case 3: return "Add someone else's twin";
+      case 4: return "Review";
+      default: return "New Decision";
+    }
+  }
+
+  function getStepSubtitle() {
+    switch (currentStep) {
+      case 1: return "Let your twin guide your decision";
+      case 2: return "Review and edit your options";
+      case 3: return "Get another perspective (optional)";
+      case 4: return "Ready to analyze";
+      default: return "";
+    }
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => currentStep > 1 ? goToStep(currentStep - 1) : router.back()} 
-          style={styles.backButton}
-        >
-          <ArrowLeft size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.title}>New Decision</Text>
-          <Text style={styles.subtitle}>Step {currentStep} of {TOTAL_STEPS}</Text>
-        </View>
-      </View>
-
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <ProgressBar 
-          progress={progress} 
-          showLabel={false}
-          gradientColors={['rgba(173, 216, 230, 0.95)', 'rgba(100, 149, 237, 0.9)', 'rgba(65, 105, 225, 0.85)']}
-        />
-      </View>
-
-      <View style={styles.contentWrapper}>
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Animated.View
-            style={[
-              styles.animatedContent,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateX: slideAnim }],
-              },
-            ]}
-          >
-            {renderStepContent()}
-          </Animated.View>
-        </ScrollView>
-
-        {/* Floating Action Button */}
-        <View style={styles.floatingButtonContainer}>
-        {currentStep === 3 && (
-          <TouchableOpacity
-            onPress={() => goToStep(4)}
-            style={styles.skipButton}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.skipText}>Skip for now</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.floatingButtonWrapper}>
-          <BlurView intensity={80} tint="dark" style={[
-            styles.floatingButton,
-            !canProceed && styles.floatingButtonDisabled
-          ]}>
-            {/* Classic glass border */}
-            <View style={styles.buttonGlassBorder} />
-            {/* Subtle inner highlight */}
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.buttonGlassHighlight}
-              pointerEvents="none"
-            />
-            <TouchableOpacity
-              onPress={handleNextStep}
-              disabled={!canProceed}
-              activeOpacity={0.9}
-              style={[
-                styles.floatingButtonInner,
-                !canProceed && { opacity: 0.6 }
-              ]}
+      <View style={styles.screen}>
+        <View style={styles.backgroundGradient}>
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <KeyboardAvoidingView
+              style={styles.container}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-              {currentStep === 4 && (
-                <Image 
-                  source={require('@/assets/images/cube.png')}
-                  style={[
-                    styles.cubeIcon,
-                    !canProceed && styles.cubeIconDisabled
-                  ]}
-                  resizeMode="contain"
+              {/* Top Bar */}
+              <View style={styles.topBar}>
+                <TouchableOpacity
+                  onPress={() => router.back()}
+                  style={styles.iconButton}
+                  activeOpacity={0.7}
+                >
+                  <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Progress Bar */}
+              <View style={styles.progressBarContainer}>
+                <ProgressBar
+                  progress={progress}
+                  showLabel={false}
+                  height={4}
+                  gradientColors={['#87CEFA', '#87CEFA']}
                 />
-              )}
-              <Text style={[
-                styles.floatingButtonText,
-                !canProceed && styles.floatingButtonTextDisabled
-              ]}>
-                {getButtonLabel()}
-              </Text>
-              {!loading && !isDerivingOptions && <ChevronRight size={20} color={canProceed ? "#FFFFFF" : "rgba(200, 200, 200, 0.5)"} />}
-            </TouchableOpacity>
-          </BlurView>
-        </View>
+              </View>
+
+              {/* Main Header */}
+              <View style={styles.header}>
+                <Text style={styles.greeting}>
+                  <Text style={styles.greetingRest}>{getStepTitle()}</Text>
+                </Text>
+                {getStepSubtitle() && (
+                  <Text style={styles.greetingSubtext}>{getStepSubtitle()}</Text>
+                )}
+              </View>
+
+              <ScrollView
+                style={styles.content}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                <Animated.View
+                  style={[
+                    styles.animatedContent,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateX: slideAnim }],
+                    },
+                  ]}
+                >
+                  {renderStepContent()}
+                </Animated.View>
+              </ScrollView>
+
+              {/* Floating Action Button */}
+              <View style={styles.floatingButtonContainer}>
+                {currentStep === 3 && (
+                  <TouchableOpacity
+                    onPress={() => goToStep(4)}
+                    style={styles.skipButton}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.skipText}>Skip for now</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={handleNextStep}
+                  disabled={!canProceed || loading || isDerivingOptions}
+                  activeOpacity={0.9}
+                  style={[
+                    styles.floatingButtonWrapper,
+                    (!canProceed || loading || isDerivingOptions) && styles.floatingButtonDisabled
+                  ]}
+                >
+                  <LinearGradient
+                    colors={canProceed && !loading && !isDerivingOptions ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[
+                      styles.floatingButton,
+                      canProceed && !loading && !isDerivingOptions && styles.floatingButtonActiveBorder
+                    ]}
+                  >
+                    {currentStep === 4 && (
+                      <Image 
+                        source={require('@/assets/images/cube.png')}
+                        style={styles.cubeIcon}
+                        resizeMode="contain"
+                      />
+                    )}
+                    <Text style={[
+                      styles.floatingButtonText,
+                      (!canProceed || loading || isDerivingOptions) && styles.floatingButtonTextDisabled
+                    ]}>
+                      {loading || isDerivingOptions ? 'Processing...' : getButtonLabel()}
+                    </Text>
+                    {!loading && !isDerivingOptions && (
+                      <ChevronRight 
+                        size={20} 
+                        color={(!canProceed || loading || isDerivingOptions) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
+                      />
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
+          </SafeAreaView>
         </View>
       </View>
 
@@ -795,63 +806,129 @@ export default function NewDecisionScreen() {
           </View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
     </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  backgroundGradient: {
+    flex: 1,
+    backgroundColor: '#050505',
+  },
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#0C0C10',
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  iconButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+  },
+  progressBarContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 16,
-    gap: 16,
-    backgroundColor: '#0C0C10',
+    marginBottom: 32,
+    paddingHorizontal: 20,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerContent: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 28,
+  greeting: {
+    fontSize: 42,
     fontWeight: '700',
+    lineHeight: 48,
+    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
+    letterSpacing: -0.5,
+  },
+  greetingRest: {
     color: '#FFFFFF',
-    marginBottom: 0,
   },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
-  },
-  progressContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(135, 206, 250, 0.2)',
-  },
-  contentWrapper: {
-    flex: 1,
+  greetingSubtext: {
+    color: '#999999',
+    fontSize: 18,
+    fontWeight: '500',
+    marginTop: 4,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 120,
   },
   animatedContent: {
     flex: 1,
+  },
+  floatingButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 40,
+    backgroundColor: 'transparent',
+    gap: 12,
+  },
+  skipButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  skipText: {
+    fontSize: 14,
+    color: 'rgba(200, 200, 200, 0.75)',
+    fontWeight: '600',
+  },
+  floatingButtonWrapper: {
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowColor: 'rgba(135, 206, 250, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  floatingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+    borderRadius: 24,
+  },
+  floatingButtonActiveBorder: {
+    borderWidth: 1,
+    borderColor: '#87CEFA',
+  },
+  floatingButtonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  floatingButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  floatingButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  cubeIcon: {
+    width: 22,
+    height: 22,
   },
   stepContainer: {
     gap: 20,
@@ -875,9 +952,6 @@ const styles = StyleSheet.create({
   stepCardContent: {
     padding: 22,
     zIndex: 1,
-  },
-  stepHeader: {
-    marginBottom: 4,
   },
   glassBorder: {
     position: 'absolute',
@@ -906,10 +980,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   stepTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 28,
+    lineHeight: 32,
   },
   stepSubtitle: {
     fontSize: 16,
@@ -1073,89 +1147,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#FFFFFF',
     lineHeight: 22,
-  },
-  floatingButtonContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 36,
-    backgroundColor: '#0C0C10',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(135, 206, 250, 0.2)',
-  },
-  skipButton: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    marginBottom: 10,
-  },
-  skipText: {
-    fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
-    fontWeight: '600',
-  },
-  floatingButtonWrapper: {
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  floatingButton: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  floatingButtonDisabled: {
-    opacity: 0.6,
-  },
-  buttonGlassBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
-  },
-  buttonGlassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  floatingButtonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    gap: 10,
-    borderRadius: 24,
-    zIndex: 1,
-  },
-  floatingButtonText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  floatingButtonTextDisabled: {
-    color: 'rgba(200, 200, 200, 0.5)',
-  },
-  cubeIcon: {
-    width: 22,
-    height: 22,
-  },
-  cubeIconDisabled: {
-    opacity: 0.3,
   },
   modalOverlay: {
     flex: 1,

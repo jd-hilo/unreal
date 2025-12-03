@@ -63,10 +63,10 @@ export default function OnboardingStep4() {
       progress={0.60}
       onNext={handleNext}
       canContinue={selectedValue.length > 0 && (selectedValue !== 'Other' || otherValue.trim().length > 0)}
-      backgroundGradient={['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E']}
-      buttonGradient={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
-      progressBarGradient={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
-      buttonShadowColor="rgba(135, 206, 250, 0.5)"
+      backgroundGradient={['#050505', '#0F0F18', '#0D0D15', '#050505']}
+      buttonGradient={['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)']}
+      progressBarGradient={['#87CEFA', '#87CEFA']}
+      buttonShadowColor="rgba(65, 105, 225, 0.5)"
     >
       <View style={styles.container}>
         <ChoiceQuestion

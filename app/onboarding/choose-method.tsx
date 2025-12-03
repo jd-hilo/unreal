@@ -133,7 +133,7 @@ export default function ChooseOnboardingMethod() {
 
   return (
     <LinearGradient
-      colors={['#09090A', '#0F0F11', '#0C0C10']}
+      colors={['#050505', '#0F0F18', '#0D0D15', '#050505']}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
@@ -141,7 +141,7 @@ export default function ChooseOnboardingMethod() {
       {/* Animated background pulse */}
       <Animated.View style={[styles.backgroundPulse, backgroundPulseStyle]}>
         <LinearGradient
-          colors={['rgba(135, 206, 250, 0.3)', 'transparent']}
+          colors={['rgba(65, 105, 225, 0.3)', 'transparent']}
           style={StyleSheet.absoluteFill}
         />
       </Animated.View>

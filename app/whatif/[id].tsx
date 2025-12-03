@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -7,6 +7,8 @@ import { BlurView } from 'expo-blur';
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, Weight, Heart, DollarSign, MapPin, Smile, Coffee, Lock, Sparkles } from 'lucide-react-native';
 import { useTwin } from '@/store/useTwin';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 export default function WhatIfResultScreen() {
   const router = useRouter();
@@ -55,16 +57,40 @@ export default function WhatIfResultScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <Text>Loading...</Text>
+      <View style={styles.screen}>
+        <View style={styles.backgroundGradient}>
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <View style={styles.topBar}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Loading...</Text>
+            </View>
+          </SafeAreaView>
+        </View>
       </View>
     );
   }
 
   if (!whatIf) {
     return (
-      <View style={styles.container}>
-        <Text>What-if scenario not found</Text>
+      <View style={styles.screen}>
+        <View style={styles.backgroundGradient}>
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <View style={styles.topBar}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>What-if scenario not found</Text>
+            </View>
+          </SafeAreaView>
+        </View>
       </View>
     );
   }
@@ -180,16 +206,24 @@ export default function WhatIfResultScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.title}>What If Result</Text>
-      </View>
+    <View style={styles.screen}>
+      <View style={styles.backgroundGradient}>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          {/* Top Bar */}
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+              <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        <Text style={styles.question}>{whatIf.payload?.question || 'What-if scenario'}</Text>
+          <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+            {/* Main Header */}
+            <View style={styles.header}>
+              <Text style={styles.greeting}>
+                <Text style={styles.greetingRest}>{whatIf.payload?.question || 'What-if scenario'}</Text>
+              </Text>
+            </View>
 
         <View style={styles.metricsGrid}>
           {metricNames.map((metricName) => {
@@ -364,49 +398,68 @@ export default function WhatIfResultScreen() {
             This trajectory is AI-generated based on your unique profile. Use it as a thought experiment, not a prediction.
           </Text>
         </View>
-      </ScrollView>
+          </ScrollView>
+        </SafeAreaView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: '#0C0C10',
+    backgroundColor: '#000000',
+  },
+  backgroundGradient: {
+    flex: 1,
+    backgroundColor: '#050505',
+  },
+  safeArea: {
+    flex: 1,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  iconButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 20,
-    gap: 16,
+    marginBottom: 32,
+    paddingHorizontal: 20,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
+  greeting: {
+    fontSize: 42,
     fontWeight: '700',
+    lineHeight: 48,
+    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
+    letterSpacing: -0.5,
+  },
+  greetingRest: {
     color: '#FFFFFF',
-    flex: 1,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  question: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 32,
-    lineHeight: 28,
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   metricsGrid: {
     flexDirection: 'row',
@@ -417,14 +470,10 @@ const styles = StyleSheet.create({
   metricCard: {
     width: '48%',
     padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 0,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
   },
   metricHeader: {
     flexDirection: 'row',
@@ -463,15 +512,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   summary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
     padding: 18,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 0,
+    borderRadius: 20,
   },
   summaryTitle: {
     fontSize: 18,
@@ -488,14 +533,10 @@ const styles = StyleSheet.create({
   alignmentCard: {
     marginTop: 16,
     padding: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 0,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
   },
   alignmentTitle: {
     fontSize: 18,
@@ -536,15 +577,11 @@ const styles = StyleSheet.create({
   },
   biometricsCard: {
     width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 0,
-    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
     padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 0,
   },
   biometricsTitle: {
     fontSize: 18,
