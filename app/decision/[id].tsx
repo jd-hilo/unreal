@@ -543,11 +543,18 @@ export default function DecisionResultScreen() {
               return (
                 <View style={styles.section}>
                   <View style={styles.sectionCard}>
-                    <View style={styles.chaosHeader}>
-                      <Text style={styles.sectionTitle}>Chaos Level</Text>
-                      <Text style={[styles.chaosValue, { color: chaosColor }]}>
-                        {chaosLevel}% {prediction.chaosMessage ? `(${prediction.chaosMessage})` : ''}
-                      </Text>
+                    <View style={styles.chaosHeaderColumn}>
+                      <View style={styles.chaosTitleRow}>
+                        <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Chaos Level</Text>
+                        <Text style={[styles.chaosValue, { color: chaosColor }]}>
+                          {chaosLevel}%
+                        </Text>
+                      </View>
+                      {prediction.chaosMessage && (
+                        <Text style={[styles.chaosMessage, { color: chaosColor }]}>
+                          {prediction.chaosMessage}
+                        </Text>
+                      )}
                     </View>
                     <View style={styles.chaosBarBg}>
                       <View style={[styles.chaosBarFill, { width: `${chaosLevel}%`, backgroundColor: chaosColor }]} />
@@ -1530,14 +1537,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  chaosHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  chaosHeaderColumn: {
     marginBottom: 12,
+    gap: 4,
+  },
+  chaosTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  chaosMessage: {
+    fontSize: 15,
+    fontWeight: '500',
+    opacity: 0.9,
   },
   chaosValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
   },
   chaosBarBg: {

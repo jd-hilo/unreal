@@ -3,12 +3,12 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { insertJournal, getTodayJournal } from '@/lib/storage';
+import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { Smile, Meh, Frown, SmilePlus, Angry, ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { ProgressBar } from '@/components/ProgressBar';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
 
 const MOODS = [
   { value: 5, label: 'Amazing', icon: SmilePlus, color: '#10B981' },
@@ -146,46 +146,37 @@ export default function AddJournalScreen() {
     }
   }
 
-  function getStepTitle() {
-    switch (currentStep) {
-      case 1: return 'What\'s on your mind?';
-      case 2: return 'How are you feeling?';
-      default: return '';
-    }
-  }
-
-  function getStepSubtitle() {
-    switch (currentStep) {
-      case 1: return 'Share your thoughts and experiences';
-      case 2: return 'Select your current mood';
-      default: return '';
-    }
-  }
-
-  // Step 1: Text Entry
+  // Step 1: Text Entry (Apple Notes Style)
   function renderStep1() {
     const charCount = text.length;
     const isOverLimit = charCount > 2000;
     
     return (
-      <View style={styles.stepContainer}>
-        <View style={styles.textInputCardWrapper}>
-          <View style={styles.textInputCard}>
-            <TextInput
-              placeholder={PLACEHOLDER_PROMPTS[placeholderIndex]}
-              placeholderTextColor="rgba(255, 255, 255, 0.3)"
-              value={text}
-              onChangeText={setText}
-              multiline
-              style={styles.textInput}
-              autoFocus
-            />
-            <View style={styles.charCountContainer}>
-              <Text style={[styles.charCountText, isOverLimit && styles.charCountError]}>
-                {charCount}/2000
-              </Text>
-            </View>
-          </View>
+      <View style={styles.stepContainerFullScreen}>
+        <View style={styles.dateHeaderFullScreen}>
+          <Text style={styles.dateTextFullScreen}>
+            {new Date().toLocaleDateString('en-US', { 
+              weekday: 'short', 
+              month: 'short', 
+              day: 'numeric' 
+            })}
+          </Text>
+        </View>
+
+        <TextInput
+          placeholder={PLACEHOLDER_PROMPTS[placeholderIndex]}
+          placeholderTextColor="rgba(255, 255, 255, 0.3)"
+          value={text}
+          onChangeText={setText}
+          multiline
+          style={styles.notesTextAreaFullScreen}
+          autoFocus
+        />
+        
+        <View style={styles.charCountContainer}>
+          <Text style={[styles.charCountText, isOverLimit && styles.charCountError]}>
+            {charCount}/2000
+          </Text>
         </View>
       </View>
     );
@@ -195,8 +186,15 @@ export default function AddJournalScreen() {
   function renderStep2() {
     return (
       <View style={styles.stepContainer}>
+        <View style={styles.stepHeader}>
+          <Text style={styles.stepTitle}>How are you feeling?</Text>
+          <Text style={styles.stepSubtitle}>
+            Select your current mood
+          </Text>
+        </View>
+
         <View style={styles.moodsList}>
-          {MOODS.map((moodOption) => {
+          {MOODS.map((moodOption, index) => {
             const MoodIcon = moodOption.icon;
             const isSelected = mood === moodOption.value;
             return (
@@ -207,33 +205,66 @@ export default function AddJournalScreen() {
                   setMood(moodOption.value);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 }}
-                activeOpacity={0.8}
+                activeOpacity={0.7}
               >
-                <View style={[
-                  styles.moodCard,
-                  isSelected && styles.moodCardSelected
-                ]}>
-                  <View style={styles.moodCardContent}>
-                    <View style={[
-                      styles.moodIconContainer,
-                      isSelected && styles.moodIconContainerSelected
-                    ]}>
-                      <MoodIcon 
-                        size={24} 
-                        color={isSelected ? '#87CEFA' : moodOption.color} 
-                      />
+                <Animated.View
+                  style={[
+                    styles.moodCardAnimated,
+                    {
+                      opacity: fadeAnim,
+                      transform: [
+                        { 
+                          scale: fadeAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.9, 1],
+                          })
+                        }
+                      ],
+                    },
+                  ]}
+                >
+                  <BlurView 
+                    intensity={80} 
+                    tint="dark" 
+                    style={[
+                      styles.moodCard,
+                      isSelected && styles.moodCardSelected,
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={isSelected 
+                        ? ['rgba(135, 206, 250, 0.15)', 'transparent'] 
+                        : ['rgba(135, 206, 250, 0.05)', 'transparent']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.glassHighlight}
+                    />
+                    <View style={styles.moodCardContent}>
+                      <View style={[
+                        styles.moodIconContainer,
+                        isSelected && styles.moodIconContainerSelected
+                      ]}>
+                        <MoodIcon 
+                          size={32} 
+                          color={isSelected ? 'rgba(135, 206, 250, 0.9)' : moodOption.color} 
+                        />
+                      </View>
+                      <View style={styles.moodTextContainer}>
+                        <Text style={[
+                          styles.moodLabel,
+                          isSelected && styles.moodLabelSelected
+                        ]}>
+                          {moodOption.label}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <View style={styles.selectedIndicator}>
+                          <View style={styles.selectedDot} />
+                        </View>
+                      )}
                     </View>
-                    <Text style={[
-                      styles.moodLabel,
-                      isSelected && styles.moodLabelSelected
-                    ]}>
-                      {moodOption.label}
-                    </Text>
-                    {isSelected && (
-                      <ChevronRight size={20} color="#87CEFA" />
-                    )}
-                  </View>
-                </View>
+                  </BlurView>
+                </Animated.View>
               </TouchableOpacity>
             );
           })}
@@ -266,195 +297,240 @@ export default function AddJournalScreen() {
   }
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.backgroundGradient}>
-        <StatusBar style="light" />
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-          <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      {/* Minimal Header - only show on step 1 */}
+      {currentStep === 1 ? (
+        <View style={styles.minimalHeader}>
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={styles.backButton}
           >
-            {/* Top Bar */}
-            <View style={styles.topBar}>
-              <TouchableOpacity
-                onPress={() => router.back()}
-                style={styles.iconButton}
-                activeOpacity={0.7}
-              >
-                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Progress Bar */}
-            <View style={styles.progressBarContainer}>
-              <ProgressBar
-                progress={progress}
-                showLabel={false}
-                height={4}
-                gradientColors={['#87CEFA', '#87CEFA']}
-              />
-            </View>
-
-            {/* Main Header */}
-            <View style={styles.header}>
-              <Text style={styles.greeting}>
-                <Text style={styles.greetingRest}>{getStepTitle()}</Text>
-              </Text>
-              {getStepSubtitle() && (
-                <Text style={styles.greetingSubtext}>{getStepSubtitle()}</Text>
-              )}
-            </View>
-
-            <ScrollView
-              style={styles.content}
-              contentContainerStyle={styles.contentContainer}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
+            <ArrowLeft size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
+          <TouchableOpacity
+            onPress={handleNextStep}
+            disabled={!canProceed}
+            style={styles.saveButton}
+          >
+            <Text style={[styles.saveButtonText, !canProceed && styles.saveButtonTextDisabled]}>
+              Continue
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          {/* Full Header for step 2 */}
+          <View style={styles.header}>
+            <TouchableOpacity 
+              onPress={() => goToStep(currentStep - 1)} 
+              style={styles.backButton}
             >
-              <Animated.View
-                style={[
-                  styles.animatedContent,
-                  {
-                    opacity: fadeAnim,
-                    transform: [{ translateX: slideAnim }],
-                  },
-                ]}
-              >
-                {renderStepContent()}
-              </Animated.View>
-            </ScrollView>
+              <ArrowLeft size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <View style={styles.headerContent}>
+              <Text style={styles.title}>How are you feeling?</Text>
+            </View>
+          </View>
 
-            {/* Floating Action Button */}
-            <View style={styles.floatingButtonContainer}>
-              <TouchableOpacity
-                onPress={handleNextStep}
-                disabled={!canProceed || saving}
-                activeOpacity={0.9}
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <ProgressBar progress={progress} showLabel={false} />
+          </View>
+        </>
+      )}
+
+      <View style={styles.contentWrapper}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={[
+            styles.contentContainer,
+            currentStep === 1 && styles.contentContainerFullScreen
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Animated.View
+            style={[
+              styles.animatedContent,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateX: slideAnim }],
+              },
+            ]}
+          >
+            {renderStepContent()}
+          </Animated.View>
+        </ScrollView>
+
+        {/* Action Button - only show on step 2 */}
+        {currentStep === 2 && (
+          <View style={styles.floatingButtonContainer}>
+            <View style={styles.floatingButtonWrapper}>
+              <BlurView 
+                intensity={80} 
+                tint="dark" 
                 style={[
-                  styles.floatingButtonWrapper,
-                  (!canProceed || saving) && styles.floatingButtonDisabled
+                  styles.floatingButton,
+                  !canProceed && styles.floatingButtonDisabled
                 ]}
               >
+                {/* Classic glass border */}
+                <View style={styles.buttonGlassBorder} />
+                {/* Subtle inner highlight */}
                 <LinearGradient
-                  colors={canProceed && !saving ? ['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[
-                    styles.floatingButton,
-                    canProceed && !saving && styles.floatingButtonActiveBorder
-                  ]}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.buttonGlassHighlight}
+                  pointerEvents="none"
+                />
+                <TouchableOpacity
+                  onPress={handleNextStep}
+                  disabled={!canProceed}
+                  activeOpacity={0.9}
+                  style={styles.floatingButtonInner}
                 >
-                  <Text style={[
-                    styles.floatingButtonText,
-                    (!canProceed || saving) && styles.floatingButtonTextDisabled
-                  ]}>
+                  <Text style={styles.floatingButtonText}>
                     {getButtonLabel()}
                   </Text>
-                  {canProceed && !saving && <ChevronRight size={20} color="#FFFFFF" />}
-                </LinearGradient>
-              </TouchableOpacity>
+                  {!saving && <ChevronRight size={20} color="#FFFFFF" />}
+                </TouchableOpacity>
+              </BlurView>
             </View>
-
-            {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
-          </KeyboardAvoidingView>
-        </SafeAreaView>
+          </View>
+        )}
       </View>
-    </View>
+
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  backgroundGradient: {
-    flex: 1,
-    backgroundColor: '#050505',
-  },
-  safeArea: {
-    flex: 1,
-  },
   container: {
     flex: 1,
+    backgroundColor: '#0C0C10',
   },
-  topBar: {
+  minimalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 16,
     paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingBottom: 12,
+    backgroundColor: '#0C0C10',
   },
-  iconButton: {
-    padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
+  headerSpacer: {
+    flex: 1,
   },
-  progressBarContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
+  saveButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  saveButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: 'rgba(135, 206, 250, 0.9)',
+  },
+  saveButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.3)',
   },
   header: {
-    marginBottom: 32,
-    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 16,
+    gap: 16,
+    backgroundColor: '#0C0C10',
   },
-  greeting: {
-    fontSize: 42,
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerContent: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 30,
     fontWeight: '700',
-    lineHeight: 48,
-    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
-    letterSpacing: -0.5,
-  },
-  greetingRest: {
     color: '#FFFFFF',
+    marginBottom: 0,
+    letterSpacing: -0.3,
   },
-  greetingSubtext: {
-    color: '#999999',
-    fontSize: 18,
+  subtitle: {
+    fontSize: 14,
+    color: 'rgba(135, 206, 250, 0.7)',
     fontWeight: '500',
-    marginTop: 4,
+  },
+  progressContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(135, 206, 250, 0.15)',
+  },
+  contentWrapper: {
+    flex: 1,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 100,
+  },
+  contentContainerFullScreen: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingTop: 8,
+    paddingBottom: 100,
+    flexGrow: 1,
   },
   animatedContent: {
     flex: 1,
   },
   stepContainer: {
-    gap: 20,
+    gap: 24,
   },
-  textInputCardWrapper: {
-    borderRadius: 24,
-    overflow: 'hidden',
+  stepContainerFullScreen: {
+    flex: 1,
+    paddingTop: 8,
   },
-  textInputCard: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-    padding: 20,
-    minHeight: 300,
+  dateHeaderFullScreen: {
+    marginBottom: 16,
+    alignItems: 'center',
   },
-  textInput: {
+  dateTextFullScreen: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.5)',
+    letterSpacing: 0.3,
+  },
+  textInputFullScreen: {
+    marginTop: 0,
+  },
+  notesTextAreaFullScreen: {
     fontSize: 17,
     lineHeight: 26,
+    minHeight: 400,
     color: '#FFFFFF',
     flex: 1,
     textAlignVertical: 'top',
-    minHeight: 200,
   },
   charCountContainer: {
     alignItems: 'flex-end',
-    marginTop: 12,
+    marginTop: 8,
+    paddingBottom: 20,
   },
   charCountText: {
     fontSize: 12,
@@ -464,71 +540,168 @@ const styles = StyleSheet.create({
   charCountError: {
     color: '#EF4444',
   },
+  stepHeader: {
+    marginBottom: 8,
+  },
+  stepTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 34,
+    marginBottom: 8,
+    letterSpacing: -0.3,
+  },
+  stepSubtitle: {
+    fontSize: 16,
+    color: 'rgba(135, 206, 250, 0.7)',
+    lineHeight: 24,
+    fontWeight: '500',
+  },
+  dateHeader: {
+    marginBottom: 8,
+  },
+  dateText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(135, 206, 250, 0.7)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  textInput: {
+    marginTop: 4,
+  },
+  notesTextArea: {
+    fontSize: 17,
+    lineHeight: 26,
+    minHeight: 200,
+  },
   moodsList: {
     gap: 12,
   },
   moodCardWrapper: {
-    borderRadius: 24,
-    overflow: 'hidden',
+    marginBottom: 0,
+  },
+  moodCardAnimated: {
+    borderRadius: 16,
   },
   moodCard: {
-    borderRadius: 24,
     backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    borderWidth: 1,
+    borderRadius: 20,
+    borderWidth: 1.5,
     borderColor: 'rgba(135, 206, 250, 0.3)',
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.3)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   moodCardSelected: {
-    borderWidth: 1,
-    borderColor: '#87CEFA',
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
+    borderWidth: 2,
+    borderColor: 'rgba(135, 206, 250, 0.5)',
+    backgroundColor: 'rgba(20, 30, 50, 0.4)',
+    shadowColor: 'rgba(135, 206, 250, 0.4)',
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
   },
   moodCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 18,
+    padding: 20,
     gap: 16,
   },
   moodIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(20, 30, 50, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.2)',
   },
   moodIconContainerSelected: {
-    backgroundColor: 'rgba(135, 206, 250, 0.2)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+  },
+  moodTextContainer: {
+    flex: 1,
   },
   moodLabel: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'rgba(220, 220, 220, 0.85)',
   },
   moodLabelSelected: {
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  selectedIndicator: {
+    marginLeft: 'auto',
+  },
+  selectedDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(135, 206, 250, 0.9)',
   },
   floatingButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
-    backgroundColor: 'transparent',
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 36,
+    backgroundColor: '#0C0C10',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(59, 37, 109, 0.2)',
   },
   floatingButtonWrapper: {
     borderRadius: 24,
-    overflow: 'visible',
-    shadowColor: 'rgba(65, 105, 225, 0.5)',
+    overflow: 'hidden',
+    shadowColor: 'rgba(30, 50, 80, 0.5)',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
   },
   floatingButton: {
+    borderRadius: 24,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  floatingButtonDisabled: {
+    opacity: 0.6,
+  },
+  buttonGlassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  buttonGlassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  floatingButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -536,28 +709,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     borderRadius: 24,
-  },
-  floatingButtonActiveBorder: {
-    borderWidth: 1,
-    borderColor: '#87CEFA',
-  },
-  floatingButtonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
+    zIndex: 1,
   },
   floatingButtonText: {
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  floatingButtonTextDisabled: {
-    color: 'rgba(255, 255, 255, 0.5)',
-  },
   errorContainer: {
     position: 'absolute',
     bottom: 100,
-    left: 20,
-    right: 20,
+    left: 24,
+    right: 24,
     backgroundColor: 'rgba(239, 68, 68, 0.95)',
     borderRadius: 12,
     padding: 16,
