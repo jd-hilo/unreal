@@ -805,6 +805,14 @@ export async function generateTimelineSimulation(
   }
 }
 
+export interface TwinChatResponse {
+  text: string;
+  ui?: {
+    type: 'choice' | 'slider';
+    data: any;
+  };
+}
+
 /**
  * Generate a chat reply from the user's alternate-timeline twin "today",
  * grounded in the What-If scenario summary and the user's Core Pack.
@@ -821,10 +829,12 @@ export async function twinChatReply({
   metrics?: any;
   biometrics?: any;
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
-}): Promise<string> {
+}): Promise<TwinChatResponse> {
   if (DEV_MODE) {
     const last = messages[messages.length - 1]?.content || '';
-    return `If I had taken that path, here's where I'd be today. You said: "${last}". Given that, I'd focus on one concrete next step this week.`;
+    return {
+      text: `If I had taken that path, here's where I'd be today. You said: "${last}". Given that, I'd focus on one concrete next step this week.`,
+    };
   }
 
   const openai = getOpenAI();
@@ -898,6 +908,20 @@ export async function twinChatReply({
     '',
     metrics ? `- Metrics (current vs alternate; informative only): ${JSON.stringify(metrics).substring(0, 1500)}` : '',
     biometrics ? `- Biometrics (current vs alternate; informative only): ${JSON.stringify(biometrics).substring(0, 1500)}` : '',
+    '',
+    'RESPONSE FORMAT:',
+    'You must return a JSON object:',
+    '{',
+    '  "text": "Your response text (staying in character)",',
+    '  "ui": {',
+    '    "type": "choice" | "slider" | null,',
+    '    "data": {',
+    '       // for choice: { "question": "string", "options": ["Option A", "Option B"] }',
+    '       // for slider: { "label": "string", "minLabel": "Low", "maxLabel": "High" }',
+    '    }',
+    '  }',
+    '}',
+    'Use "ui" when you want to ask the user a structured question or get a rating. Otherwise set it to null.',
   ].join('\n');
 
   const chatMessages = [
@@ -909,10 +933,11 @@ export async function twinChatReply({
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: chatMessages,
+      response_format: { type: 'json_object' },
       temperature: 0.6,
     });
-    const content = response.choices[0]?.message?.content || '';
-    return content.trim();
+    const content = response.choices[0]?.message?.content || '{}';
+    return JSON.parse(content) as TwinChatResponse;
   } catch (error) {
     console.error('Twin chat error:', error);
     throw error;

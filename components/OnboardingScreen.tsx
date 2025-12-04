@@ -5,6 +5,7 @@ import { ProgressBar } from './ProgressBar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ChevronRight, Sparkles } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 
 interface OnboardingScreenProps {
   title: string | ReactNode;
@@ -109,6 +110,9 @@ export function OnboardingScreen({
   async function handleNext() {
     // Prevent double-clicks using both state and ref for immediate blocking
     if (isProcessingRef.current || isProcessing || !canContinue || loading) return;
+    
+    // Haptic feedback on button press
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     // Set both immediately to prevent any race conditions
     isProcessingRef.current = true;
