@@ -382,6 +382,7 @@ export default function NewDecisionScreen() {
           maxCharCount={500}
           containerStyle={styles.questionInput}
           style={styles.questionInputText}
+          returnKeyType="done"
         />
       </View>
     );
@@ -720,6 +721,7 @@ export default function NewDecisionScreen() {
                   maxLength={6}
                   keyboardType="number-pad"
                   error={twinCodeError}
+                  returnKeyType="done"
                 />
 
                 <TouchableOpacity
@@ -781,6 +783,7 @@ export default function NewDecisionScreen() {
                   multiline
                   showCharCount
                   maxCharCount={200}
+                  returnKeyType="done"
                 />
 
                 <TouchableOpacity

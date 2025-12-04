@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Image, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Image, TextInput, Keyboard } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
@@ -21,6 +21,7 @@ export default function NewWhatIfScreen() {
   const user = useAuth((state) => state.user);
   const [whatIfText, setWhatIfText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scenarioInputRef = useRef<TextInput>(null);
 
   // Auto-focus input when screen loads
@@ -29,6 +30,27 @@ export default function NewWhatIfScreen() {
       scenarioInputRef.current?.focus();
     }, 300);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Keyboard listeners to position button over keyboard
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
   }, []);
 
   async function handleSubmit() {
@@ -141,7 +163,10 @@ export default function NewWhatIfScreen() {
 
             <ScrollView
               style={styles.content}
-              contentContainerStyle={styles.contentContainer}
+              contentContainerStyle={[
+                styles.contentContainer,
+                { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 100 : 120 }
+              ]}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
@@ -223,7 +248,7 @@ export default function NewWhatIfScreen() {
             </ScrollView>
 
             {/* Floating Action Button */}
-            <View style={styles.floatingButtonContainer}>
+            <View style={[styles.floatingButtonContainer, { bottom: keyboardHeight > 0 ? keyboardHeight : 0 }]}>
               <TouchableOpacity
                 onPress={handleSubmit}
                 disabled={!canSubmit || loading}
@@ -391,13 +416,14 @@ const styles = StyleSheet.create({
   },
   floatingButtonContainer: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 40,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 40,
     backgroundColor: '#050505',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(135, 206, 250, 0.1)',
   },
   floatingButton: {
     borderRadius: 24,
