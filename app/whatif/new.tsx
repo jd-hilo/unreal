@@ -69,7 +69,7 @@ export default function NewWhatIfScreen() {
       console.log(baselineSummary);
       console.log('========================');
 
-      const result = await runWhatIf(baselineSummary, whatIfText, currentBiometrics);
+      const result = await runWhatIf(baselineSummary, whatIfText, currentBiometrics, profile);
 
       // Compute Scenario-specific Alignment Score (varies per What-If)
       let twinAlignmentScore: number | null = null;
@@ -85,7 +85,13 @@ export default function NewWhatIfScreen() {
 
       const whatIfData = await insertWhatIf(user.id, {
         counterfactual_type: 'general',
-        payload: { question: whatIfText },
+        payload: { 
+          question: whatIfText,
+          chaosLevel: result.chaosLevel,
+          chaosMessage: result.chaosMessage,
+          newObsession: result.newObsession,
+          timelineVibe: result.timelineVibe,
+        },
         metrics: result.metrics,
         summary: result.summary,
         biometrics: result.biometrics,

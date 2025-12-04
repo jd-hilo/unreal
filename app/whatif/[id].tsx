@@ -136,13 +136,14 @@ export default function WhatIfResultScreen() {
   };
 
   // Order: Relationship, Net Worth, Weight, Location, Hobby, Mood
+  // Always show biometrics if they exist in the data, even without current values
   if (biometricsData.relationshipStatus) {
     biometricsEntries.push({
       key: 'relationshipStatus',
       label: 'Relationship Status',
       icon: <Heart size={18} color="#EF4444" />,
-      primary: capitalize(biometricsData.relationshipStatus.alternate || biometricsData.relationshipStatus.current || '—'),
-      secondary: biometricsData.relationshipStatus.current ? `Current: ${capitalize(biometricsData.relationshipStatus.current)}` : 'Update on Profile',
+      primary: capitalize(biometricsData.relationshipStatus.alternate || '—'),
+      secondary: biometricsData.relationshipStatus.current ? `Current: ${capitalize(biometricsData.relationshipStatus.current)}` : 'Update on Profile to view current',
       editRoute: '/profile/edit-context',
     });
   }
@@ -152,8 +153,8 @@ export default function WhatIfResultScreen() {
       key: 'netWorth',
       label: 'Net Worth',
       icon: <DollarSign size={18} color="#10B981" />,
-      primary: biometricsData.netWorth.alternate || biometricsData.netWorth.current || '—',
-      secondary: biometricsData.netWorth.current ? `Current: ${biometricsData.netWorth.current}` : 'Update on Profile',
+      primary: biometricsData.netWorth.alternate || '—',
+      secondary: biometricsData.netWorth.current ? `Current: ${biometricsData.netWorth.current}` : 'Update on Profile to view current',
       detail: biometricsData.netWorth.percentChange,
       editRoute: '/profile/edit-networth',
     });
@@ -164,8 +165,8 @@ export default function WhatIfResultScreen() {
       key: 'weight',
       label: 'Weight',
       icon: <Weight size={18} color="rgba(135, 206, 250, 0.9)" />,
-      primary: biometricsData.weight.alternate || biometricsData.weight.current || '—',
-      secondary: biometricsData.weight.current ? `Current: ${biometricsData.weight.current}` : 'Update on Profile',
+      primary: biometricsData.weight.alternate || '—',
+      secondary: biometricsData.weight.current ? `Current: ${biometricsData.weight.current}` : 'Update on Profile to view current',
       detail: biometricsData.weight.change,
     });
   }
@@ -175,8 +176,8 @@ export default function WhatIfResultScreen() {
       key: 'location',
       label: 'Location',
       icon: <MapPin size={18} color="#F59E0B" />,
-      primary: biometricsData.location.alternate || biometricsData.location.current || '—',
-      secondary: biometricsData.location.current ? `Current: ${biometricsData.location.current}` : 'Update on Profile',
+      primary: biometricsData.location.alternate || '—',
+      secondary: biometricsData.location.current ? `Current: ${biometricsData.location.current}` : 'Update on Profile to view current',
       editRoute: '/profile/edit-location',
     });
   }
@@ -186,8 +187,8 @@ export default function WhatIfResultScreen() {
       key: 'hobby',
       label: 'Hobby',
       icon: <Coffee size={18} color="rgba(100, 181, 246, 0.8)" />,
-      primary: capitalize(biometricsData.hobby.alternate || biometricsData.hobby.current || '—'),
-      secondary: biometricsData.hobby.current ? `Current: ${capitalize(biometricsData.hobby.current)}` : undefined,
+      primary: capitalize(biometricsData.hobby.alternate || '—'),
+      secondary: biometricsData.hobby.current ? `Current: ${capitalize(biometricsData.hobby.current)}` : 'Update on Profile to view current',
     });
   }
 
@@ -196,8 +197,8 @@ export default function WhatIfResultScreen() {
       key: 'mood',
       label: 'Mood',
       icon: <Smile size={18} color="#34D399" />,
-      primary: capitalize(biometricsData.mood.alternate || biometricsData.mood.current || '—'),
-      secondary: biometricsData.mood.current ? `Current: ${capitalize(biometricsData.mood.current)}` : undefined,
+      primary: capitalize(biometricsData.mood.alternate || '—'),
+      secondary: biometricsData.mood.current ? `Current: ${capitalize(biometricsData.mood.current)}` : 'Update on Profile to view current',
     });
   }
 
@@ -308,6 +309,16 @@ export default function WhatIfResultScreen() {
           </View>
         )}
 
+        {/* New Obsession */}
+        {whatIf.payload?.newObsession && (
+          <View style={styles.extrasSection}>
+            <View style={styles.obsessionCard}>
+              <Text style={styles.obsessionLabel}>Your New Obsession</Text>
+              <Text style={styles.obsessionText}>{whatIf.payload.newObsession}</Text>
+            </View>
+          </View>
+        )}
+
         {typeof whatIf.twin_alignment_score === 'number' && (
           <View style={styles.alignmentCard}>
             <Text style={styles.alignmentTitle}>Twin Alignment Score</Text>
@@ -336,17 +347,18 @@ export default function WhatIfResultScreen() {
           </LinearGradient>
         </TouchableOpacity> */}
 
-        {whatIf.biometrics && (
-          <View style={styles.biometricsSection}>
-            <View style={styles.biometricsCard}>
-                <Text style={styles.biometricsTitle}>Bio Metrics</Text>
+        {/* Always show biometrics section */}
+        <View style={styles.biometricsSection}>
+          <View style={styles.biometricsCard}>
+            <Text style={styles.biometricsTitle}>Bio Metrics</Text>
 
-                <View style={styles.biometricsCardContent}>
-                  {biometricsEntries.length === 0 && (
-                    <Text style={styles.biometricEmptyText}>No biometric changes available.</Text>
-                  )}
-
-                  {biometricsEntries.map((item, index) => (
+            <View style={styles.biometricsCardContent}>
+              {biometricsEntries.length === 0 ? (
+                <View style={styles.biometricEmptyContainer}>
+                  <Text style={styles.biometricEmptyText}>Update on Profile to view biometrics</Text>
+                </View>
+              ) : (
+                biometricsEntries.map((item, index) => (
                     <View
                       key={item.key}
                       style={[
@@ -365,7 +377,7 @@ export default function WhatIfResultScreen() {
                           <Text style={styles.biometricPrimary}>{item.primary}</Text>
                         )}
                         {item.secondary && (
-                          item.secondary === 'Update on Profile' && item.editRoute ? (
+                          item.secondary.includes('Update on Profile') && item.editRoute ? (
                             <TouchableOpacity 
                               onPress={() => router.push(item.editRoute as any)}
                               activeOpacity={0.7}
@@ -394,30 +406,30 @@ export default function WhatIfResultScreen() {
                         )}
                       </View>
                     </View>
-                  ))}
-                </View>
+                  ))
+              )}
+            </View>
 
-                {/* Premium Unlock Button */}
-                {!isPremium && (
-                  <TouchableOpacity 
-                    style={styles.unlockBiometricsButton}
-                    onPress={() => router.push('/premium' as any)}
-                    activeOpacity={0.8}
-                  >
-                    <LinearGradient
-                      colors={['#FFD700', '#FFA500', '#FF8C00']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.unlockBiometricsGradient}
-                    >
-                      <Lock size={20} color="#FFFFFF" strokeWidth={2.5} />
-                      <Text style={styles.unlockBiometricsText}>Unlock Biometrics</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-              </View>
+            {/* Premium Unlock Button */}
+            {!isPremium && (
+              <TouchableOpacity 
+                style={styles.unlockBiometricsButton}
+                onPress={() => router.push('/premium' as any)}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#FFD700', '#FFA500', '#FF8C00']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.unlockBiometricsGradient}
+                >
+                  <Lock size={20} color="#FFFFFF" strokeWidth={2.5} />
+                  <Text style={styles.unlockBiometricsText}>Unlock Biometrics</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
           </View>
-        )}
+        </View>
 
         {/* Disclaimer */}
         <View style={styles.disclaimerSection}>
@@ -690,11 +702,15 @@ const styles = StyleSheet.create({
   biometricDetailNegative: {
     color: '#EF4444',
   },
+  biometricEmptyContainer: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
   biometricEmptyText: {
     textAlign: 'center',
-    color: 'rgba(200, 200, 200, 0.65)',
-    fontSize: 13,
-    paddingVertical: 12,
+    color: 'rgba(135, 206, 250, 0.8)',
+    fontSize: 14,
+    fontWeight: '500',
   },
   biometricLockContainer: {
     marginTop: 4,
@@ -756,5 +772,64 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  extrasSection: {
+    marginTop: 16,
+    gap: 12,
+  },
+  chaosCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    padding: 18,
+  },
+  chaosHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  chaosLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  chaosValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#EF4444',
+  },
+  chaosBarBg: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  chaosBarFill: {
+    height: '100%',
+    backgroundColor: '#EF4444',
+    borderRadius: 3,
+  },
+  obsessionCard: {
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+    borderRadius: 20,
+    padding: 18,
+  },
+  obsessionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#A78BFA',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  obsessionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    lineHeight: 24,
   },
 });

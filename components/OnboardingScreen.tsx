@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Pressable, Animated } from 'react-native';
 import { ReactNode, useState, useRef, useEffect } from 'react';
 import { Button } from './Button';
 import { ProgressBar } from './ProgressBar';
@@ -116,14 +116,16 @@ export function OnboardingScreen({
     
     try {
       await onNext();
-    } catch (error) {
-      console.error('Error in handleNext:', error);
-    } finally {
-      // Keep disabled briefly to prevent double-tap
+      // Reset after successful navigation (with small delay to prevent double-tap)
       setTimeout(() => {
         isProcessingRef.current = false;
         setIsProcessing(false);
-      }, 500);
+      }, 300);
+    } catch (error) {
+      console.error('Error in handleNext:', error);
+      // Reset immediately on error so user can try again
+      isProcessingRef.current = false;
+      setIsProcessing(false);
     }
   }
 
@@ -149,6 +151,8 @@ export function OnboardingScreen({
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
+        bounces={false}
       >
         {/* Title Section */}
         <View style={styles.titleSection}>
@@ -165,45 +169,50 @@ export function OnboardingScreen({
       </ScrollView>
 
       {/* Floating Action Button */}
-      <View style={styles.floatingButtonContainer}>
+      <View style={styles.floatingButtonContainer} pointerEvents="box-none">
         {onSkip && (
-          <TouchableOpacity
+          <Pressable
             onPress={onSkip}
-            style={styles.skipButton}
-            activeOpacity={0.7}
+            style={({ pressed }) => [
+              styles.skipButton,
+              pressed && { opacity: 0.7 }
+            ]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Text style={styles.skipText}>Skip for now</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
         
-          <TouchableOpacity
-            onPress={handleNext}
-            disabled={!canContinue || loading || isProcessing || isProcessingRef.current}
-            activeOpacity={0.9}
+        <Pressable
+          onPress={handleNext}
+          disabled={!canContinue || loading || isProcessing}
+          delayPressIn={0}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={({ pressed }) => [
+            styles.floatingButtonWrapper,
+            (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled,
+            pressed && !(!canContinue || loading || isProcessing) && { opacity: 0.9 }
+          ]}
+        >
+          <LinearGradient
+            colors={canContinue && !loading && !isProcessing ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
             style={[
-              styles.floatingButtonWrapper,
-              (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled
+              styles.floatingButton,
+              canContinue && !loading && !isProcessing && styles.floatingButtonActiveBorder
             ]}
           >
-            <LinearGradient
-              colors={canContinue && !loading && !isProcessing ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[
-                styles.floatingButton,
-                canContinue && !loading && !isProcessing && styles.floatingButtonActiveBorder
-              ]}
-            >
-              <Text style={[
-                styles.floatingButtonText,
-                (!canContinue || loading || isProcessing) && styles.floatingButtonTextDisabled
-              ]}>{loading || isProcessing ? "Continuing" : nextLabel}</Text>
-              <ChevronRight 
-                size={20} 
-                color={(!canContinue || loading || isProcessing) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
-              />
-            </LinearGradient>
-          </TouchableOpacity>
+            <Text style={[
+              styles.floatingButtonText,
+              (!canContinue || loading || isProcessing) && styles.floatingButtonTextDisabled
+            ]}>{loading || isProcessing ? "Continuing" : nextLabel}</Text>
+            <ChevronRight 
+              size={20} 
+              color={(!canContinue || loading || isProcessing) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
+            />
+          </LinearGradient>
+        </Pressable>
       </View>
     </KeyboardAvoidingView>
     </LinearGradient>

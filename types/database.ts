@@ -387,6 +387,9 @@ export interface DecisionPrediction {
   rationale: string;
   factors: string[];
   uncertainty: number;
+  chaosLevel?: number;
+  chaosMessage?: string;
+  sideEffects?: string[];
 }
 
 export interface SimulationScenario {

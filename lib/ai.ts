@@ -508,8 +508,15 @@ export async function predictDecision({
     '  "probs": {"<option1>": 0.XX, "<option2>": 0.XX},',
     '  "rationale": "2–4 sentences explaining your reasoning in SECOND PERSON (you/your).",',
     '  "factors": ["values:freedom", "relationship:partner_4y_supportive", "decision_style:test-small"],',
-    '  "uncertainty": 0.XX',
+    '  "uncertainty": 0.XX,',
+    '  "chaosLevel": 0-100 (how wild/unpredictable this decision would make life),',
+    '  "chaosMessage": "brief message like \'brace yourself\' or \'pretty stable\'",',
+    '  "sideEffects": ["You start going to bed earlier.", "Your gym consistency spikes.", "You become the \'advice friend\' in your group."]',
     '}',
+    '',
+    'IMPORTANT:',
+    '- chaosLevel: 0-100, where higher = more chaotic/unpredictable (e.g., major life changes = higher)',
+    '- sideEffects: 3-5 funny, specific, unexpected side effects in SECOND PERSON (you/your)',
     '',
     'IMPORTANT:',
     '- Generate probabilities based on the actual user context and decision - do NOT use 0.66 or 0.34 unless they truly reflect your analysis',
@@ -551,6 +558,37 @@ export async function predictDecision({
         normalizedProbs[key] = (val as number) / probSum;
       });
       parsed.probs = normalizedProbs;
+    }
+    
+    // Generate chaos level and side effects if not provided
+    if (!parsed.chaosLevel || !parsed.sideEffects) {
+      try {
+        // Calculate chaos level based on uncertainty and decision impact
+        const baseChaos = parsed.uncertainty * 50; // 0-50 based on uncertainty
+        const impactChaos = Math.abs(Object.values(parsed.probs)[0] - 0.5) * 50; // Higher if more decisive
+        parsed.chaosLevel = Math.round(Math.min(100, Math.max(0, baseChaos + impactChaos)));
+        parsed.chaosMessage = parsed.chaosLevel > 70 ? 'brace yourself' : parsed.chaosLevel > 40 ? 'moderate change' : 'pretty stable';
+        
+        // Generate side effects if not provided
+        if (!parsed.sideEffects || parsed.sideEffects.length === 0) {
+          try {
+            parsed.sideEffects = await generateDecisionSideEffects({
+              question,
+              prediction: parsed.prediction,
+              corePack,
+              relevancePack,
+            });
+          } catch (error) {
+            console.warn('Failed to generate side effects:', error);
+            parsed.sideEffects = ['You discover unexpected changes in your routine.'];
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to generate chaos level/side effects, using defaults:', error);
+        parsed.chaosLevel = parsed.chaosLevel || 50;
+        parsed.chaosMessage = parsed.chaosMessage || 'moderate change';
+        parsed.sideEffects = parsed.sideEffects || ['You discover unexpected changes in your routine.'];
+      }
     }
     
     console.log('Final prediction:', parsed);
@@ -921,8 +959,9 @@ export async function runWhatIf(
     location?: string | null;
     netWorth?: string | null;
     relationshipStatus?: string | null;
-  }
-): Promise<{ metrics: WhatIfMetrics; summary: string; biometrics?: any }> {
+  },
+  userProfile?: any
+): Promise<{ metrics: WhatIfMetrics; summary: string; biometrics?: any; chaosLevel: number; chaosMessage: string; newObsession: string; timelineVibe?: string }> {
   if (DEV_MODE) {
     return mockWhatIf();
   }
@@ -955,11 +994,13 @@ export async function runWhatIf(
     userText +
     '\n\nAnalyze how this alternate choice would have affected their life across 5 dimensions AND specific biometrics.\n\n' +
     'CRITICAL INSTRUCTIONS FOR BIOMETRICS:\n' +
+    '- ALWAYS generate biometrics for: relationshipStatus, netWorth, location, hobby, mood, weight\n' +
     '- Use the EXACT current biometric values provided above (if available)\n' +
-    '- DO NOT make up or guess current values - use what is explicitly provided\n' +
+    '- If current values are NOT provided, still generate "alternate" values based on the scenario\n' +
     '- For "alternate" values: Predict how these would realistically change based on the counterfactual scenario\n' +
-    '- If current data for a biometric field was not provided, you may infer it from the baseline summary OR omit that field\n' +
-    '- DO NOT use placeholder text like "City, State" or generic values\n\n' +
+    '- If current data was not provided, you may infer reasonable current values from the baseline summary\n' +
+    '- DO NOT use placeholder text like "City, State" or generic values\n' +
+    '- Always include alternate values even if current values are missing\n\n' +
     'Return JSON with this structure:\n\n' +
     '{\n' +
     '  "metrics": {\n' +
@@ -999,7 +1040,58 @@ export async function runWhatIf(
     console.log('Parsed metrics:', parsed.metrics);
     console.log('Parsed biometrics:', parsed.biometrics);
     
-    return parsed;
+    // Generate chaos level, new obsession, and timeline vibe - ALWAYS generate these
+    let chaosLevel: number = 50; // Default fallback
+    let chaosMessage: string = 'moderate change'; // Default fallback
+    let newObsession: string = 'You discover a new passion.'; // Default fallback
+    let timelineVibe: string = 'Different but interesting'; // Default fallback
+    
+    try {
+      // Build core pack from user profile if available
+      let corePack = baselineSummary;
+      if (userProfile) {
+        const responses = userProfile.core_json?.onboarding_responses || {};
+        corePack = [
+          userProfile.first_name ? `Name: ${userProfile.first_name}` : '',
+          userProfile.hometown ? `Hometown: ${userProfile.hometown}` : '',
+          userProfile.university ? `University: ${userProfile.university}` : '',
+          userProfile.current_location ? `Current Location: ${userProfile.current_location}` : '',
+          userProfile.values_json && Array.isArray(userProfile.values_json) ? `Values: ${userProfile.values_json.join(', ')}` : '',
+          responses['01-now'] ? `Current Situation: ${responses['01-now']}` : '',
+          responses['02-path'] ? `Life Journey: ${responses['02-path']}` : '',
+          baselineSummary,
+        ].filter(Boolean).join('\n');
+      }
+      
+      const extras = await generateWhatIfExtras({
+        scenario: userText,
+        corePack,
+        userProfile,
+      });
+      
+      chaosLevel = extras.chaosLevel;
+      chaosMessage = extras.chaosMessage;
+      newObsession = extras.newObsession;
+      
+      // Generate timeline vibe
+      timelineVibe = await generateTimelineVibe({
+        scenario: userText,
+        summary: parsed.summary,
+        metrics: parsed.metrics,
+        corePack,
+      });
+    } catch (error) {
+      console.warn('Failed to generate What If extras, using fallbacks:', error);
+      // Use fallback values - always include these fields
+    }
+    
+    return {
+      ...parsed,
+      chaosLevel,
+      chaosMessage,
+      newObsession,
+      timelineVibe,
+    };
   } catch (error) {
     console.error('What-if error:', error);
     throw error;
@@ -1106,7 +1198,7 @@ function mockSimulation(): SimulationScenario {
   };
 }
 
-function mockWhatIf(): { metrics: WhatIfMetrics; summary: string; biometrics: any } {
+function mockWhatIf(): { metrics: WhatIfMetrics; summary: string; biometrics: any; chaosLevel: number; chaosMessage: string; newObsession: string; timelineVibe?: string } {
   return {
     metrics: {
       happiness: { current: 7.2, alternate: 6.8 },
@@ -1125,6 +1217,10 @@ function mockWhatIf(): { metrics: WhatIfMetrics; summary: string; biometrics: an
     },
     summary:
       'In this alternate timeline, you would likely have higher financial security but lower personal freedom and relationship satisfaction. Your current path prioritizes personal fulfillment over purely financial metrics, which aligns with your core values.',
+    chaosLevel: 72,
+    chaosMessage: 'brace yourself',
+    newObsession: 'You got deeply into competitive tennis leagues.',
+    timelineVibe: 'Chaotic but Rewarding',
   };
 }
 
@@ -1293,6 +1389,255 @@ export interface OnboardingSummaryResult {
   interests?: string[]; // User interests (if provided)
   values_json?: string[]; // Extracted values array
   age?: number; // Calculated age
+}
+
+/**
+ * Generate chaos level and new obsession for a what-if scenario
+ */
+/**
+ * Generate side effects for a decision
+ */
+export async function generateDecisionSideEffects({
+  question,
+  prediction,
+  corePack,
+  relevancePack,
+}: {
+  question: string;
+  prediction: string;
+  corePack: string;
+  relevancePack: string;
+}): Promise<string[]> {
+  // Always use AI to generate these values
+  const openai = getOpenAI();
+
+  const systemPrompt = [
+    "You are analyzing a decision and generating funny, specific, unexpected side effects.",
+    '',
+    'SIDE EFFECTS:',
+    '  - Must be funny, specific, and unexpected',
+    '  - Should be realistic consequences of making this decision',
+    '  - Examples:',
+    '    • "You start going to bed earlier."',
+    '    • "Your gym consistency spikes."',
+    '    • "Your screen time actually drops."',
+    '    • "You become the \'advice friend\' in your group."',
+    '  - Write in SECOND PERSON (you/your)',
+    '  - Keep each to 1 line',
+    '  - Generate 3-5 side effects',
+  ].join('\n');
+
+  const userPrompt = [
+    'Decision Question:',
+    question,
+    '',
+    'Predicted Choice:',
+    prediction,
+    '',
+    'User Context:',
+    corePack.substring(0, 1500),
+    '',
+    'Generate 3-5 funny, specific, unexpected side effects of making this decision.',
+    '',
+    'Return JSON:',
+    '{',
+    '  "sideEffects": [',
+    '    "You start going to bed earlier.",',
+    '    "Your gym consistency spikes.",',
+    '    "You become the \'advice friend\' in your group."',
+    '  ]',
+    '}',
+  ].join('\n');
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.8, // Higher temperature for creativity
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('No response from AI');
+
+    const parsed = JSON.parse(content);
+    
+    return parsed.sideEffects || ['You discover unexpected changes in your routine.'];
+  } catch (error) {
+    console.error('Side effects generation error:', error);
+    // Fallback values
+    return ['You discover unexpected changes in your routine.'];
+  }
+}
+
+/**
+ * Generate a catchy timeline vibe tagline for a what-if scenario
+ */
+export async function generateTimelineVibe({
+  scenario,
+  summary,
+  metrics,
+  corePack,
+}: {
+  scenario: string;
+  summary: string;
+  metrics: any;
+  corePack: string;
+}): Promise<string> {
+  // Always use AI to generate these values
+  const openai = getOpenAI();
+
+  const systemPrompt = [
+    "You are generating a catchy, shareable tagline that summarizes an alternate timeline.",
+    '',
+    'TIMELINE VIBE:',
+    '  - A short, punchy phrase (3-7 words) that captures the essence of this alternate reality',
+    '  - Should be shareable, relatable, and memorable',
+    '  - Examples:',
+    '    • "Chaotic but Rewarding"',
+    '    • "The Friend Who Always Knows"',
+    '    • "Quietly Thriving"',
+    '    • "Living Your Best Life"',
+    '    • "The One Who Took Risks"',
+    '    • "Stable and Satisfied"',
+    '    • "The Creative One"',
+    '  - Should reflect the overall tone and outcome of this timeline',
+    '  - Make it personal and specific to this scenario',
+  ].join('\n');
+
+  const userPrompt = [
+    'Scenario:',
+    scenario,
+    '',
+    'Summary:',
+    summary.substring(0, 500),
+    '',
+    'Metrics:',
+    JSON.stringify(metrics).substring(0, 300),
+    '',
+    'Generate a catchy timeline vibe tagline (3-7 words) that captures this alternate reality.',
+    '',
+    'Return JSON:',
+    '{',
+    '  "timelineVibe": "Chaotic but Rewarding"',
+    '}',
+  ].join('\n');
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.9, // Higher temperature for creativity
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('No response from AI');
+
+    const parsed = JSON.parse(content);
+    
+    return parsed.timelineVibe || 'Different but interesting';
+  } catch (error) {
+    console.error('Timeline vibe generation error:', error);
+    // Fallback values
+    return 'Different but interesting';
+  }
+}
+
+export async function generateWhatIfExtras({
+  scenario,
+  corePack,
+  userProfile,
+}: {
+  scenario: string;
+  corePack: string;
+  userProfile?: any;
+}): Promise<{
+  chaosLevel: number; // 0-100
+  chaosMessage: string; // e.g., "brace yourself", "pretty stable", etc.
+  newObsession: string; // One hyper-personal, unexpected hobby/passion
+}> {
+  // Always use AI to generate these values
+  const openai = getOpenAI();
+
+  const systemPrompt = [
+    "You are analyzing a 'what-if' life scenario and generating two specific insights:",
+    '',
+    '1. CHAOS LEVEL (0-100): How wild/unpredictable this timeline would be',
+    '   - Consider: major life changes, uncertainty, disruption to routine, risk factors',
+    '   - Higher = more chaotic/unpredictable (e.g., moving cities, career change, relationship shifts)',
+    '   - Lower = more stable/predictable (e.g., staying in same job, small tweaks)',
+    '   - Generate a percentage (0-100) and a brief message (1-3 words)',
+    '',
+    '2. NEW OBSESSION: One hyper-personal, unexpected hobby/passion they would have developed',
+    '   - Must be unique and creative - something they haven\'t done before',
+    '   - Should fit their personality but be surprising',
+    '   - Examples: "You became obsessed with pilates", "You picked up photography and actually got good",',
+    '     "You started collecting sneakers", "You got deeply into tennis leagues",',
+    '     "You accidentally started a micro-brand"',
+    '   - Write in SECOND PERSON PAST TENSE (you/your) - this is about another lifetime',
+    '   - Keep it to 1 line, extremely shareable',
+    '   - Make it specific and interesting - avoid generic hobbies',
+  ].join('\n');
+
+  const userPrompt = [
+    'Scenario:',
+    scenario,
+    '',
+    'User Context:',
+    corePack.substring(0, 2000), // Limit to avoid token limits
+    '',
+    'Generate:',
+    '1. Chaos Level (0-100) with a brief message',
+    '2. One unique, creative new obsession that fits this person but is unexpected',
+    '',
+    'Return JSON:',
+    '{',
+    '  "chaosLevel": 72,',
+    '  "chaosMessage": "brace yourself",',
+    '  "newObsession": "You got deeply into competitive tennis leagues."',
+    '}',
+  ].join('\n');
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.8, // Higher temperature for creativity
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('No response from AI');
+
+    const parsed = JSON.parse(content);
+    
+    // Ensure chaos level is between 0-100
+    const chaosLevel = Math.max(0, Math.min(100, parsed.chaosLevel || 50));
+    
+    return {
+      chaosLevel,
+      chaosMessage: parsed.chaosMessage || 'moderate change',
+      newObsession: parsed.newObsession || 'You discover a new passion.',
+    };
+  } catch (error) {
+    console.error('What-if extras generation error:', error);
+    // Fallback values
+    return {
+      chaosLevel: 50,
+      chaosMessage: 'moderate change',
+      newObsession: 'You discover a new passion.',
+    };
+  }
 }
 
 export async function summarizeOnboardingGroup(data: OnboardingSummaryData): Promise<OnboardingSummaryResult> {

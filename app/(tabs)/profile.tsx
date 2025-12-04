@@ -643,13 +643,8 @@ export default function ProfileScreen() {
           onRequestClose={() => setInfoModalVisible(false)}
         >
           <View style={styles.infoModalOverlay}>
-            <View style={styles.infoModalContent}>
-              <LinearGradient
-                colors={['rgba(20, 10, 35, 0.98)', 'rgba(30, 15, 50, 0.98)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.infoModalGradient}
-              >
+            <BlurView intensity={80} tint="dark" style={styles.infoModalBlur}>
+              <View style={styles.infoModalContent}>
                 <TouchableOpacity 
                   onPress={() => setInfoModalVisible(false)}
                   style={styles.infoModalCloseButton}
@@ -658,16 +653,31 @@ export default function ProfileScreen() {
                   <X size={24} color="#FFFFFF" />
                 </TouchableOpacity>
 
-                <View style={styles.infoModalHeader}>
-                  <View style={styles.infoIconContainer}>
-                    <Info size={32} color="#4169E1" strokeWidth={2.5} />
-                  </View>
+                <View style={styles.infoModalLogoContainer}>
+                  <Image
+                    source={require('@/assets/images/unrealnum.png')}
+                    style={styles.infoModalLogo}
+                    resizeMode="contain"
+                  />
                 </View>
 
-                <View style={styles.codeDisplayBox}>
-                  <Text style={styles.codeDisplayLabel}>YOUR UNIQUE IDENTIFIER</Text>
-                  <Text style={styles.codeDisplayValue}>{twinCode}</Text>
-                  <View style={styles.scanlineEffect} />
+                <View style={styles.infoModalHeaderCard}>
+                  <BlurView intensity={40} tint="dark" style={styles.infoModalHeaderCardBlur}>
+                    <Text style={styles.infoModalHeaderLabel}>Your unreal#</Text>
+                    <View style={styles.infoModalCodeRow}>
+                      <Text style={styles.infoModalHeaderText}>{twinCode}</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Clipboard.setString(twinCode);
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        }}
+                        style={styles.infoModalCopyButton}
+                        activeOpacity={0.7}
+                      >
+                        <Copy size={18} color="rgba(135, 206, 250, 0.9)" />
+                      </TouchableOpacity>
+                    </View>
+                  </BlurView>
                 </View>
 
                 <View style={styles.infoSection}>
@@ -692,12 +702,8 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                 </View>
-
-                <View style={styles.techBorder}>
-                  <Text style={styles.techBorderText}>SYSTEM_ID: {twinCode}</Text>
-                </View>
-              </LinearGradient>
-            </View>
+              </View>
+            </BlurView>
           </View>
         </Modal>
       </View>
@@ -1053,80 +1059,83 @@ const styles = StyleSheet.create({
   },
   infoModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 20,
   },
-  infoModalContent: {
+  infoModalBlur: {
     width: '100%',
     maxWidth: 400,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  infoModalGradient: {
-    padding: 28,
+  infoModalContent: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 24,
+    position: 'relative',
   },
   infoModalCloseButton: {
     position: 'absolute',
     top: 20,
     right: 20,
     zIndex: 10,
-    padding: 4,
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
   },
-  infoModalHeader: {
+  infoModalLogoContainer: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 20,
   },
-  infoIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(183, 149, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
+  infoModalLogo: {
+    width: 120,
+    height: 120,
   },
-  codeDisplayBox: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.4)',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 28,
-    position: 'relative',
+  infoModalHeaderCard: {
+    marginBottom: 24,
+    borderRadius: 20,
     overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  codeDisplayLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#4169E1',
-    letterSpacing: 2,
+  infoModalHeaderCardBlur: {
+    padding: 18,
+  },
+  infoModalHeaderLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.75)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
     marginBottom: 8,
-    fontFamily: 'Courier New',
   },
-  codeDisplayValue: {
-    fontSize: 32,
-    fontWeight: '700',
+  infoModalCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  infoModalHeaderText: {
+    fontSize: 20,
+    fontWeight: '600',
+    lineHeight: 26,
     color: '#FFFFFF',
-    fontFamily: 'Courier New',
-    letterSpacing: 4,
+    letterSpacing: -0.3,
+    flex: 1,
   },
-  scanlineEffect: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: 'rgba(183, 149, 255, 0.5)',
+  infoModalCopyButton: {
+    padding: 8,
+    backgroundColor: 'rgba(135, 206, 250, 0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.2)',
   },
   infoSection: {
-    gap: 20,
-    marginBottom: 24,
+    gap: 16,
   },
   infoPoint: {
     flexDirection: 'row',
@@ -1137,30 +1146,17 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#4169E1',
+    backgroundColor: 'rgba(135, 206, 250, 0.9)',
     marginTop: 7,
   },
   infoText: {
     flex: 1,
     fontSize: 15,
     lineHeight: 22,
-    color: 'rgba(220, 220, 220, 0.9)',
+    color: 'rgba(200, 200, 200, 0.85)',
   },
   highlightText: {
-    color: '#4169E1',
+    color: 'rgba(135, 206, 250, 0.9)',
     fontWeight: '600',
-    fontFamily: 'Courier New',
-  },
-  techBorder: {
-    borderTopWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.3)',
-    paddingTop: 16,
-    alignItems: 'center',
-  },
-  techBorderText: {
-    fontSize: 11,
-    fontFamily: 'Courier New',
-    color: 'rgba(183, 149, 255, 0.6)',
-    letterSpacing: 1,
   },
 });

@@ -536,6 +536,42 @@ export default function DecisionResultScreen() {
               </View>
             )}
 
+            {/* Chaos Level */}
+            {(prediction.chaosLevel !== undefined || prediction.chaosMessage) && (() => {
+              const chaosLevel = prediction.chaosLevel || 50;
+              const chaosColor = chaosLevel <= 33 ? '#10B981' : chaosLevel <= 66 ? '#F59E0B' : '#EF4444';
+              return (
+                <View style={styles.section}>
+                  <View style={styles.sectionCard}>
+                    <View style={styles.chaosHeader}>
+                      <Text style={styles.sectionTitle}>Chaos Level</Text>
+                      <Text style={[styles.chaosValue, { color: chaosColor }]}>
+                        {chaosLevel}% {prediction.chaosMessage ? `(${prediction.chaosMessage})` : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.chaosBarBg}>
+                      <View style={[styles.chaosBarFill, { width: `${chaosLevel}%`, backgroundColor: chaosColor }]} />
+                    </View>
+                  </View>
+                </View>
+              );
+            })()}
+
+            {/* Side Effects */}
+            {prediction.sideEffects && prediction.sideEffects.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>Side Effects of This Decision</Text>
+                  {prediction.sideEffects.map((effect: string, index: number) => (
+                    <View key={index} style={styles.sideEffectItem}>
+                      <Text style={styles.sideEffectBullet}>•</Text>
+                      <Text style={styles.sideEffectText}>{effect}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {/* If things were different Section */}
             {decision.prediction && (
               <View style={styles.section}>
@@ -656,51 +692,53 @@ export default function DecisionResultScreen() {
           style={styles.shareCardContainer}
           collapsable={false}
         >
-          <LinearGradient
-            colors={['#0C0C10', '#1A1D26']}
-            style={styles.shareCard}
-          >
-            <View style={styles.shareContent}>
+          <View style={styles.shareBackground}>
+            {/* Header Card */}
+            <View style={styles.shareHeaderCard}>
+              <Text style={styles.shareHeaderLabel}>Question</Text>
               <Text style={styles.shareQuestion}>{decision.question}</Text>
-              
-              <View style={styles.shareResultBox}>
-                <Text style={styles.shareLabel}>Recommendation</Text>
-                <Text style={styles.shareResult}>{prediction.prediction}</Text>
-                <Text style={styles.shareConfidence}>
-                  {confidence.toFixed(0)}% Confidence
-                </Text>
-              </View>
-
-              {prediction.probs && (
-                <View style={styles.shareOptions}>
-                  <Text style={styles.shareSectionTitle}>All Options</Text>
-                  {Object.entries(prediction.probs as Record<string, number>).map(
-                    ([option, prob]) => (
-                      <View key={option} style={styles.shareOptionRow}>
-                        <Text style={styles.shareOptionName}>{option}</Text>
-                        <View style={styles.shareProbContainer}>
-                          <View style={styles.shareProbBarBackground}>
-                            <LinearGradient
-                              colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 0 }}
-                              style={[
-                                styles.shareProbBar,
-                                { width: `${(prob as number) * 100}%` },
-                              ]}
-                            />
-                          </View>
-                          <Text style={styles.shareProbText}>
-                            {((prob as number) * 100).toFixed(0)}%
-                          </Text>
-                        </View>
-                      </View>
-                    )
-                  )}
-                </View>
-              )}
             </View>
 
+            {/* Prediction Card */}
+            <View style={styles.sharePredictionCard}>
+              <Text style={styles.sharePredictionLabel}>Recommended</Text>
+              <Text style={styles.sharePredictionValue}>{prediction.prediction}</Text>
+              <Text style={styles.shareConfidence}>
+                {confidence.toFixed(0)}% confidence
+              </Text>
+            </View>
+
+            {/* Options Card */}
+            {prediction.probs && (
+              <View style={styles.shareSectionCard}>
+                <Text style={styles.shareSectionTitle}>All Options</Text>
+                {Object.entries(prediction.probs as Record<string, number>).map(
+                  ([option, prob]) => (
+                    <View key={option} style={styles.shareOptionRow}>
+                      <Text style={styles.shareOptionName}>{option}</Text>
+                      <View style={styles.shareProbContainer}>
+                        <View style={styles.shareProbBarBackground}>
+                          <LinearGradient
+                            colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={[
+                              styles.shareProbBar,
+                              { width: `${(prob as number) * 100}%` },
+                            ]}
+                          />
+                        </View>
+                        <Text style={styles.shareProbText}>
+                          {((prob as number) * 100).toFixed(0)}%
+                        </Text>
+                      </View>
+                    </View>
+                  )
+                )}
+              </View>
+            )}
+
+            {/* Footer */}
             <View style={styles.shareFooter}>
               <View style={styles.shareFooterContent}>
                 <Text style={styles.shareGeneratedBy}>Generated by your AI Twin</Text>
@@ -714,7 +752,7 @@ export default function DecisionResultScreen() {
                 />
               </View>
             </View>
-          </LinearGradient>
+          </View>
         </View>
       )}
 
@@ -1281,65 +1319,88 @@ const styles = StyleSheet.create({
     left: -10000,
     top: 0,
     width: 375,
-    backgroundColor: '#0C0C10',
+    backgroundColor: '#000000',
   },
-  shareCard: {
-    padding: 24,
-    minHeight: 450,
-    justifyContent: 'space-between',
+  shareBackground: {
+    backgroundColor: '#050505',
+    padding: 20,
+    paddingBottom: 16,
+    minHeight: 350,
+    maxHeight: 550,
   },
-  shareContent: {
-    flex: 1,
-    gap: 24,
+  shareHeaderCard: {
+    marginBottom: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    padding: 18,
+  },
+  shareHeaderLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.75)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
   },
   shareQuestion: {
+    fontSize: 20,
+    fontWeight: '600',
+    lineHeight: 26,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  sharePredictionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+  },
+  sharePredictionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.75)',
+    marginBottom: 8,
+  },
+  sharePredictionValue: {
     fontSize: 28,
     fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 34,
-  },
-  shareResultBox: {
-    backgroundColor: 'rgba(135, 206, 250, 0.1)',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  shareLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: 'rgba(135, 206, 250, 0.8)',
     marginBottom: 8,
-    letterSpacing: 1,
-  },
-  shareResult: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 4,
   },
   shareConfidence: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
     color: '#10B981',
+    fontWeight: '600',
   },
-  shareOptions: {
-    gap: 12,
+  shareSectionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 24,
   },
   shareSectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: 4,
-  },
-  shareOptionRow: {
-    marginBottom: 12,
-  },
-  shareOptionName: {
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 12,
+    letterSpacing: 0.2,
+  },
+  shareOptionRow: {
+    marginBottom: 16,
+  },
+  shareOptionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 10,
+    letterSpacing: 0.1,
   },
   shareProbContainer: {
     flexDirection: 'row',
@@ -1379,23 +1440,23 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   shareFooter: {
-    marginTop: 40,
+    marginTop: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
-    paddingTop: 20,
+    paddingTop: 12,
   },
   shareFooterContent: {
-    gap: 4,
+    gap: 3,
   },
   shareGeneratedBy: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.6)',
   },
   shareLink: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(135, 206, 250, 0.8)',
     fontWeight: '600',
   },
@@ -1468,5 +1529,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  chaosHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  chaosValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  chaosBarBg: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  chaosBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  sideEffectItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 8,
+  },
+  sideEffectBullet: {
+    fontSize: 16,
+    color: 'rgba(135, 206, 250, 0.9)',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  sideEffectText: {
+    flex: 1,
+    fontSize: 15,
+    color: 'rgba(200, 200, 200, 0.85)',
+    lineHeight: 22,
   },
 });

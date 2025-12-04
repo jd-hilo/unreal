@@ -105,7 +105,7 @@ export default function JournalScreen() {
             <View style={styles.header}>
               <Text style={styles.greeting}>
                 <Text style={styles.greetingName}>Journal{'\n'}</Text>
-                <Text style={styles.greetingRest}>Track your daily{'\n'}experiences</Text>
+                <Text style={styles.greetingRest}>Keep your twin aligned</Text>
               </Text>
             </View>
 
@@ -231,9 +231,9 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   greeting: {
-    fontSize: 42,
+    fontSize: 32,
     fontWeight: '700',
-    lineHeight: 48,
+    lineHeight: 38,
     fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
     letterSpacing: -0.5,
   },

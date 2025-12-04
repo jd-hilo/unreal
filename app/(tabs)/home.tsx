@@ -386,7 +386,7 @@ export default function HomeScreen() {
                         />
                       </View>
                       <Text style={styles.gridCardTitle}>Decide</Text>
-                      <Text style={styles.gridCardSubtitle}>Make a choice, simulate the outcomes</Text>
+                      <Text style={styles.gridCardSubtitle} numberOfLines={2}>Make a choice, simulate outcomes</Text>
                     </View>
                   </BlurView>
                 </Animated.View>
@@ -420,7 +420,7 @@ export default function HomeScreen() {
                         />
                       </View>
                       <Text style={styles.gridCardTitle}>Explore</Text>
-                      <Text style={styles.gridCardSubtitle}>See your alternate life</Text>
+                      <Text style={styles.gridCardSubtitle} numberOfLines={2}>See your alternate life</Text>
                     </View>
                   </BlurView>
                 </Animated.View>
@@ -453,7 +453,7 @@ export default function HomeScreen() {
                          <Book size={32} color="#FFFFFF" strokeWidth={1.5} />
                       </View>
                       <Text style={styles.gridCardTitle}>Journal</Text>
-                      <Text style={styles.gridCardSubtitle}>
+                      <Text style={styles.gridCardSubtitle} numberOfLines={2}>
                         {hasTodayJournal ? 'Entry complete' : 'Daily reflection'}
                       </Text>
                     </View>
@@ -503,7 +503,7 @@ export default function HomeScreen() {
                         />
                       </View>
                       <Text style={styles.gridCardTitle}>My Twin</Text>
-                      <Text style={styles.gridCardSubtitle}>
+                      <Text style={styles.gridCardSubtitle} numberOfLines={2}>
                         {profileProgress === 100 ? 'Fully trained' : 'Training...'}
                       </Text>
                     </View>
@@ -727,9 +727,9 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   greeting: {
-    fontSize: 42,
+    fontSize: 34,
     fontWeight: '700',
-    lineHeight: 48,
+    lineHeight: 40,
     fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
     letterSpacing: -0.5,
   },
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
   },
   gridCardWrapper: {
     width: CARD_WIDTH,
-    height: CARD_WIDTH * 1.1, // Slightly taller than wide
+    height: CARD_WIDTH * 1.15, // Slightly taller to accommodate text
     borderRadius: 32,
     overflow: 'hidden',
   },
@@ -811,6 +811,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.5)',
     lineHeight: 20,
+    flexShrink: 1,
   },
   notificationDot: {
     position: 'absolute',
