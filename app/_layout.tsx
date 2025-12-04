@@ -10,8 +10,6 @@ import {
   setUserProperties,
 } from '@/lib/mixpanel';
 import adjustService from '@/adjustService';
-import { ElevenLabsProvider } from '@elevenlabs/react-native';
-import { ErrorBoundary } from '@/components/errorBoundry';
 
 export default function RootLayout() {
   useFrameworkReady();

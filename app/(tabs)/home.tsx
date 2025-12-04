@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, getInterestProgress, getTodayJournal } from '@/lib/storage';
-import { Compass, Sparkles, Zap, X, Trash2, Lock, ChevronRight, HelpCircle, Book, User, History, LayoutGrid, ScanLine } from 'lucide-react-native';
+import { Compass, Sparkles, Zap, X, Trash2, Lock, ChevronRight, HelpCircle, Book, User, History, LayoutGrid, ScanLine, Settings } from 'lucide-react-native';
 import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -297,16 +297,28 @@ export default function HomeScreen() {
           >
             {/* Top Bar */}
             <View style={styles.topBar}>
-              <TouchableOpacity 
-                style={styles.iconButton}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  setShowDecisionGuide(true);
-                  setGuideStep(0);
-                }}
-              >
-                <HelpCircle size={24} color="#FFFFFF" strokeWidth={2} />
-              </TouchableOpacity>
+              <View style={styles.topBarIcons}>
+                <TouchableOpacity 
+                  style={styles.iconButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setShowDecisionGuide(true);
+                    setGuideStep(0);
+                  }}
+                >
+                  <HelpCircle size={24} color="#FFFFFF" strokeWidth={2} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.iconButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/(tabs)/profile');
+                  }}
+                >
+                  <Settings size={24} color="#FFFFFF" strokeWidth={2} />
+                </TouchableOpacity>
+              </View>
               
               {(!isPremium || isPremium === undefined) && (
                 <TouchableOpacity 
@@ -670,6 +682,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 20,
   },
+  topBarIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   iconButton: {
     padding: 8,
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -768,14 +785,16 @@ const styles = StyleSheet.create({
   },
   gridCardContent: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'flex-start',
+    paddingTop: 0,
   },
   gridIconContainer: {
     marginBottom: 16,
     width: 48,
     height: 48,
     justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   gridIconImage: {
     width: 48,
@@ -786,10 +805,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 4,
+    lineHeight: 24,
   },
   gridCardSubtitle: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.5)',
+    lineHeight: 20,
   },
   notificationDot: {
     position: 'absolute',

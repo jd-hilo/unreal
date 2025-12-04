@@ -35,7 +35,14 @@
       ["expo-apple-authentication"],
       "@config-plugins/react-native-adjust",
       "expo-asset",
-      ["expo-build-properties", {}],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ],
       [
         "expo-location",
         {

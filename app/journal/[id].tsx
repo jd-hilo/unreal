@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import { getJournal, deleteJournal } from '@/lib/storage';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { Smile, Meh, Frown, SmilePlus, Angry, Trash2 } from 'lucide-react-native';
+import { Smile, Meh, Frown, SmilePlus, Angry, Trash2, ArrowLeft } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 interface Journal {
   id: string;
@@ -89,65 +91,97 @@ export default function ViewJournalScreen() {
 
   if (loading || !journal) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.screen}>
+        <StatusBar style="light" />
+        <LinearGradient
+          colors={['#050505', '#0F0F18', '#0D0D15', '#050505']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.backgroundGradient}
+        >
+          <SafeAreaView style={styles.safeArea} edges={['top']}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <ArrowLeft size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </SafeAreaView>
+        </LinearGradient>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>
-          {format(new Date(journal.created_at), 'MMMM d, yyyy')}
-        </Text>
-        <Text style={styles.subtitle}>
-          {format(new Date(journal.created_at), 'EEEE') + ' • ' + format(new Date(journal.created_at), 'h:mm a')}
-        </Text>
-      </View>
+    <View style={styles.screen}>
+      <StatusBar style="light" />
+      <LinearGradient
+        colors={['#050505', '#0F0F18', '#0D0D15', '#050505']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.backgroundGradient}
+      >
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <ArrowLeft size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.title}>
+              {format(new Date(journal.created_at), 'MMMM d, yyyy')}
+            </Text>
+            <Text style={styles.subtitle}>
+              {format(new Date(journal.created_at), 'EEEE') + ' • ' + format(new Date(journal.created_at), 'h:mm a')}
+            </Text>
+          </View>
 
       <ScrollView 
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        <BlurView intensity={80} tint="dark" style={styles.moodCard}>
-          <LinearGradient
-            colors={['rgba(135, 206, 250, 0.1)', 'transparent']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.glassHighlight}
-          />
-          <View style={styles.moodIconContainer}>
-            {getMoodEmoji(journal.mood)}
+        <View style={styles.moodCardWrapper}>
+          <View style={styles.moodCard}>
+            <BlurView intensity={80} tint="dark" style={styles.moodCardBlur}>
+              {/* Glass border */}
+              <View style={styles.glassBorder} />
+              {/* Inner highlight */}
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.glassHighlight}
+                pointerEvents="none"
+              />
+              <View style={styles.moodIconContainer}>
+                {getMoodEmoji(journal.mood)}
+              </View>
+              <Text style={styles.moodLabel}>
+                {getMoodLabel(journal.mood)}
+              </Text>
+            </BlurView>
           </View>
-          <Text style={styles.moodLabel}>
-            {getMoodLabel(journal.mood)}
-          </Text>
-        </BlurView>
+        </View>
 
         {journal.text && (
-          <BlurView intensity={80} tint="dark" style={styles.textCard}>
-            <LinearGradient
-              colors={['rgba(135, 206, 250, 0.08)', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.glassHighlight}
-            />
-            <Text style={styles.text}>{journal.text}</Text>
-            <View style={styles.textMeta}>
-              <Text style={styles.wordCount}>
-                {journal.text.split(/\s+/).filter(Boolean).length} words
-              </Text>
+          <View style={styles.textCardWrapper}>
+            <View style={styles.textCard}>
+              <BlurView intensity={80} tint="dark" style={styles.textCardBlur}>
+                {/* Glass border */}
+                <View style={styles.glassBorder} />
+                {/* Inner highlight */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.glassHighlight}
+                  pointerEvents="none"
+                />
+                <Text style={styles.text}>{journal.text}</Text>
+                <View style={styles.textMeta}>
+                  <Text style={styles.wordCount}>
+                    {journal.text.split(/\s+/).filter(Boolean).length} words
+                  </Text>
+                </View>
+              </BlurView>
             </View>
-          </BlurView>
+          </View>
         )}
 
         <TouchableOpacity
@@ -156,7 +190,17 @@ export default function ViewJournalScreen() {
           style={[styles.deleteButton, deleting && styles.deleteButtonDisabled]}
           activeOpacity={0.7}
         >
-          <BlurView intensity={60} tint="dark" style={styles.deleteButtonBlur}>
+          <BlurView intensity={80} tint="dark" style={styles.deleteButtonBlur}>
+            {/* Glass border */}
+            <View style={styles.deleteGlassBorder} />
+            {/* Inner highlight */}
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.deleteGlassHighlight}
+              pointerEvents="none"
+            />
             <Trash2 size={18} color="rgba(239, 68, 68, 0.9)" />
             <Text style={styles.deleteButtonText}>
               {deleting ? 'Deleting...' : 'Delete Entry'}
@@ -164,71 +208,73 @@ export default function ViewJournalScreen() {
           </BlurView>
         </TouchableOpacity>
       </ScrollView>
+        </SafeAreaView>
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: '#0C0C10',
+    backgroundColor: '#000000',
+  },
+  backgroundGradient: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
   },
   header: {
-    paddingTop: 60,
     paddingHorizontal: 24,
-    paddingBottom: 24,
-    backgroundColor: '#0C0C10',
+    paddingTop: 12,
+    paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(135, 206, 250, 0.15)',
+    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
   backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
   },
-  backText: {
-    fontSize: 16,
-    color: 'rgba(135, 206, 250, 0.8)',
-  },
   title: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 6,
+    marginBottom: 8,
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 15,
-    color: 'rgba(135, 206, 250, 0.7)',
-    letterSpacing: 0.2,
-    fontWeight: '500',
+    fontSize: 16,
+    color: 'rgba(200, 200, 200, 0.75)',
+    lineHeight: 24,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    padding: 24,
-    gap: 28,
+    paddingHorizontal: 20,
+    paddingTop: 32,
+    paddingBottom: 40,
+    gap: 24,
+  },
+  moodCardWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   moodCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  moodCardBlur: {
     alignItems: 'center',
     padding: 32,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    borderRadius: 24,
-    borderWidth: 1.5,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-    overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  glassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
+    position: 'relative',
   },
   moodIconContainer: {
     marginBottom: 16,
@@ -236,48 +282,54 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(20, 30, 50, 0.4)',
     borderRadius: 36,
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.2)',
+    borderColor: 'rgba(255,255,255,0.1)',
+    zIndex: 1,
   },
   moodLabel: {
     fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.2,
+    zIndex: 1,
+  },
+  textCardWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   textCard: {
-    padding: 28,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    borderRadius: 24,
-    borderWidth: 1.5,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+  },
+  textCardBlur: {
+    padding: 28,
+    position: 'relative',
   },
   text: {
     fontSize: 18,
-    color: 'rgba(240, 240, 240, 0.95)',
+    color: '#FFFFFF',
     lineHeight: 30,
     letterSpacing: 0.1,
     fontWeight: '400',
+    zIndex: 1,
   },
   textMeta: {
     marginTop: 20,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(135, 206, 250, 0.15)',
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    zIndex: 1,
   },
   wordCount: {
     fontSize: 13,
-    color: 'rgba(135, 206, 250, 0.6)',
+    color: 'rgba(200, 200, 200, 0.6)',
     fontWeight: '500',
     letterSpacing: 0.3,
   },
   deleteButton: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
     marginTop: 8,
   },
@@ -288,13 +340,52 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 16,
     backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
-    shadowColor: 'rgba(239, 68, 68, 0.3)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 4,
+    position: 'relative',
+    zIndex: 1,
+  },
+  glassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.4)',
+    pointerEvents: 'none',
+  },
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 20,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  deleteGlassBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    pointerEvents: 'none',
+  },
+  deleteGlassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 20,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   deleteButtonDisabled: {
     opacity: 0.5,
