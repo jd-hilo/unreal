@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Animated } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +16,10 @@ export default function WhatIfResultScreen() {
   const { isPremium } = useTwin();
   const [whatIf, setWhatIf] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     loadWhatIf();
@@ -48,6 +52,20 @@ export default function WhatIfResultScreen() {
 
       if (error) throw error;
       setWhatIf(data);
+      
+      // Trigger fade-in animation after data loads
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } catch (error) {
       console.error('Failed to load what-if:', error);
     } finally {
@@ -217,12 +235,21 @@ export default function WhatIfResultScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          <Animated.ScrollView 
+            style={[styles.content, { 
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }]} 
+            contentContainerStyle={styles.contentContainer}
+          >
             {/* Main Header */}
-            <View style={styles.header}>
-              <Text style={styles.greeting}>
-                <Text style={styles.greetingRest}>{whatIf.payload?.question || 'What-if scenario'}</Text>
-              </Text>
+            <View style={styles.headerCard}>
+              <BlurView intensity={40} tint="dark" style={styles.headerCardBlur}>
+                <Text style={styles.headerLabel}>Scenario</Text>
+                <Text style={styles.headerText}>
+                  {whatIf.payload?.question || 'What-if scenario'}
+                </Text>
+              </BlurView>
             </View>
 
         <View style={styles.metricsGrid}>
@@ -398,7 +425,7 @@ export default function WhatIfResultScreen() {
             This trajectory is AI-generated based on your unique profile. Use it as a thought experiment, not a prediction.
           </Text>
         </View>
-          </ScrollView>
+          </Animated.ScrollView>
         </SafeAreaView>
       </View>
     </View>
@@ -430,19 +457,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 20,
   },
-  header: {
-    marginBottom: 32,
-    paddingHorizontal: 20,
+  headerCard: {
+    marginBottom: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  greeting: {
-    fontSize: 42,
-    fontWeight: '700',
-    lineHeight: 48,
-    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
-    letterSpacing: -0.5,
+  headerCardBlur: {
+    padding: 18,
   },
-  greetingRest: {
+  headerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.75)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  headerText: {
+    fontSize: 20,
+    fontWeight: '600',
+    lineHeight: 26,
     color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   content: {
     flex: 1,

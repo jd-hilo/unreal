@@ -44,8 +44,8 @@ export default function HomeScreen() {
   const [twinCardLayout, setTwinCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const [guideStep, setGuideStep] = useState(0);
   const whatIfHoverAnim = useRef(new Animated.Value(0)).current;
-  const decisionCardRef = useRef<Animated.View>(null);
-  const whatIfCardRef = useRef<Animated.View>(null);
+  const decisionCardRef = useRef<View>(null);
+  const whatIfCardRef = useRef<View>(null);
   const journalCardRef = useRef<View>(null);
   const twinCardRef = useRef<View>(null);
   
@@ -371,7 +371,7 @@ export default function HomeScreen() {
                   ref={decisionCardRef}
                   style={styles.gridCard}
                   onLayout={() => {
-                    decisionCardRef.current?.measureInWindow((x, y, width, height) => {
+                    decisionCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
                       setDecisionCardLayout({ x, y, width, height });
                     });
                   }}
@@ -405,7 +405,7 @@ export default function HomeScreen() {
                   ref={whatIfCardRef}
                   style={styles.gridCard}
                   onLayout={() => {
-                    whatIfCardRef.current?.measureInWindow((x, y, width, height) => {
+                    whatIfCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
                       setWhatIfCardLayout({ x, y, width, height });
                     });
                   }}

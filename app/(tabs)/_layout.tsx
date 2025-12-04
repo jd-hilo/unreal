@@ -26,12 +26,9 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         lazy: true,
-        // Avoid aggressive unmounting to prevent focus/unfocus loops
-        detachInactiveScreens: false,
         tabBarActiveTintColor: '#FFFFFF',
         tabBarInactiveTintColor: 'rgba(150, 150, 150, 0.8)',
         sceneStyle: { backgroundColor: '#0C0C10' },
-        sceneContainerStyle: { backgroundColor: 'transparent' },
         tabBarStyle: {
           backgroundColor: 'transparent',
           borderTopWidth: 0,
@@ -78,8 +75,6 @@ export default function TabLayout() {
         name="home"
         options={{
           title: 'Home',
-          // Keep screen mounted to prevent churn
-          unmountOnBlur: false,
           tabBarStyle: { 
             height: 0,
             display: 'none',
@@ -97,7 +92,6 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          unmountOnBlur: false,
           tabBarStyle: { 
             height: 0,
             display: 'none',

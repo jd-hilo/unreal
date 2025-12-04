@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Clipboard, Modal, Linking, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Clipboard, Modal, Linking, Platform, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -35,6 +35,10 @@ export default function DecisionResultScreen() {
   const [sharing, setSharing] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareImageUri, setShareImageUri] = useState<string | null>(null);
+  
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     if (user) {
@@ -65,12 +69,26 @@ export default function DecisionResultScreen() {
 
       setDecision(decisionData);
       setParticipants(participantsData || []);
-
+      
       // Always generate prediction on result screen if decision is not a draft
       // This ensures AI is called when viewing the result
       if (decisionData.status !== 'draft' && !decisionData.prediction) {
         await generatePrediction(decisionData);
       }
+      
+      // Trigger fade-in animation after data loads
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } catch (error) {
       console.error('Failed to load decision:', error);
       setLoading(false);
@@ -127,6 +145,20 @@ export default function DecisionResultScreen() {
       const updatedDecision = await getDecision(decisionData.id);
       setDecision(updatedDecision);
       console.log('Prediction saved and decision updated');
+      
+      // Trigger fade-in animation after prediction loads
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
       
       // Reload suggestions after new prediction
       loadSuggestions();
@@ -371,12 +403,21 @@ export default function DecisionResultScreen() {
             )}
           </View>
 
-          <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          <Animated.ScrollView 
+            style={[styles.content, { 
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }]} 
+            contentContainerStyle={styles.contentContainer}
+          >
             {/* Main Header */}
-            <View style={styles.header}>
-              <Text style={styles.greeting}>
-                <Text style={styles.greetingRest}>{decision.question}</Text>
-              </Text>
+            <View style={styles.headerCard}>
+              <BlurView intensity={40} tint="dark" style={styles.headerCardBlur}>
+                <Text style={styles.headerLabel}>Question</Text>
+                <Text style={styles.headerText}>
+                  {decision.question}
+                </Text>
+              </BlurView>
             </View>
 
         {/* Show participants if any */}
@@ -604,7 +645,7 @@ export default function DecisionResultScreen() {
             )}
           </>
         )}
-          </ScrollView>
+          </Animated.ScrollView>
         </SafeAreaView>
       </View>
 
@@ -619,40 +660,43 @@ export default function DecisionResultScreen() {
             colors={['#0C0C10', '#1A1D26']}
             style={styles.shareCard}
           >
-            <View style={styles.shareHeader}>
-              <Image 
-                source={require('@/assets/images/unreallogo.png')}
-                style={styles.shareLogo}
-                resizeMode="contain"
-              />
-            </View>
-
             <View style={styles.shareContent}>
               <Text style={styles.shareQuestion}>{decision.question}</Text>
               
               <View style={styles.shareResultBox}>
-                <Text style={styles.shareLabel}>AI PREDICTION</Text>
+                <Text style={styles.shareLabel}>Recommendation</Text>
                 <Text style={styles.shareResult}>{prediction.prediction}</Text>
                 <Text style={styles.shareConfidence}>
                   {confidence.toFixed(0)}% Confidence
                 </Text>
               </View>
 
-              <View style={styles.shareAnalysis}>
-                <Text style={styles.shareSectionTitle}>Analysis</Text>
-                <Text style={styles.shareText} numberOfLines={4}>
-                  {prediction.rationale}
-                </Text>
-              </View>
-
-              {suggestions?.suggestions && suggestions.suggestions.length > 0 && (
-                <View style={styles.shareWhatIf}>
-                  <Text style={styles.shareSectionTitle}>Alternate Path</Text>
-                  <View style={styles.shareSuggestion}>
-                    <Text style={styles.shareSuggestionText} numberOfLines={2}>
-                      {suggestions.suggestions[0].label}
-                    </Text>
-                  </View>
+              {prediction.probs && (
+                <View style={styles.shareOptions}>
+                  <Text style={styles.shareSectionTitle}>All Options</Text>
+                  {Object.entries(prediction.probs as Record<string, number>).map(
+                    ([option, prob]) => (
+                      <View key={option} style={styles.shareOptionRow}>
+                        <Text style={styles.shareOptionName}>{option}</Text>
+                        <View style={styles.shareProbContainer}>
+                          <View style={styles.shareProbBarBackground}>
+                            <LinearGradient
+                              colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={[
+                                styles.shareProbBar,
+                                { width: `${(prob as number) * 100}%` },
+                              ]}
+                            />
+                          </View>
+                          <Text style={styles.shareProbText}>
+                            {((prob as number) * 100).toFixed(0)}%
+                          </Text>
+                        </View>
+                      </View>
+                    )
+                  )}
                 </View>
               )}
             </View>
@@ -660,7 +704,7 @@ export default function DecisionResultScreen() {
             <View style={styles.shareFooter}>
               <View style={styles.shareFooterContent}>
                 <Text style={styles.shareGeneratedBy}>Generated by your AI Twin</Text>
-                <Text style={styles.shareLink}>Try it: apps.apple.com/app/id6754901842</Text>
+                <Text style={styles.shareLink}>Build your own AI Twin. Search "Unreal" on{'\n'}the App Store.</Text>
               </View>
               <View style={styles.shareAppIcon}>
                  <Image 
@@ -767,19 +811,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 20,
   },
-  header: {
-    marginBottom: 32,
-    paddingHorizontal: 20,
+  headerCard: {
+    marginBottom: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  greeting: {
-    fontSize: 42,
-    fontWeight: '700',
-    lineHeight: 48,
-    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
-    letterSpacing: -0.5,
+  headerCardBlur: {
+    padding: 18,
   },
-  greetingRest: {
+  headerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.75)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  headerText: {
+    fontSize: 20,
+    fontWeight: '600',
+    lineHeight: 26,
     color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   content: {
     flex: 1,
@@ -1229,16 +1285,8 @@ const styles = StyleSheet.create({
   },
   shareCard: {
     padding: 24,
-    minHeight: 600,
+    minHeight: 450,
     justifyContent: 'space-between',
-  },
-  shareHeader: {
-    alignItems: 'flex-start',
-    marginBottom: 32,
-  },
-  shareLogo: {
-    width: 80,
-    height: 80,
   },
   shareContent: {
     flex: 1,
@@ -1275,18 +1323,46 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#10B981',
   },
-  shareAnalysis: {
-    gap: 8,
+  shareOptions: {
+    gap: 12,
   },
   shareSectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 4,
   },
-  shareText: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 24,
+  shareOptionRow: {
+    marginBottom: 12,
+  },
+  shareOptionName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  shareProbContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  shareProbBarBackground: {
+    flex: 1,
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  shareProbBar: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  shareProbText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(200, 200, 200, 0.75)',
+    minWidth: 40,
   },
   shareWhatIf: {
     marginTop: 8,
