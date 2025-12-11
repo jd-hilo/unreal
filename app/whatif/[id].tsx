@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Animated } from 'react-native';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, JSX } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Weight, Heart, DollarSign, MapPin, Smile, Coffee, Lock, Sparkles } from 'lucide-react-native';
+import { Home, TrendingUp, TrendingDown, Minus, Weight, Heart, DollarSign, MapPin, Smile, Coffee, Lock, Sparkles } from 'lucide-react-native';
 import { useTwin } from '@/store/useTwin';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -80,8 +80,8 @@ export default function WhatIfResultScreen() {
           <StatusBar style="light" />
           <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <View style={styles.topBar}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+              <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
+                <Home size={24} color="#FFFFFF" strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <View style={styles.loadingContainer}>
@@ -100,8 +100,8 @@ export default function WhatIfResultScreen() {
           <StatusBar style="light" />
           <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <View style={styles.topBar}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+              <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
+                <Home size={24} color="#FFFFFF" strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <View style={styles.loadingContainer}>
@@ -231,8 +231,8 @@ export default function WhatIfResultScreen() {
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
           {/* Top Bar */}
           <View style={styles.topBar}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-              <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+            <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
+              <Home size={24} color="#FFFFFF" strokeWidth={2} />
             </TouchableOpacity>
           </View>
 
@@ -252,6 +252,16 @@ export default function WhatIfResultScreen() {
                 </Text>
               </BlurView>
             </View>
+
+        {/* New Obsession */}
+        {whatIf.payload?.newObsession && (
+          <View style={styles.obsessionSectionTop}>
+            <View style={styles.obsessionCard}>
+              <Text style={styles.obsessionLabel}>Your New Obsession</Text>
+              <Text style={styles.obsessionText}>{whatIf.payload.newObsession}</Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.metricsGrid}>
           {metricNames.map((metricName) => {
@@ -304,18 +314,8 @@ export default function WhatIfResultScreen() {
 
         {whatIf.summary && (
           <View style={styles.summary}>
-            <Text style={styles.summaryTitle}>Analysis</Text>
+            <Text style={styles.summaryTitle}>A look into your life</Text>
             <Text style={styles.summaryText}>{whatIf.summary}</Text>
-          </View>
-        )}
-
-        {/* New Obsession */}
-        {whatIf.payload?.newObsession && (
-          <View style={styles.extrasSection}>
-            <View style={styles.obsessionCard}>
-              <Text style={styles.obsessionLabel}>Your New Obsession</Text>
-              <Text style={styles.obsessionText}>{whatIf.payload.newObsession}</Text>
-            </View>
           </View>
         )}
 
@@ -431,10 +431,18 @@ export default function WhatIfResultScreen() {
           </View>
         </View>
 
+        <TouchableOpacity
+          style={styles.askAnotherButton}
+          onPress={() => router.push('/whatif/new')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.askAnotherButtonText}>Ask Another What If</Text>
+        </TouchableOpacity>
+
         {/* Disclaimer */}
         <View style={styles.disclaimerSection}>
           <Text style={styles.disclaimerText}>
-            This trajectory is AI-generated based on your unique profile. Use it as a thought experiment, not a prediction.
+            This trajectory is generated through simulations based on your unique profile. Use it as a thought experiment, not a prediction.
           </Text>
         </View>
           </Animated.ScrollView>
@@ -777,6 +785,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     gap: 12,
   },
+  obsessionSectionTop: {
+    marginBottom: 24,
+  },
   chaosCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
@@ -831,5 +842,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#FFFFFF',
     lineHeight: 24,
+  },
+  askAnotherButton: {
+    marginTop: 0,
+    marginBottom: 40,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  askAnotherButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Image, TextInput, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Image, TextInput, Keyboard, Animated, Easing } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { Button } from '@/components/Button';
@@ -18,19 +18,102 @@ import { StatusBar } from 'expo-status-bar';
 
 export default function NewWhatIfScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ scenario?: string }>();
   const user = useAuth((state) => state.user);
-  const [whatIfText, setWhatIfText] = useState('');
+  const [whatIfText, setWhatIfText] = useState(params.scenario || '');
   const [loading, setLoading] = useState(false);
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scenarioInputRef = useRef<TextInput>(null);
+  const hasAutoSubmitted = useRef(false);
 
-  // Auto-focus input when screen loads
+  const LOADING_STEPS = [
+    "Exploring your scenario...",
+    "Analyzing your profile...",
+    "Building alternate reality...",
+    "Consulting your twin...",
+    "Calculating metrics...",
+    "Finalizing your alternate life..."
+  ];
+
+  // Pre-fill scenario from query params and auto-submit if provided
   useEffect(() => {
-    const timer = setTimeout(() => {
-      scenarioInputRef.current?.focus();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, []);
+    if (params.scenario && params.scenario.trim() && !hasAutoSubmitted.current && user) {
+      hasAutoSubmitted.current = true;
+      setWhatIfText(params.scenario);
+      // Auto-submit after a short delay, passing the scenario directly
+      const timer = setTimeout(() => {
+        // Ensure we have the text before submitting
+        if (params.scenario && params.scenario.trim()) {
+          handleSubmit(params.scenario);
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [params.scenario, user]);
+
+  // Auto-focus input when screen loads (only if no pre-filled scenario)
+  useEffect(() => {
+    if (!params.scenario) {
+      const timer = setTimeout(() => {
+        scenarioInputRef.current?.focus();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [params.scenario]);
+
+  // Loading animation and steps
+  useEffect(() => {
+    if (loading) {
+      setLoadingStepIndex(0);
+      
+      // Start pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      // Start rotation animation
+      Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+
+      // Update loading steps
+      const interval = setInterval(() => {
+        setLoadingStepIndex((prev) => {
+          if (prev < LOADING_STEPS.length - 1) {
+            return prev + 1;
+          }
+          return prev;
+        });
+      }, 800);
+      
+      return () => {
+        clearInterval(interval);
+        pulseAnim.setValue(1);
+        rotateAnim.setValue(0);
+      };
+    }
+  }, [loading]);
 
   // Keyboard listeners to position button over keyboard
   useEffect(() => {
@@ -53,8 +136,9 @@ export default function NewWhatIfScreen() {
     };
   }, []);
 
-  async function handleSubmit() {
-    if (!user || !whatIfText.trim()) return;
+  async function handleSubmit(textOverride?: string) {
+    const textToUse = textOverride || whatIfText;
+    if (!user || !textToUse.trim()) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoading(true);
@@ -91,7 +175,7 @@ export default function NewWhatIfScreen() {
       console.log(baselineSummary);
       console.log('========================');
 
-      const result = await runWhatIf(baselineSummary, whatIfText, currentBiometrics, profile);
+      const result = await runWhatIf(baselineSummary, textToUse, currentBiometrics, profile);
 
       // Compute Scenario-specific Alignment Score (varies per What-If)
       let twinAlignmentScore: number | null = null;
@@ -135,7 +219,103 @@ export default function NewWhatIfScreen() {
     }
   }
 
+  function handleSubmitPress() {
+    handleSubmit();
+  }
+
   const canSubmit = whatIfText.trim();
+
+  // Loading screen
+  if (loading) {
+    const rotateInterpolate = rotateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    return (
+      <View style={styles.loadingScreen}>
+        <LinearGradient
+          colors={['#050505', '#0A0A0A', '#050505']}
+          style={styles.loadingContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
+            <View style={styles.loadingContent}>
+              {/* Animated Orb */}
+              <View style={styles.orbContainer}>
+                <Animated.View
+                  style={[
+                    styles.orbOuter,
+                    {
+                      transform: [
+                        { scale: pulseAnim },
+                        { rotate: rotateInterpolate },
+                      ],
+                    },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.1)', 'rgba(65, 105, 225, 0.05)']}
+                    style={styles.orbGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                </Animated.View>
+                <View style={styles.orbInner}>
+                  <Image 
+                    source={require('@/assets/images/cube.png')}
+                    style={styles.loadingCubeIcon}
+                    resizeMode="contain"
+                  />
+                </View>
+              </View>
+
+              {/* Loading Text */}
+              <View style={styles.textContainer}>
+                <Text style={styles.loadingText}>Exploring your alternate life...</Text>
+                <View style={styles.statusContainer}>
+                  <BlurView intensity={20} tint="dark" style={styles.statusBlur}>
+                    <Text style={styles.statusText}>
+                      {LOADING_STEPS[loadingStepIndex] || LOADING_STEPS[LOADING_STEPS.length - 1]}
+                    </Text>
+                  </BlurView>
+                </View>
+              </View>
+
+              {/* Loading Dots */}
+              <View style={styles.dotsContainer}>
+                {[0, 1, 2].map((index) => (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.dot,
+                      {
+                        backgroundColor: '#87CEFA',
+                        transform: [
+                          {
+                            scale: pulseAnim.interpolate({
+                              inputRange: [1, 1.1],
+                              outputRange: [1, 1.2],
+                            }),
+                          },
+                        ],
+                        opacity: pulseAnim.interpolate({
+                          inputRange: [1, 1.1],
+                          outputRange: [0.5, 1],
+                        }),
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -250,7 +430,7 @@ export default function NewWhatIfScreen() {
             {/* Floating Action Button */}
             <View style={[styles.floatingButtonContainer, { bottom: keyboardHeight > 0 ? keyboardHeight : 0 }]}>
               <TouchableOpacity
-                onPress={handleSubmit}
+                onPress={handleSubmitPress}
                 disabled={!canSubmit || loading}
                 activeOpacity={0.9}
                 style={[
@@ -462,5 +642,95 @@ const styles = StyleSheet.create({
   cubeIcon: {
     width: 22,
     height: 22,
+  },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  loadingContainer: {
+    flex: 1,
+  },
+  loadingSafeArea: {
+    flex: 1,
+  },
+  loadingContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  orbContainer: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 32,
+  },
+  orbOuter: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'hidden',
+  },
+  orbGradient: {
+    width: '100%',
+    height: '100%',
+  },
+  orbInner: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  loadingCubeIcon: {
+    width: 60,
+    height: 60,
+    opacity: 0.9,
+  },
+  textContainer: {
+    alignItems: 'center',
+    gap: 16,
+    width: '100%',
+  },
+  loadingText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  statusContainer: {
+    marginTop: 8,
+  },
+  statusBlur: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  statusText: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });

@@ -9,6 +9,7 @@ import type {
   WhatIfMetrics,
   WhatIfBiometrics,
   InterestResponse,
+  YearPredictionData,
 } from '@/types/database';
 
 export async function upsertProfileCore(
@@ -1186,4 +1187,113 @@ export async function getInterestProgressNew(userId: string): Promise<number> {
   // Average progress across all categories
   const totalProgress = categoryProgress.reduce((sum, progress) => sum + progress, 0);
   return Math.round(totalProgress / categories.length);
+}
+
+/**
+ * Insert a new year prediction
+ */
+export async function insertYearPrediction(
+  userId: string,
+  scenarioType: 'estimated' | 'best_case' | 'worst_case',
+  predictionData: YearPredictionData,
+  probabilityPercentage?: number
+) {
+  const { data, error } = await supabase
+    .from('year_predictions')
+    .insert({
+      user_id: userId,
+      scenario_type: scenarioType,
+      prediction_data: predictionData as any,
+      probability_percentage: probabilityPercentage ?? null,
+    } as any)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Get a year prediction by user ID and scenario type
+ */
+export async function getYearPrediction(
+  userId: string,
+  scenarioType: 'estimated' | 'best_case' | 'worst_case'
+) {
+  const { data, error } = await supabase
+    .from('year_predictions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('scenario_type', scenarioType)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Get a year prediction by ID
+ */
+export async function getYearPredictionById(predictionId: string) {
+  const { data, error } = await supabase
+    .from('year_predictions')
+    .select('*')
+    .eq('id', predictionId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Update an existing year prediction
+ */
+export async function updateYearPrediction(
+  predictionId: string,
+  predictionData: YearPredictionData,
+  probabilityPercentage?: number
+) {
+  const updatePayload: any = {
+    prediction_data: predictionData as any,
+  };
+
+  if (probabilityPercentage !== undefined) {
+    updatePayload.probability_percentage = probabilityPercentage;
+  }
+
+  const { data, error } = await supabase
+    .from('year_predictions')
+    .update(updatePayload)
+    .eq('id', predictionId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Get all year predictions for a user
+ */
+export async function getAllYearPredictions(userId: string) {
+  const { data, error } = await supabase
+    .from('year_predictions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Delete a year prediction
+ */
+export async function deleteYearPrediction(predictionId: string) {
+  const { error } = await supabase
+    .from('year_predictions')
+    .delete()
+    .eq('id', predictionId);
+
+  if (error) throw error;
 }

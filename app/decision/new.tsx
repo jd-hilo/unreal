@@ -1,6 +1,6 @@
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Image, Modal, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Image, Modal, ActivityIndicator, Animated, Easing } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { SwipeableOptionCard } from '@/components/SwipeableOptionCard';
@@ -23,6 +23,7 @@ const TOTAL_STEPS = 4;
 
 export default function NewDecisionScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ question?: string }>();
   const user = useAuth((state) => state.user);
   
   // Step management
@@ -32,10 +33,22 @@ export default function NewDecisionScreen() {
   const questionInputRef = useRef<TextInput>(null);
   
   // Form data
-  const [question, setQuestion] = useState('');
+  const [question, setQuestion] = useState(params.question || '');
   const [derivedOptions, setDerivedOptions] = useState<string[]>([]);
   const [isDerivingOptions, setIsDerivingOptions] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  
+  const LOADING_STEPS = [
+    "Creating your decision...",
+    "Analyzing your profile...",
+    "Building context...",
+    "Consulting your twin...",
+    "Calculating probabilities...",
+    "Finalizing recommendation..."
+  ];
   
   // Twin management
   const [showTwinModal, setShowTwinModal] = useState(false);
@@ -67,16 +80,79 @@ export default function NewDecisionScreen() {
     };
   }, []);
 
+  // Pre-fill question from query params and auto-advance if provided
+  useEffect(() => {
+    if (params.question && params.question.trim() && currentStep === 1) {
+      setQuestion(params.question);
+      // Auto-derive options after a short delay if question is pre-filled
+      const timer = setTimeout(() => {
+        handleDeriveOptions();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [params.question]);
+
   // Auto-focus question input when on step 1
   useEffect(() => {
-    if (currentStep === 1) {
+    if (currentStep === 1 && !params.question) {
       // Small delay to ensure the component is rendered
       const timer = setTimeout(() => {
         questionInputRef.current?.focus();
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [currentStep]);
+  }, [currentStep, params.question]);
+
+  // Loading animation and steps
+  useEffect(() => {
+    if (loading) {
+      setLoadingStepIndex(0);
+      
+      // Start pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      // Start rotation animation
+      Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+
+      // Update loading steps
+      const interval = setInterval(() => {
+        setLoadingStepIndex((prev) => {
+          if (prev < LOADING_STEPS.length - 1) {
+            return prev + 1;
+          }
+          return prev;
+        });
+      }, 800);
+      
+      return () => {
+        clearInterval(interval);
+        pulseAnim.setValue(1);
+        rotateAnim.setValue(0);
+      };
+    }
+  }, [loading]);
 
   async function loadRecentTwins() {
     try {
@@ -542,6 +618,98 @@ export default function NewDecisionScreen() {
       case 4: return "Ready to analyze";
       default: return "";
     }
+  }
+
+  // Loading screen
+  if (loading) {
+    const rotateInterpolate = rotateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    return (
+      <View style={styles.loadingScreen}>
+        <LinearGradient
+          colors={['#050505', '#0A0A0A', '#050505']}
+          style={styles.loadingContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
+            <View style={styles.loadingContent}>
+              {/* Animated Orb */}
+              <View style={styles.orbContainer}>
+                <Animated.View
+                  style={[
+                    styles.orbOuter,
+                    {
+                      transform: [
+                        { scale: pulseAnim },
+                        { rotate: rotateInterpolate },
+                      ],
+                    },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.1)', 'rgba(65, 105, 225, 0.05)']}
+                    style={styles.orbGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                </Animated.View>
+                <View style={styles.orbInner}>
+                  <Image 
+                    source={require('@/assets/images/cube.png')}
+                    style={styles.loadingCubeIcon}
+                    resizeMode="contain"
+                  />
+                </View>
+              </View>
+
+              {/* Loading Text */}
+              <View style={styles.textContainer}>
+                <Text style={styles.loadingText}>Asking your twin...</Text>
+                <View style={styles.statusContainer}>
+                  <BlurView intensity={20} tint="dark" style={styles.statusBlur}>
+                    <Text style={styles.statusText}>
+                      {LOADING_STEPS[loadingStepIndex] || LOADING_STEPS[LOADING_STEPS.length - 1]}
+                    </Text>
+                  </BlurView>
+                </View>
+              </View>
+
+              {/* Loading Dots */}
+              <View style={styles.dotsContainer}>
+                {[0, 1, 2].map((index) => (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.dot,
+                      {
+                        backgroundColor: '#87CEFA',
+                        transform: [
+                          {
+                            scale: pulseAnim.interpolate({
+                              inputRange: [1, 1.1],
+                              outputRange: [1, 1.2],
+                            }),
+                          },
+                        ],
+                        opacity: pulseAnim.interpolate({
+                          inputRange: [1, 1.1],
+                          outputRange: [0.5, 1],
+                        }),
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
+      </View>
+    );
   }
 
   return (
@@ -1262,5 +1430,99 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  // Loading screen styles
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  loadingContainer: {
+    flex: 1,
+  },
+  loadingSafeArea: {
+    flex: 1,
+  },
+  loadingContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  orbContainer: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 32,
+  },
+  orbOuter: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'hidden',
+  },
+  orbGradient: {
+    width: '100%',
+    height: '100%',
+  },
+  orbInner: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  orbEmoji: {
+    fontSize: 48,
+  },
+  loadingCubeIcon: {
+    width: 60,
+    height: 60,
+    opacity: 0.9,
+  },
+  textContainer: {
+    alignItems: 'center',
+    gap: 16,
+    width: '100%',
+  },
+  loadingText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  statusContainer: {
+    marginTop: 8,
+  },
+  statusBlur: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  statusText: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });

@@ -191,6 +191,11 @@ export default function PremiumScreen() {
       description: 'See detailed biometric predictions for all your what-if scenarios',
     },
     {
+      icon: Sparkles,
+      title: 'Best Case & Worst Case Scenarios',
+      description: 'Explore optimistic and challenging 2026 predictions to see all possible futures',
+    },
+    {
       icon: TrendingUp,
       title: 'Advanced Analysis',
       description: 'Get deeper insights into how your choices shape your future',

@@ -7,36 +7,115 @@ import type {
   SimulationScenario,
   WhatIfMetrics,
   TimelineSimulation,
+  YearPredictionData,
 } from '@/types/database';
 
-const apiKey = 
+// Anthropic API key (Claude 3.5)
+const anthropicApiKey = 
+  Constants.expoConfig?.extra?.anthropicApiKey || 
+  process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ||
+  process.env.ANTHROPIC_API_KEY ||
+  null;
+
+// OpenAI API key (for embeddings and transcription only)
+const openaiApiKey = 
   Constants.expoConfig?.extra?.openaiApiKey || 
   process.env.EXPO_PUBLIC_OPENAI_API_KEY ||
   process.env.OPENAI_API_KEY || 
   '';
 
-const DEV_MODE = !apiKey;
+const DEV_MODE = !anthropicApiKey && !openaiApiKey;
 
 if (DEV_MODE) {
-  console.warn('⚠️ OpenAI API key not found. Set EXPO_PUBLIC_OPENAI_API_KEY in .env file');
+  console.warn('⚠️ API keys not found. Set ANTHROPIC_API_KEY and/or OPENAI_API_KEY in .env file');
 }
 
+let anthropicInstance: any = null;
 let openaiInstance: any = null;
 
+function getAnthropic() {
+  if (!anthropicApiKey) {
+    throw new Error('Anthropic API key not configured');
+  }
+
+  if (!anthropicInstance) {
+    const Anthropic = require('@anthropic-ai/sdk').default;
+    anthropicInstance = new Anthropic({
+      apiKey: anthropicApiKey,
+    });
+  }
+
+  return anthropicInstance;
+}
+
 function getOpenAI() {
-  if (!apiKey) {
+  if (!openaiApiKey) {
     throw new Error('OpenAI API key not configured');
   }
 
   if (!openaiInstance) {
     const OpenAI = require('openai').default;
     openaiInstance = new OpenAI({
-      apiKey,
+      apiKey: openaiApiKey,
       dangerouslyAllowBrowser: true,
     });
   }
 
   return openaiInstance;
+}
+
+// Helper function to call Claude Sonnet 4
+async function callClaude(options: {
+  system?: string;
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  responseFormat?: { type: 'json_object' };
+}): Promise<string> {
+  const anthropic = getAnthropic();
+  const model = options.model || 'claude-sonnet-4-20250514';
+  
+  // Convert messages format for Anthropic
+  const anthropicMessages = options.messages.map(msg => ({
+    role: msg.role === 'assistant' ? 'assistant' : 'user',
+    content: msg.content,
+  }));
+
+  const params: any = {
+    model,
+    max_tokens: options.maxTokens || 4096,
+    temperature: options.temperature ?? 0.7,
+    messages: anthropicMessages,
+  };
+
+  // Add system message if provided
+  if (options.system) {
+    params.system = options.system;
+  }
+
+  // Handle JSON mode (Anthropic uses tool_use for structured output)
+  if (options.responseFormat?.type === 'json_object') {
+    // For JSON mode, we'll add instructions to the system prompt
+    const systemWithJson = options.system 
+      ? `${options.system}\n\nIMPORTANT: You must respond with valid JSON only. Do not include any text outside of the JSON object.`
+      : 'IMPORTANT: You must respond with valid JSON only. Do not include any text outside of the JSON object.';
+    params.system = systemWithJson;
+  }
+
+  const response = await anthropic.messages.create(params);
+  
+  // Extract text content from response
+  let content = response.content.find((block: any) => block.type === 'text')?.text;
+  if (!content) throw new Error('No response from Claude');
+  
+  // Clean up JSON if response format is JSON (remove markdown code blocks)
+  if (options.responseFormat?.type === 'json_object') {
+    // Remove markdown code blocks if present
+    content = content.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+  }
+  
+  return content;
 }
 
 export async function transcribeAudioAsync(audioUri: string): Promise<string> {
@@ -119,18 +198,12 @@ export async function extractFromTranscript(transcript: string): Promise<LifeExt
   ].join('\n');
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.3,
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     return JSON.parse(content) as LifeExtractionResult;
   } catch (error) {
@@ -143,8 +216,6 @@ export async function mineRelationships(transcript: string): Promise<Relationshi
   if (DEV_MODE) {
     return mockRelationships();
   }
-
-  const openai = getOpenAI();
 
   const systemPrompt = 'Extract ALL relationships mentioned in the text. Include every person discussed. Be thorough and comprehensive.';
 
@@ -172,18 +243,12 @@ export async function mineRelationships(transcript: string): Promise<Relationshi
   ].join('\n');
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.3,
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     const parsed = JSON.parse(content);
     
@@ -235,18 +300,12 @@ export async function generateClarifiers(
   ].join('\n');
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.5,
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     const parsed = JSON.parse(content);
     return parsed.questions as ClarifierQuestion[];
@@ -299,18 +358,12 @@ export async function deriveDecisionOptions(question: string): Promise<string[]>
   ].join('\n');
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.3,
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     const parsed = JSON.parse(content);
     const options = parsed.options || [];
@@ -386,18 +439,12 @@ export async function deriveDecisionOptionsWithContext(question: string, context
   ].join('\n');
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.3,
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     const parsed = JSON.parse(content);
     const options = parsed.options || [];
@@ -442,9 +489,7 @@ export async function predictDecision({
     return mockDecisionPrediction(options);
   }
 
-  console.log('Calling OpenAI API...');
-  const openai = getOpenAI();
-
+  console.log('Calling Claude API...');
   const isMultiTwin = participantCount > 1;
   
   const systemPrompt = isMultiTwin ? [
@@ -464,6 +509,13 @@ export async function predictDecision({
     'a concise rationale (3–5 sentences) that CLEARLY references BOTH people,',
     'top factors considered across all twins, and an uncertainty score (0–1, lower = more confident).',
     '',
+    'RATIONALE REQUIREMENTS:',
+    '- Include 1–2 vivid, user-specific hooks that reference concrete details from their profiles',
+    '- Examples: "Remember that journal entry about dreading long-distance calls? This move cuts that noise."',
+    '- Or: "Your tendency to overthink at 2am suggests this option aligns with your need for clarity."',
+    '- Reference specific experiences, preferences, patterns, or details from the Core Pack or Relevance Pack',
+    '- Make it feel personal and insightful, not generic',
+    '',
     'Keep tone reflective, human, and emotionally grounded — not mechanical.',
     '',
     'CRITICAL: Write all text in SECOND PERSON (you/your), never third person. Address the primary user directly.',
@@ -478,6 +530,13 @@ export async function predictDecision({
     '',
     'Return calibrated probabilities for each option (summing to ~1), a concise rationale (2–4 sentences),',
     'top factors considered, and an uncertainty score (0–1, lower = more confident).',
+    '',
+    'RATIONALE REQUIREMENTS:',
+    '- Include 1–2 vivid, user-specific hooks that reference concrete details from their profile',
+    '- Examples: "Remember that journal entry about dreading long-distance calls? This move cuts that noise."',
+    '- Or: "Your tendency to overthink at 2am suggests this option aligns with your need for clarity."',
+    '- Reference specific experiences, preferences, patterns, or details from the Core Pack or Relevance Pack',
+    '- Make it feel personal and insightful, not generic',
     '',
     'Keep tone reflective, human, and emotionally grounded — not mechanical.',
     '',
@@ -506,17 +565,19 @@ export async function predictDecision({
     '{',
     '  "prediction": "<one_of_options>",',
     '  "probs": {"<option1>": 0.XX, "<option2>": 0.XX},',
-    '  "rationale": "2–4 sentences explaining your reasoning in SECOND PERSON (you/your).",',
+    '  "rationale": "2–4 sentences explaining your reasoning in SECOND PERSON (you/your). Include 1–2 vivid, user-specific hooks referencing concrete details from their profile (e.g., journal entries, past experiences, specific preferences).",',
     '  "factors": ["values:freedom", "relationship:partner_4y_supportive", "decision_style:test-small"],',
     '  "uncertainty": 0.XX,',
     '  "chaosLevel": 0-100 (how wild/unpredictable this decision would make life),',
     '  "chaosMessage": "brief message like \'brace yourself\' or \'pretty stable\'",',
-    '  "sideEffects": ["You start going to bed earlier.", "Your gym consistency spikes.", "You become the \'advice friend\' in your group."]',
+    '  "sideEffects": ["You start going to bed earlier.", "Your gym consistency spikes.", "You become the \'advice friend\' in your group."],',
+    '  "nextSteps": ["Specific action 1", "Specific action 2", "Specific action 3"]',
     '}',
     '',
     'IMPORTANT:',
     '- chaosLevel: 0-100, where higher = more chaotic/unpredictable (e.g., major life changes = higher)',
     '- sideEffects: 3-5 funny, specific, unexpected side effects in SECOND PERSON (you/your)',
+    '- nextSteps: REQUIRED - 3 concrete, immediate actions to take if they choose the predicted option. Make them specific and actionable.',
     '',
     'IMPORTANT:',
     '- Generate probabilities based on the actual user context and decision - do NOT use 0.66 or 0.34 unless they truly reflect your analysis',
@@ -524,18 +585,12 @@ export async function predictDecision({
   ].join('\n');
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.2,
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     console.log('Raw AI response:', content.substring(0, 500));
     const parsed = JSON.parse(content) as DecisionPrediction;
@@ -560,8 +615,8 @@ export async function predictDecision({
       parsed.probs = normalizedProbs;
     }
     
-    // Generate chaos level and side effects if not provided
-    if (!parsed.chaosLevel || !parsed.sideEffects) {
+        // Generate chaos level and side effects if not provided
+    if (!parsed.chaosLevel || !parsed.sideEffects || !parsed.nextSteps) {
       try {
         // Calculate chaos level based on uncertainty and decision impact
         const baseChaos = parsed.uncertainty * 50; // 0-50 based on uncertainty
@@ -583,11 +638,21 @@ export async function predictDecision({
             parsed.sideEffects = ['You discover unexpected changes in your routine.'];
           }
         }
+
+        // Default next steps if not provided
+        if (!parsed.nextSteps || parsed.nextSteps.length === 0) {
+          parsed.nextSteps = [
+            'Reflect on the key factors identified above',
+            'Discuss this recommendation with a trusted friend',
+            'Set a deadline to make your final choice'
+          ];
+        }
       } catch (error) {
         console.warn('Failed to generate chaos level/side effects, using defaults:', error);
         parsed.chaosLevel = parsed.chaosLevel || 50;
         parsed.chaosMessage = parsed.chaosMessage || 'moderate change';
         parsed.sideEffects = parsed.sideEffects || ['You discover unexpected changes in your routine.'];
+        parsed.nextSteps = parsed.nextSteps || ['Reflect on the key factors', 'Discuss with a friend', 'Set a deadline'];
       }
     }
     
@@ -607,8 +672,6 @@ export async function simulateOutcome(
   if (DEV_MODE) {
     return mockSimulation();
   }
-
-  const openai = getOpenAI();
 
   const systemPrompt = "Simulate the user's likely state trajectory under the chosen policy. Use simple rules for energy/sleep/work/social/money. Return deltas vs baseline for: happiness, money, relationship, freedom, growth, and brief risk_notes.";
 
@@ -632,18 +695,12 @@ export async function simulateOutcome(
     '}';
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.5,
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     return JSON.parse(content) as SimulationScenario;
   } catch (error) {
@@ -667,8 +724,6 @@ export async function generateTimelineSimulation(
     console.log('[AI] DEV_MODE: Using mock timeline simulation');
     return mockTimelineSimulation();
   }
-
-  const openai = getOpenAI();
 
   const isMultiTwin = participantCount > 1;
 
@@ -761,27 +816,16 @@ export async function generateTimelineSimulation(
     console.log(`[AI] User prompt length: ${userPrompt.length} chars`);
     
     const apiCallStartTime = performance.now();
-    console.log('[AI] Making OpenAI API call...');
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Using faster model for timeline generation
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    console.log('[AI] Making Claude API call...');
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.7,
     });
     const apiCallEndTime = performance.now();
     const apiCallDuration = apiCallEndTime - apiCallStartTime;
-    console.log(`[AI] OpenAI API call completed in ${(apiCallDuration / 1000).toFixed(2)}s`);
-    console.log(`[AI] Response usage:`, {
-      prompt_tokens: response.usage?.prompt_tokens,
-      completion_tokens: response.usage?.completion_tokens,
-      total_tokens: response.usage?.total_tokens,
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
+    console.log(`[AI] Claude API call completed in ${(apiCallDuration / 1000).toFixed(2)}s`);
 
     const parseStartTime = performance.now();
     const timelineData = JSON.parse(content) as TimelineSimulation;
@@ -924,20 +968,16 @@ export async function twinChatReply({
     'Use "ui" when you want to ask the user a structured question or get a rating. Otherwise set it to null.',
   ].join('\n');
 
-  const chatMessages = [
-    { role: 'system', content: systemPrompt },
-    ...messages.map(m => ({ role: m.role, content: m.content })),
-  ];
+  const chatMessages = messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const content = await callClaude({
+      system: systemPrompt,
       messages: chatMessages,
-      response_format: { type: 'json_object' },
+      responseFormat: { type: 'json_object' },
       temperature: 0.6,
     });
-    const content = response.choices[0]?.message?.content || '{}';
-    return JSON.parse(content) as TwinChatResponse;
+    return JSON.parse(content || '{}') as TwinChatResponse;
   } catch (error) {
     console.error('Twin chat error:', error);
     throw error;
@@ -1001,7 +1041,14 @@ export async function runWhatIf(
     '- Values should be on a scale of 0-10\n' +
     '- Make meaningful differences - avoid tiny changes unless truly warranted\n' +
     '- Consider second-order effects (e.g., better job = more money but maybe less freedom)\n' +
-    '- Include specific biometric predictions';
+    '- Include specific biometric predictions\n\n' +
+    'SUMMARY REQUIREMENTS:\n' +
+    '- Write a vivid, cinematic short story (4-6 lines) in first-person or second-person\n' +
+    '- Make it immersive and sensory - include specific moments, feelings, scenes\n' +
+    '- Show, don\'t tell - paint a picture of what this alternate life feels like\n' +
+    '- Use vivid details, specific imagery, and emotional resonance\n' +
+    '- Example: "You wake up to sunlight streaming through unfamiliar windows. The coffee tastes different here, stronger. Your phone buzzes with messages from people whose names you\'re still learning. The subway ride to work takes 45 minutes instead of 12, but you don\'t mind - you\'re reading again, actually reading, not just scrolling. Your apartment is smaller but it\'s yours, and the view of the city skyline at sunset makes you feel like you\'re part of something bigger."\n' +
+    '- Avoid dry analysis or comparison - make it a living, breathing moment in this alternate timeline';
 
   let biometricsSection = '';
   if (currentBiometrics && (currentBiometrics.location || currentBiometrics.netWorth || currentBiometrics.relationshipStatus)) {
@@ -1042,23 +1089,17 @@ export async function runWhatIf(
     '    "hobby": {"current": "running", "alternate": "rock climbing"},\n' +
     '    "mood": {"current": "stressed", "alternate": "energized"}\n' +
     '  },\n' +
-    '  "summary": "One paragraph in SECOND PERSON (you/your) comparing the two trajectories and explaining key differences."\n' +
+    '  "summary": "A vivid, cinematic short story (4-6 lines) in first-person or second-person. Make it immersive and sensory - show specific moments, feelings, scenes from this alternate timeline. Use vivid details and emotional resonance. Avoid dry analysis - make it a living, breathing moment."\n' +
     '}\n\n' +
     'IMPORTANT: The example above shows the format. Use the actual provided current biometric values, not these examples.';
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.6,
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     console.log('What-If AI response:', content);
     const parsed = JSON.parse(content);
@@ -1205,6 +1246,10 @@ function mockDecisionPrediction(options: string[]): DecisionPrediction {
       'Based on your core values and past decision patterns, you tend to prioritize long-term growth over short-term comfort. Your analytical approach suggests this option aligns best with your goals.',
     factors: ['values:growth', 'relationship:supportive', 'decision_style:analytical'],
     uncertainty: 0.3,
+    chaosLevel: 45,
+    chaosMessage: 'moderate change',
+    sideEffects: ['You start waking up at 5am automatically', 'Your friends start asking you for career advice', 'You save money on impulse purchases'],
+    nextSteps: ['Update your resume/portfolio this weekend', 'Schedule a meeting with your current manager', 'Look for apartments in the new area'],
   };
 }
 
@@ -1241,7 +1286,7 @@ function mockWhatIf(): { metrics: WhatIfMetrics; summary: string; biometrics: an
       mood: { current: "content", alternate: "stressed" }
     },
     summary:
-      'In this alternate timeline, you would likely have higher financial security but lower personal freedom and relationship satisfaction. Your current path prioritizes personal fulfillment over purely financial metrics, which aligns with your core values.',
+      'You wake up to sunlight streaming through unfamiliar windows. The coffee tastes different here, stronger. Your phone buzzes with messages from people whose names you\'re still learning. The subway ride to work takes 45 minutes instead of 12, but you don\'t mind - you\'re reading again, actually reading, not just scrolling. Your apartment is smaller but it\'s yours, and the view of the city skyline at sunset makes you feel like you\'re part of something bigger.',
     chaosLevel: 72,
     chaosMessage: 'brace yourself',
     newObsession: 'You got deeply into competitive tennis leagues.',
@@ -1331,18 +1376,12 @@ export async function generateSuggestions({
   ].join('\n');
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.5,
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     const parsed = JSON.parse(content);
     
@@ -1475,18 +1514,12 @@ export async function generateDecisionSideEffects({
   ].join('\n');
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.8, // Higher temperature for creativity
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     const parsed = JSON.parse(content);
     
@@ -1552,18 +1585,12 @@ export async function generateTimelineVibe({
   ].join('\n');
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.9, // Higher temperature for creativity
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     const parsed = JSON.parse(content);
     
@@ -1631,18 +1658,12 @@ export async function generateWhatIfExtras({
   ].join('\n');
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
       temperature: 0.8, // Higher temperature for creativity
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from AI');
 
     const parsed = JSON.parse(content);
     
@@ -1726,28 +1747,22 @@ Include age in the summary where relevant if provided.`;
 
     // Generate 01-now summary
     if (nowPrompt) {
-      const nowResponse = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: nowPrompt },
-        ],
+      const nowContent = await callClaude({
+        system: systemPrompt,
+        messages: [{ role: 'user', content: nowPrompt }],
         temperature: 0.7,
       });
-      summaries['01-now'] = nowResponse.choices[0]?.message?.content?.trim() || '';
+      summaries['01-now'] = nowContent.trim() || '';
     }
 
     // Generate 02-path summary
     if (pathPrompt) {
-      const pathResponse = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: pathPrompt },
-        ],
+      const pathContent = await callClaude({
+        system: systemPrompt,
+        messages: [{ role: 'user', content: pathPrompt }],
         temperature: 0.7,
       });
-      summaries['02-path'] = pathResponse.choices[0]?.message?.content?.trim() || '';
+      summaries['02-path'] = pathContent.trim() || '';
     }
 
     // Add optional summaries if provided
@@ -1765,5 +1780,466 @@ Include age in the summary where relevant if provided.`;
   } catch (error) {
     console.error('Onboarding summarization error:', error);
     throw error;
+  }
+}
+
+/**
+ * Generate a year prediction for 2026 based on user profile
+ */
+export async function generateYearPrediction({
+  corePack,
+  scenarioType,
+  userProfile,
+}: {
+  corePack: string;
+  scenarioType: 'estimated' | 'best_case' | 'worst_case';
+  userProfile?: any;
+}): Promise<{ data: YearPredictionData; probability: number }> {
+  if (DEV_MODE) {
+    const mockData = mockYearPrediction(scenarioType);
+    // Return mock with default probabilities
+    const mockProbability = scenarioType === 'estimated' ? 75 : Math.floor(Math.random() * 5) + 1;
+    return { data: mockData, probability: mockProbability };
+  }
+
+  const openai = getOpenAI();
+
+  const scenarioPrompts = {
+    estimated: {
+      system: "You are generating a realistic, most-likely prediction for what will happen in 2026 based on the user's profile, values, and current trajectory. Be specific and grounded, but don't be overly conservative. Include realistic events that could happen.",
+      tone: "realistic, specific, grounded but forward-looking",
+      creativity: "moderate - realistic but interesting",
+    },
+    best_case: {
+      system: "You are generating an optimistic, best-case scenario for 2026. This should be fun, exciting, and outlandishly positive with wild, unexpected outcomes. Make it funny and absurdly good - think 'too good to be true but hilarious' situations. Include creative, unexpected positive events that are so amazing they're almost comical - like 'you accidentally invest in a startup that becomes worth $50M' or 'a celebrity follows you on Instagram and your follower count explodes'. Make timeline events and highlights absurdly positive and funny in their good fortune. The user should find them amusing and delightful.",
+      tone: "optimistic, exciting, outlandishly positive, funny and absurdly good",
+      creativity: "very high - wild, outlandish, funny positive events that are almost too good to be true",
+    },
+    worst_case: {
+      system: "You are generating a challenging, worst-case scenario for 2026. This should include realistic setbacks and difficulties, but be specific and not overly dramatic. Include unexpected challenges that could realistically occur. Add a subtle, darkly humorous tone to the timeline events and highlights - make them absurdly specific and slightly comedic in their misfortune, while still being serious enough that the user would find them funny rather than devastating. Think 'unfortunate but laughable' situations. For percentages that represent decreases or negative changes, ALWAYS format them with a minus sign (e.g., '-40%' not '40%').",
+      tone: "realistic challenges with dark humor, absurdly specific setbacks that are funny in their misfortune",
+      creativity: "high - creative, absurdly specific challenges with comedic undertones",
+    },
+  };
+
+  const prompt = scenarioPrompts[scenarioType];
+
+  const systemPrompt = [
+    prompt.system,
+    '',
+    'Generate a comprehensive 2026 prediction with:',
+    '- Hero section: Title and one key statistic',
+    '- 3-5 key statistics/metrics (specific numbers, percentages)',
+    '- EXACTLY 12 timeline events - one for each month (January through December)',
+    '- 3-5 top highlights/moments',
+    '- A personalized insights paragraph',
+    '- 3-5 actionable focus areas for the user to prioritize this year',
+    '',
+    `Tone: ${prompt.tone}`,
+    `Creativity level: ${prompt.creativity}`,
+    '',
+    'CRITICAL REQUIREMENTS:',
+    '- You MUST return a "probability_percentage" field in your JSON response:',
+    '  * For estimated scenario: A realistic probability between 60-85% that this scenario will occur',
+    '  * For best case scenario: A low probability between 1-5% (these are rare, amazing outcomes)',
+    '  * For worst case scenario: A low probability between 1-5% (these are rare, challenging outcomes)',
+    '- Be HYPER-SPECIFIC with numbers, dates, amounts, percentages',
+    '- Write everything in SECOND PERSON (you/your)',
+    '- Make predictions relevant to the user based on their profile',
+    '- Include creative elements the user might not have mentioned but could realistically happen',
+    '- Timeline MUST include EXACTLY 12 events - one for each month: January, February, March, April, May, June, July, August, September, October, November, December',
+    '- NEVER use em dashes (—) or en dashes (–) anywhere in the response. Use regular hyphens (-) or commas instead. This applies to ALL sections: hero, stats, timeline, highlights, insights, and focusAreas.',
+    '- For best case: Include fun, exciting, outlandishly positive and funny events. Make them absurdly good and almost comical in their fortune - think "you accidentally invest in a startup that becomes worth $50M" or "a celebrity follows you on Instagram and your follower count explodes" or "you win a contest you forgot you entered". The user should find them amusing and delightful. MUST include at least one major highlight in the highlights section that represents the best possible outcome.',
+    '- For worst case: Include specific, realistic challenges and setbacks with a darkly humorous, absurdly specific twist. Make timeline events and highlights funny in their misfortune - think "you get locked out of your apartment 3 times in one month" or "your favorite coffee shop closes the day after you buy a $200 gift card there". The user should find them amusing despite being setbacks. For percentages showing decreases, use negative format (e.g., "-15%" for income decrease, "-20%" for savings reduction)',
+    '- Keep events realistic and believable for the scenario type',
+    '- All scenarios should have similar structure: hero with key stat, 3-5 stats, 12 timeline events, 3-5 highlights, insights, and focus areas (focus areas are optional for best/worst case but required for estimated)',
+    '- For worst case: Ensure you generate ALL required fields - hero, stats, timeline (12 months), highlights, insights, and focusAreas. Make sure the JSON structure is complete and valid.',
+  ].join('\n');
+
+  const userPrompt = [
+    'User Profile Context:',
+    '',
+    corePack.substring(0, 3000), // Limit context length
+    '',
+    `Generate a 2026 ${scenarioType === 'estimated' ? 'most likely' : scenarioType === 'best_case' ? 'best case' : 'worst case'} prediction.`,
+    '',
+    'Return JSON with this exact structure:',
+    'IMPORTANT: Do NOT use em dashes (—) or en dashes (–) anywhere. Use regular hyphens (-) or commas instead.',
+    '{',
+    '  "probability_percentage": <number> (REQUIRED - For estimated: 60-85%, For best/worst case: 1-5%),',
+    '  "hero": {',
+    '    "title": "Your 2026 [Scenario Type]",',
+    '    "keyStat": "One key statistic like \'You\'ll visit 3 new cities\' or \'Your income grows 15%\'"',
+    '  },',
+    '  "stats": [',
+    '    {',
+    '      "label": "New cities visited",',
+    '      "value": "3",',
+    '      "description": "You explore Tokyo, Barcelona, and Melbourne"',
+    '    },',
+    '    {',
+    '      "label": "Income growth",',
+    '      "value": "+15%",',
+    '      "description": "From $85K to $97,750"',
+    '    },',
+    '    {',
+    '      "label": "Savings decrease",',
+    '      "value": "-25%",',
+    '      "description": "From $20K to $15K due to unexpected expenses"',
+    '    }',
+    '  ],',
+    '  "timeline": [',
+    '    {',
+    '      "time": "January",',
+    '      "title": "You start a new side project",',
+    '      "description": "You launch a weekend consulting practice, first client pays $2,500"',
+    '    },',
+    '    {',
+    '      "time": "February",',
+    '      "title": "You move to a new apartment",',
+    '      "description": "You sign lease on 2BR downtown, rent $2,400/mo, 10 min walk to work"',
+    '    },',
+    '    {',
+    '      "time": "March",',
+    '      "title": "Career milestone",',
+    '      "description": "You receive a promotion with a 15% salary increase"',
+    '    },',
+    '    {',
+    '      "time": "April",',
+    '      "title": "Personal achievement",',
+    '      "description": "You complete a major certification course"',
+    '    },',
+    '    {',
+    '      "time": "May",',
+    '      "title": "Travel experience",',
+    '      "description": "You take a week-long trip to Tokyo, your first international travel"',
+    '    },',
+    '    {',
+    '      "time": "June",',
+    '      "title": "Relationship milestone",',
+    '      "description": "You celebrate your anniversary with a special dinner"',
+    '    },',
+    '    {',
+    '      "time": "July",',
+    '      "title": "Financial goal",',
+    '      "description": "You reach $50K in savings, hitting your mid-year target"',
+    '    },',
+    '    {',
+    '      "time": "August",',
+    '      "title": "Health improvement",',
+    '      "description": "You complete a 30-day fitness challenge, losing 8 pounds"',
+    '    },',
+    '    {',
+    '      "time": "September",',
+    '      "title": "New opportunity",',
+    '      "description": "You get offered a speaking opportunity at a local conference"',
+    '    },',
+    '    {',
+    '      "time": "October",',
+    '      "title": "Creative project",',
+    '      "description": "You launch your first online course, getting 200 sign-ups in the first week"',
+    '    },',
+    '    {',
+    '      "time": "November",',
+    '      "title": "Network expansion",',
+    '      "description": "You attend a major industry networking event, making 15 new connections"',
+    '    },',
+    '    {',
+    '      "time": "December",',
+    '      "title": "Year-end reflection",',
+    '      "description": "You review your progress and set ambitious goals for 2027"',
+    '    }',
+    '  ],',
+    '  "highlights": [',
+    '    {',
+    '      "title": "Your biggest win",',
+    '      "description": "You land your dream job at a 50-person startup, $120K base + equity",',
+    '      "emoji": "🎉"',
+    '    },',
+    '    {',
+    '      "title": "Major milestone",',
+    '      "description": "You achieve a significant personal or professional goal that transforms your trajectory",',
+    '      "emoji": "⭐"',
+    '    }',
+    '  ],',
+    '  NOTE: For best case scenario, the first highlight should be the most exciting, transformative positive event - make it a true "key highlight" that represents the peak moment of the year.',
+    '  "insights": [',
+    '    "A comprehensive, in-depth analysis (3-5 paragraphs, 400-600 words) covering:',
+    '    - Deep analysis of what this year means for your personal growth and trajectory',
+    '    - Specific patterns and trends that emerge from the timeline and statistics',
+    '    - Psychological and emotional implications of these events',
+    '    - How these events connect to your values, goals, and past decisions',
+    '    - Actionable reflections on what you can learn or prepare for',
+    '    - Long-term implications beyond 2026',
+    '    Write in second person, be thoughtful and analytical, connect dots between events. Return as an array of paragraphs (each paragraph as a separate string element).',
+    '    CRITICAL: Do NOT use em dashes (—) or en dashes (–). Use regular hyphens (-) or commas instead."',
+    '  ],',
+    '  "focusAreas": [',
+    '    "3-5 actionable focus areas (each as a separate string) that the user should prioritize this year to improve their outcomes. Be specific and practical. Examples: "Focus on building 3-5 strong professional relationships", "Invest 20% of income into skill development courses", "Prioritize work-life balance by setting firm boundaries". Write in second person, be actionable and specific. REQUIRED for all scenarios - always include this field even for best/worst case."',
+    '  ]',
+    '}',
+  ].join('\n');
+
+  try {
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: scenarioType === 'best_case' ? 0.8 : scenarioType === 'worst_case' ? 0.7 : 0.6,
+    });
+
+    let parsed: YearPredictionData & { probability_percentage?: number };
+    try {
+      parsed = JSON.parse(content) as YearPredictionData & { probability_percentage?: number };
+    } catch (parseError) {
+      console.error('JSON parse error for scenario:', scenarioType, 'Content:', content);
+      throw new Error(`Failed to parse AI response as JSON: ${parseError}`);
+    }
+    
+    // Extract probability from AI response, with fallbacks
+    let probability: number;
+    if (parsed.probability_percentage !== undefined && parsed.probability_percentage !== null) {
+      probability = parsed.probability_percentage;
+      // Ensure probability is within valid range
+      if (scenarioType === 'estimated') {
+        probability = Math.max(60, Math.min(85, probability));
+      } else {
+        probability = Math.max(1, Math.min(5, probability));
+      }
+    } else {
+      // Fallback to default probabilities if AI didn't provide one
+      if (scenarioType === 'estimated') {
+        probability = 75;
+      } else {
+        probability = Math.floor(Math.random() * 5) + 1; // 1-5% for best/worst case
+      }
+    }
+    
+    // Remove probability_percentage from the data object (it's stored separately in DB)
+    const { probability_percentage, ...predictionData } = parsed;
+    
+    // Validate and ensure all required fields exist
+    if (!predictionData.hero) predictionData.hero = { title: `Your 2026 ${scenarioType}`, keyStat: 'A transformative year' };
+    if (!predictionData.stats || predictionData.stats.length === 0) {
+      predictionData.stats = [{ label: 'Key metric', value: 'TBD', description: 'To be determined' }];
+    }
+    if (!predictionData.timeline || predictionData.timeline.length === 0) {
+      predictionData.timeline = [{ time: '2026', title: 'Year begins', description: 'Your journey continues' }];
+    }
+    if (!predictionData.highlights || predictionData.highlights.length === 0) {
+      predictionData.highlights = [{ title: 'A memorable moment', description: 'Something significant happens', emoji: '⭐' }];
+    }
+    if (!predictionData.insights || predictionData.insights.length === 0) {
+      predictionData.insights = ['This year will bring new opportunities and challenges as you continue your journey.'];
+    }
+    if (!predictionData.focusAreas || predictionData.focusAreas.length === 0) {
+      predictionData.focusAreas = ['Focus on building meaningful connections', 'Invest in continuous learning and skill development', 'Maintain a healthy work-life balance'];
+    }
+
+    // Additional validation for worst case scenarios
+    if (scenarioType === 'worst_case') {
+      // Ensure at least some stats have negative values or decreases
+      const hasNegativeStats = predictionData.stats?.some(stat => 
+        stat.value.includes('-') || 
+        stat.description.toLowerCase().includes('decrease') || 
+        stat.description.toLowerCase().includes('loss') || 
+        stat.description.toLowerCase().includes('decline') ||
+        stat.description.toLowerCase().includes('drop')
+      );
+      
+      if (!hasNegativeStats && predictionData.stats && predictionData.stats.length > 0) {
+        // If no negative stats found, ensure at least one is negative
+        const firstStat = predictionData.stats[0];
+        if (!firstStat.value.includes('-')) {
+          firstStat.value = `-${Math.floor(Math.random() * 30) + 10}%`;
+          firstStat.description = firstStat.description.replace(/increase|growth|gain/gi, 'decrease');
+        }
+      }
+    }
+
+    return { data: predictionData, probability };
+  } catch (error) {
+    console.error('Year prediction generation error:', error);
+    throw error;
+  }
+}
+
+function mockYearPrediction(scenarioType: 'estimated' | 'best_case' | 'worst_case'): YearPredictionData {
+  const base = {
+    hero: {
+      title: `Your 2026 ${scenarioType === 'estimated' ? 'Most Likely' : scenarioType === 'best_case' ? 'Best Case' : 'Worst Case'}`,
+      keyStat: scenarioType === 'best_case' ? 'You achieve 3 major goals' : scenarioType === 'worst_case' ? 'You face 2 significant challenges' : 'You make steady progress',
+    },
+    stats: [
+      { label: 'New experiences', value: '5', description: 'You try new things' },
+      { label: 'Growth', value: '+10%', description: 'Steady improvement' },
+    ],
+    timeline: [
+      { time: 'Q1', title: 'First quarter milestone', description: 'Something significant happens' },
+      { time: 'Q2', title: 'Second quarter event', description: 'Another important moment' },
+    ],
+    highlights: [
+      { title: 'A memorable moment', description: 'Something significant happens', emoji: '⭐' },
+    ],
+    insights: ['This year will be transformative as you continue your journey.'],
+    focusAreas: [
+      'Focus on building meaningful professional relationships',
+      'Invest in continuous learning and skill development',
+      'Maintain a healthy work-life balance',
+    ],
+  };
+
+  if (scenarioType === 'best_case') {
+    base.stats[0].value = '8';
+    base.stats[0].description = 'Amazing new opportunities';
+    base.stats[1].value = '+25%';
+    base.stats[1].description = 'Exceptional growth';
+  } else if (scenarioType === 'worst_case') {
+    base.stats[0].value = '2';
+    base.stats[0].description = 'Fewer opportunities';
+    base.stats[1].value = '-5%';
+    base.stats[1].description = 'Some setbacks';
+  }
+
+  return base;
+}
+
+/**
+ * Generate interesting decision questions for a user based on their profile
+ */
+export async function generateInterestingDecisionQuestions(
+  corePack: string,
+  count: number = 3
+): Promise<string[]> {
+  if (DEV_MODE) {
+    return [
+      'Should I take the new job offer?',
+      'Should I move to a new city?',
+      'Should I start my own business?'
+    ];
+  }
+
+  const systemPrompt = [
+    "You are generating interesting, personalized decision questions for a user based on their profile.",
+    '',
+    'Requirements:',
+    '- Generate questions that are relevant to their current life situation, values, and goals',
+    '- Make them thought-provoking and meaningful - questions they would actually want to know',
+    '- Keep questions concise (under 15 words)',
+    '- Focus on decisions that matter: career, relationships, lifestyle, major life changes',
+    '- Use SECOND PERSON (you/your)',
+    '- Make them specific to their profile when possible',
+    '',
+    'Examples:',
+    '- "Should I take the remote job offer in Austin?"',
+    '- "Should I move in with my partner this year?"',
+    '- "Should I start freelancing on the side?"',
+    '- "Should I go back to school for my master\'s?"',
+  ].join('\n');
+
+  const userPrompt = [
+    'User Profile:',
+    '',
+    corePack.substring(0, 2000), // Limit context
+    '',
+    `Generate ${count} interesting, personalized decision questions that would be relevant and meaningful for this person.`,
+    '',
+    'Return JSON:',
+    '{',
+    '  "questions": [',
+    '    "Should I take the new job offer?",',
+    '    "Should I move to a new city?",',
+    '    "Should I start my own business?"',
+    '  ]',
+    '}',
+  ].join('\n');
+
+  try {
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.7,
+    });
+
+    const parsed = JSON.parse(content);
+    return parsed.questions || [];
+  } catch (error) {
+    console.error('Failed to generate decision questions:', error);
+    return [
+      'Should I take the new job offer?',
+      'Should I move to a new city?',
+      'Should I start my own business?'
+    ];
+  }
+}
+
+/**
+ * Generate interesting what-if scenarios for a user based on their profile
+ */
+export async function generateInterestingWhatIfScenarios(
+  corePack: string,
+  count: number = 3
+): Promise<string[]> {
+  if (DEV_MODE) {
+    return [
+      'What if I had taken that job offer in San Francisco?',
+      'What if I had stayed in my hometown?',
+      'What if I had pursued a different career?'
+    ];
+  }
+
+  const systemPrompt = [
+    "You are generating interesting, personalized what-if scenarios for a user based on their profile.",
+    '',
+    'Requirements:',
+    '- Generate scenarios that explore meaningful alternate paths based on their life journey',
+    '- Make them thought-provoking and relevant to their current situation',
+    '- Keep scenarios concise (under 20 words)',
+    '- Focus on major life choices: career paths, locations, relationships, education, lifestyle',
+    '- Use SECOND PERSON (you/your)',
+    '- Make them specific to their profile when possible',
+    '',
+    'Examples:',
+    '- "What if I had taken that job offer in San Francisco instead of staying here?"',
+    '- "What if I had moved to New York after college?"',
+    '- "What if I had pursued a career in tech instead of finance?"',
+    '- "What if I had stayed single and focused on my career?"',
+  ].join('\n');
+
+  const userPrompt = [
+    'User Profile:',
+    '',
+    corePack.substring(0, 2000), // Limit context
+    '',
+    `Generate ${count} interesting, personalized what-if scenarios that explore meaningful alternate paths for this person.`,
+    '',
+    'Return JSON:',
+    '{',
+    '  "scenarios": [',
+    '    "What if I had taken that job offer in San Francisco?",',
+    '    "What if I had stayed in my hometown?",',
+    '    "What if I had pursued a different career?"',
+    '  ]',
+    '}',
+  ].join('\n');
+
+  try {
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.7,
+    });
+
+    const parsed = JSON.parse(content);
+    return parsed.scenarios || [];
+  } catch (error) {
+    console.error('Failed to generate what-if scenarios:', error);
+    return [
+      'What if I had taken that job offer in San Francisco?',
+      'What if I had stayed in my hometown?',
+      'What if I had pursued a different career?'
+    ];
   }
 }

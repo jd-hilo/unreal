@@ -133,7 +133,7 @@ export default function SimulationScreen() {
     setProgressStatus('Initializing simulation...');
     progressAnim.value = 100;
 
-    let aiProgressInterval: NodeJS.Timeout | null = null;
+    let aiProgressInterval: number | null = null;
 
     try {
       // Step 1: Building core pack
@@ -416,7 +416,7 @@ export default function SimulationScreen() {
           <View style={styles.section}>
             <View style={styles.sectionCard}>
               <Text style={styles.generationNote}>
-                This trajectory is AI-generated based on your unique profile. Use it as a thought experiment, not a prediction.
+                This trajectory is generated through simulations based on your unique profile. Use it as a thought experiment, not a prediction.
               </Text>
             </View>
           </View>

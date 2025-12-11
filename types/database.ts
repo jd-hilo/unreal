@@ -365,8 +365,61 @@ export interface Database {
           updated_at?: string;
         };
       };
+      year_predictions: {
+        Row: {
+          id: string;
+          user_id: string;
+          scenario_type: 'estimated' | 'best_case' | 'worst_case';
+          probability_percentage: number | null;
+          prediction_data: YearPredictionData;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          scenario_type: 'estimated' | 'best_case' | 'worst_case';
+          probability_percentage?: number | null;
+          prediction_data: YearPredictionData;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          scenario_type?: 'estimated' | 'best_case' | 'worst_case';
+          probability_percentage?: number | null;
+          prediction_data?: YearPredictionData;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
+}
+
+export interface YearPredictionData {
+  hero: {
+    title: string;
+    keyStat: string;
+  };
+  stats: {
+    label: string;
+    value: string;
+    description: string;
+  }[];
+  timeline: {
+    time: string;
+    title: string;
+    description: string;
+  }[];
+  highlights: {
+    title: string;
+    description: string;
+    emoji: string;
+  }[];
+  insights: string[];
+  focusAreas?: string[];
 }
 
 export interface CoreJsonData {
@@ -390,6 +443,7 @@ export interface DecisionPrediction {
   chaosLevel?: number;
   chaosMessage?: string;
   sideEffects?: string[];
+  nextSteps?: string[];
 }
 
 export interface SimulationScenario {

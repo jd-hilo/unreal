@@ -8,7 +8,7 @@ import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
-import { ArrowLeft, Sparkles, Users, Lock, Zap, Share as ShareIcon, Instagram, Ghost } from 'lucide-react-native';
+import { Home, Sparkles, Users, Lock, Zap, Share as ShareIcon, Instagram, Ghost } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -334,8 +334,8 @@ export default function DecisionResultScreen() {
           <StatusBar style="light" />
           <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <View style={styles.topBar}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+              <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
+                <Home size={24} color="#FFFFFF" strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <View style={styles.loadingContainer}>
@@ -357,8 +357,8 @@ export default function DecisionResultScreen() {
           <StatusBar style="light" />
           <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <View style={styles.topBar}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+              <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
+                <Home size={24} color="#FFFFFF" strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <View style={styles.loadingContainer}>
@@ -383,8 +383,8 @@ export default function DecisionResultScreen() {
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
           {/* Top Bar */}
           <View style={styles.topBar}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-              <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+            <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
+              <Home size={24} color="#FFFFFF" strokeWidth={2} />
             </TouchableOpacity>
             {prediction && (
               <TouchableOpacity 
@@ -467,28 +467,7 @@ export default function DecisionResultScreen() {
             <View style={styles.section}>
               <View style={styles.sectionCard}>
                 <Text style={styles.sectionTitle}>Why this choice?</Text>
-                {isPremium ? (
-                  <Text style={styles.rationale}>{prediction.rationale}</Text>
-                ) : (
-                  <View style={styles.rationaleContainer}>
-                    <Text style={styles.rationale}>
-                      {prediction.rationale}
-                      {'\n\n'}
-                      Detailed breakdown of why this choice aligns with your values and long-term goals...
-                    </Text>
-                    <View style={styles.blurContainer}>
-                      <BlurView intensity={40} tint="dark" style={styles.absoluteBlur}>
-                        <TouchableOpacity 
-                          style={styles.unlockButton}
-                          onPress={() => router.push('/premium' as any)}
-                        >
-                          <Zap size={16} color="#000" fill="#000" />
-                          <Text style={styles.unlockButtonText}>upgrade to unreal+ to unlock</Text>
-                        </TouchableOpacity>
-                      </BlurView>
-                    </View>
-                  </View>
-                )}
+                <Text style={styles.rationale}>{prediction.rationale}</Text>
               </View>
             </View>
 
@@ -593,70 +572,54 @@ export default function DecisionResultScreen() {
                     <ActivityIndicator size="small" color="rgba(135, 206, 250, 0.9)" style={styles.sectionLoader} />
                   ) : suggestions?.suggestions ? (
                     <View style={styles.suggestionsContainer}>
-                      {suggestions.suggestions.map((suggestion: any, index: number) => {
-                        // If premium, show all. If not, only show first one, then blur the rest.
-                        if (!isPremium && index > 0) {
-                          // Only render the blur overlay once (at index 1) covering the rest or just one placeholder
-                          if (index === 1) {
-                            return (
-                              <View key="blocked-suggestions" style={styles.blockedSuggestionsContainer}>
-                                {/* Render a blurred dummy card to simulate content */}
-                                <View style={[styles.suggestionCard, { opacity: 0.5 }]}>
-                                  <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
-                                  <View style={{ height: 60 }} />
-                                </View>
-                                
-                                <View style={styles.suggestionsBlurOverlay}>
-                                  <BlurView intensity={80} tint="dark" style={styles.absoluteBlur}>
-                                    <TouchableOpacity 
-                                      style={styles.unlockButton}
-                                      onPress={() => router.push('/premium' as any)}
-                                    >
-                                      <Lock size={16} color="#000" />
-                                      <Text style={styles.unlockButtonText}>upgrade to unreal+ to unlock</Text>
-                                    </TouchableOpacity>
-                                  </BlurView>
-                                </View>
-                              </View>
-                            );
-                          }
-                          return null;
-                        }
-
-                        return (
-                          <View key={index} style={styles.suggestionCard}>
-                            <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
-                            {suggestion.probs && (
-                              <View style={styles.suggestionProbs}>
-                                {Object.entries(suggestion.probs).map(([option, prob]: [string, any]) => {
-                                  const currentProb = decision.prediction.probs[option] || 0;
-                                  const delta = prob - currentProb;
-                                  return (
-                                    <View key={option} style={styles.suggestionProbRow}>
-                                      <Text style={styles.suggestionOption}>{option}</Text>
-                                      <Text style={styles.suggestionProb}>{(prob * 100).toFixed(0)}%</Text>
-                                      {delta !== 0 && (
-                                        <Text style={[styles.suggestionDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
-                                          {delta > 0 ? '+' : ''}{(delta * 100).toFixed(0)}%
-                                        </Text>
-                                      )}
-                                    </View>
-                                  );
-                                })}
-                              </View>
-                            )}
-                            {suggestion.delta && (
-                              <Text style={styles.suggestionDeltaText}>{suggestion.delta}</Text>
-                            )}
-                          </View>
-                        );
-                      })}
+                      {suggestions.suggestions.map((suggestion: any, index: number) => (
+                        <View key={index} style={styles.suggestionCard}>
+                          <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
+                          {suggestion.probs && (
+                            <View style={styles.suggestionProbs}>
+                              {Object.entries(suggestion.probs).map(([option, prob]: [string, any]) => {
+                                const currentProb = decision.prediction.probs[option] || 0;
+                                const delta = prob - currentProb;
+                                return (
+                                  <View key={option} style={styles.suggestionProbRow}>
+                                    <Text style={styles.suggestionOption}>{option}</Text>
+                                    <Text style={styles.suggestionProb}>{(prob * 100).toFixed(0)}%</Text>
+                                    {delta !== 0 && (
+                                      <Text style={[styles.suggestionDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
+                                        {delta > 0 ? '+' : ''}{(delta * 100).toFixed(0)}%
+                                      </Text>
+                                    )}
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          )}
+                          {suggestion.delta && (
+                            <Text style={styles.suggestionDeltaText}>{suggestion.delta}</Text>
+                          )}
+                        </View>
+                      ))}
                     </View>
                   ) : (
                     <Text style={styles.emptyStateText}>
                       No suggestions available at this time.
                     </Text>
                   )}
+                </View>
+              </View>
+            )}
+
+            {/* Next Steps */}
+            {prediction.nextSteps && prediction.nextSteps.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>Next Steps</Text>
+                  {prediction.nextSteps.map((step: string, index: number) => (
+                    <View key={index} style={styles.nextStepItem}>
+                      <Text style={styles.nextStepNumber}>{index + 1}</Text>
+                      <Text style={styles.nextStepText}>{step}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
             )}
@@ -678,11 +641,19 @@ export default function DecisionResultScreen() {
               </TouchableOpacity>
             </View>
 
+            <TouchableOpacity
+              style={styles.askAnotherButton}
+              onPress={() => router.push('/decision/new')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.askAnotherButtonText}>Ask Another Decision</Text>
+            </TouchableOpacity>
+
             {/* Disclaimer */}
             {isPremium && (
               <View style={styles.disclaimerSection}>
                 <Text style={styles.disclaimerText}>
-                  This trajectory is AI-generated based on your unique profile. Use it as a thought experiment, not a prediction.
+                  This trajectory is generated through simulations based on your unique profile. Use it as a thought experiment, not a prediction.
                 </Text>
               </View>
             )}
@@ -1051,6 +1022,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: 'rgba(255, 255, 255, 0.85)',
     letterSpacing: 0.3,
+  },
+  askAnotherButton: {
+    marginTop: 8,
+    marginBottom: 40,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  askAnotherButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
@@ -1582,5 +1569,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: 'rgba(200, 200, 200, 0.85)',
     lineHeight: 22,
+  },
+  nextStepItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    gap: 16,
+  },
+  nextStepNumber: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: 'rgba(135, 206, 250, 0.9)',
+    lineHeight: 38,
+    marginTop: -4,
+  },
+  nextStepText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#FFFFFF',
+    lineHeight: 24,
+    fontWeight: '500',
+    paddingTop: 4,
   },
 });

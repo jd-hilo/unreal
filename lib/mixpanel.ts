@@ -272,5 +272,20 @@ export const MixpanelEvents = {
 
   // Reviews
   REVIEW_PROMPT_REQUESTED: 'Review Prompt Requested',
+
+  // 2026 Predictions
+  YEAR_PREDICTION_BANNER_CLICKED: 'Year Prediction Banner Clicked',
+  YEAR_PREDICTION_INTRO_VIEWED: 'Year Prediction Intro Viewed',
+  YEAR_PREDICTION_SCENARIO_SELECTED: 'Year Prediction Scenario Selected',
+  YEAR_PREDICTION_GENERATED: 'Year Prediction Generated',
+  YEAR_PREDICTION_VIEWED: 'Year Prediction Viewed',
+  YEAR_PREDICTION_REGENERATED: 'Year Prediction Regenerated',
+  YEAR_PREDICTION_SHARED: 'Year Prediction Shared',
+  YEAR_PREDICTION_PREMIUM_BLOCKED: 'Year Prediction Premium Blocked',
+
+  // Onboarding Completion
+  ONBOARDING_COMPLETE_VIEWED: 'Onboarding Complete Viewed',
+  ONBOARDING_COMPLETE_DECIDE_CLICKED: 'Onboarding Complete Decide Clicked',
+  ONBOARDING_COMPLETE_EXPLORE_CLICKED: 'Onboarding Complete Explore Clicked',
 } as const;
 

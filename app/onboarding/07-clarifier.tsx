@@ -190,7 +190,7 @@ export default function OnboardingStep7() {
       trackEvent(MixpanelEvents.ONBOARDING_COMPLETED);
       setUserProperty('onboarding_complete', true);
       
-      router.replace('/(tabs)/home');
+      router.replace('/onboarding/complete');
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
       setIsSummarizing(false);
@@ -205,7 +205,7 @@ export default function OnboardingStep7() {
         });
         setOnboardingComplete(true);
         trackEvent(MixpanelEvents.ONBOARDING_COMPLETED);
-        router.replace('/(tabs)/home');
+        router.replace('/onboarding/complete');
       } catch (e) {
         console.error('Failed to complete onboarding after error:', e);
       }

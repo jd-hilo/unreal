@@ -149,7 +149,7 @@ export default function AIOnboardingReview() {
       setUserProperty('onboarding_method', 'ai_voice');
 
       setOnboardingComplete(true);
-      router.replace('/(tabs)/home');
+      router.replace('/onboarding/complete');
     } catch (err: any) {
       console.error('Failed to save onboarding data:', err);
       setError(err.message || 'Failed to save your information. Please try again.');

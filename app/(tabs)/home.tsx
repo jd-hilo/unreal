@@ -3,7 +3,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, getInterestProgress, getTodayJournal } from '@/lib/storage';
+import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, getInterestProgress, getTodayJournal, getAllYearPredictions } from '@/lib/storage';
 import { Compass, Sparkles, Zap, X, Trash2, Lock, ChevronRight, HelpCircle, Book, User, History, LayoutGrid, ScanLine, Settings } from 'lucide-react-native';
 import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,7 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { Asset } from 'expo-asset';
 import { ProductGuide } from '@/components/ProductGuide';
 import { getHasSeenDecisionGuide, setHasSeenDecisionGuide } from '@/lib/guideStorage';
-import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { trackEvent, MixpanelEvents, trackScreenView } from '@/lib/mixpanel';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 16;
@@ -43,6 +43,7 @@ export default function HomeScreen() {
   const [journalCardLayout, setJournalCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const [twinCardLayout, setTwinCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const [guideStep, setGuideStep] = useState(0);
+  const [hasYearPrediction, setHasYearPrediction] = useState(false);
   const whatIfHoverAnim = useRef(new Animated.Value(0)).current;
   const decisionCardRef = useRef<View>(null);
   const whatIfCardRef = useRef<View>(null);
@@ -52,11 +53,32 @@ export default function HomeScreen() {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const bannerHoverAnim = useRef(new Animated.Value(0)).current;
+  const bannerContinuousHover = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Preload images
     Asset.fromModule(require('@/assets/images/compass.png')).downloadAsync();
     Asset.fromModule(require('@/assets/images/star.png')).downloadAsync();
+
+    // Continuous subtle hover animation (floating effect)
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bannerContinuousHover, {
+          toValue: 1,
+          duration: 2500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(bannerContinuousHover, {
+          toValue: 0,
+          duration: 2500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
   }, []);
 
   useEffect(() => {
@@ -124,17 +146,19 @@ export default function HomeScreen() {
         setUserName('');
       }
 
-      const [decisions, whatIfs, relationships, progress, todayJournal] = await Promise.all([
+      const [decisions, whatIfs, relationships, progress, todayJournal, yearPredictions] = await Promise.all([
         getDecisions(user.id, 5),
         getWhatIfs(user.id, 5),
         getRelationships(user.id),
         getInterestProgress(user.id).catch(() => 0),
-        getTodayJournal(user.id).catch(() => null)
+        getTodayJournal(user.id).catch(() => null),
+        getAllYearPredictions(user.id).catch(() => [])
       ]);
       setRecentDecisions(decisions);
       setRecentWhatIfs(whatIfs);
       setInterestProgress(progress);
       setHasTodayJournal(!!todayJournal);
+      setHasYearPrediction(yearPredictions.length > 0);
 
       // Check if we should show the decision guide
       await checkGuideStatus();
@@ -347,6 +371,80 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* 2026 Prediction Banner */}
+            <TouchableOpacity
+              style={styles.predictionBanner}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                trackEvent(MixpanelEvents.YEAR_PREDICTION_BANNER_CLICKED);
+                router.push('/prediction/2026/intro' as any);
+              }}
+              onPressIn={() => {
+                Animated.spring(bannerHoverAnim, {
+                  toValue: 1,
+                  tension: 200,
+                  friction: 15,
+                  useNativeDriver: true,
+                }).start();
+              }}
+              onPressOut={() => {
+                Animated.spring(bannerHoverAnim, {
+                  toValue: 0,
+                  tension: 200,
+                  friction: 15,
+                  useNativeDriver: true,
+                }).start();
+              }}
+              activeOpacity={1}
+            >
+              <Animated.View
+                style={[
+                  styles.predictionBannerContent,
+                  {
+                    transform: [
+                      {
+                        scale: bannerHoverAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [1, 0.94],
+                        }),
+                      },
+                      {
+                        translateY: bannerContinuousHover.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-2, 2],
+                        }),
+                      },
+                    ],
+                    opacity: bannerHoverAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 0.85],
+                    }),
+                  },
+                ]}
+              >
+                {/* Static Gradient Stroke Border - Outer Layer */}
+                <View style={styles.predictionBannerBorderWrapper} pointerEvents="none">
+                  <View style={styles.predictionBannerBorderGradient}>
+                    <LinearGradient
+                      colors={['#4169E1', '#14B8A6']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  </View>
+                </View>
+                
+                {/* Content - Dark Button Matching App Style */}
+                <BlurView intensity={40} tint="dark" style={styles.predictionBannerBlur}>
+                  <View style={styles.predictionBannerInner}>
+                    <Sparkles size={18} color="#FFFFFF" strokeWidth={2} />
+                    <Text style={styles.predictionBannerText}>Simulate your 2026</Text>
+                    <ChevronRight size={22} color="#FFFFFF" strokeWidth={2.5} />
+                  </View>
+                </BlurView>
+              </Animated.View>
+            </TouchableOpacity>
 
             {/* Main Header */}
             <View style={styles.header}>
@@ -975,5 +1073,66 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  predictionBanner: {
+    marginBottom: 24,
+    marginVertical: 4,
+    paddingVertical: 2,
+    borderRadius: 999,
+    overflow: 'visible',
+  },
+  predictionBannerContent: {
+    position: 'relative',
+    borderRadius: 999,
+    overflow: 'visible',
+  },
+  predictionBannerBlur: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 999,
+    margin: 1,
+    paddingVertical: 2,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    // Matches app's dark card style with gradient border wrapper
+  },
+  predictionBannerBorderWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  predictionBannerBorderGradient: {
+    position: 'absolute',
+    top: '-50%',
+    left: '-50%',
+    width: '200%',
+    height: '200%',
+  },
+  predictionBannerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  predictionBannerText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+  },
+  predictionBannerSubtext: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginLeft: 8,
+  },
+  predictionBannerChevron: {
+    marginLeft: 'auto',
   },
 });
