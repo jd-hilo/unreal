@@ -105,7 +105,7 @@ export default function NewWhatIfScreen() {
           }
           return prev;
         });
-      }, 800);
+      }, 2000);
       
       return () => {
         clearInterval(interval);

@@ -163,7 +163,7 @@ export default function PredictionIntroScreen() {
                   </View>
                 )}
                 <Text style={styles.sideCardLabel}>Your 2026 Prediction</Text>
-                <Text style={[styles.sideCardTitle, !isPremium && styles.sideCardTitleLocked]}>Best Case</Text>
+                <Text style={[styles.sideCardTitle, !isPremium && styles.sideCardTitleLocked]} numberOfLines={1}>Best Case</Text>
                 <View style={styles.buttonContainer}>
                   <Text style={[styles.actionButton, !isPremium && styles.actionButtonLocked]}>
                     {hasBestCase ? 'View Results' : 'Simulate'}
@@ -189,7 +189,7 @@ export default function PredictionIntroScreen() {
                   </View>
                 )}
                 <Text style={styles.sideCardLabel}>Your 2026 Prediction</Text>
-                <Text style={[styles.sideCardTitle, !isPremium && styles.sideCardTitleLocked]}>Worst Case</Text>
+                <Text style={[styles.sideCardTitle, !isPremium && styles.sideCardTitleLocked]} numberOfLines={1}>Worst Case</Text>
                 <View style={styles.buttonContainer}>
                   <Text style={[styles.actionButton, !isPremium && styles.actionButtonLocked]}>
                     {hasWorstCase ? 'View Results' : 'Simulate'}
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   sideCardTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 16,

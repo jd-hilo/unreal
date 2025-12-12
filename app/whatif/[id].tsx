@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Animated } from 'react-native';
 import { useState, useEffect, useRef, JSX } from 'react';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -12,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 
 export default function WhatIfResultScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id } = useLocalSearchParams();
   const { isPremium } = useTwin();
   const [whatIf, setWhatIf] = useState<any>(null);
@@ -20,6 +22,34 @@ export default function WhatIfResultScreen() {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Disable swipe-to-go-back gesture on both current and parent navigators
+  useFocusEffect(() => {
+    // Disable on current screen
+    navigation.setOptions({
+      gestureEnabled: false,
+    });
+
+    // Disable on parent navigator (to prevent swiping back to home)
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.setOptions({
+        gestureEnabled: false,
+      });
+    }
+
+    return () => {
+      // Re-enable on cleanup
+      navigation.setOptions({
+        gestureEnabled: true,
+      });
+      if (parent) {
+        parent.setOptions({
+          gestureEnabled: true,
+        });
+      }
+    };
+  });
 
   useEffect(() => {
     loadWhatIf();

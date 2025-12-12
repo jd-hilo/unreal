@@ -224,7 +224,7 @@ export default function NewDecisionScreen() {
           }
           return prev;
         });
-      }, 800);
+      }, 2000);
       
       return () => {
         clearInterval(interval);

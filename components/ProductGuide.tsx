@@ -66,16 +66,16 @@ export function ProductGuide({
       title: "Make Better Decisions",
       renderContent: () => (
         <View style={styles.visualContentContainer}>
-          <Card>
+          <Card style={{ padding: 12 }}>
             <CardContent>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <View style={{ flex: 1, gap: 8 }}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1, gap: 4 }}>
                   <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF' }}>Should I quit my job?</Text>
                   <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
                     Based on your value of freedom, this aligns with your long-term goals.
                   </Text>
                 </View>
-                <View style={{ width: 100, gap: 8, justifyContent: 'center' }}>
+                <View style={{ width: 100, gap: 6, justifyContent: 'center' }}>
                   <View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                       <Text style={{ fontSize: 11, color: '#4ADE80' }}>Yes</Text>
@@ -110,13 +110,13 @@ export function ProductGuide({
       title: "See Your Alternate Life",
       renderContent: () => (
         <View style={styles.visualContentContainer}>
-          <Card>
+          <Card style={{ padding: 12 }}>
             <CardContent>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF', marginBottom: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF', marginBottom: 6 }}>
                 What if I moved to NYC?
               </Text>
-              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
-                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255, 215, 0, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
                     <Smile size={16} color="#FFD700" />
                   </View>
@@ -125,7 +125,7 @@ export function ProductGuide({
                     <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFD700' }}>+12%</Text>
                   </View>
                 </View>
-                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(74, 222, 128, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
                     <DollarSign size={16} color="#4ADE80" />
                   </View>
@@ -149,10 +149,10 @@ export function ProductGuide({
       title: "Stay in Sync",
       renderContent: () => (
          <View style={styles.visualContentContainer}>
-            <Card>
+            <Card style={{ padding: 12 }}>
               <CardContent>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Calendar size={14} color="rgba(255,255,255,0.5)" />
                     <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Today, 9:41 AM</Text>
                   </View>
@@ -160,7 +160,7 @@ export function ProductGuide({
                     <Smile size={16} color="#87CEFA" />
                   </View>
                 </View>
-                <Text style={{ fontSize: 15, color: 'rgba(255,255,255,0.9)', fontStyle: 'italic', lineHeight: 22 }}>
+                <Text style={{ fontSize: 15, color: 'rgba(255,255,255,0.9)', fontStyle: 'italic', lineHeight: 20 }}>
                   "Feeling excited about the new project at work today. It aligns perfectly with my goal to prioritize {topValue.toLowerCase()}..."
                 </Text>
               </CardContent>
@@ -178,23 +178,23 @@ export function ProductGuide({
       title: "Train Your Twin",
       renderContent: () => (
         <View style={styles.visualContentContainer}>
-          <Card>
+          <Card style={{ padding: 12 }}>
             <CardContent>
-              <View style={{ marginBottom: 12 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <View style={{ marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                   <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>Twin Accuracy</Text>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: '#87CEFA' }}>85%</Text>
                 </View>
                 <ProgressBar progress={0.85} gradientColors={['#87CEFA', '#5CA8FF', '#87CEFA']} height={8} showLabel={false} />
               </View>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
                   <Text style={{ fontSize: 12, color: '#FFFFFF' }}>Values ✓</Text>
                 </View>
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 }}>
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
                   <Text style={{ fontSize: 12, color: '#FFFFFF' }}>Personality ✓</Text>
                 </View>
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 }}>
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
                   <Text style={{ fontSize: 12, color: '#FFFFFF' }}>Goals ✓</Text>
                 </View>
               </View>
@@ -325,7 +325,8 @@ export function ProductGuide({
   
   // Safe area padding - ensure enough space for button and content
   // On iPhone 16/new devices, bottom inset might be small but curve is large
-  const bottomSafeArea = Math.max(insets.bottom, 34) + 120; 
+  // Reduced from 120 to 60 to allow more space and avoid scrolling
+  const bottomSafeArea = Math.max(insets.bottom, 34) + 60; 
   const topSafeArea = Math.max(insets.top, 47) + 24;
   
   // For journal and twin steps, always position text above the card
@@ -343,7 +344,7 @@ export function ProductGuide({
   
   if (shouldPositionAbove) {
     // Position above card - prioritize fitting on screen over perfect alignment
-    const idealBottom = screenHeight - cardTop + 24; // Position so bottom of text is 24px above card top
+    const idealBottom = screenHeight - cardTop + 16; // Position so bottom of text is 16px above card top
     const minBottom = bottomSafeArea; // Minimum distance from bottom of screen
     
     // Calculate if ideal position would cause overflow
@@ -386,7 +387,7 @@ export function ProductGuide({
     }
   } else {
     // Position below card
-    const idealTop = cardBottom + 24;
+    const idealTop = cardBottom + 16;
     const spaceBelow = screenHeight - idealTop - bottomSafeArea;
     
     if (spaceBelow >= 200) {
@@ -399,7 +400,7 @@ export function ProductGuide({
        const spaceAbove = cardTop - topSafeArea;
        if (spaceAbove > spaceBelow && spaceAbove >= 200) {
           textPosition = {
-             bottom: Math.max(screenHeight - cardTop + 24, bottomSafeArea),
+             bottom: Math.max(screenHeight - cardTop + 16, bottomSafeArea),
              maxHeight: Math.min(maxTextHeight, spaceAbove)
           };
        } else {
@@ -450,7 +451,7 @@ export function ProductGuide({
                  <View style={styles.cardContent}>
                     <View style={styles.iconContainer}>
                        {currentStepData.isIconComponent && currentStepData.IconComponent ? (
-                          <currentStepData.IconComponent size={32} color="#FFFFFF" strokeWidth={1.5} />
+                          <currentStepData.IconComponent size={24} color="#FFFFFF" strokeWidth={1.5} />
                        ) : (
                           <Image 
                             source={currentStepData.icon}
@@ -478,7 +479,7 @@ export function ProductGuide({
         <Animated.View style={[styles.textContainer, textPosition, textAnimatedStyle]}>
            <ScrollView 
              style={styles.scrollContainer}
-             contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}
+             contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 8, 12) }]}
              showsVerticalScrollIndicator={false}
              bounces={true}
              nestedScrollEnabled={true}
@@ -487,7 +488,7 @@ export function ProductGuide({
              <BlurView intensity={80} tint="dark" style={styles.textBubble}>
                 <View style={styles.headerRow}>
                   {currentStepData.isIconComponent && currentStepData.IconComponent ? (
-                    <currentStepData.IconComponent size={24} color="#87CEFA" strokeWidth={1.5} />
+                    <currentStepData.IconComponent size={18} color="#87CEFA" strokeWidth={1.5} />
                   ) : currentStepData.icon ? (
                     <Image 
                       source={currentStepData.icon}
@@ -523,7 +524,7 @@ export function ProductGuide({
                     activeOpacity={0.8}
                   >
                     <Text style={styles.nextText}>{isLastStep ? 'Get Started' : 'Next'}</Text>
-                    {!isLastStep && <ChevronRight size={16} color="#000" />}
+                    {!isLastStep && <ChevronRight size={14} color="#000" />}
                   </TouchableOpacity>
                 </View>
              </BlurView>
@@ -560,7 +561,7 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: 'center',
     backgroundColor: '#1A1A1A',
-    borderRadius: 32,
+    borderRadius: 20,
   },
   cardContent: {
     flex: 1,
@@ -572,14 +573,15 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   iconImage: {
     width: 48,
     height: 48,
   },
   visualContentContainer: {
-    marginVertical: 12,
-    borderRadius: 24,
+    marginVertical: 2,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   cardTitle: {
@@ -587,10 +589,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 4,
+    lineHeight: 24,
   },
   cardSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.5)',
+    lineHeight: 20,
   },
   textContainer: {
     position: 'absolute',
@@ -610,44 +614,45 @@ const styles = StyleSheet.create({
   },
   textBubble: {
     backgroundColor: '#1A1A1A',
-    borderRadius: 24,
-    padding: 16,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     width: '100%',
     overflow: 'hidden',
-    minHeight: 200,
+    minHeight: 100,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 4,
+    gap: 8,
+    marginBottom: 12,
   },
   headerIcon: {
-    width: 24,
-    height: 24,
+    width: 18,
+    height: 18,
   },
   guideTitle: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
     flex: 1,
   },
   guideDescription: {
-    fontSize: 16,
+    fontSize: 13,
     color: 'rgba(255,255,255,0.7)',
-    lineHeight: 24,
-    marginBottom: 12,
+    lineHeight: 18,
+    marginBottom: 4,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 8,
+    marginTop: 8,
+    paddingTop: 6,
   },
   indicators: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   dot: {
     width: 8,
@@ -666,7 +671,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 20,
-    gap: 6,
+    gap: 4,
   },
   nextText: {
     color: '#000',

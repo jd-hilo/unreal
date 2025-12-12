@@ -117,21 +117,9 @@ export default function HomeScreen() {
   );
 
   async function checkGuideStatus() {
-    if (!user) return;
-    try {
-      const hasSeenGuide = await getHasSeenDecisionGuide();
-      // If guide hasn't been seen (either first time or manually reset from profile), show it
-      if (!hasSeenGuide) {
-        const decisions = await getDecisions(user.id, 1);
-        // Always show guide if it hasn't been seen (either first time or manually reset)
-        setGuideStep(0);
-        setShowDecisionGuide(true);
-        trackEvent(decisions.length === 0 ? 'Product Guide Viewed' : 'Product Guide Replayed');
-        setHasCheckedGuide(true);
-      }
-    } catch (error) {
-      console.error('Failed to check guide status:', error);
-    }
+    // Product guide is no longer shown automatically
+    // Users can still access it manually via the help button
+    return;
   }
 
   async function loadData() {
@@ -824,14 +812,15 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   greeting: {
-    fontSize: 34,
+    fontSize: 28,
     fontWeight: '700',
-    lineHeight: 40,
+    lineHeight: 34,
     fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
     letterSpacing: -0.5,
   },
   greetingName: {
     color: '#999999',
+    fontWeight: '400',
   },
   greetingRest: {
     color: '#FFFFFF',

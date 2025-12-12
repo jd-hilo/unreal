@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Clipboard, Modal, Linking, Platform, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useState, useEffect, useRef } from 'react';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@/store/useAuth';
 import { getDecision, updateDecisionPrediction, getDecisionParticipants } from '@/lib/storage';
 import { predictDecision } from '@/lib/ai';
@@ -22,6 +23,7 @@ import { StatusBar } from 'expo-status-bar';
 
 export default function DecisionResultScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id } = useLocalSearchParams();
   const user = useAuth((state) => state.user);
   const { isPremium } = useTwin();
@@ -39,6 +41,34 @@ export default function DecisionResultScreen() {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Disable swipe-to-go-back gesture on both current and parent navigators
+  useFocusEffect(() => {
+    // Disable on current screen
+    navigation.setOptions({
+      gestureEnabled: false,
+    });
+
+    // Disable on parent navigator (to prevent swiping back to home)
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.setOptions({
+        gestureEnabled: false,
+      });
+    }
+
+    return () => {
+      // Re-enable on cleanup
+      navigation.setOptions({
+        gestureEnabled: true,
+      });
+      if (parent) {
+        parent.setOptions({
+          gestureEnabled: true,
+        });
+      }
+    };
+  });
 
   useEffect(() => {
     if (user) {

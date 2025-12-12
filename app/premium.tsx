@@ -8,6 +8,7 @@ import { ArrowLeft, Sparkles, Zap, Lock, TrendingUp, Brain, Clock, X, Check, Cir
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import * as Haptics from 'expo-haptics';
 
 type PurchaseOption = 'weekly' | 'lifetime';
 const { width } = Dimensions.get('window');
@@ -176,11 +177,6 @@ export default function PremiumScreen() {
       title: 'Advanced Analysis',
       description: 'Deeper insights into your choices',
     },
-    {
-      icon: Clock,
-      title: 'Unlimited Access',
-      description: 'Unlimited simulations and analyses',
-    },
   ];
 
   return (
@@ -257,7 +253,10 @@ export default function PremiumScreen() {
                 styles.pricingCard,
                 selectedOption === 'lifetime' && styles.pricingCardSelected
               ]}
-              onPress={() => setSelectedOption('lifetime')}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedOption('lifetime');
+              }}
               activeOpacity={0.9}
             >
               <LinearGradient
@@ -292,7 +291,10 @@ export default function PremiumScreen() {
                 styles.pricingCard,
                 selectedOption === 'weekly' && styles.pricingCardSelected
               ]}
-              onPress={() => setSelectedOption('weekly')}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedOption('weekly');
+              }}
               activeOpacity={0.9}
             >
               <View style={styles.cardHeader}>
@@ -410,7 +412,7 @@ const styles = StyleSheet.create({
   heroSection: {
     alignItems: 'center',
     marginBottom: 40,
-    marginTop: 60,
+    marginTop: 45,
   },
   heroIconContainer: {
     width: 100,
