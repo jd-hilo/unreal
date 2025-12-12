@@ -1,26 +1,26 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Linking, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Linking, Animated, Dimensions } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Sparkles, Zap, Lock, TrendingUp, Brain, Clock, X } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Zap, Lock, TrendingUp, Brain, Clock, X, Check, Circle } from 'lucide-react-native';
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 type PurchaseOption = 'weekly' | 'lifetime';
+const { width } = Dimensions.get('window');
 
 export default function PremiumScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const fromOnboarding = params.fromOnboarding === 'true';
   const { isPremium, packages, loading, purchasing, restoring, purchase, restore } = usePremium();
-  const [selectedOption, setSelectedOption] = useState<PurchaseOption>('weekly');
+  const [selectedOption, setSelectedOption] = useState<PurchaseOption>('lifetime'); // Default to lifetime/best value
   
   // Animation values for button effects
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   // Track premium screen viewed
   useEffect(() => {
@@ -49,20 +49,6 @@ export default function PremiumScreen() {
     return () => pulse.stop();
   }, []);
 
-
-  // Shimmer animation
-  useEffect(() => {
-    const shimmer = Animated.loop(
-      Animated.timing(shimmerAnim, {
-        toValue: 1,
-        duration: 3000,
-        useNativeDriver: true,
-      })
-    );
-    shimmer.start();
-    return () => shimmer.stop();
-  }, []);
-
   async function handlePurchase() {
     if (!packages || packages.length === 0) {
       Alert.alert('Error', 'No packages available. Please try again later.');
@@ -72,32 +58,22 @@ export default function PremiumScreen() {
     // Find the appropriate package based on selected option
     let pkg = selectedOption === 'weekly' 
       ? packages.find(p => 
+          p.product.identifier === 'unreal_weekly_sub' ||
           p.packageType === 'WEEKLY' || 
           p.identifier === '$rc_weekly' ||
-          p.product.identifier === 'unreal_weekly_sub' ||
           p.identifier.includes('weekly') ||
           p.identifier.includes('week')
         )
       : packages.find(p => 
+          p.product.identifier === 'unreal_lifetime_v2' ||
           p.packageType === 'CUSTOM' || 
           p.packageType === 'LIFETIME' ||
           p.identifier === '$rc_lifetime' ||
-          p.product.identifier === 'unreal_lifetime_v2' ||
-          p.product.identifier === 'unreal_lifetime' ||
-          p.identifier.includes('lifetime') ||
-          p.product.productType === 'NON_CONSUMABLE'
+          p.product.productType === 'NON_CONSUMABLE' ||
+          p.identifier.includes('lifetime')
         );
 
     if (!pkg) {
-      // Debug: log available packages
-      console.log('❌ Could not find package for:', selectedOption);
-      console.log('Available packages:', packages.map(p => ({
-        identifier: p.identifier,
-        type: p.packageType,
-        product: p.product.identifier,
-        productType: p.product.productType
-      })));
-      
       Alert.alert('Error', `Could not find ${selectedOption} package. Please try again.`);
       return;
     }
@@ -183,33 +159,44 @@ export default function PremiumScreen() {
     {
       icon: Zap,
       title: 'Simulate Life Choices',
-      description: 'Simulate the long-term outcomes of every decision you make',
+      description: 'Long-term outcomes for every decision',
     },
     {
       icon: Brain,
       title: 'Future Biometric Prediction',
-      description: 'See detailed biometric predictions for all your what-if scenarios',
+      description: 'Detailed biometric predictions for scenarios',
     },
     {
       icon: Sparkles,
       title: 'Best Case & Worst Case Scenarios',
-      description: 'Explore optimistic and challenging 2026 predictions to see all possible futures',
+      description: 'Optimistic and challenging future predictions',
     },
     {
       icon: TrendingUp,
       title: 'Advanced Analysis',
-      description: 'Get deeper insights into how your choices shape your future',
+      description: 'Deeper insights into your choices',
     },
     {
       icon: Clock,
       title: 'Unlimited Access',
-      description: 'No limits on simulations, what-ifs, or decision analyses',
+      description: 'Unlimited simulations and analyses',
     },
   ];
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
+      
+      {/* Background Gradient for Header */}
+      <View style={styles.bgGradientContainer}>
+         <LinearGradient
+            colors={['rgba(212, 242, 56, 0.15)', 'transparent']}
+            style={styles.bgGradient}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+          />
+      </View>
+
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           {fromOnboarding ? (
@@ -244,92 +231,14 @@ export default function PremiumScreen() {
             </Text>
           </View>
 
-          {/* Purchase Options Toggle */}
-          <View style={styles.billingToggle}>
-            <View style={styles.weeklyOptionWrapper}>
-              <TouchableOpacity
-                style={[
-                  styles.billingOption,
-                  selectedOption === 'weekly' && styles.billingOptionSelected,
-                ]}
-                onPress={() => setSelectedOption('weekly')}
-                activeOpacity={0.7}
-              >
-                <BlurView intensity={80} tint="dark" style={styles.billingOptionBlur}>
-                  <Text style={[
-                    styles.billingOptionTitle,
-                    selectedOption === 'weekly' && styles.billingOptionTitleSelected,
-                  ]}>
-                    Weekly
-                  </Text>
-                  <View style={styles.priceContainer}>
-                    <Text 
-                      style={[
-                        styles.billingOptionPrice,
-                        selectedOption === 'weekly' && styles.billingOptionPriceSelected,
-                      ]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                    >
-                      $4.99
-                    </Text>
-                    <Text style={[
-                      styles.billingOptionPeriod,
-                      selectedOption === 'weekly' && styles.billingOptionPeriodSelected,
-                    ]}>
-                      /week
-                    </Text>
-                  </View>
-                  <Text style={styles.billingOptionDetailPlaceholder}> </Text>
-                </BlurView>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.lifetimeOptionWrapper}>
-              <LinearGradient
-                colors={['#FFEB3B', '#FFC107', '#FFA000']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.saveBadge}
-              >
-                <Text style={styles.saveBadgeText}>BEST VALUE</Text>
-              </LinearGradient>
-              <TouchableOpacity
-                style={[
-                  styles.billingOption,
-                  selectedOption === 'lifetime' && styles.billingOptionSelected,
-                ]}
-                onPress={() => setSelectedOption('lifetime')}
-                activeOpacity={0.7}
-              >
-                <BlurView intensity={80} tint="dark" style={styles.billingOptionBlur}>
-                  <Text style={[
-                    styles.billingOptionTitle,
-                    selectedOption === 'lifetime' && styles.billingOptionTitleSelected,
-                  ]}>
-                    Lifetime
-                  </Text>
-                  <Text style={[
-                    styles.billingOptionPrice,
-                    selectedOption === 'lifetime' && styles.billingOptionPriceSelected,
-                  ]}>
-                    $29.99
-                  </Text>
-                  <Text style={styles.billingOptionDetail}>One-time payment</Text>
-                </BlurView>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Features List */}
+          {/* Features List - Left Aligned */}
           <View style={styles.featuresSection}>
-            <Text style={styles.featuresTitle}>What You'll Get</Text>
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
                 <View key={index} style={styles.featureRow}>
                   <View style={styles.featureIcon}>
-                    <Icon size={24} color="#FFEB3B" strokeWidth={2} />
+                    <Icon size={20} color="#FFEB3B" strokeWidth={2.5} />
                   </View>
                   <View style={styles.featureContent}>
                     <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -340,13 +249,75 @@ export default function PremiumScreen() {
             })}
           </View>
 
-          {/* Purchase Button */}
+          {/* Pricing Cards */}
+          <View style={styles.pricingContainer}>
+            {/* Lifetime Card (Best Value) */}
+            <TouchableOpacity
+              style={[
+                styles.pricingCard,
+                selectedOption === 'lifetime' && styles.pricingCardSelected
+              ]}
+              onPress={() => setSelectedOption('lifetime')}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={['#FFEB3B', '#FFC107', '#FFA000']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.saveBadge}
+              >
+                <Text style={styles.saveBadgeText}>Save 30%</Text>
+              </LinearGradient>
+
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Lifetime</Text>
+                {selectedOption === 'lifetime' ? (
+                  <View style={styles.checkCircle}>
+                    <Check size={12} color="#000" strokeWidth={3} />
+                  </View>
+                ) : (
+                  <Circle size={20} color="rgba(255,255,255,0.3)" />
+                )}
+              </View>
+              
+              <View style={styles.cardPriceContainer}>
+                <Text style={styles.cardPrice}>$29.99</Text>
+                <Text style={styles.cardPeriod}>one-time</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Weekly Card */}
+            <TouchableOpacity
+              style={[
+                styles.pricingCard,
+                selectedOption === 'weekly' && styles.pricingCardSelected
+              ]}
+              onPress={() => setSelectedOption('weekly')}
+              activeOpacity={0.9}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Weekly</Text>
+                {selectedOption === 'weekly' ? (
+                   <View style={styles.checkCircle}>
+                    <Check size={12} color="#000" strokeWidth={3} />
+                  </View>
+                ) : (
+                  <Circle size={20} color="rgba(255,255,255,0.3)" />
+                )}
+              </View>
+              
+              <View style={styles.cardPriceContainer}>
+                <Text style={styles.cardPrice}>$4.99</Text>
+                <Text style={styles.cardPeriod}>/mo</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Continue Button */}
           <Animated.View 
             style={[
               styles.purchaseButtonWrapper,
-              {
-                transform: [{ scale: pulseAnim }],
-              }
+              { transform: [{ scale: pulseAnim }] }
             ]}
           >
             <TouchableOpacity
@@ -355,90 +326,29 @@ export default function PremiumScreen() {
               disabled={purchasing || loading}
               activeOpacity={0.9}
             >
-              <LinearGradient
-                colors={['#FFEB3B', '#FFC107', '#FFA000']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.purchaseButtonGradient}
-              >
-                <Animated.View
-                  style={[
-                    styles.shimmerOverlay,
-                    {
-                      opacity: shimmerAnim.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: [0, 0.3, 0],
-                      }),
-                      transform: [
-                        {
-                          translateX: shimmerAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [-200, 200],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                />
-                {purchasing ? (
-                  <ActivityIndicator size="small" color="#000000" />
-                ) : (
-                  <Text style={styles.purchaseButtonText}>
-                    {selectedOption === 'weekly' ? 'Start Weekly Subscription' : 'Purchase Lifetime Access'}
-                  </Text>
-                )}
-              </LinearGradient>
+               <View style={styles.buttonBorder} />
+               <Text style={styles.purchaseButtonText}>Continue</Text>
             </TouchableOpacity>
           </Animated.View>
 
-          {/* Restore Button */}
-          <TouchableOpacity
-            style={styles.restoreButton}
-            onPress={handleRestore}
-            disabled={restoring || loading}
-            activeOpacity={0.7}
-          >
-            {restoring ? (
-              <ActivityIndicator size="small" color="#FFEB3B" />
-            ) : (
-              <Text style={styles.restoreButtonText}>Restore Purchases</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Skip Button (only for onboarding) */}
-          {fromOnboarding && (
-            <TouchableOpacity
-              style={styles.skipButton}
-              onPress={() => router.replace('/onboarding/07-clarifier')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.skipButtonText}>Skip for now</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Fine Print */}
+          {/* Trial Text */}
           <Text style={styles.finePrint}>
             {selectedOption === 'weekly' 
-              ? 'Subscription will auto-renew unless cancelled. Cancel anytime in App Store settings.'
-              : 'Lifetime access is a one-time payment. No recurring charges.'}
+              ? 'First 3 days free, then $4.99/week'
+              : 'One-time payment. No recurring charges.'}
           </Text>
 
-          {/* Terms and Privacy Links */}
-          <View style={styles.legalLinks}>
-            <TouchableOpacity 
-              onPress={() => Linking.openURL('https://pastoral-supply-662.notion.site/Privacy-Policy-unreal-2a32cec59ddf80098740f16913e6d43d')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.legalLinkText}>Terms of Service</Text>
-            </TouchableOpacity>
-            <Text style={styles.legalSeparator}>•</Text>
-            <TouchableOpacity 
-              onPress={() => Linking.openURL('https://pastoral-supply-662.notion.site/Privacy-Policy-unreal-2a32cec59ddf80098740f16913e6d43d')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.legalLinkText}>Privacy Policy</Text>
-            </TouchableOpacity>
+          {/* Footer Links */}
+          <View style={styles.footerLinks}>
+             <TouchableOpacity onPress={handleRestore}>
+               <Text style={styles.footerLinkText}>Restore Purchases</Text>
+             </TouchableOpacity>
+             <Text style={styles.footerSeparator}>•</Text>
+             <TouchableOpacity onPress={() => Linking.openURL('https://pastoral-supply-662.notion.site/Terms-of-Service-unreal-2a32cec59ddf80aca5e3ec91fdf8e529?source=copy_link')}>
+               <Text style={styles.footerLinkText}>Terms of Service</Text>
+             </TouchableOpacity>
           </View>
+
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -448,7 +358,17 @@ export default function PremiumScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C0C10',
+    backgroundColor: '#000000',
+  },
+  bgGradientContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 400,
+  },
+  bgGradient: {
+    flex: 1,
   },
   safeArea: {
     flex: 1,
@@ -457,6 +377,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 8,
+    zIndex: 10,
   },
   headerRight: {
     width: '100%',
@@ -481,257 +402,195 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 24,
-    paddingTop: 8,
+    paddingTop: 0,
     paddingBottom: 60,
   },
+  
+  // Hero
   heroSection: {
     alignItems: 'center',
     marginBottom: 40,
+    marginTop: 60,
   },
   heroIconContainer: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+    // Add glow effect behind logo
+    shadowColor: '#D4F238',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 40,
   },
   heroIconImage: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
   },
   heroTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 12,
+    marginBottom: 10,
     textAlign: 'center',
   },
   heroSubtitle: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: 'rgba(255, 255, 255, 0.6)',
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 20,
+    lineHeight: 22,
+    maxWidth: '80%',
   },
-  billingToggle: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 40,
-  },
-  weeklyOptionWrapper: {
-    flex: 1,
-  },
-  billingOption: {
-    width: '100%',
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-    minHeight: 120,
-  },
-  lifetimeOptionWrapper: {
-    flex: 1,
-    position: 'relative',
-  },
-  billingOptionSelected: {
-    borderColor: 'rgba(255, 215, 0, 0.6)',
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-  },
-  billingOptionBlur: {
-    width: '100%',
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 120,
-  },
-  saveBadge: {
-    position: 'absolute',
-    top: -8,
-    right: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 10,
-    elevation: 5,
-    shadowColor: '#FFEB3B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-  },
-  saveBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#000000',
-    letterSpacing: 0.5,
-  },
-  billingOptionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
-    marginBottom: 8,
-  },
-  billingOptionTitleSelected: {
-    color: '#FFFFFF',
-  },
-  priceContainer: {
-    alignItems: 'center',
-  },
-  billingOptionPeriod: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
-    marginTop: 2,
-  },
-  billingOptionPeriodSelected: {
-    color: 'rgba(255, 255, 255, 0.9)',
-  },
-  billingOptionPrice: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: 'rgba(200, 200, 200, 0.85)',
-  },
-  billingOptionPriceSelected: {
-    color: '#FFFFFF',
-  },
-  billingOptionDetail: {
-    fontSize: 13,
-    color: 'rgba(200, 200, 200, 0.65)',
-    marginTop: 4,
-  },
-  billingOptionDetailPlaceholder: {
-    fontSize: 13,
-    color: 'transparent',
-    marginTop: 4,
-  },
+
+  // Features
   featuresSection: {
     marginBottom: 40,
-  },
-  featuresTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 20,
+    paddingHorizontal: 10,
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 24,
+    marginBottom: 20,
     gap: 16,
   },
   featureIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
+    marginTop: 2,
   },
   featureContent: {
     flex: 1,
   },
   featureTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 4,
   },
   featureDescription: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: 'rgba(255, 255, 255, 0.6)',
     lineHeight: 20,
   },
-  purchaseButtonWrapper: {
-    marginBottom: 20,
+
+  // Pricing Cards
+  pricingContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 32,
+  },
+  pricingCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    minHeight: 110,
+    justifyContent: 'space-between',
+  },
+  pricingCardSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  saveBadge: {
+    position: 'absolute',
+    top: -12,
+    left: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 100,
+    zIndex: 10,
+  },
+  saveBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  checkCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cardPriceContainer: {
+    marginTop: 'auto',
+  },
+  cardPrice: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  cardPeriod: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+
+  // Button
+  purchaseButtonWrapper: {
+    marginBottom: 16,
+  },
   purchaseButton: {
-    borderRadius: 18,
     width: '100%',
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 10,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000000',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   purchaseButtonDisabled: {
     opacity: 0.6,
   },
-  purchaseButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-    gap: 12,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  shimmerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#FFFFFF',
-    width: 100,
+  buttonBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   purchaseButtonText: {
     fontSize: 17,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  restoreButton: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  restoreButtonText: {
-    fontSize: 15,
     fontWeight: '600',
-    color: '#FFEB3B',
+    color: '#FFFFFF',
   },
-  skipButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  skipButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.6)',
-    textDecorationLine: 'underline',
-  },
+
+  // Footer
   finePrint: {
-    fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.55)',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.4)',
     textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 24,
   },
-  legalLinks: {
+  footerLinks: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 8,
   },
-  legalLinkText: {
+  footerLinkText: {
     fontSize: 12,
-    color: '#FFEB3B',
-    textDecorationLine: 'underline',
+    color: 'rgba(255, 255, 255, 0.4)',
   },
-  legalSeparator: {
+  footerSeparator: {
     fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.55)',
+    color: 'rgba(255, 255, 255, 0.2)',
   },
+
+  // Already Premium
   alreadyPremiumContainer: {
     flex: 1,
     alignItems: 'center',
@@ -762,4 +621,3 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 });
-

@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { ArrowLeft, Lock } from 'lucide-react-native';
+import { ArrowLeft, Lock, Sparkles } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -121,7 +121,7 @@ export default function PredictionIntroScreen() {
               <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
             </TouchableOpacity>
             <View>
-              <Text style={styles.title}>2026 Forecast</Text>
+              <Text style={styles.title}>Your 2026 Simulations</Text>
               <Text style={styles.subtitle}>Explore your future scenarios</Text>
             </View>
           </View>
@@ -140,6 +140,7 @@ export default function PredictionIntroScreen() {
                   {hasEstimated ? 'View Results' : 'Simulate'}
                 </Text>
               </View>
+              <Sparkles size={64} color="#D4F238" strokeWidth={2.5} style={styles.mainCardIcon} />
             </View>
           </TouchableOpacity>
 
@@ -257,6 +258,13 @@ const styles = StyleSheet.create({
     padding: 24,
     flex: 1,
     justifyContent: 'flex-start',
+    position: 'relative',
+  },
+  mainCardIcon: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    opacity: .6,
   },
   mainCardLabel: {
     fontSize: 14,
@@ -351,5 +359,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 });
+
 
 

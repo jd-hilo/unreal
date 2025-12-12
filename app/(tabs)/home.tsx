@@ -423,26 +423,25 @@ export default function HomeScreen() {
                   },
                 ]}
               >
-                {/* Static Gradient Stroke Border - Outer Layer */}
-                <View style={styles.predictionBannerBorderWrapper} pointerEvents="none">
-                  <View style={styles.predictionBannerBorderGradient}>
-                    <LinearGradient
-                      colors={['#4169E1', '#14B8A6']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                  </View>
+                {/* Futuristic Yellow Button with Glow */}
+                <View style={styles.predictionBannerYellowWrapper}>
+                  <LinearGradient
+                    colors={['#D4F238', '#C4E228', '#D4F238']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.predictionBannerYellowGradient}
+                  >
+                    {/* Inner glow effect */}
+                    <View style={styles.predictionBannerYellowGlow} />
+                    
+                    {/* Content */}
+                    <View style={styles.predictionBannerInner}>
+                      <Sparkles size={18} color="#000000" strokeWidth={2.5} />
+                      <Text style={styles.predictionBannerYellowText}>Simulate your 2026</Text>
+                      <ChevronRight size={22} color="#000000" strokeWidth={3} />
+                    </View>
+                  </LinearGradient>
                 </View>
-                
-                {/* Content - Dark Button Matching App Style */}
-                <BlurView intensity={40} tint="dark" style={styles.predictionBannerBlur}>
-                  <View style={styles.predictionBannerInner}>
-                    <Sparkles size={18} color="#FFFFFF" strokeWidth={2} />
-                    <Text style={styles.predictionBannerText}>Simulate your 2026</Text>
-                    <ChevronRight size={22} color="#FFFFFF" strokeWidth={2.5} />
-                  </View>
-                </BlurView>
               </Animated.View>
             </TouchableOpacity>
 
@@ -1112,6 +1111,34 @@ const styles = StyleSheet.create({
     width: '200%',
     height: '200%',
   },
+  predictionBannerYellowWrapper: {
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowColor: '#D4F238',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  predictionBannerYellowGradient: {
+    borderRadius: 24,
+    paddingVertical: 2,
+    paddingHorizontal: 2,
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 242, 56, 0.2)',
+  },
+  predictionBannerYellowGlow: {
+    position: 'absolute',
+    top: -10,
+    left: -10,
+    right: -10,
+    bottom: -10,
+    borderRadius: 24,
+    backgroundColor: '#D4F238',
+    opacity: 0.08,
+  },
   predictionBannerInner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1119,6 +1146,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 24,
     gap: 12,
+    position: 'relative',
+    zIndex: 1,
   },
   predictionBannerText: {
     fontSize: 17,
@@ -1126,6 +1155,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.3,
     textAlign: 'center',
+  },
+  predictionBannerYellowText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#000000',
+    letterSpacing: 0.8,
+    textAlign: 'center',
+    textTransform: 'uppercase',
   },
   predictionBannerSubtext: {
     fontSize: 13,

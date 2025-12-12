@@ -17,6 +17,13 @@ const anthropicApiKey =
   process.env.ANTHROPIC_API_KEY ||
   null;
 
+// Debug: Log if API key is found (without exposing the key)
+if (anthropicApiKey) {
+  console.log('✅ Anthropic API key found:', anthropicApiKey.substring(0, 10) + '...');
+} else {
+  console.warn('⚠️ Anthropic API key NOT found. Check .env file and restart Expo.');
+}
+
 // OpenAI API key (for embeddings and transcription only)
 const openaiApiKey = 
   Constants.expoConfig?.extra?.openaiApiKey || 
@@ -1747,22 +1754,55 @@ Include age in the summary where relevant if provided.`;
 
     // Generate 01-now summary
     if (nowPrompt) {
-      const nowContent = await callClaude({
-        system: systemPrompt,
-        messages: [{ role: 'user', content: nowPrompt }],
-        temperature: 0.7,
-      });
-      summaries['01-now'] = nowContent.trim() || '';
+      try {
+        const nowContent = await callClaude({
+          system: systemPrompt,
+          messages: [{ role: 'user', content: nowPrompt }],
+          temperature: 0.7,
+        });
+        summaries['01-now'] = nowContent.trim() || '';
+      } catch (error: any) {
+        // If API key is missing, create a basic summary from the data
+        if (error?.message?.includes('API key not configured')) {
+          console.warn('Anthropic API key not configured, using fallback summary');
+          const fallbackNow = data.lifeSituation ? [
+            `You are currently ${data.lifeSituation.lifeStage || 'in a life stage'}`,
+            `working as ${data.lifeSituation.workStatus || 'employed'}`,
+            `and ${data.lifeSituation.livingSituation || 'living independently'}`,
+            age ? `at age ${age}` : '',
+          ].filter(Boolean).join(', ') + '.' : '';
+          summaries['01-now'] = fallbackNow;
+        } else {
+          throw error;
+        }
+      }
     }
 
     // Generate 02-path summary
     if (pathPrompt) {
-      const pathContent = await callClaude({
-        system: systemPrompt,
-        messages: [{ role: 'user', content: pathPrompt }],
-        temperature: 0.7,
-      });
-      summaries['02-path'] = pathContent.trim() || '';
+      try {
+        const pathContent = await callClaude({
+          system: systemPrompt,
+          messages: [{ role: 'user', content: pathPrompt }],
+          temperature: 0.7,
+        });
+        summaries['02-path'] = pathContent.trim() || '';
+      } catch (error: any) {
+        // If API key is missing, create a basic summary from the data
+        if (error?.message?.includes('API key not configured')) {
+          console.warn('Anthropic API key not configured, using fallback summary');
+          const fallbackPath = data.lifeJourney ? [
+            `You grew up in ${data.lifeJourney.hometownOther || data.lifeJourney.hometown || 'your hometown'}`,
+            data.lifeJourney.wentToCollege === 'Yes' && data.lifeJourney.collegeName 
+              ? `and attended ${data.lifeJourney.collegeName}`
+              : '',
+            `Your career started ${data.lifeJourney.careerStart || 'in your field'}`,
+          ].filter(Boolean).join(', ') + '.' : '';
+          summaries['02-path'] = fallbackPath;
+        } else {
+          throw error;
+        }
+      }
     }
 
     // Add optional summaries if provided
@@ -1779,7 +1819,16 @@ Include age in the summary where relevant if provided.`;
     return summaries;
   } catch (error) {
     console.error('Onboarding summarization error:', error);
-    throw error;
+    // Return a fallback result instead of throwing
+    return {
+      '01-now': '',
+      '02-path': '',
+      values_json: data.values?.selected || [],
+      age,
+      '06-stress': data.stressHandling,
+      '04-style': data.decisionStyle,
+      interests: data.interests,
+    };
   }
 }
 
@@ -1853,6 +1902,7 @@ export async function generateYearPrediction({
     '- For worst case: Include specific, realistic challenges and setbacks with a darkly humorous, absurdly specific twist. Make timeline events and highlights funny in their misfortune - think "you get locked out of your apartment 3 times in one month" or "your favorite coffee shop closes the day after you buy a $200 gift card there". The user should find them amusing despite being setbacks. For percentages showing decreases, use negative format (e.g., "-15%" for income decrease, "-20%" for savings reduction)',
     '- Keep events realistic and believable for the scenario type',
     '- All scenarios should have similar structure: hero with key stat, 3-5 stats, 12 timeline events, 3-5 highlights, insights, and focus areas (focus areas are optional for best/worst case but required for estimated)',
+    '- focusAreas: Generate 3-5 concise, clear steps on how to make the year better. Each step must be actionable, specific, and direct (8-15 words max). Start with action verbs. Write in second person. Examples: "Set aside 2 hours weekly for skill development", "Build 3-5 strong professional relationships this quarter", "Prioritize work-life balance by setting firm boundaries".',
     '- For worst case: Ensure you generate ALL required fields - hero, stats, timeline (12 months), highlights, insights, and focusAreas. Make sure the JSON structure is complete and valid.',
   ].join('\n');
 
@@ -1975,7 +2025,13 @@ export async function generateYearPrediction({
     '    CRITICAL: Do NOT use em dashes (—) or en dashes (–). Use regular hyphens (-) or commas instead."',
     '  ],',
     '  "focusAreas": [',
-    '    "3-5 actionable focus areas (each as a separate string) that the user should prioritize this year to improve their outcomes. Be specific and practical. Examples: "Focus on building 3-5 strong professional relationships", "Invest 20% of income into skill development courses", "Prioritize work-life balance by setting firm boundaries". Write in second person, be actionable and specific. REQUIRED for all scenarios - always include this field even for best/worst case."',
+    '    "3-5 concise, clear steps (each as a separate string) on how to make the year better. Each step should be:',
+    '    - Actionable and specific (e.g., "Set aside 2 hours weekly for skill development" not "Learn more")',
+    '    - Clear and direct (start with action verbs like "Set", "Build", "Prioritize", "Invest", "Create")',
+    '    - Concise (one clear action per step, 8-15 words max)',
+    '    - Written in second person ("You" or imperative form)',
+    '    Examples: "Set aside 2 hours weekly for skill development", "Build 3-5 strong professional relationships this quarter", "Prioritize work-life balance by setting firm boundaries", "Invest 20% of income into courses or certifications", "Create a monthly review system to track progress".',
+    '    REQUIRED for all scenarios - always include this field even for best/worst case."',
     '  ]',
     '}',
   ].join('\n');

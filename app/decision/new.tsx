@@ -6,7 +6,7 @@ import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { SwipeableOptionCard } from '@/components/SwipeableOptionCard';
 import { ArrowLeft, ChevronRight, X, UserPlus, Clock, Sparkles, Check, Plus } from 'lucide-react-native';
 import { insertDecision, updateDecisionPrediction, getUserByTwinCode, addDecisionParticipant } from '@/lib/storage';
-import { predictDecision } from '@/lib/ai';
+import { predictDecision, generateInterestingDecisionQuestions } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -23,8 +23,10 @@ const TOTAL_STEPS = 4;
 
 export default function NewDecisionScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ question?: string }>();
+  const params = useLocalSearchParams<{ question?: string; autoSubmit?: string }>();
   const user = useAuth((state) => state.user);
+  const autoSubmit = params.autoSubmit === 'true';
+  const autoSubmitStarted = useRef(false);
   
   // Step management
   const [currentStep, setCurrentStep] = useState(1);
@@ -36,7 +38,7 @@ export default function NewDecisionScreen() {
   const [question, setQuestion] = useState(params.question || '');
   const [derivedOptions, setDerivedOptions] = useState<string[]>([]);
   const [isDerivingOptions, setIsDerivingOptions] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(autoSubmit); // Show loading immediately if autoSubmit
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -80,17 +82,95 @@ export default function NewDecisionScreen() {
     };
   }, []);
 
-  // Pre-fill question from query params and auto-advance if provided
+  // Handle autoSubmit - process everything in background and show loading screen
   useEffect(() => {
-    if (params.question && params.question.trim() && currentStep === 1) {
+    if (autoSubmit && user && !autoSubmitStarted.current) {
+      autoSubmitStarted.current = true;
+      setLoading(true);
+
+      const processAutoSubmit = async () => {
+        try {
+          let questionToUse = params.question?.trim() || '';
+
+          // Generate question if not provided
+          if (!questionToUse) {
+            const corePack = await buildCorePack(user.id);
+            const questions = await generateInterestingDecisionQuestions(corePack, 3);
+            questionToUse = questions[0] || 'Should I make this change?';
+          }
+
+          setQuestion(questionToUse);
+
+          // Derive options
+          const corePack = await buildCorePack(user.id);
+          const { deriveDecisionOptionsWithContext } = await import('@/lib/ai');
+          const options = await deriveDecisionOptionsWithContext(questionToUse, corePack);
+          setDerivedOptions(options);
+
+          // Submit
+          if (!user || !questionToUse.trim() || options.length < 2) {
+            setLoading(false);
+            setCurrentStep(1);
+            return;
+          }
+
+          try {
+            const decision = await insertDecision(user.id, {
+              question: questionToUse.trim(),
+              options: options,
+              status: 'pending',
+            });
+
+            trackEvent(MixpanelEvents.DECISION_CREATED, {
+              decision_id: decision.id,
+              num_options: options.length,
+              has_participants: false,
+              num_participants: 0
+            });
+
+            const relevancePack = await buildRelevancePack(user.id, questionToUse);
+            const prediction = await predictDecision({
+              corePack,
+              relevancePack,
+              question: questionToUse.trim(),
+              options: options,
+              participantCount: 1,
+            });
+
+            await updateDecisionPrediction(decision.id, prediction);
+
+            trackEvent(MixpanelEvents.DECISION_ANALYZED, {
+              decision_id: decision.id,
+              predicted_option: prediction.prediction,
+              confidence: Math.max(...Object.values(prediction.probs)),
+              num_participants: 0
+            });
+
+            router.replace(`/decision/${decision.id}`);
+          } catch (error) {
+            console.error('Failed to create decision:', error);
+            setLoading(false);
+            // Fallback to form
+            setCurrentStep(1);
+          }
+        } catch (error) {
+          console.error('Failed to process autoSubmit:', error);
+          setLoading(false);
+          setCurrentStep(1);
+        }
+      };
+
+      processAutoSubmit();
+    } else if (params.question && params.question.trim() && currentStep === 1 && !autoSubmit) {
+      // Normal flow: pre-fill question and auto-derive options
       setQuestion(params.question);
-      // Auto-derive options after a short delay if question is pre-filled
       const timer = setTimeout(() => {
         handleDeriveOptions();
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [params.question]);
+  }, [autoSubmit, params.question, user]);
+
 
   // Auto-focus question input when on step 1
   useEffect(() => {
@@ -1507,6 +1587,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
   },
   statusText: {
     fontSize: 15,

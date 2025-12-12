@@ -748,15 +748,15 @@ export default function PredictionResultScreen() {
               }}
             >
               <View style={styles.focusSection}>
-              <Text style={styles.sectionTitle}>Focus Areas</Text>
+              <Text style={styles.sectionTitle}>How to make the year better</Text>
               <View style={styles.focusCard}>
                 {processedData.focusAreas.map((area, index) => (
                   <View key={index} style={[
                     styles.focusItem,
                     index === processedData.focusAreas.length - 1 && { marginBottom: 0 }
                   ]}>
-                    <View style={styles.focusBullet}>
-                      <Text style={styles.focusBulletText}>•</Text>
+                    <View style={styles.focusStepNumber}>
+                      <Text style={styles.focusStepNumberText}>{index + 1}</Text>
                     </View>
                     <Text style={styles.focusText}>{area}</Text>
                   </View>
@@ -1093,23 +1093,30 @@ const styles = StyleSheet.create({
   focusItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  focusBullet: {
-    width: 24,
-    marginRight: 12,
+  focusStepNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#D4F238',
+    marginRight: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
-  focusBulletText: {
-    color: '#D4F238',
-    fontSize: 20,
-    fontWeight: '700',
+  focusStepNumberText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#000000',
   },
   focusText: {
     flex: 1,
-    color: '#D1D5DB',
-    fontSize: 16,
-    lineHeight: 24,
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    lineHeight: 26,
+    flexShrink: 1,
   },
   
   // Loading/Error
@@ -1209,5 +1216,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
 
 

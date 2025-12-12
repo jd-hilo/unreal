@@ -19,9 +19,18 @@ export default function PredictionGenerateScreen() {
   const user = useAuth((state) => state.user);
   const { isPremium } = useTwin();
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState('Initializing...');
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  const LOADING_STEPS = [
+    "Creating your decision...",
+    "Analyzing your profile...",
+    "Building context...",
+    "Consulting your twin...",
+    "Calculating probabilities...",
+    "Finalizing recommendation..."
+  ];
 
   useEffect(() => {
     // Check premium status for best_case and worst_case scenarios
@@ -69,6 +78,25 @@ export default function PredictionGenerateScreen() {
     ).start();
   }, [user, scenario]);
 
+  // Update loading steps
+  useEffect(() => {
+    if (loading) {
+      setLoadingStepIndex(0);
+      const interval = setInterval(() => {
+        setLoadingStepIndex((prev) => {
+          if (prev < LOADING_STEPS.length - 1) {
+            return prev + 1;
+          }
+          return prev;
+        });
+      }, 800);
+      
+      return () => {
+        clearInterval(interval);
+      };
+    }
+  }, [loading]);
+
   async function generatePrediction() {
     if (!user || !scenario || typeof scenario !== 'string') {
       setLoading(false);
@@ -78,12 +106,8 @@ export default function PredictionGenerateScreen() {
     const scenarioType = scenario as 'estimated' | 'best_case' | 'worst_case';
 
     try {
-      setStatus('Analyzing your profile...');
-      
       // Build core pack
       const corePack = await buildCorePack(user.id, [user.id]);
-      
-      setStatus('Generating your prediction...');
       
       // Get user profile for additional context
       const userProfile = await getProfile(user.id);
@@ -94,8 +118,6 @@ export default function PredictionGenerateScreen() {
         scenarioType,
         userProfile: userProfile || undefined,
       });
-
-      setStatus('Saving your prediction...');
 
       // Check if prediction already exists
       const existing = await getYearPrediction(user.id, scenarioType);
@@ -129,15 +151,12 @@ export default function PredictionGenerateScreen() {
         is_new: isNew
       });
 
-      setStatus('Complete!');
-
       // Navigate to results page
       setTimeout(() => {
         router.replace(`/prediction/2026/${predictionId}`);
       }, 500);
     } catch (error) {
       console.error('Failed to generate prediction:', error);
-      setStatus('Error generating prediction');
       setLoading(false);
       // Navigate back on error
       setTimeout(() => {
@@ -220,10 +239,12 @@ export default function PredictionGenerateScreen() {
 
               {/* Loading Text */}
               <View style={styles.textContainer}>
-                <Text style={styles.loadingText}>Simulating your 2026...</Text>
+                <Text style={styles.loadingText}>Asking your twin...</Text>
                 <View style={styles.statusContainer}>
                   <BlurView intensity={20} tint="dark" style={styles.statusBlur}>
-                    <Text style={styles.statusText}>{status}</Text>
+                    <Text style={styles.statusText}>
+                      {LOADING_STEPS[loadingStepIndex] || LOADING_STEPS[LOADING_STEPS.length - 1]}
+                    </Text>
                   </BlurView>
                 </View>
               </View>
@@ -338,6 +359,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
   },
   statusText: {
     fontSize: 15,
@@ -357,6 +379,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
 });
+
 
 
 

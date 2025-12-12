@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Image, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Image, Dimensions, Platform, ScrollView } from 'react-native';
 import { useEffect, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -44,6 +45,7 @@ export function ProductGuide({
   twinCardLayout,
   userId
 }: ProductGuideProps) {
+  const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(0);
   const [firstName, setFirstName] = useState('Friend');
   const [topValue, setTopValue] = useState('your values');
@@ -53,6 +55,10 @@ export function ProductGuide({
   const cardScale = useSharedValue(1);
   const textOpacity = useSharedValue(0);
   const textTranslateY = useSharedValue(20);
+  
+  // Calculate available height accounting for safe areas
+  // We'll use the full screen height for positioning calculations to avoid confusion
+  const screenHeight = height;
 
   const steps = [
     {
@@ -106,10 +112,10 @@ export function ProductGuide({
         <View style={styles.visualContentContainer}>
           <Card>
             <CardContent>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF', marginBottom: 16 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF', marginBottom: 12 }}>
                 What if I moved to NYC?
               </Text>
-              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
                 <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255, 215, 0, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
                     <Smile size={16} color="#FFD700" />
@@ -145,7 +151,7 @@ export function ProductGuide({
          <View style={styles.visualContentContainer}>
             <Card>
               <CardContent>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Calendar size={14} color="rgba(255,255,255,0.5)" />
                     <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Today, 9:41 AM</Text>
@@ -174,8 +180,8 @@ export function ProductGuide({
         <View style={styles.visualContentContainer}>
           <Card>
             <CardContent>
-              <View style={{ marginBottom: 16 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <View style={{ marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>Twin Accuracy</Text>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: '#87CEFA' }}>85%</Text>
                 </View>
@@ -312,11 +318,104 @@ export function ProductGuide({
   const verticalOffset = Platform.OS === 'ios' ? 48 : 0;
   const adjustedY = layout.y - verticalOffset;
 
-  // Determine text position (above or below card)
-  const isTopHalf = adjustedY < height / 2;
-  const textPosition = isTopHalf 
-    ? { top: adjustedY + layout.height + 24 } 
-    : { bottom: height - (adjustedY) + 24 };
+  // Determine text position (above or below card) accounting for safe areas
+  // Steps 3 and 4 (journal, twin) should always show text above the card
+  const isJournalOrTwinStep = currentStep === 2 || currentStep === 3;
+  const isTopHalf = adjustedY < screenHeight / 2;
+  
+  // Safe area padding - ensure enough space for button and content
+  // On iPhone 16/new devices, bottom inset might be small but curve is large
+  const bottomSafeArea = Math.max(insets.bottom, 34) + 120; 
+  const topSafeArea = Math.max(insets.top, 47) + 24;
+  
+  // For journal and twin steps, always position text above the card
+  // For other steps, use normal logic (text below if card is in top half, above if in bottom half)
+  const shouldPositionAbove = isJournalOrTwinStep || !isTopHalf;
+  
+  // Calculate card boundaries
+  const cardBottom = adjustedY + layout.height;
+  const cardTop = adjustedY;
+  
+  // Maximum height for text container - ensure it fits on screen
+  const maxTextHeight = Math.min(screenHeight * 0.65, screenHeight - topSafeArea - bottomSafeArea);
+  
+  let textPosition: { top?: number; bottom?: number; maxHeight?: number };
+  
+  if (shouldPositionAbove) {
+    // Position above card - prioritize fitting on screen over perfect alignment
+    const idealBottom = screenHeight - cardTop + 24; // Position so bottom of text is 24px above card top
+    const minBottom = bottomSafeArea; // Minimum distance from bottom of screen
+    
+    // Calculate if ideal position would cause overflow
+    const spaceAbove = cardTop - topSafeArea;
+    // We check if we have enough space above the card for the text
+    // OR if the calculated bottom position is too low (meaning card is too low?)
+    // Actually idealBottom being small means card is low (high y). idealBottom being large means card is high.
+    // We only care if the text fits in spaceAbove.
+    
+    const fitsAbove = spaceAbove >= 200; // Minimal viable height
+    
+    if (fitsAbove) {
+       // It fits above. Check if we can align with card or need to stick to safe area.
+       // We prefer aligning with card (idealBottom).
+       // But if idealBottom is smaller than minBottom (card is extremely low), 
+       // then the text container would be pushed down into safe area.
+       // However, since we are positioning ABOVE the card, if the card is very low, idealBottom is SMALL.
+       // wait: idealBottom = screenHeight - cardTop + 24.
+       // If card is at bottom (cardTop is large), idealBottom is small.
+       // If cardTop is at 800, screen is 900. idealBottom = 900 - 800 + 24 = 124.
+       // If minBottom is 150. Then idealBottom < minBottom. 
+       // This means the bottom of the text container would be at 124px from screen bottom.
+       // But we want it at least 150px from screen bottom.
+       // So we should take max(idealBottom, minBottom).
+       
+       textPosition = {
+         bottom: Math.max(idealBottom, minBottom),
+         maxHeight: Math.min(maxTextHeight, spaceAbove)
+       };
+    } else {
+       // Doesn't fit above nicely.
+       // Fallback: Check if we can put it below or just force it to fit somewhere.
+       // If we force it above, we might overlap the card or go into top safe area.
+       
+       // Let's try to fit it on screen regardless of card position
+       textPosition = {
+         bottom: minBottom,
+         maxHeight: maxTextHeight
+       };
+    }
+  } else {
+    // Position below card
+    const idealTop = cardBottom + 24;
+    const spaceBelow = screenHeight - idealTop - bottomSafeArea;
+    
+    if (spaceBelow >= 200) {
+       textPosition = {
+         top: idealTop,
+         maxHeight: Math.min(maxTextHeight, spaceBelow)
+       };
+    } else {
+       // Doesn't fit below. Try above?
+       const spaceAbove = cardTop - topSafeArea;
+       if (spaceAbove > spaceBelow && spaceAbove >= 200) {
+          textPosition = {
+             bottom: Math.max(screenHeight - cardTop + 24, bottomSafeArea),
+             maxHeight: Math.min(maxTextHeight, spaceAbove)
+          };
+       } else {
+          // Just center it vertically or put it at safe bottom
+          textPosition = {
+             bottom: bottomSafeArea,
+             maxHeight: maxTextHeight
+          };
+       }
+    }
+  }
+  
+  // Final safety check - ensure maxHeight is reasonable
+  if (textPosition.maxHeight && textPosition.maxHeight < 200) {
+    textPosition.maxHeight = 200; // Minimum height to show content
+  }
 
   return (
     <Modal
@@ -377,49 +476,58 @@ export function ProductGuide({
 
         {/* Guide Text & Controls */}
         <Animated.View style={[styles.textContainer, textPosition, textAnimatedStyle]}>
-           <BlurView intensity={80} tint="dark" style={styles.textBubble}>
-              <View style={styles.headerRow}>
-                {currentStepData.isIconComponent && currentStepData.IconComponent ? (
-                  <currentStepData.IconComponent size={24} color="#87CEFA" strokeWidth={1.5} />
-                ) : currentStepData.icon ? (
-                  <Image 
-                    source={currentStepData.icon}
-                    style={styles.headerIcon}
-                    resizeMode="contain"
-                  />
-                ) : null}
-                <Text style={styles.guideTitle}>{currentStepData.title}</Text>
-              </View>
-              
-              {currentStepData.renderContent ? (
-                currentStepData.renderContent()
-              ) : (
-                <Text style={styles.guideDescription}>{(currentStepData as any).description || ''}</Text>
-              )}
-              
-              <View style={styles.footer}>
-                <View style={styles.indicators}>
-                  {steps.map((_, index) => (
-                    <View 
-                      key={index} 
-                      style={[
-                        styles.dot, 
-                        index === currentStep && styles.dotActive
-                      ]} 
+           <ScrollView 
+             style={styles.scrollContainer}
+             contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}
+             showsVerticalScrollIndicator={false}
+             bounces={true}
+             nestedScrollEnabled={true}
+             keyboardShouldPersistTaps="handled"
+           >
+             <BlurView intensity={80} tint="dark" style={styles.textBubble}>
+                <View style={styles.headerRow}>
+                  {currentStepData.isIconComponent && currentStepData.IconComponent ? (
+                    <currentStepData.IconComponent size={24} color="#87CEFA" strokeWidth={1.5} />
+                  ) : currentStepData.icon ? (
+                    <Image 
+                      source={currentStepData.icon}
+                      style={styles.headerIcon}
+                      resizeMode="contain"
                     />
-                  ))}
+                  ) : null}
+                  <Text style={styles.guideTitle}>{currentStepData.title}</Text>
                 </View>
+                
+                {currentStepData.renderContent ? (
+                  currentStepData.renderContent()
+                ) : (
+                  <Text style={styles.guideDescription}>{(currentStepData as any).description || ''}</Text>
+                )}
+                
+                <View style={styles.footer}>
+                  <View style={styles.indicators}>
+                    {steps.map((_, index) => (
+                      <View 
+                        key={index} 
+                        style={[
+                          styles.dot, 
+                          index === currentStep && styles.dotActive
+                        ]} 
+                      />
+                    ))}
+                  </View>
 
-                <TouchableOpacity 
-                  style={styles.nextButton}
-                  onPress={handleNext}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.nextText}>{isLastStep ? 'Get Started' : 'Next'}</Text>
-                  {!isLastStep && <ChevronRight size={16} color="#000" />}
-                </TouchableOpacity>
-              </View>
-           </BlurView>
+                  <TouchableOpacity 
+                    style={styles.nextButton}
+                    onPress={handleNext}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.nextText}>{isLastStep ? 'Get Started' : 'Next'}</Text>
+                    {!isLastStep && <ChevronRight size={16} color="#000" />}
+                  </TouchableOpacity>
+                </View>
+             </BlurView>
+           </ScrollView>
         </Animated.View>
       </View>
     </Modal>
@@ -470,7 +578,7 @@ const styles = StyleSheet.create({
     height: 48,
   },
   visualContentContainer: {
-    marginVertical: 16,
+    marginVertical: 12,
     borderRadius: 24,
     overflow: 'hidden',
   },
@@ -489,20 +597,30 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     alignItems: 'center',
+    maxHeight: '80%',
+  },
+  scrollContainer: {
+    width: '100%',
+    maxWidth: 400,
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-start',
   },
   textBubble: {
     backgroundColor: '#1A1A1A',
     borderRadius: 24,
-    padding: 24,
+    padding: 16,
     width: '100%',
-    maxWidth: 400,
     overflow: 'hidden',
+    minHeight: 200,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   headerIcon: {
     width: 24,
@@ -518,12 +636,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255,255,255,0.7)',
     lineHeight: 24,
-    marginBottom: 24,
+    marginBottom: 12,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 8,
   },
   indicators: {
     flexDirection: 'row',
