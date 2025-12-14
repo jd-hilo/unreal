@@ -469,6 +469,14 @@ export default function WhatIfResultScreen() {
           <Text style={styles.askAnotherButtonText}>Ask Another What If</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/home')}
+          activeOpacity={0.7}
+          style={styles.goHomeTextContainer}
+        >
+          <Text style={styles.goHomeText}>Go to Home</Text>
+        </TouchableOpacity>
+
         {/* Disclaimer */}
         <View style={styles.disclaimerSection}>
           <Text style={styles.disclaimerText}>
@@ -875,7 +883,7 @@ const styles = StyleSheet.create({
   },
   askAnotherButton: {
     marginTop: 0,
-    marginBottom: 40,
+    marginBottom: 12,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -888,5 +896,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  goHomeTextContainer: {
+    marginTop: 0,
+    marginBottom: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 4,
+  },
+  goHomeText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 });

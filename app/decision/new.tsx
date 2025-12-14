@@ -581,14 +581,16 @@ export default function NewDecisionScreen() {
             <BlurView intensity={30} tint="dark" style={styles.twinAddedBlur}>
               <View style={styles.twinAddedContent}>
                 <View style={styles.twinAddedInfo}>
-                  <Check size={20} color="#22C55E" />
-                  <Text style={styles.twinAddedName}>{addedTwins[0].name}'s twin added</Text>
+                  <View style={styles.twinAddedIconContainer}>
+                    <UserPlus size={20} color="#000000" />
+                  </View>
+                  <Text style={styles.twinAddedName}>{addedTwins[0].name} added</Text>
                 </View>
                 <TouchableOpacity 
                   onPress={() => handleRemoveTwin(addedTwins[0].userId)}
                   style={styles.removeTwinButton}
                 >
-                  <X size={20} color="rgba(200, 200, 200, 0.75)" />
+                  <X size={20} color="rgba(255, 255, 255, 0.5)" />
                 </TouchableOpacity>
               </View>
             </BlurView>
@@ -597,17 +599,22 @@ export default function NewDecisionScreen() {
           <View style={styles.collaboratorSection}>
             <TouchableOpacity
               onPress={() => setShowTwinModal(true)}
-              style={styles.addTwinSquareButton}
-              activeOpacity={0.7}
+              style={styles.airbudsCard}
+              activeOpacity={0.8}
             >
-            <Image 
-                source={require('@/assets/images/cube.png')}
-                style={styles.addTwinCubeBackground}
-                resizeMode="cover"
-            />
-              <View style={styles.addTwinSquareContent}>
-                <Plus size={48} color="rgba(150, 150, 150, 0.7)" strokeWidth={2.5} />
-              </View>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)']}
+                style={styles.airbudsGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <View style={styles.airbudsInner}>
+                  <View style={styles.airbudsIconCircle}>
+                    <Plus size={32} color="#FFFFFF" strokeWidth={2.5} />
+                  </View>
+                  <Text style={styles.airbudsText}>Tap to invite</Text>
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         )}
@@ -684,7 +691,7 @@ export default function NewDecisionScreen() {
     switch (currentStep) {
       case 1: return "What's your decision?";
       case 2: return "Your options";
-      case 3: return "Add someone else's twin";
+      case 3: return "Making a decision with someone?";
       case 4: return "Review";
       default: return "New Decision";
     }
@@ -694,7 +701,7 @@ export default function NewDecisionScreen() {
     switch (currentStep) {
       case 1: return "Let your twin guide your decision";
       case 2: return "Review and edit your options";
-      case 3: return "Get another perspective (optional)";
+      case 3: return "Add their twin below";
       case 4: return "Ready to analyze";
       default: return "";
     }
@@ -1330,28 +1337,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addTwinSquareButton: {
-    width: 280,
-    height: 280,
-    borderRadius: 20,
+  // Airbuds style card
+  airbudsCard: {
+    width: 200,
+    height: 200,
+    borderRadius: 32,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(150, 150, 150, 0.4)',
     marginBottom: 20,
-    position: 'relative',
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  addTwinCubeBackground: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    opacity: 0.03,
-  },
-  addTwinSquareContent: {
+  airbudsGradient: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+  },
+  airbudsInner: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  airbudsIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  airbudsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    opacity: 0.8,
+  },
+  twinAddedIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#87CEFA', // Unreal blue
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   reviewCard: {
     borderRadius: 16,
