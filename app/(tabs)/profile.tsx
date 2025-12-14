@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Pla
 import Svg, { Circle, Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { ProgressBar } from '@/components/ProgressBar';
@@ -46,6 +47,7 @@ export default function ProfileScreen() {
   const [interestProgress, setInterestProgress] = useState(0);
   const [firstName, setFirstName] = useState('');
   const [savingFirstName, setSavingFirstName] = useState(false);
+  const [previousRoute, setPreviousRoute] = useState<string>('/(tabs)/home');
   const animatedTwinCode = useTextScramble(twinCode, 1500);
 
   // Reload profile data when screen comes into focus
@@ -57,6 +59,12 @@ export default function ProfileScreen() {
         const { checkPremiumStatus } = useTwin.getState();
         checkPremiumStatus(user.id);
       }
+      // Load previous route
+      AsyncStorage.getItem('previous_route_before_profile').then(route => {
+        if (route) {
+          setPreviousRoute(route);
+        }
+      });
     }, [user])
   );
 
@@ -277,7 +285,10 @@ export default function ProfileScreen() {
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
           {/* Back Button */}
           <TouchableOpacity 
-            onPress={() => router.back()} 
+            onPress={() => {
+              // Navigate back to the previous route (home or simulations)
+              router.replace(previousRoute as any);
+            }} 
             style={styles.backButton}
           >
             <ArrowLeft size={24} color="#FFFFFF" />
@@ -725,7 +736,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 50,
+    top: 70,
     left: 20,
     zIndex: 10,
     padding: 8,

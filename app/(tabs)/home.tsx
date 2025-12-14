@@ -324,8 +324,9 @@ export default function HomeScreen() {
                 
                 <TouchableOpacity 
                   style={styles.iconButton}
-                  onPress={() => {
+                  onPress={async () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/home');
                     router.push('/(tabs)/profile');
                   }}
                 >
@@ -494,7 +495,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/decision/new');
+                    router.push('/decision/new');
                 }}
                 activeOpacity={0.8}
                 style={styles.gridCardWrapper}
@@ -595,8 +596,9 @@ export default function HomeScreen() {
 
               {/* Card 4: Twin Status */}
               <TouchableOpacity
-                onPress={() => {
+                onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/home');
                   router.push('/(tabs)/profile');
                 }}
                 activeOpacity={0.8}

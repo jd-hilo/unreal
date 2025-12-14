@@ -403,6 +403,7 @@ export interface Database {
           user_id: string;
           title: string;
           current_age: number;
+          current_year: number;
           stats: TimelineStats;
           events: TimelineEvent[];
           assets: TimelineAsset[];
@@ -416,6 +417,7 @@ export interface Database {
           user_id: string;
           title: string;
           current_age: number;
+          current_year?: number;
           stats?: TimelineStats;
           events?: TimelineEvent[];
           assets?: TimelineAsset[];
@@ -429,6 +431,7 @@ export interface Database {
           user_id?: string;
           title?: string;
           current_age?: number;
+          current_year?: number;
           stats?: TimelineStats;
           events?: TimelineEvent[];
           assets?: TimelineAsset[];

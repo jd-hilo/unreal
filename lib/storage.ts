@@ -1366,6 +1366,7 @@ export async function createTimeline(
       user_id: userId,
       title,
       current_age: currentAge,
+      current_year: 1, // Start each simulation at Year 1
       stats: initialStats || {
         money: 5,
         happiness: 5,
@@ -1421,6 +1422,7 @@ export async function updateTimeline(
   timelineId: string,
   updates: {
     current_age?: number;
+    current_year?: number;
     stats?: TimelineStats;
     newEvents?: TimelineEvent[];
     newAssets?: TimelineAsset[];
@@ -1467,6 +1469,7 @@ export async function updateTimeline(
     .from('timelines')
     .update({
       current_age: updates.current_age ?? currentTimeline.current_age,
+      current_year: updates.current_year ?? currentTimeline.current_year ?? 1,
       stats: updates.stats ?? currentTimeline.stats,
       events: events as any,
       assets: assets as any,

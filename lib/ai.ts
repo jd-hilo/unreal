@@ -110,19 +110,49 @@ async function callClaude(options: {
     params.system = systemWithJson;
   }
 
-  const response = await anthropic.messages.create(params);
+  // Retry logic for 529 (overloaded) errors
+  const maxRetries = 3;
+  let lastError: any = null;
   
-  // Extract text content from response
-  let content = response.content.find((block: any) => block.type === 'text')?.text;
-  if (!content) throw new Error('No response from Claude');
-  
-  // Clean up JSON if response format is JSON (remove markdown code blocks)
-  if (options.responseFormat?.type === 'json_object') {
-    // Remove markdown code blocks if present
-    content = content.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await anthropic.messages.create(params);
+      
+      // Extract text content from response
+      let content = response.content.find((block: any) => block.type === 'text')?.text;
+      if (!content) throw new Error('No response from Claude');
+      
+      // Clean up JSON if response format is JSON (remove markdown code blocks)
+      if (options.responseFormat?.type === 'json_object') {
+        // Remove markdown code blocks if present
+        content = content.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+      }
+      
+      return content;
+    } catch (error: any) {
+      lastError = error;
+      
+      // Check if it's a 529 overloaded error
+      const isOverloaded = error?.status === 529 || 
+                          error?.error?.type === 'overloaded_error' ||
+                          error?.message?.includes('Overloaded') ||
+                          error?.message?.includes('529');
+      
+      if (isOverloaded && attempt < maxRetries - 1) {
+        // Exponential backoff: wait 1s, 2s, 4s
+        const delay = Math.pow(2, attempt) * 1000;
+        console.log(`API overloaded (529), retrying in ${delay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // If not overloaded or max retries reached, throw the error
+      throw error;
+    }
   }
   
-  return content;
+  // Should never reach here, but just in case
+  throw lastError || new Error('Failed to call Claude after retries');
 }
 
 export async function transcribeAudioAsync(audioUri: string): Promise<string> {
@@ -2340,6 +2370,12 @@ export interface TimelineAdvancementResult {
     netWorth?: string;
     [key: string]: any;
   };
+  profileDeltas?: {
+    netWorth?: string; // e.g., "+$15,000" or "-$5,000"
+    location?: string; // e.g., "Moved to NYC" or null if unchanged
+    job?: string; // e.g., "Promoted" or null if unchanged
+    relationshipStatus?: string; // e.g., "Started dating" or null if unchanged
+  };
   relationships?: Array<{
     name: string;
     type: 'friend' | 'partner' | 'family';
@@ -2359,6 +2395,7 @@ export async function advanceTimeline({
   timelineHistory,
   userDecision,
   currentAge,
+  currentYear,
   existingRelationships,
 }: {
   currentProfile: any;
@@ -2372,6 +2409,7 @@ export async function advanceTimeline({
   timelineHistory: Array<{ time: string; title: string; description: string }>;
   userDecision: string;
   currentAge: number;
+  currentYear: number;
   existingRelationships?: Array<{ name: string; type: string; status: string; description: string }>;
 }): Promise<TimelineAdvancementResult> {
   if (DEV_MODE) {
@@ -2384,19 +2422,19 @@ export async function advanceTimeline({
       year: number;
       month: number;
     }> = [
-      { time: 'Year 1, Month 1', title: 'Decision Impact', description: `You made the choice: ${userDecision}. This sets you on a new path.`, type: 'decision' as const, year: 1, month: 1 },
-      { time: 'Year 1, Month 6', title: 'First Milestone', description: 'You see initial results from your decision.', type: 'milestone' as const, year: 1, month: 6 },
-      { time: 'Year 1, Month 12', title: 'Year End Reflection', description: 'You reflect on the changes this year brought.', type: 'milestone' as const, year: 1, month: 12 },
+      { time: `Year ${currentYear}, Month 1`, title: 'Decision Impact', description: `You made the choice: ${userDecision}. This sets you on a new path.`, type: 'decision' as const, year: currentYear, month: 1 },
+      { time: `Year ${currentYear}, Month 6`, title: 'First Milestone', description: 'You see initial results from your decision.', type: 'milestone' as const, year: currentYear, month: 6 },
+      { time: `Year ${currentYear}, Month 12`, title: 'Year End Reflection', description: 'You reflect on the changes this year brought.', type: 'milestone' as const, year: currentYear, month: 12 },
     ];
     
     return {
       newEvents: mockEvents,
       yearEvents: {
-        1: {
+        [currentYear]: {
           month1: [mockEvents[0]],
           month6: [mockEvents[1]],
           month12: [mockEvents[2]],
-          summary: 'Year 1: Initial adaptation and early results',
+          summary: `Year ${currentYear}: Initial adaptation and early results`,
         },
       },
       statDeltas: {
@@ -2419,6 +2457,11 @@ export async function advanceTimeline({
       profileUpdates: {
         location: 'New City',
         job: 'Senior Role',
+      },
+      profileDeltas: {
+        location: 'Moved to New City',
+        job: 'Promoted to Senior Role',
+        netWorth: '+$10,000',
       },
       relationships: (existingRelationships && existingRelationships.length > 0
         ? existingRelationships.map((rel: { name: string; type: string; status: string; description: string }) => ({
@@ -2475,6 +2518,11 @@ export async function advanceTimeline({
     '- Update location if moving',
     '- Update relationship status if relevant',
     '- Update net worth if significant financial change',
+    '- IMPORTANT: Include "profileDeltas" showing the CHANGE for each updated field:',
+    '  * netWorth: Show change as "+$X" or "-$X" (e.g., "+$15,000", "-$5,000")',
+    '  * location: Show change description if moved (e.g., "Moved to NYC") or null if unchanged',
+    '  * job: Show change description if changed (e.g., "Promoted", "New role") or null if unchanged',
+    '  * relationshipStatus: Show change description if changed (e.g., "Started dating", "Got engaged") or null if unchanged',
     '',
     'RELATIONSHIPS:',
     '- ALWAYS return a complete, updated list of ALL relationships (not just new ones).',
@@ -2502,19 +2550,20 @@ export async function advanceTimeline({
     `User Decision/Scenario: "${userDecision}"`,
     '',
     `Current Age: ${currentAge}`,
+    `Current Simulation Year: ${currentYear}`,
     '',
-    'Simulate the next 1 year. Return JSON with events structured by month:',
+    `Simulate the next 1 year (Simulation Year ${currentYear}). Return JSON with events structured by month:`,
     '{',
-    '  "yearEvents": {',
-    '    "1": {',
-    '      "month1": [{"time": "Year 1, Month 1", "title": "Event Title", "description": "Detailed description", "type": "decision"}],',
-    '      "month6": [{"time": "Year 1, Month 6", "title": "Event Title", "description": "Detailed description", "type": "milestone"}],',
-    '      "month12": [{"time": "Year 1, Month 12", "title": "Event Title", "description": "Detailed description", "type": "career"}],',
-    '      "summary": "Brief summary of Year 1"',
+    `  "yearEvents": {`,
+    `    "${currentYear}": {`,
+    `      "month1": [{"time": "Year ${currentYear}, Month 1", "title": "Event Title", "description": "Detailed description", "type": "decision"}],`,
+    `      "month6": [{"time": "Year ${currentYear}, Month 6", "title": "Event Title", "description": "Detailed description", "type": "milestone"}],`,
+    `      "month12": [{"time": "Year ${currentYear}, Month 12", "title": "Event Title", "description": "Detailed description", "type": "career"}],`,
+    `      "summary": "Brief summary of Year ${currentYear}"`,
     '    }',
     '  },',
     '  "newEvents": [',
-    '    {"time": "Year 1, Month 1", "title": "Specific Event", "description": "Detailed description", "type": "decision", "year": 1, "month": 1},',
+    `    {"time": "Year ${currentYear}, Month 1", "title": "Specific Event", "description": "Detailed description", "type": "decision", "year": ${currentYear}, "month": 1},`,
     '    ...',
     '  ],',
     '  "statDeltas": {',
@@ -2534,6 +2583,12 @@ export async function advanceTimeline({
     '    "location": "San Francisco, CA",',
     '    "relationshipStatus": "In a relationship",',
     '    "netWorth": "$85,000"',
+    '  },',
+    '  "profileDeltas": {',
+    '    "netWorth": "+$15,000",',
+    '    "location": "Moved to San Francisco",',
+    '    "job": "Promoted to Senior",',
+    '    "relationshipStatus": "Started dating"',
     '  },',
     '  "relationships": [',
     '    { "name": "Sarah", "type": "partner", "status": "good", "description": "Met at a coffee shop, very supportive." },',
@@ -2633,8 +2688,19 @@ export async function advanceTimeline({
     }
 
     return parsed;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Timeline advancement error:', error);
+    
+    // Check if it's a 529 overloaded error
+    const isOverloaded = error?.status === 529 || 
+                        error?.error?.type === 'overloaded_error' ||
+                        error?.message?.includes('Overloaded') ||
+                        error?.message?.includes('529');
+    
+    if (isOverloaded) {
+      throw new Error('The AI service is currently overloaded. Please try again in a few moments.');
+    }
+    
     throw error;
   }
 }

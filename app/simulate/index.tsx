@@ -1,16 +1,17 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getTimelines, deleteTimeline, getProfile } from '@/lib/storage';
-import { ChevronRight, Plus, Trash2, Lock, Zap, Play, Trophy, Users, Star } from 'lucide-react-native';
+import { ChevronRight, Plus, Lock, Zap, Play, Trophy, Users, Star } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { formatDistanceToNow } from 'date-fns';
 import { BlurView } from 'expo-blur';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SimulateDashboard() {
   const router = useRouter();
@@ -19,6 +20,8 @@ export default function SimulateDashboard() {
   const [timelines, setTimelines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userAge, setUserAge] = useState<number | null>(null);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [timelineToDelete, setTimelineToDelete] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,18 +71,28 @@ export default function SimulateDashboard() {
       );
       return;
     }
-    
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/simulate/new');
   }
 
-  async function handleDeleteTimeline(timelineId: string) {
+  function handleLongPressTimeline(timelineId: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setTimelineToDelete(timelineId);
+    setDeleteModalVisible(true);
+  }
+
+  async function handleDeleteTimeline() {
+    if (!timelineToDelete) return;
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      await deleteTimeline(timelineId);
+      await deleteTimeline(timelineToDelete);
       await loadData();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setDeleteModalVisible(false);
+      setTimelineToDelete(null);
     } catch (error) {
       console.error('Failed to delete timeline:', error);
       alert('Failed to delete timeline. Please try again.');
@@ -128,12 +141,19 @@ export default function SimulateDashboard() {
             </View>
           </View>
 
-          <View style={styles.profileBadge}>
+          <TouchableOpacity 
+            style={styles.profileBadge}
+            onPress={async () => {
+              await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/simulations');
+              router.push('/(tabs)/profile');
+            }}
+            activeOpacity={0.7}
+          >
             <Image 
-               source={require('@/assets/images/man.png')}
+               source={require('@/assets/images/cube.png')}
                style={styles.avatar} 
             />
-          </View>
+          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -184,16 +204,17 @@ export default function SimulateDashboard() {
           <Text style={styles.sectionTitle}>Your Worlds</Text>
           
           <View style={styles.gamesList}>
-            {timelines.length === 0 ? (
-              <View style={styles.emptyState}>
+          {timelines.length === 0 ? (
+            <View style={styles.emptyState}>
                 <Text style={styles.emptyText}>No simulations active.</Text>
-              </View>
-            ) : (
+            </View>
+          ) : (
               timelines.map((timeline) => (
                 <TouchableOpacity
                   key={timeline.id}
                   style={styles.gameCard}
                   onPress={() => router.push(`/simulate/${timeline.id}`)}
+                  onLongPress={() => handleLongPressTimeline(timeline.id)}
                   activeOpacity={0.9}
                 >
                   <LinearGradient
@@ -215,35 +236,26 @@ export default function SimulateDashboard() {
                           <View style={styles.statTag}>
                             <Text style={styles.statTagText}>Age {timeline.current_age}</Text>
                           </View>
-                          <Text style={styles.gameTime}>
+                          <Text style={styles.gameTime} numberOfLines={1}>
                             {formatDistanceToNow(new Date(timeline.created_at), { addSuffix: true })}
                           </Text>
                         </View>
                       </View>
                     </View>
                     
-                    <View style={styles.gameActions}>
-                      <TouchableOpacity 
-                        style={styles.playAction}
-                        onPress={() => router.push(`/simulate/${timeline.id}`)}
-                      >
-                         <Play size={16} color="#FFF" fill="#FFF" />
-                         <View style={styles.playActionCost}>
-                           <Zap size={10} color="#FCD34D" fill="#FCD34D" />
-                           <Text style={styles.playActionText}>5</Text>
-                         </View>
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity
-                        style={styles.deleteAction}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleDeleteTimeline(timeline.id);
-                        }}
-                      >
-                        <Trash2 size={16} color="rgba(255,255,255,0.3)" />
-                      </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity 
+                      style={styles.playAction}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        router.push(`/simulate/${timeline.id}`);
+                      }}
+                    >
+                       <Play size={16} color="#FFF" fill="#FFF" />
+                       <View style={styles.playActionCost}>
+                         <Zap size={10} color="#FCD34D" fill="#FCD34D" />
+                         <Text style={styles.playActionText}>5</Text>
+                       </View>
+                    </TouchableOpacity>
                   </LinearGradient>
                 </TouchableOpacity>
               ))
@@ -265,7 +277,7 @@ export default function SimulateDashboard() {
                 <View style={styles.premiumContent}>
                    <Text style={styles.premiumTitle}>Unlock Unlimited Energy</Text>
                    <Text style={styles.premiumSubtitle}>Get Premium for infinite simulations</Text>
-                </View>
+            </View>
                 <ChevronRight size={20} color="#FBBF24" />
               </LinearGradient>
             </TouchableOpacity>
@@ -273,6 +285,43 @@ export default function SimulateDashboard() {
 
         </ScrollView>
       </SafeAreaView>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setDeleteModalVisible(false);
+          setTimelineToDelete(null);
+        }}
+      >
+        <BlurView intensity={20} style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delete Simulation?</Text>
+            <Text style={styles.modalMessage}>
+              This action cannot be undone. Your simulation and all its progress will be permanently deleted.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setTimelineToDelete(null);
+                }}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalDeleteButton}
+                onPress={handleDeleteTimeline}
+              >
+                <Text style={styles.modalDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </BlurView>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -341,16 +390,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   profileBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 2,
     borderColor: '#333',
     overflow: 'hidden',
   },
   avatar: {
-    width: '100%',
-    height: '100%',
+    width: '80%',
+    height: '80%',
+    alignSelf: 'center',
+    marginTop: '10%',
   },
   scrollView: {
     flex: 1,
@@ -434,8 +485,8 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   newGameImage: {
-    width: 120,
-    height: 120,
+    width: 90,
+    height: 90,
     position: 'absolute',
     right: -10,
     bottom: -10,
@@ -465,22 +516,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
     borderRadius: 20,
+    gap: 12,
   },
   gameCardLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     gap: 16,
+    minWidth: 0,
+    marginRight: 8,
   },
   gameIconContainer: {
     width: 56,
     height: 56,
     borderRadius: 16,
     overflow: 'hidden',
+    flexShrink: 0,
   },
   gameIcon: {
     flex: 1,
@@ -489,6 +543,8 @@ const styles = StyleSheet.create({
   },
   gameInfo: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
   },
   gameTitle: {
     fontSize: 16,
@@ -500,12 +556,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexWrap: 'wrap',
   },
   statTag: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    flexShrink: 0,
   },
   statTagText: {
     fontSize: 10,
@@ -515,11 +573,7 @@ const styles = StyleSheet.create({
   gameTime: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.4)',
-  },
-  gameActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    flexShrink: 1,
   },
   playAction: {
     backgroundColor: '#2563EB',
@@ -529,6 +583,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 0,
+    marginLeft: 'auto',
   },
   playActionCost: {
     flexDirection: 'row',
@@ -542,9 +598,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#FFF',
-  },
-  deleteAction: {
-    padding: 8,
   },
   emptyState: {
     padding: 20,
@@ -589,4 +642,60 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.7)',
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFF',
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'flex-end',
+  },
+  modalCancelButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  modalCancelText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalDeleteButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: '#EF4444',
+  },
+  modalDeleteText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });
+

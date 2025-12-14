@@ -380,6 +380,13 @@ export default function NewDecisionScreen() {
       setShowTwinModal(false);
       setTwinCode('');
       setTwinCodeError('');
+      
+      // Track twin added event
+      trackEvent(MixpanelEvents.DECISION_TWIN_ADDED, {
+        twin_code: twinCode.trim(),
+        twin_name: twinName,
+        method: 'code_entry',
+      });
     } catch (error) {
       console.error('Error looking up twin:', error);
       setTwinCodeError('Failed to look up twin code');
@@ -402,6 +409,13 @@ export default function NewDecisionScreen() {
     setShowTwinModal(false);
     setTwinCode('');
     setTwinCodeError('');
+    
+    // Track twin added event
+    trackEvent(MixpanelEvents.DECISION_TWIN_ADDED, {
+      twin_code: twin.code,
+      twin_name: twin.name,
+      method: 'recent_twin',
+    });
   }
 
   function handleDeleteOption(index: number) {

@@ -15,6 +15,14 @@ import { formatDistanceToNow } from 'date-fns';
 
 const { width } = Dimensions.get('window');
 
+// Helper function to parse net worth string to number
+function parseNetWorth(str: string): number | null {
+  if (!str || str === 'Not set' || str === '$0') return 0;
+  const cleaned = str.replace(/[^0-9.]/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+
 // Animated Progress Bar Component
 function AnimatedProgressBar({ value, color, icon, previousValue }: { value: number; color: string; icon: any; previousValue?: number }) {
   const Icon = icon;
@@ -96,7 +104,14 @@ function AnimatedProgressBar({ value, color, icon, previousValue }: { value: num
         </Animated.View>
       </View>
       <View style={styles.statBarValueContainer}>
-        <Text style={styles.statBarValue}>{Math.round(value)}/10</Text>
+        <View style={{flexDirection: 'column', alignItems: 'flex-end', gap: 2}}>
+          <Text style={styles.statBarValue}>{Math.round(value)}/10</Text>
+          {previousValue !== undefined && previousValue !== value && (
+            <Text style={styles.previousStatValue}>
+              Was: {Math.round(previousValue)}/10
+            </Text>
+          )}
+        </View>
         {delta !== null && (
           <Animated.View
             style={[
@@ -129,14 +144,22 @@ function AnimatedProgressBar({ value, color, icon, previousValue }: { value: num
 }
 
 // Animated Net Worth Component
-function AnimatedNetWorth({ value, previousValue }: { value: string; previousValue?: string }) {
+function AnimatedNetWorth({ value, previousValue, deltaString }: { value: string; previousValue?: string; deltaString?: string }) {
   const [delta, setDelta] = useState<number | null>(null);
   const deltaAnim = useRef(new Animated.Value(0)).current;
   const deltaOpacity = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (previousValue && previousValue !== value) {
+    // Use deltaString if provided (from AI), otherwise calculate from previousValue
+    if (deltaString) {
+      // Parse deltaString like "+$15,000" or "-$5,000"
+      const cleaned = deltaString.replace(/[^0-9.-]/g, '');
+      const num = parseFloat(cleaned);
+      if (!isNaN(num)) {
+        setDelta(num);
+      }
+    } else if (previousValue && previousValue !== value) {
       // Extract numeric values (simplified - assumes format like "$50,000" or "$100K")
       const prevNum = parseNetWorth(previousValue);
       const currNum = parseNetWorth(value);
@@ -184,19 +207,12 @@ function AnimatedNetWorth({ value, previousValue }: { value: string; previousVal
         });
       }
     }
-  }, [value, previousValue]);
+  }, [value, previousValue, deltaString]);
 
   const translateY = deltaAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, -30],
   });
-
-  function parseNetWorth(str: string): number | null {
-    if (!str || str === 'Not set' || str === '$0') return 0;
-    const cleaned = str.replace(/[^0-9.]/g, '');
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? null : num;
-  }
 
   function formatDelta(delta: number): string {
     if (Math.abs(delta) >= 1000) {
@@ -278,12 +294,18 @@ export default function TimelineDetailScreen() {
   const [assetNotifications, setAssetNotifications] = useState<Array<{ id: string; asset: any }>>([]);
   const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set());
   const notificationAnimations = useRef<Map<string, Animated.Value>>(new Map());
-  
+
   // Track previous values for animations
   const previousStats = useRef<any>(null);
   const previousNetWorth = useRef<string | null>(null);
   const [currentInventoryIndex, setCurrentInventoryIndex] = useState(0);
   const inventoryScrollAnim = useRef(new Animated.Value(0)).current;
+
+  // Slide-up animations for UI sections
+  const statsBoardAnim = useRef(new Animated.Value(50)).current;
+  const actionButtonAnim = useRef(new Animated.Value(50)).current;
+  const lifeLogAnim = useRef(new Animated.Value(50)).current;
+  const inventoryAnim = useRef(new Animated.Value(50)).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -338,6 +360,49 @@ export default function TimelineDetailScreen() {
     }
   }, [timeline?.assets?.length]);
 
+  // Slide-up animations on timeline load
+  useEffect(() => {
+    if (timeline && !loading) {
+      // Reset all animations
+      statsBoardAnim.setValue(50);
+      actionButtonAnim.setValue(50);
+      lifeLogAnim.setValue(50);
+      inventoryAnim.setValue(50);
+
+      // Animate sections with staggered delays
+      Animated.parallel([
+        Animated.timing(statsBoardAnim, {
+          toValue: 0,
+          duration: 600,
+          delay: 100,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(actionButtonAnim, {
+          toValue: 0,
+          duration: 600,
+          delay: 200,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(lifeLogAnim, {
+          toValue: 0,
+          duration: 600,
+          delay: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(inventoryAnim, {
+          toValue: 0,
+          duration: 600,
+          delay: 400,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [timeline, loading]);
+
   async function handleAddScenario() {
     if (!scenarioText.trim() || !timeline || !user) return;
 
@@ -362,12 +427,14 @@ export default function TimelineDetailScreen() {
       const profile = await getProfile(user.id);
 
       // Advance timeline
+      const currentYear = timeline.current_year || 1;
       const advancement = await advanceTimeline({
         currentProfile: profile,
         currentStats: timeline.stats,
         timelineHistory: timeline.events || [],
         userDecision: scenarioText,
         currentAge: timeline.current_age,
+        currentYear: currentYear,
         existingRelationships: timeline.relationships || [],
       });
 
@@ -380,17 +447,30 @@ export default function TimelineDetailScreen() {
         relationships: Math.max(0, Math.min(10, timeline.stats.relationships + advancement.statDeltas.relationships)),
       };
 
-      // Store previous values for animation
+      // Store previous values for animation and display
       previousStats.current = timeline.stats;
       previousNetWorth.current = timeline.twin_profile?.netWorth || null;
+      
+      // Store previous year's snapshot for delta calculations
+      const previousYearSnapshot = {
+        netWorth: timeline.twin_profile?.netWorth || null,
+        location: timeline.twin_profile?.location || null,
+        relationships_count: timeline.relationships?.length || 0,
+        stats: { ...timeline.stats },
+      };
 
       const updatedTimeline = await updateTimeline(timelineId, {
         current_age: advancement.newAge,
+        current_year: currentYear + 1, // Increment simulation year
         stats: newStats,
         newEvents: advancement.newEvents,
         newAssets: advancement.newAssets,
         removedAssetTypes: (advancement as any).removedAssets || [],
-        twin_profile: advancement.profileUpdates,
+        twin_profile: {
+          ...advancement.profileUpdates,
+          profileDeltas: advancement.profileDeltas,
+          previous_year_snapshot: previousYearSnapshot, // Store previous year's values
+        },
         relationships: advancement.relationships || timeline.relationships || [],
       });
 
@@ -426,9 +506,10 @@ export default function TimelineDetailScreen() {
       setScenarioModalVisible(false);
       setScenarioText('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to add scenario:', error);
-      alert('Failed to simulate scenario. Please try again.');
+      const errorMessage = error?.message || 'Failed to simulate scenario. Please try again.';
+      alert(errorMessage);
     } finally {
       setAddingScenario(false);
     }
@@ -475,9 +556,9 @@ export default function TimelineDetailScreen() {
       
       if (!year) year = currentYear;
       if (!month) {
-        month = currentMonth;
-        currentMonth = currentMonth === 1 ? 6 : currentMonth === 6 ? 12 : 1;
-        if (currentMonth === 1) currentYear++;
+          month = currentMonth;
+          currentMonth = currentMonth === 1 ? 6 : currentMonth === 6 ? 12 : 1;
+          if (currentMonth === 1) currentYear++;
       }
       
       if (year) {
@@ -647,7 +728,18 @@ export default function TimelineDetailScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Character HUD / Stats Board */}
-          <View style={styles.statsBoard}>
+          <Animated.View 
+            style={[
+              styles.statsBoard,
+              {
+                transform: [{ translateY: statsBoardAnim }],
+                opacity: statsBoardAnim.interpolate({
+                  inputRange: [0, 50],
+                  outputRange: [1, 0],
+                }),
+              },
+            ]}
+          >
             <Image 
               source={require('@/assets/images/splash-icon.png')} 
               style={[StyleSheet.absoluteFill, { opacity: 0.05 }]}
@@ -656,13 +748,16 @@ export default function TimelineDetailScreen() {
             
             {/* Top Row: Avatar & Main Metrics */}
             <View style={styles.statsTopRow}>
-              <View style={styles.avatarContainer}>
-                <Image 
-                   source={require('@/assets/images/man.png')} 
-                   style={styles.avatarImage} 
-                />
-                <View style={styles.levelBadge}>
-                  <Text style={styles.levelText}>{timeline.current_age} Yrs Old</Text>
+              <View style={styles.avatarSection}>
+                <View style={styles.avatarContainer}>
+                  <Image 
+                     source={require('@/assets/images/man.png')} 
+                     style={styles.avatarImage} 
+                  />
+                </View>
+                <View style={styles.ageDisplay}>
+                  <Text style={styles.ageDisplayText}>{timeline.current_age}</Text>
+                  <Text style={styles.ageDisplayLabel}>Years Old</Text>
                 </View>
               </View>
               
@@ -674,12 +769,36 @@ export default function TimelineDetailScreen() {
                     </View>
                     <View style={styles.primaryStatTextContainer}>
                        <Text style={styles.primaryStatLabel}>NET WORTH</Text>
-                       <AnimatedNetWorth 
-                         value={timeline.twin_profile?.netWorth || '$0'} 
-                         previousValue={previousNetWorth.current || undefined}
-                       />
-                    </View>
-                 </View>
+                       <View style={{flexDirection: 'row', alignItems: 'baseline', gap: 6}}>
+                         <AnimatedNetWorth 
+                           value={timeline.twin_profile?.netWorth || '$0'} 
+                           previousValue={previousNetWorth.current || undefined}
+                           deltaString={timeline.twin_profile?.profileDeltas?.netWorth}
+                         />
+                         {(() => {
+                           const prevSnapshot = timeline.twin_profile?.previous_year_snapshot;
+                           if (prevSnapshot?.netWorth) {
+                             const prevNum = parseNetWorth(prevSnapshot.netWorth);
+                             const currNum = parseNetWorth(timeline.twin_profile?.netWorth || '$0');
+                             if (prevNum !== null && currNum !== null) {
+                               const delta = currNum - prevNum;
+                               if (delta !== 0) {
+                                 const formatted = Math.abs(delta) >= 1000 
+                                   ? `${delta > 0 ? '+' : ''}$${(delta / 1000).toFixed(1)}K`
+                                   : `${delta > 0 ? '+' : ''}$${Math.round(delta)}`;
+                                 return (
+                                   <Text style={[styles.smallDeltaText, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
+                                     {formatted}
+                                   </Text>
+                                 );
+                               }
+                             }
+                           }
+                           return null;
+                         })()}
+                       </View>
+                  </View>
+                </View>
 
                  {/* Location */}
                  <View style={styles.primaryStatItem}>
@@ -688,9 +807,39 @@ export default function TimelineDetailScreen() {
                     </View>
                     <View style={styles.primaryStatTextContainer}>
                        <Text style={styles.primaryStatLabel}>LOCATION</Text>
-                       <Text style={styles.primaryStatValue}>{timeline.twin_profile?.location || 'Unknown'}</Text>
+                       <View style={{flexDirection: 'column', gap: 2}}>
+                         <Text style={styles.primaryStatValue}>{timeline.twin_profile?.location || 'Unknown'}</Text>
+                         {timeline.twin_profile?.previous_year_snapshot?.location && 
+                          timeline.twin_profile?.previous_year_snapshot?.location !== timeline.twin_profile?.location && (
+                           <Text style={styles.previousValueText}>
+                             Was: {timeline.twin_profile.previous_year_snapshot.location}
+                           </Text>
+                         )}
+                       </View>
+                  </View>
+                </View>
+
+                 {/* Job */}
+                 {timeline.twin_profile?.job && (
+                   <View style={styles.primaryStatItem}>
+                      <View style={[styles.coinIcon, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]}>
+                         <Briefcase size={16} color="#8B5CF6" />
+                      </View>
+                      <View style={styles.primaryStatTextContainer}>
+                         <Text style={styles.primaryStatLabel}>JOB</Text>
+                         <View style={{flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap'}}>
+                           <Text style={styles.primaryStatValue}>{timeline.twin_profile.job}</Text>
+                           {timeline.twin_profile?.profileDeltas?.job && (
+                             <View style={[styles.deltaTag, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]}>
+                               <Text style={[styles.deltaText, { color: '#8B5CF6' }]}>
+                                 {timeline.twin_profile.profileDeltas.job}
+                               </Text>
+                             </View>
+                           )}
+                         </View>
                     </View>
-                 </View>
+                  </View>
+                 )}
 
                  {/* Relationships */}
                  <TouchableOpacity 
@@ -703,16 +852,30 @@ export default function TimelineDetailScreen() {
                     </View>
                     <View style={styles.primaryStatTextContainer}>
                        <Text style={styles.primaryStatLabel}>RELATIONSHIPS</Text>
-                       <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                       <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
                          <Text style={styles.primaryStatValue}>
                            {timeline.relationships?.length || 0} Connections
                          </Text>
+                         {(() => {
+                           const prevSnapshot = timeline.twin_profile?.previous_year_snapshot;
+                           if (prevSnapshot?.relationships_count !== undefined) {
+                             const delta = (timeline.relationships?.length || 0) - prevSnapshot.relationships_count;
+                             if (delta !== 0) {
+                               return (
+                                 <Text style={[styles.smallDeltaText, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
+                                   {delta > 0 ? '+' : ''}{delta}
+                                 </Text>
+                               );
+                             }
+                           }
+                           return null;
+                         })()}
                          <ChevronRight size={14} color="#666" />
                        </View>
                     </View>
                  </TouchableOpacity>
-              </View>
-            </View>
+                  </View>
+                </View>
 
             {/* Status Bars */}
             <View style={styles.statusBars}>
@@ -720,30 +883,45 @@ export default function TimelineDetailScreen() {
                 value={timeline.stats?.happiness || 5} 
                 color="#EC4899" 
                 icon={Heart}
-                previousValue={previousStats.current?.happiness}
+                previousValue={previousStats.current?.happiness ?? timeline.twin_profile?.previous_year_snapshot?.stats?.happiness}
+              />
+              <AnimatedProgressBar 
+                value={timeline.stats?.money || 5} 
+                color="#10B981" 
+                icon={DollarSign}
+                previousValue={previousStats.current?.money ?? timeline.twin_profile?.previous_year_snapshot?.stats?.money}
               />
               <AnimatedProgressBar 
                 value={timeline.stats?.freedom || 5} 
                 color="#F59E0B" 
                 icon={Sparkles}
-                previousValue={previousStats.current?.freedom}
+                previousValue={previousStats.current?.freedom ?? timeline.twin_profile?.previous_year_snapshot?.stats?.freedom}
               />
               <AnimatedProgressBar 
                 value={timeline.stats?.growth || 5} 
                 color="#0EA5E9" 
                 icon={Brain}
-                previousValue={previousStats.current?.growth}
+                previousValue={previousStats.current?.growth ?? timeline.twin_profile?.previous_year_snapshot?.stats?.growth}
               />
               <AnimatedProgressBar 
                 value={timeline.stats?.relationships || 5} 
                 color="#EF4444" 
                 icon={Users}
-                previousValue={previousStats.current?.relationships}
+                previousValue={previousStats.current?.relationships ?? timeline.twin_profile?.previous_year_snapshot?.stats?.relationships}
               />
             </View>
-          </View>
+          </Animated.View>
 
           {/* Action Button (Floating Look) */}
+          <Animated.View
+            style={{
+              transform: [{ translateY: actionButtonAnim }],
+              opacity: actionButtonAnim.interpolate({
+                inputRange: [0, 50],
+                outputRange: [1, 0],
+              }),
+            }}
+          >
           <TouchableOpacity
             onPress={() => {
               const scenarioCount = timeline.scenario_count || 0;
@@ -757,23 +935,33 @@ export default function TimelineDetailScreen() {
             activeOpacity={0.8}
             style={styles.actionButtonContainer}
           >
-             <LinearGradient
+                  <LinearGradient
                 colors={['#2563EB', '#0EA5E9', '#14B8A6']}
-                start={{ x: 0, y: 0 }}
+                    start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.actionButton}
              >
                 <View style={styles.actionButtonContent}>
                    <Text style={styles.actionButtonTitle}>Make Decision</Text>
                    <Text style={styles.actionButtonSubtitle}>Choose your next move</Text>
-                </View>
+                  </View>
                 <View style={styles.actionButtonIcon}>
                    <Plus size={24} color="#FFF" />
-                </View>
-             </LinearGradient>
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
+          </Animated.View>
 
           {/* Timeline Events (Quest Log Style) */}
+          <Animated.View
+            style={{
+              transform: [{ translateY: lifeLogAnim }],
+              opacity: lifeLogAnim.interpolate({
+                inputRange: [0, 50],
+                outputRange: [1, 0],
+              }),
+            }}
+          >
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Life Log</Text>
             <View style={styles.sectionBadge}>
@@ -781,91 +969,101 @@ export default function TimelineDetailScreen() {
             </View>
           </View>
 
-          {timeline.events && timeline.events.length > 0 ? (
-            <View style={styles.eventsList}>
-              {(() => {
-                const groupedEvents = groupEventsByYear(timeline.events);
+            {timeline.events && timeline.events.length > 0 ? (
+              <View style={styles.eventsList}>
+                {(() => {
+                  const groupedEvents = groupEventsByYear(timeline.events);
                 const years = Object.keys(groupedEvents).map(Number).sort((a, b) => b - a); // Newest first for game feel? or oldest? Sticking to Chronological for timeline usually makes sense, but games often show newest quest first. Let's keep chronological for "Life Story".
-                
-                return years.map((year) => {
-                  const yearData = groupedEvents[year];
-                  const isExpanded = expandedYears.has(year);
-                  const hasEvents = (yearData.month1?.length || 0) + (yearData.month6?.length || 0) + (yearData.month12?.length || 0) > 0;
                   
-                  if (!hasEvents) return null;
-                  
-                  return (
+                  return years.map((year) => {
+                    const yearData = groupedEvents[year];
+                    const isExpanded = expandedYears.has(year);
+                    const hasEvents = (yearData.month1?.length || 0) + (yearData.month6?.length || 0) + (yearData.month12?.length || 0) > 0;
+                    
+                    if (!hasEvents) return null;
+                    
+                    return (
                     <View key={year} style={styles.questCard}>
-                       <TouchableOpacity
-                          onPress={() => toggleYear(year)}
-                          activeOpacity={0.7}
+                          <TouchableOpacity
+                            onPress={() => toggleYear(year)}
+                            activeOpacity={0.7}
                           style={styles.questHeader}
                        >
                           <View style={styles.questHeaderLeft}>
                              <View style={styles.questLevelBadge}>
-                                <Text style={styles.questLevelText}>AGE {24 + year}</Text>
-                             </View>
+                                <Text style={styles.questLevelText}>AGE {timeline.current_age - (timeline.current_year || 1) + year}</Text>
+                                </View>
                              <Text style={styles.questTitle}>Year {year}</Text>
-                          </View>
+                              </View>
                           {isExpanded ? <ChevronUp size={20} color="#888" /> : <ChevronDown size={20} color="#888" />}
-                       </TouchableOpacity>
-
-                      {isExpanded && (
+                          </TouchableOpacity>
+                        
+                        {isExpanded && (
                         <View style={styles.questContent}>
-                          {/* Month 1 */}
+                            {/* Month 1 */}
                           {yearData.month1?.map((event: any, idx: number) => (
                              <View key={`m1-${idx}`} style={styles.questItem}>
                                 <View style={styles.questLine} />
                                 <View style={styles.questDot} />
                                 <Text style={styles.questItemTitle}>{event.title}</Text>
                                 <Text style={styles.questItemDesc}>{event.description}</Text>
-                             </View>
-                          ))}
-                          
-                          {/* Month 6 */}
+                                  </View>
+                                ))}
+                            
+                            {/* Month 6 */}
                           {yearData.month6?.map((event: any, idx: number) => (
                              <View key={`m6-${idx}`} style={styles.questItem}>
                                 <View style={styles.questLine} />
                                 <View style={styles.questDot} />
                                 <Text style={styles.questItemTitle}>{event.title}</Text>
                                 <Text style={styles.questItemDesc}>{event.description}</Text>
-                             </View>
-                          ))}
-                          
-                          {/* Month 12 */}
+                                  </View>
+                                ))}
+                            
+                            {/* Month 12 */}
                           {yearData.month12?.map((event: any, idx: number) => (
                              <View key={`m12-${idx}`} style={styles.questItem}>
                                 <View style={styles.questLine} />
                                 <View style={styles.questDot} />
                                 <Text style={styles.questItemTitle}>{event.title}</Text>
                                 <Text style={styles.questItemDesc}>{event.description}</Text>
-                             </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                  );
-                });
-              })()}
-            </View>
-          ) : (
-            <View style={styles.emptyEvents}>
-              <Text style={styles.emptyEventsText}>
+                                  </View>
+                                ))}
+                              </View>
+                            )}
+                      </View>
+                    );
+                  });
+                })()}
+              </View>
+            ) : (
+              <View style={styles.emptyEvents}>
+                <Text style={styles.emptyEventsText}>
                 No history yet. Make a decision to start your story.
-              </Text>
-            </View>
-          )}
+                </Text>
+              </View>
+            )}
+          </Animated.View>
 
           {/* Inventory / Assets - Single Banner */}
           {timeline?.assets && timeline.assets.length > 0 && (
+            <Animated.View
+              style={{
+                transform: [{ translateY: inventoryAnim }],
+                opacity: inventoryAnim.interpolate({
+                  inputRange: [0, 50],
+                  outputRange: [1, 0],
+                }),
+              }}
+            >
             <View style={styles.inventorySection}>
                <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>Inventory</Text>
                   <View style={styles.sectionBadge}>
                      <Text style={styles.sectionBadgeText}>{timeline.assets.length} Items</Text>
                   </View>
-               </View>
-               
+          </View>
+
                <View style={styles.inventoryBannerContainer}>
                  <Animated.View
                    style={[
@@ -885,27 +1083,27 @@ export default function TimelineDetailScreen() {
                      } : {},
                    ]}
                  >
-                   {timeline.assets.map((asset: any, index: number) => (
+                {timeline.assets.map((asset: any, index: number) => (
                      <View key={index} style={styles.inventoryBannerItem}>
-                       <LinearGradient
+                    <LinearGradient
                          colors={['rgba(14, 165, 233, 0.2)', 'rgba(14, 165, 233, 0.05)', 'rgba(255, 255, 255, 0.02)']}
-                         start={{ x: 0, y: 0 }}
-                         end={{ x: 1, y: 1 }}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
                          style={styles.inventoryBanner}
-                       >
+                    >
                          <View style={styles.inventoryBannerContent}>
                            <View style={styles.inventoryBannerIcon}>
                              <Text style={styles.inventoryBannerEmoji}>{getAssetEmoji(asset.type)}</Text>
-                           </View>
+                      </View>
                            <View style={styles.inventoryBannerText}>
                              <Text style={styles.inventoryBannerName}>{asset.name}</Text>
-                             {asset.value && (
+                      {asset.value && (
                                <Text style={styles.inventoryBannerValue}>{asset.value}</Text>
-                             )}
-                             {asset.description && (
+                      )}
+                      {asset.description && (
                                <Text style={styles.inventoryBannerDesc} numberOfLines={2}>{asset.description}</Text>
-                             )}
-                           </View>
+                      )}
+                  </View>
                          </View>
                          <View style={styles.inventoryBannerIndicator}>
                            {timeline.assets.map((_: any, idx: number) => (
@@ -916,19 +1114,19 @@ export default function TimelineDetailScreen() {
                                  idx === currentInventoryIndex && styles.inventoryDotActive,
                                ]}
                              />
-                           ))}
-                         </View>
+                ))}
+              </View>
                        </LinearGradient>
-                     </View>
+            </View>
                    ))}
                  </Animated.View>
                </View>
-               
+
                {/* Manual navigation buttons */}
                {timeline.assets.length > 1 && (
                  <View style={styles.inventoryNav}>
-                   <TouchableOpacity
-                     onPress={() => {
+          <TouchableOpacity
+            onPress={() => {
                        const newIndex = currentInventoryIndex === 0 ? timeline.assets.length - 1 : currentInventoryIndex - 1;
                        setCurrentInventoryIndex(newIndex);
                        Animated.timing(inventoryScrollAnim, {
@@ -937,7 +1135,7 @@ export default function TimelineDetailScreen() {
                          easing: Easing.out(Easing.quad),
                          useNativeDriver: true,
                        }).start();
-                     }}
+            }}
                      style={styles.inventoryNavButton}
                    >
                      <ChevronLeft size={20} color="#FFF" />
@@ -960,9 +1158,10 @@ export default function TimelineDetailScreen() {
                    >
                      <ChevronRight size={20} color="#FFF" />
                    </TouchableOpacity>
-                 </View>
-               )}
-            </View>
+                </View>
+              )}
+        </View>
+            </Animated.View>
           )}
         </ScrollView>
 
@@ -990,7 +1189,7 @@ export default function TimelineDetailScreen() {
                   }}
                   style={styles.modalClose}
                 >
-                  <X size={20} color="#FFFFFF" />
+                    <X size={20} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
               <Text style={styles.modalSubtitle}>
@@ -1187,6 +1386,10 @@ const styles = StyleSheet.create({
     gap: 20,
     marginBottom: 24,
   },
+  avatarSection: {
+    alignItems: 'center',
+    gap: 12,
+  },
   avatarContainer: {
     position: 'relative',
   },
@@ -1197,21 +1400,22 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#0EA5E9',
   },
-  levelBadge: {
-    position: 'absolute',
-    top: 80,
-    alignSelf: 'center',
-    backgroundColor: '#000',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#0EA5E9',
+  ageDisplay: {
+    alignItems: 'center',
+    gap: 2,
   },
-  levelText: {
-    color: '#0EA5E9',
-    fontSize: 10,
+  ageDisplayText: {
+    fontSize: 32,
     fontWeight: '800',
+    color: '#FFF',
+    lineHeight: 38,
+  },
+  ageDisplayLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   primaryStats: {
     flex: 1,
@@ -1247,6 +1451,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFF',
     flexWrap: 'wrap',
+  },
+  deltaTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  smallDeltaText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  previousValueText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    fontStyle: 'italic',
   },
   statusBars: {
     gap: 12,
@@ -1286,6 +1504,12 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
+  },
+  previousStatValue: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    fontStyle: 'italic',
+    textAlign: 'right',
   },
   deltaIndicator: {
     position: 'absolute',
@@ -1741,3 +1965,4 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
