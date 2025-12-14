@@ -9,6 +9,7 @@ import {
   identifyUser,
   setUserProperties,
 } from '@/lib/mixpanel';
+import { getProfile } from '@/lib/storage';
 import adjustService from '@/adjustService';
 
 export default function RootLayout() {
@@ -46,11 +47,30 @@ export default function RootLayout() {
         console.error('Failed to identify user in Mixpanel:', error);
       });
 
-      // Set basic user properties
-      setUserProperties({
-        user_id: user.id,
-        signup_date: user.created_at || new Date().toISOString(),
-      });
+      // Set basic user properties including A/B test group
+      (async () => {
+        try {
+          const profile = await getProfile(user.id);
+          const userProperties: Record<string, any> = {
+            user_id: user.id,
+            signup_date: user.created_at || new Date().toISOString(),
+          };
+          
+          // Add A/B test group if available
+          if (profile?.ab_test_group) {
+            userProperties.ab_test_group = profile.ab_test_group;
+          }
+          
+          setUserProperties(userProperties);
+        } catch (error) {
+          console.error('Failed to fetch profile for Mixpanel:', error);
+          // Still set basic properties even if profile fetch fails
+          setUserProperties({
+            user_id: user.id,
+            signup_date: user.created_at || new Date().toISOString(),
+          });
+        }
+      })();
     }
   }, [user?.id]);
 

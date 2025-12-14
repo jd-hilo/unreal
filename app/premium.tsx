@@ -310,7 +310,7 @@ export default function PremiumScreen() {
               
               <View style={styles.cardPriceContainer}>
                 <Text style={styles.cardPrice}>$4.99</Text>
-                <Text style={styles.cardPeriod}>/mo</Text>
+                <Text style={styles.cardPeriod}>/ week</Text>
               </View>
             </TouchableOpacity>
           </View>

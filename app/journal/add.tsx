@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Animated, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Animated, TextInput, Image, Easing } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/store/useAuth';
@@ -9,6 +9,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { ProgressBar } from '@/components/ProgressBar';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 
 const MOODS = [
   { value: 5, label: 'Amazing', icon: SmilePlus, color: '#10B981' },
@@ -45,6 +48,15 @@ export default function AddJournalScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [showCompletion, setShowCompletion] = useState(false);
+  
+  // Completion screen animations
+  const completionProgress = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const progressScaleAnim = useRef(new Animated.Value(1)).current;
+  const flashAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -125,14 +137,142 @@ export default function AddJournalScreen() {
     setError('');
 
     try {
-      await insertJournal(user.id, mood, text.trim());
+      const journal = await insertJournal(user.id, mood, text.trim());
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
+      
+      // Track journal creation
+      trackEvent(MixpanelEvents.JOURNAL_ENTRY_CREATED, {
+        journal_id: journal?.id,
+        mood,
+        text_length: text.trim().length,
+        has_text: text.trim().length > 0,
+      });
+      
+      // Show completion screen
+      setShowCompletion(true);
+      setSaving(false);
+      
+      // Reset progress to 0, then animate
+      completionProgress.setValue(0);
+      progressScaleAnim.setValue(1);
+      flashAnim.setValue(0);
+      
+      // Animate progress bar
+      Animated.sequence([
+        Animated.timing(completionProgress, {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ]).start(() => {
+        // Haptic feedback when progress completes
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        
+        // Explosion effect
+        Animated.parallel([
+          // Scale bounce progress bar
+          Animated.sequence([
+            Animated.timing(progressScaleAnim, {
+              toValue: 1.2,
+              duration: 100,
+              easing: Easing.out(Easing.ease),
+              useNativeDriver: true,
+            }),
+            Animated.spring(progressScaleAnim, {
+              toValue: 1,
+              friction: 4,
+              tension: 100,
+              useNativeDriver: true,
+            })
+          ]),
+          // Flash effect
+          Animated.sequence([
+            Animated.timing(flashAnim, {
+              toValue: 0.3,
+              duration: 100,
+              useNativeDriver: true,
+            }),
+            Animated.timing(flashAnim, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            })
+          ]),
+          // Scale up orb again
+          Animated.sequence([
+             Animated.timing(scaleAnim, {
+              toValue: 1.3,
+              duration: 150,
+              useNativeDriver: true,
+             }),
+             Animated.spring(scaleAnim, {
+              toValue: 1,
+              friction: 5,
+              useNativeDriver: true,
+             })
+          ])
+        ]).start();
+        
+        // Navigate back after showing completion
+        setTimeout(() => {
+          router.back();
+        }, 1800);
+      });
     } catch (err: any) {
       setError(err.message || 'Failed to save journal entry');
       setSaving(false);
     }
   }
+  
+  // Completion screen animations
+  useEffect(() => {
+    if (showCompletion) {
+      // Pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+      
+      // Rotation animation
+      Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+      
+      // Explosion scale animation
+      Animated.sequence([
+        Animated.spring(scaleAnim, {
+          toValue: 1.2,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [showCompletion]);
 
   // Step rendering
   function renderStepContent() {
@@ -205,7 +345,7 @@ export default function AddJournalScreen() {
                   setMood(moodOption.value);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 }}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
               >
                 <Animated.View
                   style={[
@@ -224,21 +364,13 @@ export default function AddJournalScreen() {
                   ]}
                 >
                   <BlurView 
-                    intensity={80} 
+                    intensity={40} 
                     tint="dark" 
                     style={[
                       styles.moodCard,
                       isSelected && styles.moodCardSelected,
                     ]}
                   >
-                    <LinearGradient
-                      colors={isSelected 
-                        ? ['rgba(135, 206, 250, 0.15)', 'transparent'] 
-                        : ['rgba(135, 206, 250, 0.05)', 'transparent']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.glassHighlight}
-                    />
                     <View style={styles.moodCardContent}>
                       <View style={[
                         styles.moodIconContainer,
@@ -246,7 +378,7 @@ export default function AddJournalScreen() {
                       ]}>
                         <MoodIcon 
                           size={32} 
-                          color={isSelected ? 'rgba(135, 206, 250, 0.9)' : moodOption.color} 
+                          color={isSelected ? '#87CEFA' : moodOption.color} 
                         />
                       </View>
                       <View style={styles.moodTextContainer}>
@@ -296,6 +428,113 @@ export default function AddJournalScreen() {
     }
   }
 
+  // Completion screen
+  if (showCompletion) {
+    const rotateInterpolate = rotateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    const progressWidth = completionProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0%', '100%'],
+    });
+
+    return (
+      <View style={styles.completionScreen}>
+        <LinearGradient
+          colors={['#050505', '#0A0A0A', '#050505']}
+          style={styles.completionContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.completionSafeArea} edges={['top', 'left', 'right']}>
+            <View style={styles.completionContent}>
+              {/* Animated Orb */}
+              <View style={styles.completionOrbContainer}>
+                <Animated.View
+                  style={[
+                    styles.completionOrbOuter,
+                    {
+                      transform: [
+                        { scale: pulseAnim },
+                        { rotate: rotateInterpolate },
+                      ],
+                    },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.1)', 'rgba(65, 105, 225, 0.05)']}
+                    style={styles.completionOrbGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                </Animated.View>
+                <Animated.View
+                  style={[
+                    styles.completionOrbInner,
+                    {
+                      transform: [{ scale: scaleAnim }],
+                    },
+                  ]}
+                >
+                  <Image 
+                    source={require('@/assets/images/cube.png')}
+                    style={styles.completionCubeIcon}
+                    resizeMode="contain"
+                  />
+                </Animated.View>
+              </View>
+
+              {/* Completion Text */}
+              <View style={styles.completionTextContainer}>
+                <Text style={styles.completionTitle}>Daily Journal Complete</Text>
+                <Text style={styles.completionSubtitle}>Your twin just learned more about you</Text>
+              </View>
+
+              {/* Progress Bar */}
+              <Animated.View style={[
+                styles.completionProgressContainer,
+                { transform: [{ scale: progressScaleAnim }] }
+              ]}>
+                <View style={styles.completionProgressTrack}>
+                  <Animated.View
+                    style={[
+                      styles.completionProgressFill,
+                      {
+                        width: progressWidth,
+                      },
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={['#87CEFA', '#6495ED', '#87CEFA']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  </Animated.View>
+                </View>
+              </Animated.View>
+            </View>
+            
+            {/* Flash Overlay */}
+            <Animated.View 
+              style={[
+                StyleSheet.absoluteFill, 
+                { 
+                  backgroundColor: 'white', 
+                  opacity: flashAnim,
+                  pointerEvents: 'none'
+                }
+              ]} 
+            />
+          </SafeAreaView>
+        </LinearGradient>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -324,7 +563,7 @@ export default function AddJournalScreen() {
         </View>
       ) : (
         <>
-          {/* Full Header for step 2 */}
+          {/* Back Button and Progress Bar for step 2 */}
           <View style={styles.header}>
             <TouchableOpacity 
               onPress={() => goToStep(currentStep - 1)} 
@@ -332,9 +571,6 @@ export default function AddJournalScreen() {
             >
               <ArrowLeft size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <View style={styles.headerContent}>
-              <Text style={styles.title}>How are you feeling?</Text>
-            </View>
           </View>
 
           {/* Progress Bar */}
@@ -585,32 +821,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   moodCard: {
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    backgroundColor: '#1A1A1A',
     borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
     overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.3)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 4,
   },
   moodCardSelected: {
-    borderWidth: 2,
-    borderColor: 'rgba(135, 206, 250, 0.5)',
-    backgroundColor: 'rgba(20, 30, 50, 0.4)',
-    shadowColor: 'rgba(135, 206, 250, 0.4)',
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  glassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+    backgroundColor: '#1A1A1A',
   },
   moodCardContent: {
     flexDirection: 'row',
@@ -622,15 +842,12 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(20, 30, 50, 0.4)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.2)',
   },
   moodIconContainerSelected: {
     backgroundColor: 'rgba(135, 206, 250, 0.15)',
-    borderColor: 'rgba(135, 206, 250, 0.4)',
   },
   moodTextContainer: {
     flex: 1,
@@ -638,7 +855,7 @@ const styles = StyleSheet.create({
   moodLabel: {
     fontSize: 18,
     fontWeight: '600',
-    color: 'rgba(220, 220, 220, 0.85)',
+    color: 'rgba(255,255,255,0.7)',
   },
   moodLabelSelected: {
     color: '#FFFFFF',
@@ -651,7 +868,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: 'rgba(135, 206, 250, 0.9)',
+    backgroundColor: '#87CEFA',
   },
   floatingButtonContainer: {
     paddingHorizontal: 24,
@@ -730,5 +947,90 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     fontWeight: '600',
+  },
+  // Completion screen styles
+  completionScreen: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  completionContainer: {
+    flex: 1,
+  },
+  completionSafeArea: {
+    flex: 1,
+  },
+  completionContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  completionOrbContainer: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 48,
+  },
+  completionOrbOuter: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'hidden',
+  },
+  completionOrbGradient: {
+    width: '100%',
+    height: '100%',
+  },
+  completionOrbInner: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#1A1A1A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(135, 206, 250, 0.2)',
+  },
+  completionCubeIcon: {
+    width: 60,
+    height: 60,
+  },
+  completionTextContainer: {
+    alignItems: 'center',
+    marginBottom: 48,
+  },
+  completionTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 12,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  completionSubtitle: {
+    fontSize: 16,
+    color: 'rgba(135, 206, 250, 0.8)',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  completionProgressContainer: {
+    width: '100%',
+    maxWidth: 300,
+    alignItems: 'center',
+  },
+  completionProgressTrack: {
+    width: '100%',
+    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  completionProgressFill: {
+    height: '100%',
+    borderRadius: 6,
+    overflow: 'hidden',
   },
 });

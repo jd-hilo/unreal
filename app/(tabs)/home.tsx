@@ -18,6 +18,7 @@ import { Asset } from 'expo-asset';
 import { ProductGuide } from '@/components/ProductGuide';
 import { getHasSeenDecisionGuide, setHasSeenDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent, MixpanelEvents, trackScreenView } from '@/lib/mixpanel';
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText, TSpan, Path } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 16;
@@ -411,24 +412,70 @@ export default function HomeScreen() {
                   },
                 ]}
               >
-                {/* Futuristic Yellow Button with Glow */}
+                {/* Gray Background with Gradient Text/Icons */}
                 <View style={styles.predictionBannerYellowWrapper}>
-                  <LinearGradient
-                    colors={['#D4F238', '#C4E228', '#D4F238']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.predictionBannerYellowGradient}
-                  >
+                  <View style={styles.predictionBannerGrayBackground}>
                     {/* Inner glow effect */}
                     <View style={styles.predictionBannerYellowGlow} />
                     
                     {/* Content */}
                     <View style={styles.predictionBannerInner}>
-                      <Sparkles size={18} color="#000000" strokeWidth={2.5} />
-                      <Text style={styles.predictionBannerYellowText}>Simulate your 2026</Text>
-                      <ChevronRight size={22} color="#000000" strokeWidth={3} />
+                      {/* Gradient Sparkles Icon */}
+                      <View style={styles.sparklesIconWrapper}>
+                        <Svg width={22} height={22} viewBox="0 0 24 24">
+                          <Defs>
+                            <SvgLinearGradient id="bannerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                              <Stop offset="0%" stopColor="#2DD4BF" />
+                              <Stop offset="100%" stopColor="#3B82F6" />
+                            </SvgLinearGradient>
+                          </Defs>
+                          <Path
+                            d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z"
+                            fill="url(#bannerGradient)"
+                          />
+                        </Svg>
+                      </View>
+                      
+                      {/* Gradient Text */}
+                      <View style={styles.gradientTextContainer}>
+                        <Svg width={180} height={18}>
+                          <Defs>
+                            <SvgLinearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                              <Stop offset="0%" stopColor="#2DD4BF" />
+                              <Stop offset="100%" stopColor="#3B82F6" />
+                            </SvgLinearGradient>
+                          </Defs>
+                          <SvgText
+                            x="0"
+                            y="14"
+                            fontSize="15"
+                            fontWeight="800"
+                            fill="url(#textGradient)"
+                          >
+                            SIMULATE YOUR 2026
+                          </SvgText>
+                        </Svg>
+                      </View>
+                      
+                      {/* Gradient Chevron Icon */}
+                      <Svg width={22} height={22} viewBox="0 0 24 24">
+                        <Defs>
+                          <SvgLinearGradient id="chevronGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <Stop offset="0%" stopColor="#2DD4BF" />
+                            <Stop offset="100%" stopColor="#3B82F6" />
+                          </SvgLinearGradient>
+                        </Defs>
+                        <Path
+                          d="M9 18L15 12L9 6"
+                          stroke="url(#chevronGradient)"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          fill="none"
+                        />
+                      </Svg>
                     </View>
-                  </LinearGradient>
+                  </View>
                 </View>
               </Animated.View>
             </TouchableOpacity>
@@ -1103,20 +1150,21 @@ const styles = StyleSheet.create({
   predictionBannerYellowWrapper: {
     borderRadius: 24,
     overflow: 'visible',
-    shadowColor: '#D4F238',
+    shadowColor: '#2DD4BF',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
-  predictionBannerYellowGradient: {
+  predictionBannerGrayBackground: {
     borderRadius: 24,
     paddingVertical: 2,
     paddingHorizontal: 2,
     position: 'relative',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(212, 242, 56, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#2A2A2A',
   },
   predictionBannerYellowGlow: {
     position: 'absolute',
@@ -1125,8 +1173,16 @@ const styles = StyleSheet.create({
     right: -10,
     bottom: -10,
     borderRadius: 24,
-    backgroundColor: '#D4F238',
-    opacity: 0.08,
+    backgroundColor: '#2DD4BF',
+    opacity: 0.05,
+  },
+  gradientTextContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 18,
+  },
+  sparklesIconWrapper: {
+    marginTop: 2,
   },
   predictionBannerInner: {
     flexDirection: 'row',
@@ -1134,7 +1190,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 24,
-    gap: 12,
+    gap: 6,
     position: 'relative',
     zIndex: 1,
   },
@@ -1148,7 +1204,7 @@ const styles = StyleSheet.create({
   predictionBannerYellowText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#000000',
+    color: '#FFFFFF',
     letterSpacing: 0.8,
     textAlign: 'center',
     textTransform: 'uppercase',

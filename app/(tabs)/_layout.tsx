@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
-import { Home, User } from 'lucide-react-native';
-import { HomeGradientIcon, UserGradientIcon } from '@/components/GradientIcons';
+import { Home, Layers } from 'lucide-react-native';
+import { HomeGradientIcon, SimulationsGradientIcon } from '@/components/GradientIcons';
 import { BlurView } from 'expo-blur';
 import { StyleSheet, Platform, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,16 +33,11 @@ export default function TabLayout() {
           backgroundColor: 'transparent',
           borderTopWidth: 0,
           paddingTop: 8,
-          paddingBottom: 32,
-          height: 90,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-          marginTop: 4,
-        },
-        tabBarItemStyle: {
-          paddingVertical: 4,
+          paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+          height: Platform.OS === 'ios' ? 90 : 70,
+          elevation: 0,
+          shadowOpacity: 0,
+          position: 'absolute',
         },
         tabBarBackground: () => (
           <View 
@@ -55,31 +50,28 @@ export default function TabLayout() {
               style={{
                 ...StyleSheet.absoluteFillObject,
                 backgroundColor: '#0D0E12',
-              }}
-            />
-            <View 
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 1,
-                backgroundColor: 'rgba(17, 19, 24, 0.9)',
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                borderTopWidth: 1,
+                borderTopColor: 'rgba(17, 19, 24, 0.9)',
               }}
             />
           </View>
         ),
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+          marginTop: 4,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 4,
+        },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
           title: 'Home',
-          tabBarStyle: { 
-            height: 0,
-            display: 'none',
-            opacity: 0,
-          },
           tabBarIcon: ({ focused, size }) => 
             focused ? (
               <HomeGradientIcon size={size} />
@@ -89,20 +81,21 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="simulations"
         options={{
-          title: 'Profile',
-          tabBarStyle: { 
-            height: 0,
-            display: 'none',
-            opacity: 0,
-          },
+          title: 'Simulations',
           tabBarIcon: ({ focused, size }) => 
             focused ? (
-              <UserGradientIcon size={size} />
+              <SimulationsGradientIcon size={size} />
             ) : (
-              <User size={size} color="rgba(150, 150, 150, 0.8)" />
+              <Layers size={size} color="rgba(150, 150, 150, 0.8)" />
             ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null, // Hide from tab bar
         }}
       />
     </Tabs>

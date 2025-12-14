@@ -209,7 +209,10 @@ export default function AddRelationshipScreen() {
           <Text style={styles.backText}>← Cancel</Text>
         </TouchableOpacity>
         )}
-        <Text style={styles.title}>{isOnboarding ? 'Who influences your decisions?' : 'Add Relationships'}</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.title}>Making a decision with someone?</Text>
+          <Text style={styles.subtitle}>Add their twin below.</Text>
+        </View>
         
         {/* Mode Toggle */}
         <View style={styles.modeToggle}>
@@ -504,16 +507,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(200, 200, 200, 0.75)',
   },
+  headerTitleContainer: {
+    marginBottom: 24,
+  },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontSize: 40,
+    fontWeight: '800',
     color: '#FFFFFF',
     marginBottom: 8,
+    letterSpacing: -1,
+    lineHeight: 44,
   },
   subtitle: {
-    fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
-    marginBottom: 16,
+    fontSize: 20,
+    color: '#D4F238', // Using the app's accent color (Neon Green/Yellow) or similar
+    fontWeight: '600',
+    marginBottom: 0,
+    letterSpacing: -0.5,
   },
   skipButton: {
     alignItems: 'center',

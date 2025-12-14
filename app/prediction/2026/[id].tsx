@@ -363,10 +363,10 @@ export default function PredictionResultScreen() {
       badgeText: 'High Confidence',
     },
     best_case: {
-      primary: '#8B5CF6', // Purple
-      bg: 'rgba(139, 92, 246, 0.15)',
-      text: '#A78BFA',
-      chartGradient: ['rgba(139, 92, 246, 0.4)', 'rgba(139, 92, 246, 0)'],
+      primary: '#0EA5E9', // Sky Blue
+      bg: 'rgba(14, 165, 233, 0.15)',
+      text: '#2563EB',
+      chartGradient: ['rgba(14, 165, 233, 0.4)', 'rgba(14, 165, 233, 0)'],
       label: 'Estimated Probability',
       badgeText: 'Optimistic',
     },

@@ -115,4 +115,42 @@ export function UserGradientIcon({ size = 24 }: IconProps) {
   );
 }
 
+export function SimulationsGradientIcon({ size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Defs>
+        <SvgLinearGradient id="simulationsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor="rgba(173, 216, 230, 0.95)" />
+          <Stop offset="50%" stopColor="rgba(100, 149, 237, 0.9)" />
+          <Stop offset="100%" stopColor="rgba(65, 105, 225, 0.85)" />
+        </SvgLinearGradient>
+      </Defs>
+      <Path
+        d="M12 2L2 7L12 12L22 7L12 2Z"
+        fill="none"
+        stroke="url(#simulationsGrad)"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M2 17L12 22L22 17"
+        fill="none"
+        stroke="url(#simulationsGrad)"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M2 12L12 17L22 12"
+        fill="none"
+        stroke="url(#simulationsGrad)"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 

@@ -17,6 +17,7 @@ export interface Database {
           political_views: string | null;
           twin_code: string | null;
           is_premium: boolean;
+          ab_test_group: 'A' | 'B' | null;
           core_json: CoreJsonData;
           values_json: string[];
           narrative_summary: string | null;
@@ -37,6 +38,7 @@ export interface Database {
           political_views?: string | null;
           twin_code?: string | null;
           is_premium?: boolean;
+          ab_test_group?: 'A' | 'B' | null;
           core_json?: CoreJsonData;
           values_json?: string[];
           narrative_summary?: string | null;
@@ -57,6 +59,7 @@ export interface Database {
           political_views?: string | null;
           twin_code?: string | null;
           is_premium?: boolean;
+          ab_test_group?: 'A' | 'B' | null;
           core_json?: CoreJsonData;
           values_json?: string[];
           narrative_summary?: string | null;
@@ -394,6 +397,47 @@ export interface Database {
           updated_at?: string;
         };
       };
+      timelines: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          current_age: number;
+          stats: TimelineStats;
+          events: TimelineEvent[];
+          assets: TimelineAsset[];
+          twin_profile: TimelineTwinProfile;
+          scenario_count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          current_age: number;
+          stats?: TimelineStats;
+          events?: TimelineEvent[];
+          assets?: TimelineAsset[];
+          twin_profile?: TimelineTwinProfile;
+          scenario_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          current_age?: number;
+          stats?: TimelineStats;
+          events?: TimelineEvent[];
+          assets?: TimelineAsset[];
+          twin_profile?: TimelineTwinProfile;
+          scenario_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 }
@@ -490,6 +534,7 @@ export interface WhatIfBiometrics {
 }
 
 export interface RelationshipExtraction {
+  duration: any;
   name: string;
   relationship_type: string;
   years_known?: number;
@@ -535,4 +580,28 @@ export interface InterestResponse {
   option_b_description: string | null;
   selected_option: 'a' | 'b';
   created_at: string;
+}
+
+export interface TimelineStats {
+  money: number;
+  happiness: number;
+  freedom: number;
+  growth: number;
+  relationships: number;
+}
+
+export interface TimelineAsset {
+  name: string;
+  type: 'car' | 'apartment' | 'house' | 'pet' | 'other';
+  value?: string;
+  acquired_at: string;
+  description?: string;
+}
+
+export interface TimelineTwinProfile {
+  relationshipStatus?: string;
+  job?: string;
+  location?: string;
+  netWorth?: string;
+  [key: string]: any;
 }

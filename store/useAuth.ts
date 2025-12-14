@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { trackEvent, resetMixpanel, MixpanelEvents } from '@/lib/mixpanel';
+import { trackEvent, resetMixpanel, MixpanelEvents, setUserProperty } from '@/lib/mixpanel';
+import { assignABTestGroup } from '@/lib/storage';
 import { router } from 'expo-router';
 
 interface AuthState {
@@ -48,12 +49,27 @@ export const useAuth = create<AuthState>((set) => ({
     }
 
     // Ensure session and user are set immediately
-    if (data.session) {
+    if (data.session && data.user?.id) {
       set({ session: data.session, user: data.session.user || data.user });
-      trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
-        user_id: data.user?.id,
-        email,
-      });
+      
+      // Assign A/B test group for new user
+      try {
+        const abTestGroup = await assignABTestGroup(data.user.id);
+        // Track in Mixpanel
+        setUserProperty('ab_test_group', abTestGroup);
+        trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
+          user_id: data.user.id,
+          email,
+          ab_test_group: abTestGroup,
+        });
+      } catch (abError) {
+        console.error('Failed to assign AB test group:', abError);
+        // Don't fail sign up if AB test assignment fails
+        trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
+          user_id: data.user.id,
+          email,
+        });
+      }
     }
   },
   appleSignIn: async () => {
@@ -86,11 +102,27 @@ export const useAuth = create<AuthState>((set) => ({
               method: 'apple',
               email: user.email 
             });
-            trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
-              user_id: user.id,
-              email: user.email,
-              method: 'apple',
-            });
+            
+            // Assign A/B test group for new user
+            try {
+              const abTestGroup = await assignABTestGroup(user.id);
+              // Track in Mixpanel
+              setUserProperty('ab_test_group', abTestGroup);
+              trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
+                user_id: user.id,
+                email: user.email,
+                method: 'apple',
+                ab_test_group: abTestGroup,
+              });
+            } catch (abError) {
+              console.error('Failed to assign AB test group:', abError);
+              // Don't fail sign up if AB test assignment fails
+              trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
+                user_id: user.id,
+                email: user.email,
+                method: 'apple',
+              });
+            }
           } else {
             // Track sign in for existing users
             trackEvent(MixpanelEvents.SIGN_IN_COMPLETED, {
@@ -306,8 +338,40 @@ export const useAuth = create<AuthState>((set) => ({
     }
 
     // Set session and user upon successful verification
-    if (data.session) {
+    if (data.session && data.user?.id) {
       set({ session: data.session, user: data.session.user || data.user });
+      
+      // Check if this is a new user by checking if profile exists
+      const { getProfile } = await import('@/lib/storage');
+      const existingProfile = await getProfile(data.user.id);
+      const isNewUser = !existingProfile;
+      
+      // Assign A/B test group for new users
+      if (isNewUser) {
+        try {
+          const abTestGroup = await assignABTestGroup(data.user.id);
+          // Track in Mixpanel
+          setUserProperty('ab_test_group', abTestGroup);
+          trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
+            user_id: data.user.id,
+            method: 'phone',
+            ab_test_group: abTestGroup,
+          });
+        } catch (abError) {
+          console.error('Failed to assign AB test group:', abError);
+          // Don't fail sign up if AB test assignment fails
+          trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
+            user_id: data.user.id,
+            method: 'phone',
+          });
+        }
+      } else {
+        // Track sign in for existing users
+        trackEvent(MixpanelEvents.SIGN_IN_COMPLETED, {
+          user_id: data.user.id,
+          method: 'phone',
+        });
+      }
     }
   },
 

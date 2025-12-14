@@ -307,9 +307,9 @@ export default function SimulationScreen() {
 
   const timelineData = timeline ? [
     { period: '1 Year', events: timeline.one_year, color: 'rgba(135, 206, 250, 0.9)' },
-    { period: '3 Years', events: timeline.three_year, color: '#A78BFA' },
+    { period: '3 Years', events: timeline.three_year, color: '#0EA5E9' },
     { period: '5 Years', events: timeline.five_year, color: 'rgba(100, 181, 246, 0.8)' },
-    { period: '10 Years', events: timeline.ten_year, color: '#6D28D9' },
+    { period: '10 Years', events: timeline.ten_year, color: '#14B8A6' },
   ] : [];
 
   return (

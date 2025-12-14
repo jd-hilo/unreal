@@ -10,6 +10,10 @@ import type {
   WhatIfBiometrics,
   InterestResponse,
   YearPredictionData,
+  TimelineStats,
+  TimelineEvent,
+  TimelineAsset,
+  TimelineTwinProfile,
 } from '@/types/database';
 
 export async function upsertProfileCore(
@@ -692,6 +696,53 @@ export async function generateUniqueTwinCode(userId: string): Promise<string> {
 /**
  * Get or generate a twin code for a user
  */
+/**
+ * Assign A/B test group to a user
+ * Randomly assigns 'A' or 'B' with 50/50 distribution
+ */
+export async function assignABTestGroup(userId: string): Promise<'A' | 'B'> {
+  // Randomly assign A or B (50/50 split)
+  const group: 'A' | 'B' = Math.random() < 0.5 ? 'A' : 'B';
+  
+  // Ensure profile exists first
+  let profile = await getProfile(userId);
+  if (!profile) {
+    // Create a basic profile if it doesn't exist
+    const { error: createError } = await supabase
+      .from('profiles')
+      .insert({ user_id: userId, ab_test_group: group });
+    if (createError) {
+      console.error('Failed to create profile with AB test group:', createError);
+      throw createError;
+    }
+    profile = await getProfile(userId);
+  } else {
+    // Update existing profile with AB test group if not already set
+    if (!profile.ab_test_group) {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ ab_test_group: group })
+        .eq('user_id', userId);
+      
+      if (updateError) {
+        console.error('Failed to update profile with AB test group:', updateError);
+        throw updateError;
+      }
+    } else {
+      // Return existing group if already assigned
+      return profile.ab_test_group as 'A' | 'B';
+    }
+  }
+  
+  // Verify the group was saved
+  const updatedProfile = await getProfile(userId);
+  if (!updatedProfile?.ab_test_group) {
+    throw new Error('Failed to verify AB test group was saved');
+  }
+  
+  return updatedProfile.ab_test_group as 'A' | 'B';
+}
+
 export async function ensureTwinCode(userId: string): Promise<string> {
   try {
     const profile = await getProfile(userId);
@@ -1294,6 +1345,151 @@ export async function deleteYearPrediction(predictionId: string) {
     .from('year_predictions')
     .delete()
     .eq('id', predictionId);
+
+  if (error) throw error;
+}
+
+/**
+ * Create a new timeline
+ */
+export async function createTimeline(
+  userId: string,
+  title: string,
+  currentAge: number,
+  initialStats?: TimelineStats,
+  initialProfile?: TimelineTwinProfile,
+  initialRelationships?: Array<{ name: string; type: string; status: string; description: string }>
+) {
+  const { data, error } = await supabase
+    .from('timelines')
+    .insert({
+      user_id: userId,
+      title,
+      current_age: currentAge,
+      stats: initialStats || {
+        money: 5,
+        happiness: 5,
+        freedom: 5,
+        growth: 5,
+        relationships: 5,
+      },
+      events: [],
+      assets: [],
+      relationships: initialRelationships || [],
+      twin_profile: initialProfile || {},
+      scenario_count: 0,
+    } as any)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Get all timelines for a user
+ */
+export async function getTimelines(userId: string) {
+  const { data, error } = await supabase
+    .from('timelines')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Get a single timeline by ID
+ */
+export async function getTimeline(timelineId: string) {
+  const { data, error } = await supabase
+    .from('timelines')
+    .select('*')
+    .eq('id', timelineId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Update a timeline with new events, stats, assets, and profile updates
+ */
+export async function updateTimeline(
+  timelineId: string,
+  updates: {
+    current_age?: number;
+    stats?: TimelineStats;
+    newEvents?: TimelineEvent[];
+    newAssets?: TimelineAsset[];
+    removedAssetTypes?: string[];
+    twin_profile?: TimelineTwinProfile;
+    relationships?: any[];
+    scenario_count?: number;
+  }
+) {
+  // Get current timeline
+  const currentTimeline = await getTimeline(timelineId);
+  if (!currentTimeline) {
+    throw new Error('Timeline not found');
+  }
+
+  // Merge events (append new ones)
+  const events = [
+    ...(currentTimeline.events || []),
+    ...(updates.newEvents || []),
+  ];
+
+  // Handle assets: remove old ones by type, then add new ones
+  let assets = [...(currentTimeline.assets || [])];
+  
+  // Remove assets by type (e.g., remove "apartment" when buying "house")
+  if (updates.removedAssetTypes && updates.removedAssetTypes.length > 0) {
+    assets = assets.filter(
+      (a: TimelineAsset) => !updates.removedAssetTypes!.includes(a.type || '')
+    );
+  }
+  
+  // Add new assets (avoiding duplicates by name)
+  const existingAssetNames = new Set(assets.map((a: TimelineAsset) => a.name));
+  const newAssets = (updates.newAssets || []).filter(
+    (a) => !existingAssetNames.has(a.name)
+  );
+  assets = [...assets, ...newAssets];
+
+  // Handle relationships: replace entirely with new list if provided, or keep existing
+  // The AI should return the full updated list of relationships
+  const relationships = updates.relationships || currentTimeline.relationships || [];
+
+  const { data, error } = await supabase
+    .from('timelines')
+    .update({
+      current_age: updates.current_age ?? currentTimeline.current_age,
+      stats: updates.stats ?? currentTimeline.stats,
+      events: events as any,
+      assets: assets as any,
+      relationships: relationships as any,
+      twin_profile: updates.twin_profile
+        ? { ...currentTimeline.twin_profile, ...updates.twin_profile }
+        : currentTimeline.twin_profile,
+      scenario_count:
+        updates.scenario_count ?? currentTimeline.scenario_count + 1,
+    } as any)
+    .eq('id', timelineId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Delete a timeline
+ */
+export async function deleteTimeline(timelineId: string) {
+  const { error } = await supabase.from('timelines').delete().eq('id', timelineId);
 
   if (error) throw error;
 }

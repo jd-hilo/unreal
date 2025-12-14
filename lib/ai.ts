@@ -1190,6 +1190,7 @@ function mockLifeExtraction(): LifeExtractionResult {
       {
         name: 'Partner',
         relationship_type: 'partner',
+        duration: '3 years',
         years_known: 3,
         contact_frequency: 'daily',
         influence: 0.9,
@@ -1214,6 +1215,7 @@ function mockRelationships(): RelationshipExtraction[] {
     {
       name: 'Sam',
       relationship_type: 'friend',
+      duration: '5 years',
       years_known: 5,
       contact_frequency: 'weekly',
       influence: 0.6,
@@ -2297,5 +2299,342 @@ export async function generateInterestingWhatIfScenarios(
       'What if I had stayed in my hometown?',
       'What if I had pursued a different career?'
     ];
+  }
+}
+
+export interface TimelineAdvancementResult {
+  newEvents: Array<{
+    time: string;
+    title: string;
+    description: string;
+    type?: 'decision' | 'milestone' | 'asset' | 'relationship' | 'career';
+    year?: number;
+    month?: number;
+  }>;
+  yearEvents?: {
+    [year: number]: {
+      month1?: Array<{ time: string; title: string; description: string; type?: string }>;
+      month6?: Array<{ time: string; title: string; description: string; type?: string }>;
+      month12?: Array<{ time: string; title: string; description: string; type?: string }>;
+      summary?: string;
+    };
+  };
+  statDeltas: {
+    money: number;
+    happiness: number;
+    freedom: number;
+    growth: number;
+    relationships: number;
+  };
+  newAssets: Array<{
+    name: string;
+    type: 'car' | 'apartment' | 'house' | 'pet' | 'other';
+    value?: string;
+    acquired_at: string;
+    description?: string;
+  }>;
+  profileUpdates: {
+    relationshipStatus?: string;
+    job?: string;
+    location?: string;
+    netWorth?: string;
+    [key: string]: any;
+  };
+  relationships?: Array<{
+    name: string;
+    type: 'friend' | 'partner' | 'family';
+    status: 'good' | 'neutral' | 'bad' | 'complicated';
+    description: string;
+  }>;
+  removedAssets?: string[];
+  newAge: number;
+}
+
+/**
+ * Advance a timeline by 3 years based on a user decision/scenario
+ */
+export async function advanceTimeline({
+  currentProfile,
+  currentStats,
+  timelineHistory,
+  userDecision,
+  currentAge,
+  existingRelationships,
+}: {
+  currentProfile: any;
+  currentStats: {
+    money: number;
+    happiness: number;
+    freedom: number;
+    growth: number;
+    relationships: number;
+  };
+  timelineHistory: Array<{ time: string; title: string; description: string }>;
+  userDecision: string;
+  currentAge: number;
+  existingRelationships?: Array<{ name: string; type: string; status: string; description: string }>;
+}): Promise<TimelineAdvancementResult> {
+  if (DEV_MODE) {
+    // Mock advancement for dev mode
+    const mockEvents: Array<{
+      time: string;
+      title: string;
+      description: string;
+      type: 'decision' | 'milestone' | 'asset' | 'relationship' | 'career';
+      year: number;
+      month: number;
+    }> = [
+      { time: 'Year 1, Month 1', title: 'Decision Impact', description: `You made the choice: ${userDecision}. This sets you on a new path.`, type: 'decision' as const, year: 1, month: 1 },
+      { time: 'Year 1, Month 6', title: 'First Milestone', description: 'You see initial results from your decision.', type: 'milestone' as const, year: 1, month: 6 },
+      { time: 'Year 1, Month 12', title: 'Year End Reflection', description: 'You reflect on the changes this year brought.', type: 'milestone' as const, year: 1, month: 12 },
+    ];
+    
+    return {
+      newEvents: mockEvents,
+      yearEvents: {
+        1: {
+          month1: [mockEvents[0]],
+          month6: [mockEvents[1]],
+          month12: [mockEvents[2]],
+          summary: 'Year 1: Initial adaptation and early results',
+        },
+      },
+      statDeltas: {
+        money: 0.5,
+        happiness: 0.3,
+        freedom: 0.2,
+        growth: 0.4,
+        relationships: 0.1,
+      },
+      newAssets: [
+        {
+          name: 'New Apartment',
+          type: 'apartment',
+          value: '$2,400/mo',
+          acquired_at: new Date().toISOString(),
+          description: 'Moved to a better location',
+        },
+      ],
+      removedAssets: [],
+      profileUpdates: {
+        location: 'New City',
+        job: 'Senior Role',
+      },
+      relationships: (existingRelationships && existingRelationships.length > 0
+        ? existingRelationships.map((rel: { name: string; type: string; status: string; description: string }) => ({
+            name: rel.name,
+            type: (rel.type as 'friend' | 'partner' | 'family') || 'friend',
+            status: (rel.status as 'good' | 'neutral' | 'bad' | 'complicated') || 'neutral',
+            description: rel.description || 'Updated relationship',
+          }))
+        : [
+            { name: 'Alex', type: 'friend' as const, status: 'good' as const, description: 'Met through work, very supportive.' },
+            { name: 'Jordan', type: 'friend' as const, status: 'neutral' as const, description: 'College friend, keeping in touch.' },
+          ]) as Array<{ name: string; type: 'friend' | 'partner' | 'family'; status: 'good' | 'neutral' | 'bad' | 'complicated'; description: string }>,
+      newAge: currentAge + 1,
+    };
+  }
+
+  const systemPrompt = [
+    "You are simulating a 1-year advancement of a user's life timeline based on a decision they made.",
+    '',
+    'CRITICAL REQUIREMENTS:',
+    '- Generate events structured by MONTH',
+    '- Generate events for Month 1, Month 6, and Month 12 of the next year',
+    '- Each month should have 1-3 events (Month 1, Month 6, Month 12)',
+    '- Each event should be realistic and directly or indirectly result from the user decision',
+    '- Events should show progression throughout the year: Month 1 (immediate), Month 6 (developing), Month 12 (outcomes)',
+    '- Update stats realistically based on the decision (each stat is 0-10 scale)',
+    '- Identify new assets acquired (car, apartment, house, pet, etc.)',
+    '- IMPORTANT: If user acquires a house, they should lose their apartment (if they have one). If they acquire an apartment, they should lose their house (if they have one). Only one primary residence at a time.',
+    '- Update profile fields (job, location, relationship status, net worth)',
+    '- Manage RELATIONSHIPS: Generate or update a list of friends/partners. Each should have name, type (friend, partner), status (good, neutral, bad), and a brief description.',
+    '- Age increases by 1 year',
+    '',
+    'STATS:',
+    '- Each stat (money, happiness, freedom, growth, relationships) is on a 0-10 scale',
+    '- Provide deltas (changes) that are realistic for the decision',
+    '- Consider trade-offs (e.g., more money might mean less freedom)',
+    '',
+    'EVENTS STRUCTURE:',
+    '- Generate events for the next year only',
+    '- Include events at Month 1, Month 6, and Month 12',
+    '- Be HYPER-SPECIFIC with numbers, amounts, locations, names',
+    '- Include a mix of: career milestones, relationship changes, financial changes, lifestyle changes',
+    '- Write in SECOND PERSON (you/your)',
+    '- Use time format: "Year 1, Month 1", "Year 1, Month 6", "Year 1, Month 12"',
+    '',
+    'ASSETS:',
+    '- Only include significant assets (car, apartment, house, pet, major purchase)',
+    '- Include realistic values and descriptions',
+    '- ASSET REPLACEMENT LOGIC: If adding a "house", mark that any existing "apartment" should be removed. If adding an "apartment", mark that any existing "house" should be removed. Only one primary residence type at a time.',
+    '- In the response, include a "removedAssets" field listing asset types that should be removed (e.g., ["apartment"] if buying a house)',
+    '',
+    'PROFILE UPDATES:',
+    '- Update job title if career changes',
+    '- Update location if moving',
+    '- Update relationship status if relevant',
+    '- Update net worth if significant financial change',
+    '',
+    'RELATIONSHIPS:',
+    '- ALWAYS return a complete, updated list of ALL relationships (not just new ones).',
+    '- If existing relationships are provided, update them based on events (e.g. grew closer, drifted apart, status changes).',
+    '- If no existing relationships, generate 2-3 initial friends/contacts.',
+    '- Add new relationships if relevant events occurred (e.g. met someone new at work, started dating).',
+    '- Remove relationships if they naturally fade away or end (e.g. lost touch, breakup).',
+    '- Format: Array of { name: string, type: "friend" | "partner" | "family", status: "good" | "neutral" | "bad" | "complicated", description: string }',
+    '- The "relationships" field should contain the FULL updated list after this year.',
+  ].join('\n');
+
+  const userPrompt = [
+    'Current Profile:',
+    JSON.stringify(currentProfile, null, 2).substring(0, 2000),
+    '',
+    'Current Stats:',
+    JSON.stringify(currentStats),
+    '',
+    'Timeline History (recent events):',
+    JSON.stringify(timelineHistory.slice(-5), null, 2),
+    '',
+    existingRelationships && existingRelationships.length > 0
+      ? `Current Relationships:\n${JSON.stringify(existingRelationships, null, 2)}\n\n`
+      : '',
+    `User Decision/Scenario: "${userDecision}"`,
+    '',
+    `Current Age: ${currentAge}`,
+    '',
+    'Simulate the next 1 year. Return JSON with events structured by month:',
+    '{',
+    '  "yearEvents": {',
+    '    "1": {',
+    '      "month1": [{"time": "Year 1, Month 1", "title": "Event Title", "description": "Detailed description", "type": "decision"}],',
+    '      "month6": [{"time": "Year 1, Month 6", "title": "Event Title", "description": "Detailed description", "type": "milestone"}],',
+    '      "month12": [{"time": "Year 1, Month 12", "title": "Event Title", "description": "Detailed description", "type": "career"}],',
+    '      "summary": "Brief summary of Year 1"',
+    '    }',
+    '  },',
+    '  "newEvents": [',
+    '    {"time": "Year 1, Month 1", "title": "Specific Event", "description": "Detailed description", "type": "decision", "year": 1, "month": 1},',
+    '    ...',
+    '  ],',
+    '  "statDeltas": {',
+    '    "money": 0.5,',
+    '    "happiness": 0.3,',
+    '    "freedom": 0.2,',
+    '    "growth": 0.4,',
+    '    "relationships": 0.1',
+    '  },',
+    '  "newAssets": [',
+    '    {"name": "New Car", "type": "car", "value": "$25,000", "acquired_at": "2024-06-15T00:00:00Z", "description": "Reliable sedan for commuting"},',
+    '    ...',
+    '  ],',
+    '  "removedAssets": ["apartment"],',
+    '  "profileUpdates": {',
+    '    "job": "Senior Software Engineer",',
+    '    "location": "San Francisco, CA",',
+    '    "relationshipStatus": "In a relationship",',
+    '    "netWorth": "$85,000"',
+    '  },',
+    '  "relationships": [',
+    '    { "name": "Sarah", "type": "partner", "status": "good", "description": "Met at a coffee shop, very supportive." },',
+    '    { "name": "Mike", "type": "friend", "status": "neutral", "description": "College buddy, drifting apart." }',
+    '  ],',
+    '  "newAge": ' + (currentAge + 1),
+    '}',
+  ].join('\n');
+
+  try {
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.7,
+    });
+
+    const parsed = JSON.parse(content) as TimelineAdvancementResult & { removedAssets?: string[] };
+
+    // Ensure age is correct
+    parsed.newAge = currentAge + 1;
+
+    // If yearEvents exists, flatten it into newEvents for backward compatibility
+    if (parsed.yearEvents && (!parsed.newEvents || parsed.newEvents.length === 0)) {
+      parsed.newEvents = [];
+      const validTypes: Array<'decision' | 'milestone' | 'asset' | 'relationship' | 'career'> = ['decision', 'milestone', 'asset', 'relationship', 'career'];
+      
+      for (const [yearStr, yearData] of Object.entries(parsed.yearEvents)) {
+        const year = parseInt(yearStr);
+        if (yearData.month1) {
+          parsed.newEvents.push(...yearData.month1.map(e => {
+            const eventType = (validTypes.includes(e.type as any) ? e.type : 'milestone') as 'decision' | 'milestone' | 'asset' | 'relationship' | 'career';
+            return { 
+              ...e, 
+              year, 
+              month: 1,
+              type: eventType
+            };
+          }));
+        }
+        if (yearData.month6) {
+          parsed.newEvents.push(...yearData.month6.map(e => {
+            const eventType = (validTypes.includes(e.type as any) ? e.type : 'milestone') as 'decision' | 'milestone' | 'asset' | 'relationship' | 'career';
+            return { 
+              ...e, 
+              year, 
+              month: 6,
+              type: eventType
+            };
+          }));
+        }
+        if (yearData.month12) {
+          parsed.newEvents.push(...yearData.month12.map(e => {
+            const eventType = (validTypes.includes(e.type as any) ? e.type : 'milestone') as 'decision' | 'milestone' | 'asset' | 'relationship' | 'career';
+            return { 
+              ...e, 
+              year, 
+              month: 12,
+              type: eventType
+            };
+          }));
+        }
+      }
+    }
+    
+    // Ensure all events have proper type
+    const validTypes: Array<'decision' | 'milestone' | 'asset' | 'relationship' | 'career'> = ['decision', 'milestone', 'asset', 'relationship', 'career'];
+    parsed.newEvents = parsed.newEvents.map(e => {
+      const eventType = (e.type && validTypes.includes(e.type as any) ? e.type : 'milestone') as 'decision' | 'milestone' | 'asset' | 'relationship' | 'career';
+      return {
+        ...e,
+        type: eventType
+      };
+    });
+
+    // Ensure all required fields exist
+    if (!parsed.newEvents) parsed.newEvents = [];
+    if (!parsed.statDeltas) {
+      parsed.statDeltas = {
+        money: 0,
+        happiness: 0,
+        freedom: 0,
+        growth: 0,
+        relationships: 0,
+      };
+    }
+    if (!parsed.newAssets) parsed.newAssets = [];
+    if (!parsed.profileUpdates) parsed.profileUpdates = {};
+    if (!parsed.relationships) {
+      // If no relationships returned, keep existing ones or initialize empty
+      parsed.relationships = (existingRelationships || []).map((rel: { name: string; type: string; status: string; description: string }) => ({
+        name: rel.name,
+        type: (rel.type as 'friend' | 'partner' | 'family') || 'friend',
+        status: (rel.status as 'good' | 'neutral' | 'bad' | 'complicated') || 'neutral',
+        description: rel.description || '',
+      }));
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error('Timeline advancement error:', error);
+    throw error;
   }
 }
