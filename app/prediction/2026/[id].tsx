@@ -355,10 +355,10 @@ export default function PredictionResultScreen() {
   
   const scenarioColors = {
     estimated: {
-      primary: '#D4F238', // Neon Green/Yellow
-      bg: 'rgba(212, 242, 56, 0.15)',
-      text: '#D4F238',
-      chartGradient: ['rgba(212, 242, 56, 0.4)', 'rgba(212, 242, 56, 0)'],
+      primary: '#2DD4BF', // Teal (matching home page gradient)
+      bg: 'rgba(45, 212, 191, 0.15)',
+      text: '#2DD4BF',
+      chartGradient: ['rgba(45, 212, 191, 0.4)', 'rgba(59, 130, 246, 0)'],
       label: 'Estimated Probability',
       badgeText: 'High Confidence',
     },
@@ -920,7 +920,7 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#D4F238',
+    shadowColor: '#2DD4BF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -1099,7 +1099,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#D4F238',
+    backgroundColor: '#2DD4BF',
     marginRight: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1147,11 +1147,11 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(212, 242, 56, 0.15)',
+    backgroundColor: 'rgba(45, 212, 191, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(212, 242, 56, 0.3)',
+    borderColor: 'rgba(45, 212, 191, 0.3)',
   },
   loadingOrbEmoji: {
     fontSize: 40,
@@ -1180,8 +1180,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#2C2C2E',
   },
   loadingStepDotActive: {
-    backgroundColor: '#D4F238',
-    shadowColor: '#D4F238',
+    backgroundColor: '#2DD4BF',
+    shadowColor: '#2DD4BF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 8,

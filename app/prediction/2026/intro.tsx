@@ -140,7 +140,7 @@ export default function PredictionIntroScreen() {
                   {hasEstimated ? 'View Results' : 'Simulate'}
                 </Text>
               </View>
-              <Sparkles size={64} color="#D4F238" strokeWidth={2.5} style={styles.mainCardIcon} />
+              <Sparkles size={64} color="#2DD4BF" strokeWidth={2.5} style={styles.mainCardIcon} />
             </View>
           </TouchableOpacity>
 
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   actionButton: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#D4F238',
+    color: '#2DD4BF',
   },
   actionButtonLocked: {
     color: '#6B7280',

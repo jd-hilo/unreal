@@ -176,13 +176,13 @@ export default function PredictionGenerateScreen() {
     : 'Prediction';
 
   const scenarioGradients = {
-    estimated: ['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.1)', 'rgba(65, 105, 225, 0.05)'],
+    estimated: ['rgba(45, 212, 191, 0.2)', 'rgba(59, 130, 246, 0.1)', 'rgba(45, 212, 191, 0.05)'],
     best_case: ['rgba(255, 215, 0, 0.2)', 'rgba(255, 165, 0, 0.1)', 'rgba(255, 140, 0, 0.05)'],
     worst_case: ['rgba(239, 68, 68, 0.2)', 'rgba(220, 38, 38, 0.1)', 'rgba(185, 28, 28, 0.05)'],
   };
 
   const scenarioColors = {
-    estimated: '#87CEFA',
+    estimated: '#2DD4BF',
     best_case: '#FFD700',
     worst_case: '#EF4444',
   };
