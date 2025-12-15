@@ -1,11 +1,11 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useState, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { createTimeline, getProfile, getRelationships } from '@/lib/storage';
-import { ChevronRight, ChevronLeft, User, Briefcase, Heart, Sparkles, Zap, Brain, Globe } from 'lucide-react-native';
+import { ChevronRight, ChevronLeft, User, Briefcase, Heart, Sparkles, Zap, Brain, Globe, Home } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -15,8 +15,10 @@ const { width } = Dimensions.get('window');
 
 export default function NewSimulationScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ auto?: string; fromOnboarding?: string }>();
   const user = useAuth((state) => state.user);
   const { isPremium } = useTwin();
+  const fromOnboarding = params.fromOnboarding === 'true';
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('My Simulation');
   const [focus, setFocus] = useState('balanced');
@@ -35,6 +37,16 @@ export default function NewSimulationScreen() {
     { id: 'hard', label: 'Chaotic', desc: 'Unpredictable events', color: '#F87171' },
   ];
 
+  useEffect(() => {
+    if (params.auto === 'true') {
+      // Small delay to ensure navigation is complete and UI is ready
+      const timer = setTimeout(() => {
+        handleCreate();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [params.auto]);
+
   async function handleCreate() {
     if (!user) return;
     setLoading(true);
@@ -43,6 +55,21 @@ export default function NewSimulationScreen() {
     try {
       // Get profile for age and current life state
       const profile = await getProfile(user.id);
+      
+      // Check Net Worth (Required for B Users/Simulations)
+      if (!profile?.net_worth) {
+        setLoading(false);
+        router.replace('/simulate/setup');
+        return;
+      }
+
+      // Check Current Location (Required for B Users/Simulations)
+      if (!profile?.current_location) {
+        setLoading(false);
+        router.replace('/simulate/setup');
+        return;
+      }
+
       let age = 25;
       
       // Check for birth year in onboarding responses (handle both key formats)
@@ -58,6 +85,14 @@ export default function NewSimulationScreen() {
 
       // Get user's current relationships
       const relationships = await getRelationships(user.id);
+
+      // Check Relationships (Required for B Users/Simulations)
+      if (!relationships || relationships.length === 0) {
+        setLoading(false);
+        router.replace('/simulate/setup');
+        return;
+      }
+
       const initialRelationships = relationships.map((rel: any) => ({
         name: rel.name,
         type: rel.relationship_type || 'friend',
@@ -122,8 +157,15 @@ export default function NewSimulationScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <ChevronLeft size={24} color="#FFF" />
+            <TouchableOpacity 
+              onPress={() => fromOnboarding ? router.push('/(tabs)/home') : router.back()} 
+              style={styles.backButton}
+            >
+              {fromOnboarding ? (
+                <Home size={24} color="#FFF" strokeWidth={2} />
+              ) : (
+                <ChevronLeft size={24} color="#FFF" />
+              )}
             </TouchableOpacity>
             <Text style={styles.headerTitle}>New Simulation</Text>
             <View style={styles.headerRight} />
@@ -436,5 +478,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+
 
 

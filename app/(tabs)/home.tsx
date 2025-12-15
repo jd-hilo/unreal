@@ -45,6 +45,7 @@ export default function HomeScreen() {
   const [twinCardLayout, setTwinCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const [guideStep, setGuideStep] = useState(0);
   const [hasYearPrediction, setHasYearPrediction] = useState(false);
+  const [abTestGroup, setAbTestGroup] = useState<'A' | 'B' | null>(null);
   const whatIfHoverAnim = useRef(new Animated.Value(0)).current;
   const decisionCardRef = useRef<View>(null);
   const whatIfCardRef = useRef<View>(null);
@@ -178,6 +179,9 @@ export default function HomeScreen() {
         const totalSections = 12;
         const progress = Math.round((completedSections / totalSections) * 100);
         setProfileProgress(progress);
+        
+        // Set AB Test Group
+        setAbTestGroup(profile?.ab_test_group || null);
       }
     } catch (error) {
       console.error('Failed to load data:', error);

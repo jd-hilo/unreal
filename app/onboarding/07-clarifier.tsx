@@ -165,14 +165,34 @@ export default function OnboardingStep7() {
         await saveOnboardingResponse(user.id, 'interests', JSON.stringify(summaries.interests));
       }
 
-      // Save values_json
-      if (summaries.values_json && summaries.values_json.length > 0) {
-        const { supabase } = await import('@/lib/supabase');
-        await supabase
-          .from('profiles')
-          .update({ values_json: summaries.values_json })
-          .eq('user_id', user.id);
-      }
+      // Save values_json - preserve existing values_json if it exists, otherwise use AI summaries
+      const { supabase } = await import('@/lib/supabase');
+      const existingValuesJson = profile?.values_json || [];
+      const existingCoreJson = profile?.core_json || {};
+      const existingCoreValues = existingCoreJson.core_values || [];
+      
+      // Use AI summaries if available, otherwise preserve existing values
+      const finalValuesJson = (summaries.values_json && summaries.values_json.length > 0) 
+        ? summaries.values_json 
+        : (existingValuesJson.length > 0 ? existingValuesJson : []);
+      
+      const finalCoreValues = finalValuesJson.length > 0 
+        ? finalValuesJson 
+        : (existingCoreValues.length > 0 ? existingCoreValues : []);
+      
+      // Update both values_json and core_json.core_values
+      const updatedCoreJson = {
+        ...existingCoreJson,
+        core_values: finalCoreValues
+      };
+      
+      await supabase
+        .from('profiles')
+        .update({ 
+          values_json: finalValuesJson,
+          core_json: updatedCoreJson
+        } as any)
+        .eq('user_id', user.id);
 
       // Get hometown and university from profile (already saved in life journey section)
       const hometown = profile?.hometown || lifeJourneyData?.hometown;

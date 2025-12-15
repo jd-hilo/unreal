@@ -23,7 +23,8 @@ export default function OnboardingCompleteScreen() {
   const [navigatingExplore, setNavigatingExplore] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
-  const loadingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [abTestGroup, setAbTestGroup] = useState<'A' | 'B' | null>(null);
+  const loadingIntervalRef = useRef<number | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
@@ -49,7 +50,14 @@ export default function OnboardingCompleteScreen() {
   useEffect(() => {
     trackScreenView('Onboarding Complete', {});
     trackEvent(MixpanelEvents.ONBOARDING_COMPLETE_VIEWED);
-  }, []);
+    
+    // Load AB Test Group
+    if (user?.id) {
+      getProfile(user.id).then(profile => {
+        setAbTestGroup(profile?.ab_test_group || null);
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     // Show buttons after typing completes
@@ -351,7 +359,7 @@ export default function OnboardingCompleteScreen() {
               </View>
 
               {/* Loading Text */}
-              <View style={styles.textContainer}>
+              <View style={styles.loadingTextContainer}>
                 <Text style={styles.loadingText}>Asking your twin...</Text>
                 <View style={styles.statusContainer}>
                   <BlurView intensity={20} tint="dark" style={styles.statusBlur}>
@@ -467,7 +475,11 @@ export default function OnboardingCompleteScreen() {
                   <TouchableOpacity
                     onPress={() => {
                       console.log('Explore button pressed');
-                      handleExplore();
+                      if (abTestGroup === 'B') {
+                        router.push('/simulate/new?fromOnboarding=true');
+                      } else {
+                        handleExplore();
+                      }
                     }}
                     activeOpacity={0.8}
                     style={styles.button}
@@ -483,9 +495,11 @@ export default function OnboardingCompleteScreen() {
                           />
                         </View>
                         <View style={styles.buttonTextContainer}>
-                          <Text style={styles.buttonTitle}>Explore alternate lives</Text>
+                          <Text style={styles.buttonTitle}>
+                            {abTestGroup === 'B' ? 'Simulate your Life' : 'Explore alternate lives'}
+                          </Text>
                           <Text style={styles.buttonSubtitle}>
-                            See your alternate reality
+                            {abTestGroup === 'B' ? 'Explore Alternate Realities' : 'See your alternate reality'}
                           </Text>
                         </View>
                       </View>
@@ -584,7 +598,7 @@ const styles = StyleSheet.create({
     height: 60,
     opacity: 0.9,
   },
-  textContainer: {
+  loadingTextContainer: {
     alignItems: 'center',
     gap: 16,
     width: '100%',

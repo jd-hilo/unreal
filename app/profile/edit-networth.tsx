@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
@@ -9,6 +9,7 @@ import { getProfile, updateProfileFields } from '@/lib/storage';
 
 export default function EditNetWorthScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ next?: string }>();
   const user = useAuth((state) => state.user);
   const [netWorth, setNetWorth] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,7 +42,11 @@ export default function EditNetWorthScreen() {
       await updateProfileFields(user.id, {
         net_worth: netWorth.trim() || undefined,
       });
-      router.back();
+      if (params.next) {
+        router.push(params.next as any);
+      } else {
+        router.back();
+      }
     } catch (error) {
       console.error('Failed to save:', error);
       alert('Failed to save changes');

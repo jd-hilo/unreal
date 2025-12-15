@@ -12,3 +12,4 @@ SET ab_test_group = 'A'
 WHERE ab_test_group IS NULL;
 
 
+

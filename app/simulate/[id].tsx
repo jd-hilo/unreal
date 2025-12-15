@@ -1,12 +1,12 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Modal, TextInput, Dimensions, Animated, Image, Easing } from 'react-native';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getTimeline, updateTimeline, getProfile } from '@/lib/storage';
 import { advanceTimeline } from '@/lib/ai';
-import { ChevronLeft, Plus, User, Lock, DollarSign, Heart, Zap, TrendingUp, TrendingDown, Users, X, ChevronDown, ChevronUp, MapPin, Sparkles, Brain, Briefcase, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, Plus, User, Lock, DollarSign, Heart, Zap, TrendingUp, TrendingDown, Users, X, ChevronDown, ChevronUp, MapPin, Sparkles, Brain, Briefcase, ChevronRight, Home } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -124,6 +124,7 @@ function AnimatedNetWorth({ value, previousValue, deltaString }: { value: string
 
 export default function TimelineDetailScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const params = useLocalSearchParams();
   const timelineId = params.id as string;
   const user = useAuth((state) => state.user);
@@ -169,12 +170,42 @@ export default function TimelineDetailScreen() {
   const loadingPulseAnim = useRef(new Animated.Value(1)).current;
   const loadingRotateAnim = useRef(new Animated.Value(0)).current;
 
+  // Check if user can go back (came from simulation tab)
+  const canGoBack = navigation.canGoBack();
+
+  // Disable swipe-to-go-back gesture and load timeline
   useFocusEffect(
     useCallback(() => {
+      // Disable swipe-to-go-back gesture on both current and parent navigators
+      navigation.setOptions({
+        gestureEnabled: false,
+      });
+
+      // Disable on parent navigator (to prevent swiping back to home)
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setOptions({
+          gestureEnabled: false,
+        });
+      }
+
+      // Load timeline
       if (timelineId && user) {
         loadTimeline();
       }
-    }, [timelineId, user])
+
+      return () => {
+        // Re-enable gestures on cleanup
+        navigation.setOptions({
+          gestureEnabled: true,
+        });
+        if (parent) {
+          parent.setOptions({
+            gestureEnabled: true,
+          });
+        }
+      };
+    }, [navigation, timelineId, user])
   );
 
   async function loadTimeline() {
@@ -581,11 +612,11 @@ export default function TimelineDetailScreen() {
 
               {/* Loading Text */}
               <View style={styles.textContainer}>
-                <Text style={styles.loadingText}>{loadingMessages[currentLoadingMessage]}</Text>
+                <Text style={styles.loadingText}>Simulating the next year...</Text>
                 <View style={styles.statusContainer}>
                   <BlurView intensity={20} tint="dark" style={styles.statusBlur}>
                     <Text style={styles.statusText}>
-                      Please wait while we process your timeline...
+                      {loadingMessages[currentLoadingMessage]}
                     </Text>
                   </BlurView>
                 </View>
@@ -706,10 +737,14 @@ export default function TimelineDetailScreen() {
         {/* Top Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => canGoBack ? router.back() : router.push('/(tabs)/home')}
             style={styles.backButton}
           >
-            <ChevronLeft size={24} color="#FFFFFF" />
+            {canGoBack ? (
+              <ChevronLeft size={24} color="#FFFFFF" />
+            ) : (
+              <Home size={24} color="#FFFFFF" strokeWidth={2} />
+            )}
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
              <Text style={styles.headerTitle} numberOfLines={1}>{timeline.title}</Text>
@@ -2069,4 +2104,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
+
 

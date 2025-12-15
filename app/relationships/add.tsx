@@ -9,7 +9,7 @@ import { mineRelationships } from '@/lib/ai';
 import { completeOnboarding } from '@/lib/storage';
 import { Input } from '@/components/Input';
 import { ProgressBar } from '@/components/ProgressBar';
-import { Sparkles, CheckCircle2, Circle, ChevronRight } from 'lucide-react-native';
+import { Sparkles, CheckCircle2, Circle, ChevronRight, Home } from 'lucide-react-native';
 
 const RELATIONSHIP_TYPES = [
   'Partner', 'Spouse', 'Family', 'Friend', 'Mentor', 
@@ -33,7 +33,7 @@ interface ExtractedRelationship {
 
 export default function AddRelationshipScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{ onboarding?: string; next?: string }>();
   const isOnboarding = params.onboarding === 'true';
   const user = useAuth((state) => state.user);
   const { setOnboardingComplete } = useTwin();
@@ -131,9 +131,11 @@ export default function AddRelationshipScreen() {
       if (isOnboarding) {
         await completeOnboarding(user.id, {});
         setOnboardingComplete(true);
-        router.replace('/(tabs)/home');
+        router.replace('/onboarding/complete');
+      } else if (params.next) {
+        router.push(params.next as any);
       } else {
-      router.back();
+        router.back();
       }
     } catch (err: any) {
       setError(err.message || 'Failed to save relationships');
@@ -147,7 +149,7 @@ export default function AddRelationshipScreen() {
     try {
       await completeOnboarding(user.id, {});
       setOnboardingComplete(true);
-      router.replace('/(tabs)/home');
+      router.replace('/onboarding/complete');
     } catch (err: any) {
       console.error('Failed to complete onboarding:', err);
       setError('Failed to complete onboarding');
@@ -181,9 +183,11 @@ export default function AddRelationshipScreen() {
       if (isOnboarding) {
         await completeOnboarding(user.id, {});
         setOnboardingComplete(true);
-        router.replace('/(tabs)/home');
+        router.replace('/onboarding/complete');
+      } else if (params.next) {
+        router.push(params.next as any);
       } else {
-      router.back();
+        router.back();
       }
     } catch (err: any) {
       setError(err.message || 'Failed to save relationship');
@@ -200,9 +204,15 @@ export default function AddRelationshipScreen() {
     >
       <View style={styles.header}>
         {isOnboarding && (
-          <View style={styles.progressBarContainer}>
-            <ProgressBar progress={85} showLabel={false} gradientColors={['#4A90E2', '#357ABD', '#2E6DA4']} />
-          </View>
+          <>
+            <View style={styles.progressBarContainer}>
+              <ProgressBar progress={85} showLabel={false} gradientColors={['#4A90E2', '#357ABD', '#2E6DA4']} />
+            </View>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)/home')} style={styles.homeButton}>
+              <Home size={20} color="rgba(200, 200, 200, 0.75)" />
+              <Text style={styles.homeText}>Home</Text>
+            </TouchableOpacity>
+          </>
         )}
         {!isOnboarding && (
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -210,8 +220,7 @@ export default function AddRelationshipScreen() {
         </TouchableOpacity>
         )}
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.title}>Making a decision with someone?</Text>
-          <Text style={styles.subtitle}>Add their twin below.</Text>
+          <Text style={styles.title}>Add your relationships</Text>
         </View>
         
         {/* Mode Toggle */}
@@ -280,14 +289,20 @@ export default function AddRelationshipScreen() {
                     >
                       <View style={styles.extractedIcon}>
                         {rel.selected ? (
-                          <CheckCircle2 size={24} color="#10B981" />
+                          <CheckCircle2 size={24} color="#60A5FA" />
                         ) : (
-                          <Circle size={24} color="#D1D5DB" />
+                          <Circle size={24} color="#6B7280" />
                         )}
                       </View>
                       <View style={styles.extractedContent}>
-                        <Text style={styles.extractedName}>{rel.name}</Text>
-                        <Text style={styles.extractedDetails}>
+                        <Text style={[
+                          styles.extractedName,
+                          !rel.selected && styles.extractedNameUnselected
+                        ]}>{rel.name}</Text>
+                        <Text style={[
+                          styles.extractedDetails,
+                          !rel.selected && styles.extractedDetailsUnselected
+                        ]}>
                           {rel.relationship_type}
                           {rel.duration && ` • ${rel.duration} years`}
                           {rel.location && ` • ${rel.location}`}
@@ -507,6 +522,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(200, 200, 200, 0.75)',
   },
+  homeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 16,
+  },
+  homeText: {
+    fontSize: 16,
+    color: 'rgba(200, 200, 200, 0.75)',
+  },
   headerTitleContainer: {
     marginBottom: 24,
   },
@@ -709,16 +734,18 @@ const styles = StyleSheet.create({
   extractedCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C10',
+    backgroundColor: 'rgba(20, 20, 25, 0.8)',
     borderRadius: 16,
     padding: 16,
     borderWidth: 2,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(59, 37, 109, 0.4)',
     gap: 12,
+    opacity: 0.85,
   },
   extractedCardSelected: {
-    borderColor: '#10B981',
-    backgroundColor: '#F0FDF4',
+    borderColor: '#60A5FA',
+    backgroundColor: '#0C0C10',
+    opacity: 1,
   },
   extractedIcon: {
     width: 24,
@@ -733,10 +760,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  extractedNameUnselected: {
+    color: '#9CA3AF',
+  },
   extractedDetails: {
     fontSize: 14,
     color: 'rgba(200, 200, 200, 0.75)',
     textTransform: 'capitalize',
+  },
+  extractedDetailsUnselected: {
+    color: '#6B7280',
   },
   footer: {
     position: 'absolute',

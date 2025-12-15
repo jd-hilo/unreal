@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, Clipboard, Linking, Modal, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, Clipboard, Linking, Modal, Animated, Dimensions, Easing } from 'react-native';
 import Svg, { Circle, Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -33,6 +33,51 @@ interface ProfileCard {
   completed: boolean;
 }
 
+// Animated Progress Arc Component
+function AnimatedProgressArc({ progress }: { progress: number }) {
+  const radius = 64;
+  const centerX = 70;
+  const centerY = 70;
+  
+  // If progress is 100%, draw a full circle
+  if (progress >= 1) {
+    return (
+      <Circle
+        cx={centerX}
+        cy={centerY}
+        r={radius}
+        stroke="url(#progressGradient)"
+        strokeWidth={6}
+        fill="none"
+        strokeLinecap="round"
+      />
+    );
+  }
+  
+  // Otherwise draw an arc
+  const angle = progress * 2 * Math.PI - Math.PI / 2; // Start from top
+  const x = centerX + radius * Math.cos(angle);
+  const y = centerY + radius * Math.sin(angle);
+  const largeArcFlag = progress > 0.5 ? 1 : 0;
+  
+  const pathData = `M ${centerX} ${centerY - radius} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x} ${y}`;
+  
+  return (
+    <Path
+      d={pathData}
+      stroke="url(#progressGradient)"
+      strokeWidth={6}
+      fill="none"
+      strokeLinecap="round"
+    />
+  );
+}
+
+// Animated Percentage Text Component
+function AnimatedPercentageText({ progress }: { progress: number }) {
+  return <Text style={styles.percentageText}>{Math.round(progress)}%</Text>;
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
@@ -49,6 +94,8 @@ export default function ProfileScreen() {
   const [savingFirstName, setSavingFirstName] = useState(false);
   const [previousRoute, setPreviousRoute] = useState<string>('/(tabs)/home');
   const animatedTwinCode = useTextScramble(twinCode, 1500);
+  const [animatedProgress, setAnimatedProgress] = useState(0);
+  const progressAnimRef = useRef<Animated.Value | null>(null);
 
   // Reload profile data when screen comes into focus
   useFocusEffect(
@@ -65,7 +112,39 @@ export default function ProfileScreen() {
           setPreviousRoute(route);
         }
       });
-    }, [user])
+      
+      // Animate progress bar when page is focused
+      if (progressAnimRef.current) {
+        progressAnimRef.current.stopAnimation();
+      }
+      progressAnimRef.current = new Animated.Value(0);
+      setAnimatedProgress(0);
+      
+      const animation = Animated.timing(progressAnimRef.current, {
+        toValue: totalProgress,
+        duration: 1500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      });
+      
+      const listenerId = progressAnimRef.current.addListener(({ value }) => {
+        setAnimatedProgress(value);
+      });
+      
+      animation.start(({ finished }) => {
+        if (finished && progressAnimRef.current) {
+          progressAnimRef.current.removeListener(listenerId);
+          setAnimatedProgress(totalProgress);
+        }
+      });
+      
+      return () => {
+        if (progressAnimRef.current) {
+          progressAnimRef.current.removeListener(listenerId);
+          progressAnimRef.current.stopAnimation();
+        }
+      };
+    }, [user, totalProgress])
   );
 
   useEffect(() => {
@@ -330,45 +409,9 @@ export default function ProfileScreen() {
                     fill="none"
                   />
                   {/* Progress arc */}
-                  {(() => {
-                    const radius = 64;
-                    const centerX = 70;
-                    const centerY = 70;
-                    const progress = totalProgress / 100;
-                    
-                    // If progress is 100%, draw a full circle
-                    if (progress >= 1) {
-                      return (
-                        <Circle
-                          cx={centerX}
-                          cy={centerY}
-                          r={radius}
-                          stroke="url(#progressGradient)"
-                          strokeWidth={6}
-                          fill="none"
-                          strokeLinecap="round"
-                        />
-                      );
-                    }
-                    
-                    // Otherwise draw an arc
-                    const angle = progress * 2 * Math.PI - Math.PI / 2; // Start from top
-                    const x = centerX + radius * Math.cos(angle);
-                    const y = centerY + radius * Math.sin(angle);
-                    const largeArcFlag = progress > 0.5 ? 1 : 0;
-                    
-                    const pathData = `M ${centerX} ${centerY - radius} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x} ${y}`;
-                    
-                    return (
-                      <Path
-                        d={pathData}
-                        stroke="url(#progressGradient)"
-                        strokeWidth={6}
-                        fill="none"
-                        strokeLinecap="round"
-                      />
-                    );
-                  })()}
+                  <AnimatedProgressArc 
+                    progress={animatedProgress / 100}
+                  />
                 </Svg>
                 
                 <View style={styles.avatarContainer}>
@@ -390,7 +433,9 @@ export default function ProfileScreen() {
                       pointerEvents="none"
                     />
                     <View style={styles.percentageBadgeInner}>
-                      <Text style={styles.percentageText}>{totalProgress}%</Text>
+                      <AnimatedPercentageText 
+                        progress={animatedProgress}
+                      />
                     </View>
                   </BlurView>
                 </View>

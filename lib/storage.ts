@@ -556,6 +556,11 @@ export async function completeOnboarding(
   const currentCoreJson = (profile?.core_json as CoreJsonData) || {};
   const onboardingResponses = currentCoreJson.onboarding_responses || {};
 
+  // Ensure core_values is preserved from existing values_json
+  const existingValuesJson = profile?.values_json || [];
+  const existingCoreValues = currentCoreJson.core_values || [];
+  const finalCoreValues = existingValuesJson.length > 0 ? existingValuesJson : existingCoreValues;
+
   // Mark onboarding as complete in core_json
   const updatedCoreJson: CoreJsonData = {
     ...currentCoreJson,
@@ -564,12 +569,16 @@ export async function completeOnboarding(
       ...onboardingData,
     },
     onboarding_complete: true,
+    // Preserve core_values if they exist
+    ...(finalCoreValues.length > 0 && { core_values: finalCoreValues }),
   };
 
   // Build update object, preserving existing values if not provided
   const updatePayload: any = {
     user_id: userId,
     core_json: updatedCoreJson as any,
+    // Preserve values_json
+    values_json: existingValuesJson,
   };
 
   // Only update fields if provided, otherwise preserve existing values
@@ -707,10 +716,13 @@ export async function assignABTestGroup(userId: string): Promise<'A' | 'B'> {
   // Ensure profile exists first
   let profile = await getProfile(userId);
   if (!profile) {
-    // Create a basic profile if it doesn't exist with 5 simulation credits
+    // Create a basic profile if it doesn't exist
+    // Note: We don't include simulation_credits to avoid schema cache errors
+    // The column may not exist in all database instances
     const { error: createError } = await supabase
       .from('profiles')
-      .insert({ user_id: userId, ab_test_group: group, simulation_credits: 5 });
+      .insert({ user_id: userId, ab_test_group: group });
+    
     if (createError) {
       console.error('Failed to create profile with AB test group:', createError);
       throw createError;
@@ -718,14 +730,12 @@ export async function assignABTestGroup(userId: string): Promise<'A' | 'B'> {
     profile = await getProfile(userId);
   } else {
     // Update existing profile with AB test group if not already set
-    // Also ensure simulation_credits is set to 5 if null
     const updates: any = {};
     if (!profile.ab_test_group) {
       updates.ab_test_group = group;
     }
-    if (profile.simulation_credits === null || profile.simulation_credits === undefined) {
-      updates.simulation_credits = 5;
-    }
+    // Only try to update simulation_credits if the column exists (avoid schema errors)
+    // We'll skip this for now since it's causing schema cache issues
     
     if (Object.keys(updates).length > 0) {
       const { error: updateError } = await supabase

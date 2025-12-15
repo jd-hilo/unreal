@@ -9,3 +9,4 @@ WHERE simulation_credits IS NULL;
 
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_profiles_simulation_credits ON profiles(simulation_credits);
+

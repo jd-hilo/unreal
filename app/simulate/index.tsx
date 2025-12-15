@@ -189,7 +189,7 @@ export default function SimulateDashboard() {
               style={styles.newGameGradient}
             >
               <View style={styles.newGameContent}>
-                <Text style={styles.newGameTitle}>New Reality</Text>
+                <Text style={styles.newGameTitle}>New Life Simulation</Text>
                 <Text style={styles.newGameSubtitle}>Create a new timeline and see where life takes you.</Text>
                 <View style={styles.playButton}>
                   <Text style={styles.playButtonText}>Start</Text>
@@ -285,7 +285,7 @@ export default function SimulateDashboard() {
                   <Star size={20} color="#FBBF24" fill="#FBBF24" />
                 </View>
                 <View style={styles.premiumContent}>
-                   <Text style={styles.premiumTitle}>Unlock Unlimited Energy</Text>
+                   <Text style={styles.premiumTitle}>Unlock Unlimited Sims</Text>
                    <Text style={styles.premiumSubtitle}>Get Premium for infinite simulations</Text>
             </View>
                 <ChevronRight size={20} color="#FBBF24" />
@@ -708,4 +708,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
+
 

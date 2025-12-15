@@ -160,11 +160,11 @@ export default function PremiumScreen() {
     {
       icon: Infinity,
       title: 'Unlimited Simulations',
-      description: 'Create unlimited timelines and simulate unlimited years (free users: 1 timeline, 3 years max)',
+      description: 'Create unlimited timelines and simulate unlimited years',
     },
     {
       icon: Zap,
-      title: 'Simulate Life Choices',
+      title: 'Simulate Decision Outcomes',
       description: 'Long-term outcomes for every decision',
     },
     {
