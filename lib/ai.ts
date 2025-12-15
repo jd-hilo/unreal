@@ -2606,7 +2606,34 @@ export async function advanceTimeline({
       temperature: 0.7,
     });
 
-    const parsed = JSON.parse(content) as TimelineAdvancementResult & { removedAssets?: string[] };
+    // Try to extract JSON from the response
+    let jsonContent = content.trim();
+    
+    // Remove markdown code blocks if present
+    if (jsonContent.startsWith('```')) {
+      const lines = jsonContent.split('\n');
+      const startIndex = lines.findIndex(line => line.includes('```'));
+      const endIndex = lines.findIndex((line, idx) => idx > startIndex && line.includes('```'));
+      if (startIndex !== -1 && endIndex !== -1) {
+        jsonContent = lines.slice(startIndex + 1, endIndex).join('\n');
+      }
+    }
+    
+    // Try to find JSON object in the content
+    const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonContent = jsonMatch[0];
+    }
+
+    let parsed: TimelineAdvancementResult & { removedAssets?: string[] };
+    try {
+      parsed = JSON.parse(jsonContent) as TimelineAdvancementResult & { removedAssets?: string[] };
+    } catch (parseError: any) {
+      console.error('JSON parse error. Raw content:', content);
+      console.error('Extracted JSON content:', jsonContent);
+      console.error('Parse error:', parseError);
+      throw new Error(`Failed to parse AI response as JSON. The response may have been cut off or malformed. Please try again.`);
+    }
 
     // Ensure age is correct
     parsed.newAge = currentAge + 1;

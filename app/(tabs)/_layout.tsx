@@ -4,6 +4,9 @@ import { HomeGradientIcon, SimulationsGradientIcon } from '@/components/Gradient
 import { BlurView } from 'expo-blur';
 import { StyleSheet, Platform, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '@/store/useAuth';
+import { getProfile } from '@/lib/storage';
+import { useState, useEffect } from 'react';
 
 // Conditionally import liquid-glass only on iOS
 let LiquidGlassView: any;
@@ -21,6 +24,26 @@ if (Platform.OS === 'ios') {
 }
 
 export default function TabLayout() {
+  const user = useAuth((state) => state.user);
+  const [abTestGroup, setAbTestGroup] = useState<'A' | 'B' | null>(null);
+
+  useEffect(() => {
+    async function fetchAbTestGroup() {
+      if (user?.id) {
+        try {
+          const profile = await getProfile(user.id);
+          setAbTestGroup(profile?.ab_test_group || null);
+        } catch (error) {
+          console.error('Failed to fetch AB test group:', error);
+        }
+      }
+    }
+    fetchAbTestGroup();
+  }, [user?.id]);
+
+  // Hide tab bar for group A users
+  const shouldHideTabBar = abTestGroup === 'A';
+
   return (
     <Tabs
       screenOptions={{
@@ -29,7 +52,11 @@ export default function TabLayout() {
         tabBarActiveTintColor: '#FFFFFF',
         tabBarInactiveTintColor: 'rgba(150, 150, 150, 0.8)',
         sceneStyle: { backgroundColor: '#0C0C10' },
-        tabBarStyle: {
+        tabBarStyle: shouldHideTabBar ? {
+          height: 0,
+          opacity: 0,
+          overflow: 'hidden',
+        } : {
           backgroundColor: 'transparent',
           borderTopWidth: 0,
           paddingTop: 8,

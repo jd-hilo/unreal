@@ -18,6 +18,7 @@ export interface Database {
           twin_code: string | null;
           is_premium: boolean;
           ab_test_group: 'A' | 'B' | null;
+          simulation_credits: number | null;
           core_json: CoreJsonData;
           values_json: string[];
           narrative_summary: string | null;
@@ -39,6 +40,7 @@ export interface Database {
           twin_code?: string | null;
           is_premium?: boolean;
           ab_test_group?: 'A' | 'B' | null;
+          simulation_credits?: number | null;
           core_json?: CoreJsonData;
           values_json?: string[];
           narrative_summary?: string | null;
@@ -60,6 +62,7 @@ export interface Database {
           twin_code?: string | null;
           is_premium?: boolean;
           ab_test_group?: 'A' | 'B' | null;
+          simulation_credits?: number | null;
           core_json?: CoreJsonData;
           values_json?: string[];
           narrative_summary?: string | null;

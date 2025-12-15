@@ -707,10 +707,10 @@ export async function assignABTestGroup(userId: string): Promise<'A' | 'B'> {
   // Ensure profile exists first
   let profile = await getProfile(userId);
   if (!profile) {
-    // Create a basic profile if it doesn't exist
+    // Create a basic profile if it doesn't exist with 5 simulation credits
     const { error: createError } = await supabase
       .from('profiles')
-      .insert({ user_id: userId, ab_test_group: group });
+      .insert({ user_id: userId, ab_test_group: group, simulation_credits: 5 });
     if (createError) {
       console.error('Failed to create profile with AB test group:', createError);
       throw createError;
@@ -718,10 +718,19 @@ export async function assignABTestGroup(userId: string): Promise<'A' | 'B'> {
     profile = await getProfile(userId);
   } else {
     // Update existing profile with AB test group if not already set
+    // Also ensure simulation_credits is set to 5 if null
+    const updates: any = {};
     if (!profile.ab_test_group) {
+      updates.ab_test_group = group;
+    }
+    if (profile.simulation_credits === null || profile.simulation_credits === undefined) {
+      updates.simulation_credits = 5;
+    }
+    
+    if (Object.keys(updates).length > 0) {
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ ab_test_group: group })
+        .update(updates)
         .eq('user_id', userId);
       
       if (updateError) {
@@ -1350,6 +1359,39 @@ export async function deleteYearPrediction(predictionId: string) {
 }
 
 /**
+ * Check if user has enough simulation credits
+ */
+export async function checkSimulationCredits(userId: string, isPremium: boolean): Promise<{ hasCredits: boolean; credits: number }> {
+  if (isPremium) {
+    return { hasCredits: true, credits: Infinity };
+  }
+  
+  const profile = await getProfile(userId);
+  const credits = profile?.simulation_credits ?? 5;
+  return { hasCredits: credits >= 5, credits };
+}
+
+/**
+ * Deduct simulation credits (5 credits to create a timeline)
+ */
+export async function deductSimulationCredits(userId: string, isPremium: boolean): Promise<void> {
+  if (isPremium) {
+    return; // Premium users have unlimited credits
+  }
+  
+  const profile = await getProfile(userId);
+  const currentCredits = profile?.simulation_credits ?? 5;
+  const newCredits = Math.max(0, currentCredits - 5);
+  
+  const { error } = await supabase
+    .from('profiles')
+    .update({ simulation_credits: newCredits })
+    .eq('user_id', userId);
+  
+  if (error) throw error;
+}
+
+/**
  * Create a new timeline
  */
 export async function createTimeline(
@@ -1358,8 +1400,18 @@ export async function createTimeline(
   currentAge: number,
   initialStats?: TimelineStats,
   initialProfile?: TimelineTwinProfile,
-  initialRelationships?: Array<{ name: string; type: string; status: string; description: string }>
+  initialRelationships?: Array<{ name: string; type: string; status: string; description: string }>,
+  isPremium: boolean = false
 ) {
+  // Check and deduct credits for free users
+  if (!isPremium) {
+    const { hasCredits } = await checkSimulationCredits(userId, isPremium);
+    if (!hasCredits) {
+      throw new Error('INSUFFICIENT_CREDITS');
+    }
+    await deductSimulationCredits(userId, isPremium);
+  }
+  
   const { data, error } = await supabase
     .from('timelines')
     .insert({

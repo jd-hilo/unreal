@@ -23,125 +23,6 @@ function parseNetWorth(str: string): number | null {
   return isNaN(num) ? null : num;
 }
 
-// Animated Progress Bar Component
-function AnimatedProgressBar({ value, color, icon, previousValue }: { value: number; color: string; icon: any; previousValue?: number }) {
-  const Icon = icon;
-  const animValue = useRef(new Animated.Value(previousValue || 0)).current;
-  const [delta, setDelta] = useState<number | null>(null);
-  const deltaAnim = useRef(new Animated.Value(0)).current;
-  const deltaOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (previousValue !== undefined && previousValue !== value) {
-      const change = value - previousValue;
-      setDelta(change);
-      
-      // Animate the bar
-      Animated.timing(animValue, {
-        toValue: value,
-        duration: 800,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-
-      // Show delta indicator
-      deltaOpacity.setValue(1);
-      deltaAnim.setValue(0);
-      Animated.parallel([
-        Animated.timing(deltaAnim, {
-          toValue: 1,
-          duration: 300,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.sequence([
-          Animated.delay(4000),
-          Animated.timing(deltaOpacity, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]).start(() => {
-        setDelta(null);
-      });
-    } else {
-      animValue.setValue(value);
-    }
-  }, [value, previousValue]);
-
-  const widthInterpolate = animValue.interpolate({
-    inputRange: [0, 10],
-    outputRange: ['0%', '100%'],
-  });
-
-  const translateY = deltaAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -20],
-  });
-
-  return (
-    <View style={styles.statBarContainer}>
-      <View style={styles.statBarIcon}>
-        <Icon size={14} color={color} />
-      </View>
-      <View style={styles.statBarTrack}>
-        <Animated.View
-          style={[
-            styles.statBarFillAnimated,
-            {
-              width: widthInterpolate,
-              backgroundColor: color,
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={[color, adjustColorBrightness(color, -20)]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
-        </Animated.View>
-      </View>
-      <View style={styles.statBarValueContainer}>
-        <View style={{flexDirection: 'column', alignItems: 'flex-end', gap: 2}}>
-          <Text style={styles.statBarValue}>{Math.round(value)}/10</Text>
-          {previousValue !== undefined && previousValue !== value && (
-            <Text style={styles.previousStatValue}>
-              Was: {Math.round(previousValue)}/10
-            </Text>
-          )}
-        </View>
-        {delta !== null && (
-          <Animated.View
-            style={[
-              styles.deltaIndicator,
-              {
-                opacity: deltaOpacity,
-                transform: [{ translateY }],
-                backgroundColor: delta > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-              },
-            ]}
-          >
-            {delta > 0 ? (
-              <TrendingUp size={12} color="#10B981" />
-            ) : (
-              <TrendingDown size={12} color="#EF4444" />
-            )}
-            <Text
-              style={[
-                styles.deltaText,
-                { color: delta > 0 ? '#10B981' : '#EF4444' },
-              ]}
-            >
-              {delta > 0 ? '+' : ''}{delta.toFixed(1)}
-            </Text>
-          </Animated.View>
-        )}
-      </View>
-    </View>
-  );
-}
 
 // Animated Net Worth Component
 function AnimatedNetWorth({ value, previousValue, deltaString }: { value: string; previousValue?: string; deltaString?: string }) {
@@ -224,60 +105,22 @@ function AnimatedNetWorth({ value, previousValue, deltaString }: { value: string
   return (
     <View style={styles.netWorthContainer}>
       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-        <Text style={styles.primaryStatValue}>{value}</Text>
+        <Text style={styles.secondaryStatValue}>{value}</Text>
       </Animated.View>
       {delta !== null && delta !== 0 && (
-        <Animated.View
+        <Text
           style={[
-            styles.netWorthDelta,
-            {
-              opacity: deltaOpacity,
-              transform: [{ translateY }],
-            },
+            styles.netWorthDeltaBelow,
+            { color: delta > 0 ? '#10B981' : '#EF4444' },
           ]}
         >
-          <LinearGradient
-            colors={
-              delta > 0
-                ? ['rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 0.1)']
-                : ['rgba(239, 68, 68, 0.3)', 'rgba(239, 68, 68, 0.1)']
-            }
-            style={styles.netWorthDeltaGradient}
-          >
-            {delta > 0 ? (
-              <TrendingUp size={14} color="#10B981" />
-            ) : (
-              <TrendingDown size={14} color="#EF4444" />
-            )}
-            <Text
-              style={[
-                styles.netWorthDeltaText,
-                { color: delta > 0 ? '#10B981' : '#EF4444' },
-              ]}
-            >
-              {formatDelta(delta)}
-            </Text>
-          </LinearGradient>
-        </Animated.View>
+          {formatDelta(delta)}
+        </Text>
       )}
     </View>
   );
 }
 
-function adjustColorBrightness(color: string, percent: number): string {
-  // Convert hex to RGB
-  const hex = color.replace('#', '');
-  const r = parseInt(hex.substr(0, 2), 16);
-  const g = parseInt(hex.substr(2, 2), 16);
-  const b = parseInt(hex.substr(4, 2), 16);
-  
-  // Adjust brightness
-  const newR = Math.max(0, Math.min(255, r + (r * percent / 100)));
-  const newG = Math.max(0, Math.min(255, g + (g * percent / 100)));
-  const newB = Math.max(0, Math.min(255, b + (b * percent / 100)));
-  
-  return `rgb(${Math.round(newR)}, ${Math.round(newG)}, ${Math.round(newB)})`;
-}
 
 export default function TimelineDetailScreen() {
   const router = useRouter();
@@ -299,6 +142,21 @@ export default function TimelineDetailScreen() {
   const previousStats = useRef<any>(null);
   const previousNetWorth = useRef<string | null>(null);
   const [currentInventoryIndex, setCurrentInventoryIndex] = useState(0);
+  const [currentLoadingMessage, setCurrentLoadingMessage] = useState(0);
+
+  // Loading messages to cycle through
+  const loadingMessages = [
+    'Simulating your decision...',
+    'Building your alternate timeline...',
+    'Calculating life outcomes...',
+    'Analyzing potential consequences...',
+    'Mapping your future path...',
+    'Processing life scenarios...',
+    'Generating timeline possibilities...',
+    'Evaluating decision impact...',
+    'Crafting your story...',
+    'Predicting future events...',
+  ];
   const inventoryScrollAnim = useRef(new Animated.Value(0)).current;
 
   // Slide-up animations for UI sections
@@ -306,6 +164,10 @@ export default function TimelineDetailScreen() {
   const actionButtonAnim = useRef(new Animated.Value(50)).current;
   const lifeLogAnim = useRef(new Animated.Value(50)).current;
   const inventoryAnim = useRef(new Animated.Value(50)).current;
+
+  // Loading screen animations
+  const loadingPulseAnim = useRef(new Animated.Value(1)).current;
+  const loadingRotateAnim = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -360,6 +222,51 @@ export default function TimelineDetailScreen() {
     }
   }, [timeline?.assets?.length]);
 
+  // Loading screen animations
+  useEffect(() => {
+    if (addingScenario) {
+      // Start pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(loadingPulseAnim, {
+            toValue: 1.1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(loadingPulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      // Start rotation animation
+      Animated.loop(
+        Animated.timing(loadingRotateAnim, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+
+      // Cycle through loading messages every 2.5 seconds
+      setCurrentLoadingMessage(0);
+      const messageInterval = setInterval(() => {
+        setCurrentLoadingMessage((prev) => (prev + 1) % loadingMessages.length);
+      }, 2500);
+
+      return () => clearInterval(messageInterval);
+    } else {
+      loadingPulseAnim.setValue(1);
+      loadingRotateAnim.setValue(0);
+      setCurrentLoadingMessage(0);
+    }
+  }, [addingScenario]);
+
   // Slide-up animations on timeline load
   useEffect(() => {
     if (timeline && !loading) {
@@ -406,19 +313,17 @@ export default function TimelineDetailScreen() {
   async function handleAddScenario() {
     if (!scenarioText.trim() || !timeline || !user) return;
 
-    // Check limits
-    const scenarioCount = timeline.scenario_count || 0;
-    const maxScenarios = isPremium ? Infinity : 5;
-
-    if (scenarioCount >= maxScenarios) {
-      alert(
-        isPremium
-          ? 'Unable to add scenario'
-          : 'Free users can add up to 5 scenarios per timeline. Upgrade to Premium for unlimited scenarios.'
-      );
-      return;
+    // Check year limit for free users (max 3 years)
+    if (!isPremium) {
+      const currentYear = timeline.current_year || 1;
+      if (currentYear >= 3) {
+        router.push('/premium');
+        return;
+      }
     }
 
+    // Close modal immediately and show loading screen
+    setScenarioModalVisible(false);
     setAddingScenario(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -455,6 +360,7 @@ export default function TimelineDetailScreen() {
       const previousYearSnapshot = {
         netWorth: timeline.twin_profile?.netWorth || null,
         location: timeline.twin_profile?.location || null,
+        job: timeline.twin_profile?.job || null,
         relationships_count: timeline.relationships?.length || 0,
         stats: { ...timeline.stats },
       };
@@ -503,8 +409,16 @@ export default function TimelineDetailScreen() {
       }
 
       setTimeline(updatedTimeline);
-      setScenarioModalVisible(false);
       setScenarioText('');
+      
+      // Automatically expand the most recent year that was simulated
+      const newCurrentYear = updatedTimeline.current_year || 1;
+      setExpandedYears((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(newCurrentYear);
+        return newSet;
+      });
+      
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
       console.error('Failed to add scenario:', error);
@@ -619,6 +533,97 @@ export default function TimelineDetailScreen() {
     );
   }
 
+  if (addingScenario) {
+    const rotateInterpolate = loadingRotateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    return (
+      <View style={styles.loadingScreen}>
+        <LinearGradient
+          colors={['#050505', '#0A0A0A', '#050505']}
+          style={styles.loadingGradientContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
+            <View style={styles.loadingContent}>
+              {/* Animated Orb */}
+              <View style={styles.orbContainer}>
+                <Animated.View
+                  style={[
+                    styles.orbOuter,
+                    {
+                      transform: [
+                        { scale: loadingPulseAnim },
+                        { rotate: rotateInterpolate },
+                      ],
+                    },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.1)', 'rgba(65, 105, 225, 0.05)']}
+                    style={styles.orbGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                </Animated.View>
+                <View style={styles.orbInner}>
+                  <Image 
+                    source={require('@/assets/images/cube.png')}
+                    style={styles.loadingCubeIcon}
+                    resizeMode="contain"
+                  />
+                </View>
+              </View>
+
+              {/* Loading Text */}
+              <View style={styles.textContainer}>
+                <Text style={styles.loadingText}>{loadingMessages[currentLoadingMessage]}</Text>
+                <View style={styles.statusContainer}>
+                  <BlurView intensity={20} tint="dark" style={styles.statusBlur}>
+                    <Text style={styles.statusText}>
+                      Please wait while we process your timeline...
+                    </Text>
+                  </BlurView>
+                </View>
+              </View>
+
+              {/* Loading Dots */}
+              <View style={styles.dotsContainer}>
+                {[0, 1, 2].map((index) => (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.dot,
+                      {
+                        backgroundColor: '#87CEFA',
+                        transform: [
+                          {
+                            scale: loadingPulseAnim.interpolate({
+                              inputRange: [1, 1.1],
+                              outputRange: [1, 1.2],
+                            }),
+                          },
+                        ],
+                        opacity: loadingPulseAnim.interpolate({
+                          inputRange: [1, 1.1],
+                          outputRange: [0.5, 1],
+                        }),
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
+      </View>
+    );
+  }
+
   if (!timeline) {
     return (
       <View style={styles.container}>
@@ -675,12 +680,7 @@ export default function TimelineDetailScreen() {
                     },
                   ]}
                 >
-                  <LinearGradient
-                    colors={['rgba(14, 165, 233, 0.3)', 'rgba(14, 165, 233, 0.15)', 'rgba(20, 20, 20, 0.95)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.notificationContent}
-                  >
+                  <View style={styles.notificationContent}>
                     <View style={styles.notificationEmojiContainer}>
                       <Text style={styles.notificationEmoji}>
                         {getAssetEmoji(notif.asset.type || 'other')}
@@ -694,9 +694,9 @@ export default function TimelineDetailScreen() {
                       onPress={() => dismissNotification(notif.id)}
                       style={styles.notificationClose}
                     >
-                      <X size={18} color="rgba(255, 255, 255, 0.7)" />
+                      <X size={18} color="#000000" />
                     </TouchableOpacity>
-                  </LinearGradient>
+                  </View>
                 </Animated.View>
               );
             })}
@@ -717,7 +717,9 @@ export default function TimelineDetailScreen() {
           <View style={styles.headerRight}>
              <View style={styles.turnCounter}>
                 <Zap size={14} color="#FCD34D" fill="#FCD34D" />
-                <Text style={styles.turnText}>{timeline.scenario_count || 0}/5</Text>
+                <Text style={styles.turnText}>
+                  {isPremium ? '∞' : `${timeline.current_year || 1}/3`}
+                </Text>
              </View>
           </View>
         </View>
@@ -740,176 +742,150 @@ export default function TimelineDetailScreen() {
               },
             ]}
           >
-            <Image 
-              source={require('@/assets/images/splash-icon.png')} 
-              style={[StyleSheet.absoluteFill, { opacity: 0.05 }]}
-              blurRadius={50}
-            />
-            
-            {/* Top Row: Avatar & Main Metrics */}
-            <View style={styles.statsTopRow}>
-              <View style={styles.avatarSection}>
-                <View style={styles.avatarContainer}>
-                  <Image 
-                     source={require('@/assets/images/man.png')} 
-                     style={styles.avatarImage} 
-                  />
+            {/* Top Row: Avatar & Age */}
+            <View style={styles.profileHeader}>
+              <View style={styles.avatarContainer}>
+                <View style={styles.avatarIconContainer}>
+                  <User size={40} color="#0EA5E9" />
                 </View>
-                <View style={styles.ageDisplay}>
-                  <Text style={styles.ageDisplayText}>{timeline.current_age}</Text>
-                  <Text style={styles.ageDisplayLabel}>Years Old</Text>
+                <View style={styles.ageContainer}>
+                  <Text style={styles.ageValue}>{timeline.current_age}</Text>
+                  <Text style={styles.ageLabel}>YEARS OLD</Text>
                 </View>
               </View>
-              
-              <View style={styles.primaryStats}>
-                 {/* Money */}
-                 <View style={styles.primaryStatItem}>
-                    <View style={styles.coinIcon}>
-                       <DollarSign size={16} color="#10B981" />
-                    </View>
-                    <View style={styles.primaryStatTextContainer}>
-                       <Text style={styles.primaryStatLabel}>NET WORTH</Text>
-                       <View style={{flexDirection: 'row', alignItems: 'baseline', gap: 6}}>
-                         <AnimatedNetWorth 
-                           value={timeline.twin_profile?.netWorth || '$0'} 
-                           previousValue={previousNetWorth.current || undefined}
-                           deltaString={timeline.twin_profile?.profileDeltas?.netWorth}
-                         />
-                         {(() => {
-                           const prevSnapshot = timeline.twin_profile?.previous_year_snapshot;
-                           if (prevSnapshot?.netWorth) {
-                             const prevNum = parseNetWorth(prevSnapshot.netWorth);
-                             const currNum = parseNetWorth(timeline.twin_profile?.netWorth || '$0');
-                             if (prevNum !== null && currNum !== null) {
-                               const delta = currNum - prevNum;
-                               if (delta !== 0) {
-                                 const formatted = Math.abs(delta) >= 1000 
-                                   ? `${delta > 0 ? '+' : ''}$${(delta / 1000).toFixed(1)}K`
-                                   : `${delta > 0 ? '+' : ''}$${Math.round(delta)}`;
-                                 return (
-                                   <Text style={[styles.smallDeltaText, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
-                                     {formatted}
-                                   </Text>
-                                 );
-                               }
-                             }
-                           }
-                           return null;
-                         })()}
-                       </View>
-                  </View>
-                </View>
-
-                 {/* Location */}
-                 <View style={styles.primaryStatItem}>
-                    <View style={[styles.coinIcon, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}>
-                       <MapPin size={16} color="#3B82F6" />
-                    </View>
-                    <View style={styles.primaryStatTextContainer}>
-                       <Text style={styles.primaryStatLabel}>LOCATION</Text>
-                       <View style={{flexDirection: 'column', gap: 2}}>
-                         <Text style={styles.primaryStatValue}>{timeline.twin_profile?.location || 'Unknown'}</Text>
-                         {timeline.twin_profile?.previous_year_snapshot?.location && 
-                          timeline.twin_profile?.previous_year_snapshot?.location !== timeline.twin_profile?.location && (
-                           <Text style={styles.previousValueText}>
-                             Was: {timeline.twin_profile.previous_year_snapshot.location}
-                           </Text>
-                         )}
-                       </View>
-                  </View>
-                </View>
-
-                 {/* Job */}
-                 {timeline.twin_profile?.job && (
-                   <View style={styles.primaryStatItem}>
-                      <View style={[styles.coinIcon, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]}>
-                         <Briefcase size={16} color="#8B5CF6" />
-                      </View>
-                      <View style={styles.primaryStatTextContainer}>
-                         <Text style={styles.primaryStatLabel}>JOB</Text>
-                         <View style={{flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap'}}>
-                           <Text style={styles.primaryStatValue}>{timeline.twin_profile.job}</Text>
-                           {timeline.twin_profile?.profileDeltas?.job && (
-                             <View style={[styles.deltaTag, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]}>
-                               <Text style={[styles.deltaText, { color: '#8B5CF6' }]}>
-                                 {timeline.twin_profile.profileDeltas.job}
-                               </Text>
-                             </View>
-                           )}
-                         </View>
-                    </View>
-                  </View>
-                 )}
-
-                 {/* Relationships */}
-                 <TouchableOpacity 
-                    style={styles.primaryStatItem}
-                    onPress={() => setRelationshipModalVisible(true)}
-                    activeOpacity={0.7}
-                 >
-                    <View style={[styles.coinIcon, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}>
-                       <Users size={16} color="#EF4444" />
-                    </View>
-                    <View style={styles.primaryStatTextContainer}>
-                       <Text style={styles.primaryStatLabel}>RELATIONSHIPS</Text>
-                       <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                         <Text style={styles.primaryStatValue}>
-                           {timeline.relationships?.length || 0} Connections
-                         </Text>
-                         {(() => {
-                           const prevSnapshot = timeline.twin_profile?.previous_year_snapshot;
-                           if (prevSnapshot?.relationships_count !== undefined) {
-                             const delta = (timeline.relationships?.length || 0) - prevSnapshot.relationships_count;
-                             if (delta !== 0) {
-                               return (
-                                 <Text style={[styles.smallDeltaText, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
-                                   {delta > 0 ? '+' : ''}{delta}
-                                 </Text>
-                               );
-                             }
-                           }
-                           return null;
-                         })()}
-                         <ChevronRight size={14} color="#666" />
-                       </View>
-                    </View>
-                 </TouchableOpacity>
-                  </View>
-                </View>
-
-            {/* Status Bars */}
-            <View style={styles.statusBars}>
-              <AnimatedProgressBar 
-                value={timeline.stats?.happiness || 5} 
-                color="#EC4899" 
-                icon={Heart}
-                previousValue={previousStats.current?.happiness ?? timeline.twin_profile?.previous_year_snapshot?.stats?.happiness}
-              />
-              <AnimatedProgressBar 
-                value={timeline.stats?.money || 5} 
-                color="#10B981" 
-                icon={DollarSign}
-                previousValue={previousStats.current?.money ?? timeline.twin_profile?.previous_year_snapshot?.stats?.money}
-              />
-              <AnimatedProgressBar 
-                value={timeline.stats?.freedom || 5} 
-                color="#F59E0B" 
-                icon={Sparkles}
-                previousValue={previousStats.current?.freedom ?? timeline.twin_profile?.previous_year_snapshot?.stats?.freedom}
-              />
-              <AnimatedProgressBar 
-                value={timeline.stats?.growth || 5} 
-                color="#0EA5E9" 
-                icon={Brain}
-                previousValue={previousStats.current?.growth ?? timeline.twin_profile?.previous_year_snapshot?.stats?.growth}
-              />
-              <AnimatedProgressBar 
-                value={timeline.stats?.relationships || 5} 
-                color="#EF4444" 
-                icon={Users}
-                previousValue={previousStats.current?.relationships ?? timeline.twin_profile?.previous_year_snapshot?.stats?.relationships}
-              />
             </View>
+
+            {/* Stats Grid */}
+            <View style={styles.statsGrid}>
+              {/* Job - HERO STAT */}
+              <View style={[styles.statCard, styles.heroStatCard]}>
+                 <View style={styles.statHeader}>
+                    <Briefcase size={20} color="#8B5CF6" />
+                    <Text style={[styles.statLabel, { color: '#8B5CF6' }]}>JOB</Text>
+                 </View>
+                 <Text style={styles.secondaryStatValue}>
+                   {timeline.twin_profile?.job || 'Unemployed'}
+                 </Text>
+                 {timeline.twin_profile?.previous_year_snapshot?.job && 
+                  timeline.twin_profile?.previous_year_snapshot?.job !== timeline.twin_profile?.job && (
+                   <Text style={styles.previousValueText}>
+                     Was: {timeline.twin_profile.previous_year_snapshot.job}
+                   </Text>
+                 )}
+                 <Text style={styles.statSubtext}>Current Role</Text>
+              </View>
+
+              {/* Location - HERO STAT */}
+              <View style={[styles.statCard, styles.heroStatCard]}>
+                 <View style={styles.statHeader}>
+                    <MapPin size={20} color="#3B82F6" />
+                    <Text style={[styles.statLabel, { color: '#3B82F6' }]}>LOCATION</Text>
+                 </View>
+                 <Text style={styles.secondaryStatValue}>
+                   {timeline.twin_profile?.location || 'Unknown'}
+                 </Text>
+                 {timeline.twin_profile?.previous_year_snapshot?.location && 
+                  timeline.twin_profile?.previous_year_snapshot?.location !== timeline.twin_profile?.location && (
+                   <Text style={styles.previousValueText}>
+                     Was: {timeline.twin_profile.previous_year_snapshot.location}
+                   </Text>
+                 )}
+                 <Text style={styles.statSubtext}>Current City</Text>
+              </View>
+
+              {/* Net Worth */}
+              <View style={styles.statCard}>
+                 <View style={styles.statHeader}>
+                    <DollarSign size={18} color="#10B981" />
+                    <Text style={[styles.statLabel, { color: '#10B981' }]}>NET WORTH</Text>
+                 </View>
+                 <AnimatedNetWorth 
+                   value={timeline.twin_profile?.netWorth || '$0'} 
+                   previousValue={previousNetWorth.current || undefined}
+                   deltaString={timeline.twin_profile?.profileDeltas?.netWorth}
+                 />
+              </View>
+
+              {/* Relationships */}
+              <TouchableOpacity 
+                style={styles.statCard}
+                onPress={() => setRelationshipModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                 <View style={styles.statHeader}>
+                    <Users size={18} color="#EF4444" />
+                    <Text style={[styles.statLabel, { color: '#EF4444' }]}>RELATIONSHIPS</Text>
+                 </View>
+                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+                    <Text style={styles.secondaryStatValue}>{timeline.relationships?.length || 0}</Text>
+                    <Text style={styles.secondaryStatUnit}>Connections</Text>
+                    {(() => {
+                      const prevSnapshot = timeline.twin_profile?.previous_year_snapshot;
+                      if (prevSnapshot?.relationships_count !== undefined) {
+                        const delta = (timeline.relationships?.length || 0) - prevSnapshot.relationships_count;
+                        if (delta !== 0) {
+                          return (
+                            <Text style={[styles.relationshipDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
+                              {delta > 0 ? '+' : ''}{delta}
+                            </Text>
+                          );
+                        }
+                      }
+                      return null;
+                    })()}
+                 </View>
+                 <View style={styles.viewMoreRow}>
+                   <Text style={styles.viewMoreText}>View All</Text>
+                   <ChevronRight size={12} color="#666" />
+                 </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Secondary Metrics (Happiness, Freedom) */}
+            <View style={styles.secondaryMetrics}>
+               <View style={styles.miniMetric}>
+                  <Text style={styles.miniMetricLabel}>Happiness</Text>
+                  <View style={styles.miniMetricValueRow}>
+                     <Heart size={14} color="#EC4899" />
+                     <Text style={styles.miniMetricValue}>{Math.round(timeline.stats?.happiness || 5)}/10</Text>
+                     {(() => {
+                       const prevHappiness = previousStats.current?.happiness ?? timeline.twin_profile?.previous_year_snapshot?.stats?.happiness;
+                       const currHappiness = timeline.stats?.happiness || 5;
+                       if (prevHappiness !== undefined && prevHappiness !== currHappiness) {
+                         const delta = currHappiness - prevHappiness;
+                         return (
+                           <Text style={[styles.miniMetricDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
+                             {delta > 0 ? '+' : ''}{delta.toFixed(1)}
+                           </Text>
+                         );
+                       }
+                       return null;
+                     })()}
+                  </View>
+               </View>
+               <View style={styles.miniMetricDivider} />
+               <View style={styles.miniMetric}>
+                  <Text style={styles.miniMetricLabel}>Freedom</Text>
+                  <View style={styles.miniMetricValueRow}>
+                     <Zap size={14} color="#F59E0B" />
+                     <Text style={styles.miniMetricValue}>{Math.round(timeline.stats?.freedom || 5)}/10</Text>
+                     {(() => {
+                       const prevFreedom = previousStats.current?.freedom ?? timeline.twin_profile?.previous_year_snapshot?.stats?.freedom;
+                       const currFreedom = timeline.stats?.freedom || 5;
+                       if (prevFreedom !== undefined && prevFreedom !== currFreedom) {
+                         const delta = currFreedom - prevFreedom;
+                         return (
+                           <Text style={[styles.miniMetricDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
+                             {delta > 0 ? '+' : ''}{delta.toFixed(1)}
+                           </Text>
+                         );
+                       }
+                       return null;
+                     })()}
+                  </View>
+               </View>
+            </View>
+
           </Animated.View>
 
           {/* Action Button (Floating Look) */}
@@ -924,11 +900,13 @@ export default function TimelineDetailScreen() {
           >
           <TouchableOpacity
             onPress={() => {
-              const scenarioCount = timeline.scenario_count || 0;
-              const maxScenarios = isPremium ? Infinity : 5;
-              if (scenarioCount >= maxScenarios && !isPremium) {
-                alert('Free users can add up to 5 scenarios. Upgrade for unlimited.');
-                return;
+              // Check year limit for free users (max 3 years)
+              if (!isPremium) {
+                const currentYear = timeline.current_year || 1;
+                if (currentYear >= 3) {
+                  router.push('/premium');
+                  return;
+                }
               }
               setScenarioModalVisible(true);
             }}
@@ -1294,10 +1272,110 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 40,
+  },
+  loadingGradientContainer: {
+    flex: 1,
+  },
+  loadingSafeArea: {
+    flex: 1,
+  },
+  loadingContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  orbContainer: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 32,
+  },
+  orbOuter: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'hidden',
+  },
+  orbGradient: {
+    width: '100%',
+    height: '100%',
+  },
+  orbInner: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  loadingCubeIcon: {
+    width: 60,
+    height: 60,
+    opacity: 0.9,
+  },
+  textContainer: {
+    alignItems: 'center',
+    gap: 16,
+    width: '100%',
+  },
+  loadingText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  statusContainer: {
+    marginTop: 8,
+  },
+  statusBlur: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
+  },
+  statusText: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    paddingHorizontal: 20,
   },
   errorContainer: {
     flex: 1,
@@ -1332,23 +1410,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 2,
   },
-  ageBadge: {
-    backgroundColor: 'rgba(14, 165, 233, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.4)',
-  },
-  ageText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#C4B5FD',
-  },
-  headerRight: {
-    width: 40,
-    alignItems: 'flex-end',
-  },
   turnCounter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1364,6 +1425,10 @@ const styles = StyleSheet.create({
     color: '#FCD34D',
     fontSize: 12,
     fontWeight: '700',
+  },
+  headerRight: {
+    width: 40,
+    alignItems: 'flex-end',
   },
   scrollView: {
     flex: 1,
@@ -1381,175 +1446,213 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     overflow: 'hidden',
   },
-  statsTopRow: {
+  profileHeader: {
     flexDirection: 'row',
-    gap: 20,
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 24,
   },
-  avatarSection: {
-    alignItems: 'center',
-    gap: 12,
-  },
   avatarContainer: {
-    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
-  avatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  avatarIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     borderWidth: 2,
     borderColor: '#0EA5E9',
-  },
-  ageDisplay: {
+    backgroundColor: 'rgba(14, 165, 233, 0.1)',
     alignItems: 'center',
-    gap: 2,
+    justifyContent: 'center',
   },
-  ageDisplayText: {
+  ageContainer: {
+    justifyContent: 'center',
+  },
+  ageValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFF',
+    lineHeight: 28,
+  },
+  ageLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 1,
+  },
+  contextInfo: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  contextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  contextText: {
+    fontSize: 12,
+    color: '#CCC',
+    maxWidth: 120,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 20,
+  },
+  statCard: {
+    width: '48%', // roughly half width with gap
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  heroStatCard: {
+    width: '100%', // Full width for rectangles instead of squares
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  statHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  statValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    marginBottom: 4,
+  },
+  heroStatValue: {
     fontSize: 32,
     fontWeight: '800',
     color: '#FFF',
-    lineHeight: 38,
   },
-  ageDisplayLabel: {
-    fontSize: 12,
+  heroStatMax: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.4)',
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.6)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
-  primaryStats: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: 16,
+  statSubtext: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 6,
   },
-  primaryStatItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  coinIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  primaryStatTextContainer: {
-    flex: 1,
-    flexShrink: 1,
-  },
-  primaryStatLabel: {
-    fontSize: 10,
-    color: '#888',
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  primaryStatValue: {
-    fontSize: 16,
+  secondaryStatValue: {
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFF',
-    flexWrap: 'wrap',
   },
-  deltaTag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  secondaryStatUnit: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
   },
-  smallDeltaText: {
+  viewMoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+  },
+  viewMoreText: {
     fontSize: 11,
+    color: '#666',
     fontWeight: '600',
+  },
+  secondaryMetrics: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+  },
+  miniMetric: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  miniMetricLabel: {
+    fontSize: 12,
+    color: '#888',
+    fontWeight: '600',
+  },
+  miniMetricValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  miniMetricValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  miniMetricDelta: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  miniMetricDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   previousValueText: {
     fontSize: 11,
     color: 'rgba(255,255,255,0.5)',
     fontStyle: 'italic',
+    marginTop: 4,
   },
-  statusBars: {
-    gap: 12,
-  },
-  statBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  statBarIcon: {
-    width: 24,
-    alignItems: 'center',
-  },
-  statBarTrack: {
-    flex: 1,
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  statBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  statBarFillAnimated: {
-    height: '100%',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  statBarValueContainer: {
-    width: 60,
-    alignItems: 'flex-end',
-    position: 'relative',
-  },
-  statBarValue: {
-    fontSize: 12,
-    color: '#888',
-    textAlign: 'right',
-    fontVariant: ['tabular-nums'],
-  },
-  previousStatValue: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
-    fontStyle: 'italic',
-    textAlign: 'right',
-  },
-  deltaIndicator: {
-    position: 'absolute',
-    top: -20,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  deltaText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
+  
+  // Existing styles to preserve
   netWorthContainer: {
     position: 'relative',
   },
   netWorthDelta: {
     position: 'absolute',
-    top: -30,
-    left: 0,
+    top: -24,
+    right: 0,
     zIndex: 10,
+  },
+  netWorthDeltaBelow: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 4,
   },
   netWorthDeltaGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
   netWorthDeltaText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
+  relationshipDelta: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  smallDeltaText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
+  // Action Button & Other Sections
   actionButtonContainer: {
     marginBottom: 32,
     shadowColor: '#2563EB',
@@ -1689,11 +1792,11 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
   },
   questItemDesc: {
-    fontSize: 13,
+    fontSize: 15,
     color: '#888',
     width: '100%',
     paddingLeft: 12,
-    lineHeight: 18,
+    lineHeight: 22,
   },
   emptyEvents: {
     padding: 32,
@@ -1885,11 +1988,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 20,
     padding: 16,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.4)',
-    shadowColor: '#0EA5E9',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -1897,7 +2001,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1911,12 +2015,12 @@ const styles = StyleSheet.create({
   notificationTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000',
     marginBottom: 2,
   },
   notificationSubtitle: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(0, 0, 0, 0.7)',
   },
   notificationClose: {
     padding: 4,

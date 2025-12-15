@@ -4,7 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Sparkles, Zap, Lock, TrendingUp, Brain, Clock, X, Check, Circle } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Zap, Lock, TrendingUp, Brain, Clock, X, Check, Circle, Infinity } from 'lucide-react-native';
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
@@ -157,6 +157,11 @@ export default function PremiumScreen() {
   }
 
   const features = [
+    {
+      icon: Infinity,
+      title: 'Unlimited Simulations',
+      description: 'Create unlimited timelines and simulate unlimited years (free users: 1 timeline, 3 years max)',
+    },
     {
       icon: Zap,
       title: 'Simulate Life Choices',

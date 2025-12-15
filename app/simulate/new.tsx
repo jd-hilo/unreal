@@ -81,7 +81,8 @@ export default function NewSimulationScreen() {
         age,
         undefined, // Use default stats
         initialProfile,
-        initialRelationships
+        initialRelationships,
+        isPremium
       );
 
       // In a real implementation, we would pass focus/difficulty to the backend/AI
@@ -89,9 +90,13 @@ export default function NewSimulationScreen() {
       
       router.replace(`/simulate/${newTimeline.id}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create timeline:', error);
-      alert('Failed to create timeline');
+      if (error?.message === 'INSUFFICIENT_CREDITS') {
+        router.push('/premium');
+      } else {
+        alert('Failed to create timeline');
+      }
     } finally {
       setLoading(false);
     }

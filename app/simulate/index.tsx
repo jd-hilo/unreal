@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getTimelines, deleteTimeline, getProfile } from '@/lib/storage';
+import { getTimelines, deleteTimeline, getProfile, checkSimulationCredits } from '@/lib/storage';
 import { ChevronRight, Plus, Lock, Zap, Play, Trophy, Users, Star } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -22,6 +22,7 @@ export default function SimulateDashboard() {
   const [userAge, setUserAge] = useState<number | null>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [timelineToDelete, setTimelineToDelete] = useState<string | null>(null);
+  const [simulationCredits, setSimulationCredits] = useState<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -41,6 +42,7 @@ export default function SimulateDashboard() {
       ]);
 
       setTimelines(timelinesData || []);
+      setSimulationCredits(profile?.simulation_credits ?? 5);
 
       const responses = profile?.core_json?.onboarding_responses || {};
       const birthYearVal = responses['birth-year'] || responses['00-birth-year'];
@@ -129,8 +131,13 @@ export default function SimulateDashboard() {
               style={styles.resourceBadge}
             >
               <Zap size={14} color="#FCD34D" fill="#FCD34D" />
-              <Text style={styles.resourceText}>{isPremium ? '∞' : '5/5'}</Text>
-              <TouchableOpacity style={styles.plusButton}>
+              <Text style={styles.resourceText}>
+                {isPremium ? '∞' : `${simulationCredits ?? 5}/5`}
+              </Text>
+              <TouchableOpacity 
+                style={styles.plusButton}
+                onPress={() => router.push('/premium')}
+              >
                 <Plus size={10} color="#FFF" strokeWidth={4} />
               </TouchableOpacity>
             </LinearGradient>
@@ -163,7 +170,7 @@ export default function SimulateDashboard() {
         >
           {/* Featured Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Simulations</Text>
+            <Text style={styles.headerTitle}>My Simulations</Text>
             <TouchableOpacity onPress={() => router.push('/simulate/new')}>
               <Text style={styles.headerLink}>New +</Text>
             </TouchableOpacity>
@@ -201,7 +208,7 @@ export default function SimulateDashboard() {
           </TouchableOpacity>
 
           {/* Timelines List */}
-          <Text style={styles.sectionTitle}>Your Worlds</Text>
+          <Text style={styles.sectionTitle}>Your Timelines</Text>
           
           <View style={styles.gamesList}>
           {timelines.length === 0 ? (
@@ -264,7 +271,10 @@ export default function SimulateDashboard() {
 
           {/* Premium Banner */}
           {!isPremium && (
-            <TouchableOpacity style={styles.premiumBanner}>
+            <TouchableOpacity 
+              style={styles.premiumBanner}
+              onPress={() => router.push('/premium')}
+            >
               <LinearGradient
                 colors={['rgba(251, 191, 36, 0.2)', 'rgba(245, 158, 11, 0.1)']}
                 start={{ x: 0, y: 0 }}
