@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Modal, TextInput, Dimensions, Animated, Image, Easing } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Modal, TextInput, Dimensions, Animated, Image, Easing, KeyboardAvoidingView } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -404,6 +404,8 @@ export default function TimelineDetailScreen() {
         newAssets: advancement.newAssets,
         removedAssetTypes: (advancement as any).removedAssets || [],
         twin_profile: {
+          // Preserve existing profile fields, then apply updates
+          ...timeline.twin_profile,
           ...advancement.profileUpdates,
           profileDeltas: advancement.profileDeltas,
           previous_year_snapshot: previousYearSnapshot, // Store previous year's values
@@ -955,7 +957,7 @@ export default function TimelineDetailScreen() {
                 style={styles.actionButton}
              >
                 <View style={styles.actionButtonContent}>
-                   <Text style={styles.actionButtonTitle}>Make Decision</Text>
+                   <Text style={styles.actionButtonTitle}>Simulate Next Year</Text>
                    <Text style={styles.actionButtonSubtitle}>Choose your next move</Text>
                   </View>
                 <View style={styles.actionButtonIcon}>
@@ -1185,15 +1187,19 @@ export default function TimelineDetailScreen() {
           animationType="fade"
           onRequestClose={() => setScenarioModalVisible(false)}
         >
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            style={styles.modalOverlayScenario}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
             <LinearGradient
               colors={['#1a1a20', '#0f0f12']}
-              style={styles.modalContent}
+              style={styles.modalContentScenario}
             >
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
                   <Sparkles size={20} color="#0EA5E9" />
-                  <Text style={styles.modalTitle}>What do you do?</Text>
+                  <Text style={styles.modalTitle}>What did you do?</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => {
@@ -1206,11 +1212,11 @@ export default function TimelineDetailScreen() {
                 </TouchableOpacity>
               </View>
               <Text style={styles.modalSubtitle}>
-                Describe your next major life decision.
+                Describe some things you did this year. Add any context you'd like to include.
               </Text>
               <TextInput
                 style={styles.scenarioInput}
-                placeholder="E.g., I decide to quit my job and travel the world..."
+                placeholder="E.g., I quit my job and traveled the world, started a new relationship, moved to a new city..."
                 placeholderTextColor="rgba(255, 255, 255, 0.4)"
                 value={scenarioText}
                 onChangeText={setScenarioText}
@@ -1243,7 +1249,7 @@ export default function TimelineDetailScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             </LinearGradient>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Relationships Modal */}
@@ -1261,7 +1267,7 @@ export default function TimelineDetailScreen() {
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
                   <Users size={20} color="#EF4444" />
-                  <Text style={styles.modalTitle}>Relationships</Text>
+                  <Text style={styles.modalTitle} numberOfLines={1}>Relationships</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => setRelationshipModalVisible(false)}
@@ -1947,30 +1953,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
   },
+  modalOverlayScenario: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-start',
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 80 : 60,
+  },
   modalContent: {
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
     borderColor: 'rgba(14, 165, 233, 0.3)',
   },
+  modalContentScenario: {
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(14, 165, 233, 0.3)',
+    width: '100%',
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    gap: 12,
   },
   modalTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
+    minWidth: 0,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#FFF',
+    flexShrink: 1,
   },
   modalClose: {
     padding: 4,
+    flexShrink: 0,
   },
   modalSubtitle: {
     color: '#888',

@@ -556,6 +556,21 @@ export async function completeOnboarding(
   const currentCoreJson = (profile?.core_json as CoreJsonData) || {};
   const onboardingResponses = currentCoreJson.onboarding_responses || {};
 
+  // Extract current job from onboarding responses and save to career_entrypoint
+  let extractedJob: string | undefined;
+  try {
+    const nowGroupData = onboardingResponses['01-now-group'];
+    if (nowGroupData) {
+      const parsed = typeof nowGroupData === 'string' ? JSON.parse(nowGroupData) : nowGroupData;
+      if (parsed?.currentJob && parsed.currentJob.trim()) {
+        extractedJob = parsed.currentJob.trim();
+        console.log('✅ [completeOnboarding] Extracted job from onboarding:', extractedJob);
+      }
+    }
+  } catch (error) {
+    console.error('❌ [completeOnboarding] Failed to extract job from onboarding:', error);
+  }
+
   // Ensure core_values is preserved from existing values_json
   const existingValuesJson = profile?.values_json || [];
   const existingCoreValues = currentCoreJson.core_values || [];
@@ -598,6 +613,14 @@ export async function completeOnboarding(
     updatePayload.hometown = onboardingData.hometown;
   } else if (profile?.hometown) {
     updatePayload.hometown = profile.hometown;
+  }
+  
+  // Save extracted job to career_entrypoint if found and not already set
+  if (extractedJob && !profile?.career_entrypoint) {
+    updatePayload.career_entrypoint = extractedJob;
+    console.log('✅ [completeOnboarding] Saving job to career_entrypoint:', extractedJob);
+  } else if (profile?.career_entrypoint) {
+    updatePayload.career_entrypoint = profile.career_entrypoint;
   }
 
   const { data, error } = await supabase
@@ -707,12 +730,36 @@ export async function generateUniqueTwinCode(userId: string): Promise<string> {
  */
 /**
  * Assign A/B test group to a user
- * Randomly assigns 'A' or 'B' with 50/50 distribution
+ * Alternates between 'A' and 'B' to maintain 50/50 distribution
  */
 export async function assignABTestGroup(userId: string): Promise<'A' | 'B'> {
-  // Randomly assign A or B (50/50 split)
-  const group: 'A' | 'B' = Math.random() < 0.5 ? 'A' : 'B';
+  // Check current distribution to maintain 50/50 split
+  const { data: groupCounts, error: countError } = await supabase
+    .from('profiles')
+    .select('ab_test_group')
+    .not('ab_test_group', 'is', null);
   
+  if (countError) {
+    console.error('Failed to count AB test groups:', countError);
+    // Fallback to random assignment if count fails
+    const group: 'A' | 'B' = Math.random() < 0.5 ? 'A' : 'B';
+    return await saveABTestGroup(userId, group);
+  }
+  
+  // Count users in each group
+  const countA = groupCounts?.filter(p => p.ab_test_group === 'A').length || 0;
+  const countB = groupCounts?.filter(p => p.ab_test_group === 'B').length || 0;
+  
+  // Assign to the group with fewer users, or alternate if equal
+  const group: 'A' | 'B' = countB < countA ? 'B' : 'A';
+  
+  return await saveABTestGroup(userId, group);
+}
+
+/**
+ * Helper function to save AB test group assignment
+ */
+async function saveABTestGroup(userId: string, group: 'A' | 'B'): Promise<'A' | 'B'> {
   // Ensure profile exists first
   let profile = await getProfile(userId);
   if (!profile) {

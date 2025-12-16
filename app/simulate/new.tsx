@@ -100,10 +100,61 @@ export default function NewSimulationScreen() {
         description: `Known for ${rel.years_known || 0} years`,
       }));
 
+      // Extract current job from onboarding data
+      let currentJob = 'Not specified';
+      try {
+        const onboardingResponses = profile?.core_json?.onboarding_responses || {};
+        console.log('🔍 [Simulation] Onboarding responses keys:', Object.keys(onboardingResponses));
+        
+        // Try '01-now-group' first (standard onboarding)
+        let nowGroupData = onboardingResponses['01-now-group'];
+        if (!nowGroupData) {
+          // Try alternative key format
+          nowGroupData = onboardingResponses['01-now-group'] || onboardingResponses['01_now_group'];
+        }
+        
+        console.log('🔍 [Simulation] Now group data:', nowGroupData);
+        
+        if (nowGroupData) {
+          let parsed;
+          if (typeof nowGroupData === 'string') {
+            try {
+              parsed = JSON.parse(nowGroupData);
+            } catch (e) {
+              console.error('Failed to parse nowGroupData as JSON:', e);
+              parsed = null;
+            }
+          } else {
+            parsed = nowGroupData;
+          }
+          
+          console.log('🔍 [Simulation] Parsed now group data:', parsed);
+          
+          if (parsed?.currentJob) {
+            currentJob = parsed.currentJob;
+            console.log('✅ [Simulation] Found currentJob from onboarding:', currentJob);
+          } else {
+            console.log('⚠️ [Simulation] currentJob not found in parsed data. Keys:', parsed ? Object.keys(parsed) : 'null');
+          }
+        } else {
+          console.log('⚠️ [Simulation] No now-group data found in onboarding responses');
+        }
+      } catch (error) {
+        console.error('❌ [Simulation] Failed to parse onboarding job data:', error);
+      }
+      
+      // Fallback to career_entrypoint if currentJob not found
+      if (currentJob === 'Not specified' && profile?.career_entrypoint) {
+        currentJob = profile.career_entrypoint;
+        console.log('✅ [Simulation] Using career_entrypoint fallback:', currentJob);
+      }
+      
+      console.log('🔍 [Simulation] Final job value:', currentJob);
+
       // Initialize timeline with user's current life state
       const initialProfile = {
         location: profile?.current_location || profile?.hometown || 'Unknown',
-        job: profile?.career_entrypoint || 'Not specified',
+        job: currentJob,
         netWorth: profile?.net_worth || '$0',
         relationshipStatus: relationships.length > 0 ? 'In relationships' : 'Single',
       };
