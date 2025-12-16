@@ -288,5 +288,9 @@ export const MixpanelEvents = {
   ONBOARDING_COMPLETE_VIEWED: 'Onboarding Complete Viewed',
   ONBOARDING_COMPLETE_DECIDE_CLICKED: 'Onboarding Complete Decide Clicked',
   ONBOARDING_COMPLETE_EXPLORE_CLICKED: 'Onboarding Complete Explore Clicked',
+
+  // Lifetime Simulations
+  SIMULATION_CREATED: 'Simulation Created',
+  SIMULATION_YEAR_ADVANCED: 'Simulation Year Advanced',
 } as const;
 

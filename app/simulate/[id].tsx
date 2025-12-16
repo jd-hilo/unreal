@@ -6,6 +6,7 @@ import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getTimeline, updateTimeline, getProfile } from '@/lib/storage';
 import { advanceTimeline } from '@/lib/ai';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { ChevronLeft, Plus, User, Lock, DollarSign, Heart, Zap, TrendingUp, TrendingDown, Users, X, ChevronDown, ChevronUp, MapPin, Sparkles, Brain, Briefcase, ChevronRight, Home } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -450,6 +451,22 @@ export default function TimelineDetailScreen() {
         const newSet = new Set(prev);
         newSet.add(newCurrentYear);
         return newSet;
+      });
+      
+      // Track year advancement
+      trackEvent(MixpanelEvents.SIMULATION_YEAR_ADVANCED, {
+        simulation_id: timelineId,
+        previous_year: currentYear,
+        new_year: newCurrentYear,
+        new_age: updatedTimeline.current_age,
+        is_premium: isPremium,
+        has_new_assets: (advancement.newAssets?.length || 0) > 0,
+        num_new_assets: advancement.newAssets?.length || 0,
+        num_new_events: advancement.newEvents?.length || 0,
+        num_relationships: updatedTimeline.relationships?.length || 0,
+        stat_deltas: advancement.statDeltas,
+        has_job_change: !!advancement.profileUpdates?.job && advancement.profileUpdates.job !== timeline.twin_profile?.job,
+        has_location_change: !!advancement.profileUpdates?.location && advancement.profileUpdates.location !== timeline.twin_profile?.location,
       });
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1266,8 +1283,10 @@ export default function TimelineDetailScreen() {
             >
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
-                  <Users size={20} color="#EF4444" />
-                  <Text style={styles.modalTitle} numberOfLines={1}>Relationships</Text>
+                  <View style={{ flexShrink: 0 }}>
+                    <Users size={18} color="#EF4444" />
+                  </View>
+                  <Text style={styles.modalTitle} numberOfLines={1} ellipsizeMode="tail">Relationships</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => setRelationshipModalVisible(false)}
@@ -1456,16 +1475,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: 'rgba(20, 20, 25, 0.8)',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#333',
+    flexShrink: 0,
+    minWidth: 50,
   },
   turnText: {
     color: '#FCD34D',
     fontSize: 12,
     fontWeight: '700',
+    flexShrink: 0,
   },
   headerRight: {
     width: 40,
@@ -1859,14 +1881,14 @@ const styles = StyleSheet.create({
   },
   inventoryBannerContainer: {
     width: width - 40,
-    height: 140,
+    height: 170,
     overflow: 'hidden',
     borderRadius: 20,
     marginBottom: 12,
   },
   inventoryBannerItem: {
     width: width - 40,
-    height: 140,
+    height: 170,
   },
   inventoryBanner: {
     flex: 1,
@@ -1983,12 +2005,13 @@ const styles = StyleSheet.create({
   modalTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     flex: 1,
     minWidth: 0,
+    paddingRight: 8,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#FFF',
     flexShrink: 1,

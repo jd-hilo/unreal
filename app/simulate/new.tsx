@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { createTimeline, getProfile, getRelationships } from '@/lib/storage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { ChevronRight, ChevronLeft, User, Briefcase, Heart, Sparkles, Zap, Brain, Globe, Home } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -170,6 +171,19 @@ export default function NewSimulationScreen() {
         initialRelationships,
         isPremium
       );
+
+      // Track simulation creation
+      trackEvent(MixpanelEvents.SIMULATION_CREATED, {
+        simulation_id: newTimeline.id,
+        simulation_title: name || `Timeline started at ${age}`,
+        starting_age: age,
+        is_premium: isPremium,
+        has_relationships: initialRelationships.length > 0,
+        num_relationships: initialRelationships.length,
+        has_job: currentJob !== 'Not specified',
+        has_location: !!initialProfile.location && initialProfile.location !== 'Unknown',
+        has_net_worth: !!initialProfile.netWorth && initialProfile.netWorth !== '$0',
+      });
 
       // In a real implementation, we would pass focus/difficulty to the backend/AI
       // For now, we just create the timeline and redirect
