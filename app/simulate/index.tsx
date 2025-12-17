@@ -5,13 +5,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getTimelines, deleteTimeline, getProfile, checkSimulationCredits } from '@/lib/storage';
-import { ChevronRight, Plus, Lock, Zap, Play, Trophy, Users, Star } from 'lucide-react-native';
+import { ChevronRight, Plus, Lock, Zap, Play, Trophy, Users, Star, ChevronLeft } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { formatDistanceToNow } from 'date-fns';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Colors, Fonts } from '@/constants/Theme';
 
 export default function SimulateDashboard() {
   const router = useRouter();
@@ -104,10 +105,10 @@ export default function SimulateDashboard() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FFFFFF" />
+            <ActivityIndicator size="large" color={Colors.textPrimary} />
           </View>
         </SafeAreaView>
       </View>
@@ -115,14 +116,19 @@ export default function SimulateDashboard() {
   }
 
   return (
-    <LinearGradient
-      colors={['#050505', '#0A0A0A', '#000000']}
-      style={styles.container}
-    >
-      <StatusBar style="light" />
+    <View style={styles.container}>
+      <StatusBar style="dark" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        {/* Top Bar - Game Stats Style */}
+        {/* Top Bar */}
         <View style={styles.topBar}>
+          <TouchableOpacity 
+            onPress={() => router.back()}
+            style={styles.backButton}
+            activeOpacity={0.7}
+          >
+            <ChevronLeft size={24} color={Colors.textPrimary} />
+          </TouchableOpacity>
+          
           <View style={styles.resourceContainer}>
             <LinearGradient
               colors={['#2563EB', '#0EA5E9', '#14B8A6']}
@@ -332,14 +338,14 @@ export default function SimulateDashboard() {
           </View>
         </BlurView>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
@@ -356,6 +362,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     marginBottom: 10,
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
   },
   resourceContainer: {
     flexDirection: 'row',
@@ -429,7 +439,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFF',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
   },
   headerLink: {
     fontSize: 16,

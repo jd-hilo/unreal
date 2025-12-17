@@ -1,13 +1,12 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Modal, TextInput, Dimensions, Animated, Image, Easing, KeyboardAvoidingView } from 'react-native';
-import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Modal, TextInput, Dimensions, Animated, Image, Easing } from 'react-native';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getTimeline, updateTimeline, getProfile } from '@/lib/storage';
 import { advanceTimeline } from '@/lib/ai';
-import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
-import { ChevronLeft, Plus, User, Lock, DollarSign, Heart, Zap, TrendingUp, TrendingDown, Users, X, ChevronDown, ChevronUp, MapPin, Sparkles, Brain, Briefcase, ChevronRight, Home } from 'lucide-react-native';
+import { ChevronLeft, Plus, User, Lock, DollarSign, Heart, Zap, TrendingUp, TrendingDown, Users, X, ChevronDown, ChevronUp, MapPin, Sparkles, Brain, Briefcase, ChevronRight } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -125,7 +124,6 @@ function AnimatedNetWorth({ value, previousValue, deltaString }: { value: string
 
 export default function TimelineDetailScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const params = useLocalSearchParams();
   const timelineId = params.id as string;
   const user = useAuth((state) => state.user);
@@ -171,42 +169,12 @@ export default function TimelineDetailScreen() {
   const loadingPulseAnim = useRef(new Animated.Value(1)).current;
   const loadingRotateAnim = useRef(new Animated.Value(0)).current;
 
-  // Check if user can go back (came from simulation tab)
-  const canGoBack = navigation.canGoBack();
-
-  // Disable swipe-to-go-back gesture and load timeline
   useFocusEffect(
     useCallback(() => {
-      // Disable swipe-to-go-back gesture on both current and parent navigators
-      navigation.setOptions({
-        gestureEnabled: false,
-      });
-
-      // Disable on parent navigator (to prevent swiping back to home)
-      const parent = navigation.getParent();
-      if (parent) {
-        parent.setOptions({
-          gestureEnabled: false,
-        });
-      }
-
-      // Load timeline
       if (timelineId && user) {
         loadTimeline();
       }
-
-      return () => {
-        // Re-enable gestures on cleanup
-        navigation.setOptions({
-          gestureEnabled: true,
-        });
-        if (parent) {
-          parent.setOptions({
-            gestureEnabled: true,
-          });
-        }
-      };
-    }, [navigation, timelineId, user])
+    }, [timelineId, user])
   );
 
   async function loadTimeline() {
@@ -405,8 +373,6 @@ export default function TimelineDetailScreen() {
         newAssets: advancement.newAssets,
         removedAssetTypes: (advancement as any).removedAssets || [],
         twin_profile: {
-          // Preserve existing profile fields, then apply updates
-          ...timeline.twin_profile,
           ...advancement.profileUpdates,
           profileDeltas: advancement.profileDeltas,
           previous_year_snapshot: previousYearSnapshot, // Store previous year's values
@@ -451,22 +417,6 @@ export default function TimelineDetailScreen() {
         const newSet = new Set(prev);
         newSet.add(newCurrentYear);
         return newSet;
-      });
-      
-      // Track year advancement
-      trackEvent(MixpanelEvents.SIMULATION_YEAR_ADVANCED, {
-        simulation_id: timelineId,
-        previous_year: currentYear,
-        new_year: newCurrentYear,
-        new_age: updatedTimeline.current_age,
-        is_premium: isPremium,
-        has_new_assets: (advancement.newAssets?.length || 0) > 0,
-        num_new_assets: advancement.newAssets?.length || 0,
-        num_new_events: advancement.newEvents?.length || 0,
-        num_relationships: updatedTimeline.relationships?.length || 0,
-        stat_deltas: advancement.statDeltas,
-        has_job_change: !!advancement.profileUpdates?.job && advancement.profileUpdates.job !== timeline.twin_profile?.job,
-        has_location_change: !!advancement.profileUpdates?.location && advancement.profileUpdates.location !== timeline.twin_profile?.location,
       });
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -756,14 +706,10 @@ export default function TimelineDetailScreen() {
         {/* Top Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => canGoBack ? router.back() : router.push('/(tabs)/home')}
+            onPress={() => router.back()}
             style={styles.backButton}
           >
-            {canGoBack ? (
-              <ChevronLeft size={24} color="#FFFFFF" />
-            ) : (
-              <Home size={24} color="#FFFFFF" strokeWidth={2} />
-            )}
+            <ChevronLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
              <Text style={styles.headerTitle} numberOfLines={1}>{timeline.title}</Text>
@@ -974,7 +920,7 @@ export default function TimelineDetailScreen() {
                 style={styles.actionButton}
              >
                 <View style={styles.actionButtonContent}>
-                   <Text style={styles.actionButtonTitle}>Simulate Next Year</Text>
+                   <Text style={styles.actionButtonTitle}>Make Decision</Text>
                    <Text style={styles.actionButtonSubtitle}>Choose your next move</Text>
                   </View>
                 <View style={styles.actionButtonIcon}>
@@ -1204,19 +1150,15 @@ export default function TimelineDetailScreen() {
           animationType="fade"
           onRequestClose={() => setScenarioModalVisible(false)}
         >
-          <KeyboardAvoidingView
-            style={styles.modalOverlayScenario}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-          >
+          <View style={styles.modalOverlay}>
             <LinearGradient
               colors={['#1a1a20', '#0f0f12']}
-              style={styles.modalContentScenario}
+              style={styles.modalContent}
             >
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
                   <Sparkles size={20} color="#0EA5E9" />
-                  <Text style={styles.modalTitle}>What did you do?</Text>
+                  <Text style={styles.modalTitle}>What do you do?</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => {
@@ -1229,11 +1171,11 @@ export default function TimelineDetailScreen() {
                 </TouchableOpacity>
               </View>
               <Text style={styles.modalSubtitle}>
-                Describe some things you did this year. Add any context you'd like to include.
+                Describe your next major life decision.
               </Text>
               <TextInput
                 style={styles.scenarioInput}
-                placeholder="E.g., I quit my job and traveled the world, started a new relationship, moved to a new city..."
+                placeholder="E.g., I decide to quit my job and travel the world..."
                 placeholderTextColor="rgba(255, 255, 255, 0.4)"
                 value={scenarioText}
                 onChangeText={setScenarioText}
@@ -1266,7 +1208,7 @@ export default function TimelineDetailScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             </LinearGradient>
-          </KeyboardAvoidingView>
+          </View>
         </Modal>
 
         {/* Relationships Modal */}
@@ -1283,10 +1225,8 @@ export default function TimelineDetailScreen() {
             >
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
-                  <View style={{ flexShrink: 0 }}>
-                    <Users size={18} color="#EF4444" />
-                  </View>
-                  <Text style={styles.modalTitle} numberOfLines={1} ellipsizeMode="tail">Relationships</Text>
+                  <Users size={20} color="#EF4444" />
+                  <Text style={styles.modalTitle}>Relationships</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => setRelationshipModalVisible(false)}
@@ -1475,19 +1415,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: 'rgba(20, 20, 25, 0.8)',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#333',
-    flexShrink: 0,
-    minWidth: 50,
   },
   turnText: {
     color: '#FCD34D',
     fontSize: 12,
     fontWeight: '700',
-    flexShrink: 0,
   },
   headerRight: {
     width: 40,
@@ -1881,14 +1818,14 @@ const styles = StyleSheet.create({
   },
   inventoryBannerContainer: {
     width: width - 40,
-    height: 170,
+    height: 140,
     overflow: 'hidden',
     borderRadius: 20,
     marginBottom: 12,
   },
   inventoryBannerItem: {
     width: width - 40,
-    height: 170,
+    height: 140,
   },
   inventoryBanner: {
     flex: 1,
@@ -1975,50 +1912,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
   },
-  modalOverlayScenario: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'flex-start',
-    padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 80 : 60,
-  },
   modalContent: {
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
     borderColor: 'rgba(14, 165, 233, 0.3)',
   },
-  modalContentScenario: {
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.3)',
-    width: '100%',
-  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
-    gap: 12,
   },
   modalTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flex: 1,
-    minWidth: 0,
-    paddingRight: 8,
+    gap: 10,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFF',
-    flexShrink: 1,
   },
   modalClose: {
     padding: 4,
-    flexShrink: 0,
   },
   modalSubtitle: {
     color: '#888',

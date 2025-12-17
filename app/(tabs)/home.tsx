@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, getInterestProgress, getTodayJournal, getAllYearPredictions } from '@/lib/storage';
-import { Compass, Sparkles, Zap, X, Trash2, Lock, ChevronRight, HelpCircle, Book, User, History, LayoutGrid, ScanLine, Settings } from 'lucide-react-native';
+import { Compass, Sparkles, Zap, X, Trash2, Lock, ChevronRight, HelpCircle, Book, User, History, LayoutGrid, ScanLine, Settings, Info, Layers } from 'lucide-react-native';
 import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -19,6 +19,7 @@ import { ProductGuide } from '@/components/ProductGuide';
 import { getHasSeenDecisionGuide, setHasSeenDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent, MixpanelEvents, trackScreenView } from '@/lib/mixpanel';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText, TSpan, Path } from 'react-native-svg';
+import { Colors, Fonts } from '@/constants/Theme';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 16;
@@ -45,6 +46,7 @@ export default function HomeScreen() {
   const [twinCardLayout, setTwinCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const [guideStep, setGuideStep] = useState(0);
   const [hasYearPrediction, setHasYearPrediction] = useState(false);
+  const [showAccuracyInfo, setShowAccuracyInfo] = useState(false);
   const [abTestGroup, setAbTestGroup] = useState<'A' | 'B' | null>(null);
   const whatIfHoverAnim = useRef(new Animated.Value(0)).current;
   const decisionCardRef = useRef<View>(null);
@@ -57,6 +59,7 @@ export default function HomeScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const bannerHoverAnim = useRef(new Animated.Value(0)).current;
   const bannerContinuousHover = useRef(new Animated.Value(0)).current;
+  const twinFloatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Preload images
@@ -66,15 +69,15 @@ export default function HomeScreen() {
     // Continuous subtle hover animation (floating effect)
     Animated.loop(
       Animated.sequence([
-        Animated.timing(bannerContinuousHover, {
+        Animated.timing(twinFloatAnim, {
           toValue: 1,
-          duration: 2500,
+          duration: 3000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
-        Animated.timing(bannerContinuousHover, {
+        Animated.timing(twinFloatAnim, {
           toValue: 0,
-          duration: 2500,
+          duration: 3000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
@@ -302,7 +305,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.backgroundGradient}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
           <Animated.ScrollView
             style={[styles.scrollView, { 
@@ -314,6 +317,13 @@ export default function HomeScreen() {
           >
             {/* Top Bar */}
             <View style={styles.topBar}>
+              <View style={styles.logoContainer}>
+                 <Image 
+                   source={require('@/assets/images/unreallogo.png')}
+                   style={styles.logoImage}
+                   resizeMode="contain"
+                 />
+              </View>
               <View style={styles.topBarIcons}>
                 <TouchableOpacity 
                   style={styles.iconButton}
@@ -323,7 +333,7 @@ export default function HomeScreen() {
                     setGuideStep(0);
                   }}
                 >
-                  <HelpCircle size={24} color="#FFFFFF" strokeWidth={2} />
+                  <HelpCircle size={24} color={Colors.textPrimary} strokeWidth={2} />
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
@@ -334,156 +344,10 @@ export default function HomeScreen() {
                     router.push('/(tabs)/profile');
                   }}
                 >
-                  <Settings size={24} color="#FFFFFF" strokeWidth={2} />
+                  <Settings size={24} color={Colors.textPrimary} strokeWidth={2} />
                 </TouchableOpacity>
               </View>
-              
-              {(!isPremium || isPremium === undefined) && (
-                <TouchableOpacity 
-                  style={styles.upgradeButton}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push('/premium');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={['rgba(255, 215, 0, 0.15)', 'rgba(255, 165, 0, 0.1)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.upgradeButtonGradient}
-                  >
-                    <View style={styles.iconWrapper}>
-                      <Image 
-                        source={require('@/assets/images/premium.png')} 
-                        style={styles.premiumIcon} 
-                        resizeMode="contain" 
-                      />
-                    </View>
-                    <Text style={styles.upgradeButtonText}>unlock unreal+</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              )}
             </View>
-
-            {/* 2026 Prediction Banner */}
-            <TouchableOpacity
-              style={styles.predictionBanner}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                trackEvent(MixpanelEvents.YEAR_PREDICTION_BANNER_CLICKED);
-                router.push('/prediction/2026/intro' as any);
-              }}
-              onPressIn={() => {
-                Animated.spring(bannerHoverAnim, {
-                  toValue: 1,
-                  tension: 200,
-                  friction: 15,
-                  useNativeDriver: true,
-                }).start();
-              }}
-              onPressOut={() => {
-                Animated.spring(bannerHoverAnim, {
-                  toValue: 0,
-                  tension: 200,
-                  friction: 15,
-                  useNativeDriver: true,
-                }).start();
-              }}
-              activeOpacity={1}
-            >
-              <Animated.View
-                style={[
-                  styles.predictionBannerContent,
-                  {
-                    transform: [
-                      {
-                        scale: bannerHoverAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [1, 0.94],
-                        }),
-                      },
-                      {
-                        translateY: bannerContinuousHover.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [-2, 2],
-                        }),
-                      },
-                    ],
-                    opacity: bannerHoverAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [1, 0.85],
-                    }),
-                  },
-                ]}
-              >
-                {/* Gray Background with Gradient Text/Icons */}
-                <View style={styles.predictionBannerYellowWrapper}>
-                  <View style={styles.predictionBannerGrayBackground}>
-                    {/* Inner glow effect */}
-                    <View style={styles.predictionBannerYellowGlow} />
-                    
-                    {/* Content */}
-                    <View style={styles.predictionBannerInner}>
-                      {/* Gradient Sparkles Icon */}
-                      <View style={styles.sparklesIconWrapper}>
-                        <Svg width={22} height={22} viewBox="0 0 24 24">
-                          <Defs>
-                            <SvgLinearGradient id="bannerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <Stop offset="0%" stopColor="#2DD4BF" />
-                              <Stop offset="100%" stopColor="#3B82F6" />
-                            </SvgLinearGradient>
-                          </Defs>
-                          <Path
-                            d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z"
-                            fill="url(#bannerGradient)"
-                          />
-                        </Svg>
-                      </View>
-                      
-                      {/* Gradient Text */}
-                      <View style={styles.gradientTextContainer}>
-                        <Svg width={180} height={18}>
-                          <Defs>
-                            <SvgLinearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                              <Stop offset="0%" stopColor="#2DD4BF" />
-                              <Stop offset="100%" stopColor="#3B82F6" />
-                            </SvgLinearGradient>
-                          </Defs>
-                          <SvgText
-                            x="0"
-                            y="14"
-                            fontSize="15"
-                            fontWeight="800"
-                            fill="url(#textGradient)"
-                          >
-                            SIMULATE YOUR 2026
-                          </SvgText>
-                        </Svg>
-                      </View>
-                      
-                      {/* Gradient Chevron Icon */}
-                      <Svg width={22} height={22} viewBox="0 0 24 24">
-                        <Defs>
-                          <SvgLinearGradient id="chevronGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <Stop offset="0%" stopColor="#2DD4BF" />
-                            <Stop offset="100%" stopColor="#3B82F6" />
-                          </SvgLinearGradient>
-                        </Defs>
-                        <Path
-                          d="M9 18L15 12L9 6"
-                          stroke="url(#chevronGradient)"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          fill="none"
-                        />
-                      </Svg>
-                    </View>
-                  </View>
-                </View>
-              </Animated.View>
-            </TouchableOpacity>
 
             {/* Main Header */}
             <View style={styles.header}>
@@ -493,161 +357,95 @@ export default function HomeScreen() {
               </Text>
             </View>
 
-            {/* Grid Actions */}
-            <View style={styles.gridContainer}>
-              {/* Card 1: Decision */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push('/decision/new');
-                }}
-                activeOpacity={0.8}
-                style={styles.gridCardWrapper}
-              >
-                <Animated.View 
-                  ref={decisionCardRef}
-                  style={styles.gridCard}
-                  onLayout={() => {
-                    decisionCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
-                      setDecisionCardLayout({ x, y, width, height });
-                    });
-                  }}
-                >
-                  <BlurView intensity={40} tint="dark" style={styles.gridCardBlur}>
-                    <View style={styles.gridCardContent}>
-                      <View style={styles.gridIconContainer}>
-                        <Image 
-                          source={require('@/assets/images/compass.png')}
-                          style={styles.gridIconImage}
-                          resizeMode="contain"
-                        />
-                      </View>
-                      <Text style={styles.gridCardTitle}>Decide</Text>
-                      <Text style={styles.gridCardSubtitle} numberOfLines={2}>Make a choice, simulate outcomes</Text>
+            {/* Center: Twin Avatar with Progress Bar */}
+            <View style={styles.twinSection}>
+              {/* Training Card */}
+              <View style={styles.trainingCard}>
+                <View style={styles.progressBarContainer}>
+                  <View style={styles.progressBarLabel}>
+                    <View style={styles.accuracyHeader}>
+                      <Text style={styles.progressBarLabelText}>Training Accuracy</Text>
+                      <TouchableOpacity 
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setShowAccuracyInfo(true);
+                        }}
+                        style={styles.infoButton}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Info size={14} color={Colors.textTertiary} />
+                      </TouchableOpacity>
                     </View>
-                  </BlurView>
-                </Animated.View>
-              </TouchableOpacity>
-
-              {/* Card 2: What If */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/whatif/new');
-                }}
-                activeOpacity={0.8}
-                style={styles.gridCardWrapper}
-              >
-                <Animated.View 
-                  ref={whatIfCardRef}
-                  style={styles.gridCard}
-                  onLayout={() => {
-                    whatIfCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
-                      setWhatIfCardLayout({ x, y, width, height });
-                    });
-                  }}
-                >
-                  <BlurView intensity={40} tint="dark" style={styles.gridCardBlur}>
-                    <View style={styles.gridCardContent}>
-                      <View style={styles.gridIconContainer}>
-                        <Image 
-                          source={require('@/assets/images/star.png')}
-                          style={styles.gridIconImage}
-                          resizeMode="contain"
-                        />
-                      </View>
-                      <Text style={styles.gridCardTitle}>Explore</Text>
-                      <Text style={styles.gridCardSubtitle} numberOfLines={2}>See your alternate life</Text>
-                    </View>
-                  </BlurView>
-                </Animated.View>
-              </TouchableOpacity>
-
-              {/* Card 3: Journal */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/journal' as any);
-                }}
-                activeOpacity={0.8}
-                style={styles.gridCardWrapper}
-              >
-                <View 
-                  ref={journalCardRef}
-                  style={styles.gridCard}
-                  onLayout={() => {
-                    journalCardRef.current?.measureInWindow((x, y, width, height) => {
-                      setJournalCardLayout({ x, y, width, height });
-                    });
-                  }}
-                >
-                  <BlurView intensity={40} tint="dark" style={styles.gridCardBlur}>
-                    {!hasTodayJournal && (
-                      <View style={styles.notificationDot} />
-                    )}
-                    <View style={styles.gridCardContent}>
-                      <View style={styles.gridIconContainer}>
-                         <Book size={32} color="#FFFFFF" strokeWidth={1.5} />
-                      </View>
-                      <Text style={styles.gridCardTitle}>Journal</Text>
-                      <Text style={styles.gridCardSubtitle} numberOfLines={2}>
-                        {hasTodayJournal ? 'Entry complete' : 'Daily reflection'}
-                      </Text>
-                    </View>
-                  </BlurView>
+                    <Text style={styles.progressBarPercent}>{profileProgress}%</Text>
+                  </View>
+                  <View style={styles.progressBarTrack}>
+                    <Animated.View 
+                      style={[
+                        styles.progressBarFill,
+                        {
+                          width: `${profileProgress}%`,
+                        }
+                      ]}
+                    >
+                      <LinearGradient
+                        colors={Colors.gradients.turquoise}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                    </Animated.View>
+                  </View>
                 </View>
-              </TouchableOpacity>
+              </View>
 
-              {/* Card 4: Twin Status */}
-              <TouchableOpacity
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/home');
-                  router.push('/(tabs)/profile');
-                }}
-                activeOpacity={0.8}
-                style={styles.gridCardWrapper}
-              >
-                <View 
-                  ref={twinCardRef}
-                  style={[styles.gridCard, profileProgress === 100 && styles.fullyTrainedCard]}
-                  onLayout={() => {
-                    twinCardRef.current?.measureInWindow((x, y, width, height) => {
-                      setTwinCardLayout({ x, y, width, height });
-                    });
-                  }}
+              {/* Twin Area Wrapper */}
+              <View style={styles.twinAreaWrapper}>
+                {/* Floating Twin Emoji */}
+                <Animated.View
+                  style={[
+                    styles.twinAvatarContainer,
+                    {
+                      transform: [
+                        {
+                          translateY: twinFloatAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [-10, 10],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
                 >
-                  {profileProgress === 100 && (
-                    <LinearGradient
-                      colors={['rgba(135, 206, 250, 0.3)', 'rgba(100, 149, 237, 0.2)', 'rgba(65, 105, 225, 0.15)', 'transparent']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.twinGlowOverlay}
-                      pointerEvents="none"
-                    />
-                  )}
-                  <BlurView intensity={40} tint="dark" style={styles.gridCardBlur}>
-                    {profileProgress < 100 && (
-                       <View style={styles.progressBadge}>
-                         <Text style={styles.progressBadgeText}>{profileProgress}%</Text>
-                       </View>
-                    )}
-                    <View style={styles.gridCardContent}>
-                      <View style={styles.gridIconContainer}>
-                        <Image 
-                          source={isPremium ? require('@/assets/images/premium.png') : require('@/assets/images/cube.png')}
-                          style={[styles.gridIconImage, { tintColor: undefined }]}
-                          resizeMode="contain"
-                        />
-                      </View>
-                      <Text style={styles.gridCardTitle}>My Twin</Text>
-                      <Text style={styles.gridCardSubtitle} numberOfLines={2}>
-                        {profileProgress === 100 ? 'Fully trained' : 'Training...'}
-                      </Text>
-                    </View>
-                  </BlurView>
-                </View>
-              </TouchableOpacity>
+                  <View style={styles.twinAvatar}>
+                    <Text style={styles.twinEmoji}>🤖</Text>
+                  </View>
+                </Animated.View>
+
+                {/* Suggestions Bubbles (Static) */}
+                <TouchableOpacity 
+                  style={[styles.suggestionBubble, { position: 'absolute', top: -60, left: 100, transform: [{ rotate: '-5deg' }] }]}
+                  activeOpacity={0.8}
+                  onPress={() => router.push('/whatif/new')}
+                >
+                  <Text style={styles.suggestionText}>What if I moved to London?</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.suggestionBubble, { position: 'absolute', top: 100, right: 100, transform: [{ rotate: '3deg' }] }]}
+                  activeOpacity={0.8}
+                  onPress={() => router.push('/decision/new')}
+                >
+                  <Text style={styles.suggestionText}>Should I buy a house?</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.suggestionBubble, { position: 'absolute', bottom: -60, left: 120, transform: [{ rotate: '-2deg' }] }]}
+                  activeOpacity={0.8}
+                  onPress={() => router.push('/whatif/new')}
+                >
+                  <Text style={styles.suggestionText}>Quit my job?</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Recent Activity / Echoes */}
@@ -675,12 +473,12 @@ export default function HomeScreen() {
                     onLongPress={() => handleLongPressEcho(echo)}
                     disabled={!echo.route}
                   >
-                    <BlurView intensity={20} tint="dark" style={styles.echoCard}>
+                    <View style={styles.echoCard}>
                       <View style={styles.echoIcon}>
                         {echo.type === 'whatif' ? (
-                          <Sparkles size={16} color="#B4B4B4" />
+                          <Sparkles size={16} color={Colors.textTertiary} />
                         ) : (
-                          <Compass size={16} color="#B4B4B4" />
+                          <Compass size={16} color={Colors.textTertiary} />
                         )}
                       </View>
                       <View style={styles.echoContent}>
@@ -691,14 +489,168 @@ export default function HomeScreen() {
                           {echo.subtitle}
                         </Text>
                       </View>
-                      <ChevronRight size={16} color="#666" />
-                    </BlurView>
+                      <ChevronRight size={16} color={Colors.textTertiary} />
+                    </View>
                   </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>
             )}
           </Animated.ScrollView>
+
+          {/* Actions Carousel at Bottom - Fixed */}
+          <View style={styles.carouselContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselContent}
+              style={styles.carouselScrollView}
+              decelerationRate="fast"
+              snapToAlignment="start"
+            >
+              {/* Card 1: Decide */}
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/decision/new');
+                }}
+                activeOpacity={0.8}
+                style={styles.carouselCardWrapper}
+              >
+                <View style={styles.carouselCard}>
+                  <LinearGradient
+                    colors={Colors.gradients.peach}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardGradient}
+                  />
+                  <View style={styles.gridCardContent}>
+                    <View style={styles.gridIconContainer}>
+                      <Image 
+                        source={require('@/assets/images/compass.png')}
+                        style={[styles.gridIconImage, { tintColor: Colors.textPrimary }]}
+                        resizeMode="contain"
+                      />
+                    </View>
+                    <Text style={styles.gridCardTitle}>Decide</Text>
+                    <Text style={styles.gridCardSubtitle} numberOfLines={2}>Make a choice</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Card 2: Explore */}
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/whatif/new');
+                }}
+                activeOpacity={0.8}
+                style={styles.carouselCardWrapper}
+              >
+                <View style={styles.carouselCard}>
+                  <LinearGradient
+                    colors={Colors.gradients.purple}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardGradient}
+                  />
+                  <View style={styles.gridCardContent}>
+                    <View style={styles.gridIconContainer}>
+                      <Image 
+                        source={require('@/assets/images/star.png')}
+                        style={[styles.gridIconImage, { tintColor: Colors.textPrimary }]}
+                        resizeMode="contain"
+                      />
+                    </View>
+                    <Text style={styles.gridCardTitle}>Explore</Text>
+                    <Text style={styles.gridCardSubtitle} numberOfLines={2}>Alternate reality</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Card 3: Journal */}
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/journal' as any);
+                }}
+                activeOpacity={0.8}
+                style={styles.carouselCardWrapper}
+              >
+                <View style={styles.carouselCard}>
+                  <LinearGradient
+                    colors={Colors.gradients.turquoise}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardGradient}
+                  />
+                  {!hasTodayJournal && (
+                    <View style={styles.notificationDot} />
+                  )}
+                  <View style={styles.gridCardContent}>
+                    <View style={styles.gridIconContainer}>
+                       <Book size={32} color={Colors.textPrimary} strokeWidth={1.5} />
+                    </View>
+                    <Text style={styles.gridCardTitle}>Journal</Text>
+                    <Text style={styles.gridCardSubtitle} numberOfLines={2}>Daily reflection</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Card 4: Simulations */}
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/(tabs)/simulations');
+                }}
+                activeOpacity={0.8}
+                style={styles.carouselCardWrapper}
+              >
+                <View style={styles.carouselCard}>
+                  <LinearGradient
+                    colors={['#F3F4F6', '#E5E7EB']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardGradient}
+                  />
+                  <View style={styles.gridCardContent}>
+                    <View style={styles.gridIconContainer}>
+                       <Layers size={32} color={Colors.textPrimary} strokeWidth={1.5} />
+                    </View>
+                    <Text style={styles.gridCardTitle}>History</Text>
+                    <Text style={styles.gridCardSubtitle} numberOfLines={2}>Past timelines</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Card 5: Simulate 2026 */}
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  trackEvent(MixpanelEvents.YEAR_PREDICTION_BANNER_CLICKED);
+                  router.push('/prediction/2026/intro' as any);
+                }}
+                activeOpacity={0.8}
+                style={styles.carouselCardWrapper}
+              >
+                <View style={styles.carouselCard}>
+                  <LinearGradient
+                    colors={['#E0F2FE', '#F0F9FF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardGradient}
+                  />
+                  <View style={styles.gridCardContent}>
+                    <View style={styles.gridIconContainer}>
+                       <Sparkles size={32} color={Colors.textPrimary} strokeWidth={1.5} />
+                    </View>
+                    <Text style={styles.gridCardTitle}>2026</Text>
+                    <Text style={styles.gridCardSubtitle} numberOfLines={2}>Simulate Future</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
         </SafeAreaView>
       </View>
 
@@ -732,6 +684,73 @@ export default function HomeScreen() {
           onStepChange={setGuideStep}
         />
       )}
+
+      {/* Accuracy Info Modal */}
+      <Modal
+        visible={showAccuracyInfo}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAccuracyInfo(false)}
+      >
+        <View style={styles.accuracyModalOverlay}>
+          <View style={styles.accuracyModalContent}>
+            <View style={styles.accuracyModalHeader}>
+              <Text style={styles.accuracyModalTitle}>Improve Accuracy</Text>
+              <TouchableOpacity 
+                onPress={() => setShowAccuracyInfo(false)}
+                style={styles.accuracyModalCloseButton}
+              >
+                <X size={24} color={Colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.accuracyModalDescription}>
+              Your twin's accuracy increases as you interact with the app. Here's how to improve it:
+            </Text>
+            
+            <View style={styles.accuracyList}>
+              <View style={styles.accuracyItem}>
+                <View style={[styles.accuracyIcon, { backgroundColor: 'rgba(132, 250, 176, 0.1)' }]}>
+                  <User size={18} color="#4ADE80" />
+                </View>
+                <Text style={styles.accuracyItemText}>Complete your profile</Text>
+              </View>
+              
+              <View style={styles.accuracyItem}>
+                <View style={[styles.accuracyIcon, { backgroundColor: 'rgba(135, 206, 250, 0.1)' }]}>
+                  <Book size={18} color="#87CEFA" />
+                </View>
+                <Text style={styles.accuracyItemText}>Add daily journal entries</Text>
+              </View>
+              
+              <View style={styles.accuracyItem}>
+                <View style={[styles.accuracyIcon, { backgroundColor: 'rgba(255, 154, 158, 0.1)' }]}>
+                  <Compass size={18} color="#FF9A9E" />
+                </View>
+                <Text style={styles.accuracyItemText}>Make decisions with AI</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowAccuracyInfo(false);
+                router.push('/(tabs)/profile');
+              }}
+              style={styles.accuracyActionButton}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={Colors.gradients.turquoise}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.accuracyActionGradient}
+              >
+                <Text style={styles.accuracyActionText}>Go to Profile</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
       <Modal
@@ -797,11 +816,11 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   backgroundGradient: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
@@ -811,7 +830,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 220, // Extra padding for fixed carousel at bottom
   },
   topBar: {
     flexDirection: 'row',
@@ -820,6 +839,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 20,
   },
+  logoContainer: {
+    justifyContent: 'center',
+  },
+  logoImage: {
+    width: 120,
+    height: 40,
+  },
   topBarIcons: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -827,7 +853,7 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
   },
   upgradeButton: {
@@ -862,95 +888,215 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   header: {
-    marginBottom: 32,
+    marginBottom: 8,
   },
   greeting: {
     fontSize: 28,
     fontWeight: '700',
     lineHeight: 34,
-    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
+    fontFamily: Fonts.primary.regular,
     letterSpacing: -0.5,
   },
   greetingName: {
-    color: '#999999',
+    color: Colors.textTertiary,
     fontWeight: '400',
+    fontFamily: Fonts.secondary.bold,
   },
   greetingRest: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: CARD_GAP,
-    marginBottom: 40,
-  },
-  gridCardWrapper: {
-    width: CARD_WIDTH,
-    height: CARD_WIDTH * 1.15, // Slightly taller to accommodate text
-    borderRadius: 32,
-    overflow: 'hidden',
-  },
-  gridCard: {
+  twinSection: {
     flex: 1,
-    borderRadius: 32,
-    overflow: 'hidden',
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 0,
+    minHeight: 300,
+  },
+  twinAreaWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
     position: 'relative',
   },
-  fullyTrainedCard: {
-    shadowColor: '#87CEFA',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 15,
-    elevation: 15,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+  trainingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    width: '60%',
+    marginBottom: 16,
+    marginTop: 8,
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
-  twinGlowOverlay: {
+  progressBarContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  progressBarLabel: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 14,
+  },
+  accuracyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  infoButton: {
+    padding: 2,
+  },
+  progressBarLabelText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  progressBarPercent: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  progressBarTrack: {
+    width: '100%',
+    height: 6,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  twinAvatarContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  twinAvatar: {
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    zIndex: 10,
+  },
+  twinEmoji: {
+    fontSize: 140,
+    lineHeight: 160,
+  },
+  suggestionBubble: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 14,
+    maxWidth: 140,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    zIndex: 5,
+  },
+  suggestionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  carouselContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 200,
+    paddingBottom: Platform.OS === 'ios' ? 48 : 40,
+    paddingLeft: 20,
+  },
+  carouselScrollView: {
+    flex: 1,
+    overflow: 'visible',
+  },
+  carouselContent: {
+    paddingHorizontal: 4, // Align with screen padding logic
+    gap: 16,
+    paddingRight: 24,
+  },
+  carouselCardWrapper: {
+    width: 140,
+    height: 180,
+    borderRadius: 24,
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
+    backgroundColor: 'transparent',
+  },
+  carouselCard: {
+    flex: 1,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    padding: 16,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  cardGradient: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 32,
-    zIndex: 0,
-  },
-  gridCardBlur: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'space-between',
-    zIndex: 1,
+    opacity: 0.15,
   },
   gridCardContent: {
     flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-    paddingTop: 0,
+    justifyContent: 'space-between',
   },
   gridIconContainer: {
-    marginBottom: 16,
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
   gridIconImage: {
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
   },
   gridCardTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
     marginBottom: 4,
-    lineHeight: 24,
+    lineHeight: 22,
   },
   gridCardSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
-    lineHeight: 20,
-    flexShrink: 1,
+    fontSize: 13,
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   notificationDot: {
     position: 'absolute',
@@ -960,6 +1106,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#FF453A',
+    zIndex: 10,
   },
   progressBadge: {
     position: 'absolute',
@@ -968,17 +1115,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: 'rgba(135, 206, 250, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   progressBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#87CEFA',
+    color: Colors.textPrimary,
   },
   echoSection: {
     marginBottom: 20,
+    marginTop: 10,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -989,7 +1137,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
   },
   echoScrollView: {
     marginHorizontal: -20,
@@ -1005,17 +1154,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(0,0,0,0.05)',
     gap: 12,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   echoIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1024,18 +1178,99 @@ const styles = StyleSheet.create({
   },
   echoTitle: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#FFFFFF',
+    fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   echoMeta: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: Colors.textTertiary,
+    fontWeight: '500',
   },
+  // Accuracy Modal Styles
+  accuracyModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  accuracyModalContent: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  accuracyModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  accuracyModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
+  },
+  accuracyModalCloseButton: {
+    padding: 4,
+  },
+  accuracyModalDescription: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    marginBottom: 24,
+    lineHeight: 22,
+    fontFamily: Fonts.secondary.bold,
+    fontWeight: '500',
+  },
+  accuracyList: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  accuracyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  accuracyIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accuracyItemText: {
+    fontSize: 15,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+  },
+  accuracyActionButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  accuracyActionGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accuracyActionText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  
   // Retain Modal Styles
   deleteModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -1043,11 +1278,16 @@ const styles = StyleSheet.create({
   deleteModalContent: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
   },
   deleteModalHeader: {
     flexDirection: 'row',
@@ -1059,7 +1299,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1069,17 +1309,20 @@ const styles = StyleSheet.create({
   deleteModalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
     marginBottom: 12,
   },
   deleteModalDescription: {
     fontSize: 15,
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.textSecondary,
     marginBottom: 16,
+    fontFamily: Fonts.secondary.bold,
+    fontWeight: '500',
   },
   deleteModalWarning: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: Colors.textTertiary,
     fontStyle: 'italic',
     marginBottom: 24,
   },
@@ -1089,7 +1332,7 @@ const styles = StyleSheet.create({
   },
   deleteCancelButton: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -1098,7 +1341,7 @@ const styles = StyleSheet.create({
   deleteCancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
   },
   deleteConfirmButtonWrapper: {
     flex: 1,
@@ -1128,14 +1371,14 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   predictionBannerBlur: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
     borderRadius: 999,
     margin: 1,
     paddingVertical: 2,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    // Matches app's dark card style with gradient border wrapper
+    borderColor: 'rgba(0,0,0,0.05)',
+    // Matches app's light card style with gradient border wrapper
   },
   predictionBannerBorderWrapper: {
     position: 'absolute',
@@ -1158,7 +1401,7 @@ const styles = StyleSheet.create({
     overflow: 'visible',
     shadowColor: '#2DD4BF',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 6,
   },
@@ -1169,8 +1412,8 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    backgroundColor: '#2A2A2A',
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: '#FFFFFF',
   },
   predictionBannerYellowGlow: {
     position: 'absolute',
@@ -1180,7 +1423,7 @@ const styles = StyleSheet.create({
     bottom: -10,
     borderRadius: 24,
     backgroundColor: '#2DD4BF',
-    opacity: 0.05,
+    opacity: 0.1,
   },
   gradientTextContainer: {
     alignItems: 'center',
@@ -1203,21 +1446,21 @@ const styles = StyleSheet.create({
   predictionBannerText: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     letterSpacing: 0.3,
     textAlign: 'center',
   },
   predictionBannerYellowText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     letterSpacing: 0.8,
     textAlign: 'center',
     textTransform: 'uppercase',
   },
   predictionBannerSubtext: {
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: Colors.textSecondary,
     marginLeft: 8,
   },
   predictionBannerChevron: {

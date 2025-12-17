@@ -2,6 +2,7 @@ import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextS
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ReactNode } from 'react';
+import { Colors, Fonts } from '@/constants/Theme';
 
 interface ButtonProps {
   title: string;
@@ -47,43 +48,41 @@ export function Button({
 
   if (variant === 'primary') {
     return (
-      <View style={[
-        styles.buttonWrapper,
-        styles[`button_${size}`],
-        isDisabled && styles.button_disabled,
-        style,
-      ]}>
-        <BlurView intensity={80} tint="dark" style={styles.button}>
-          {/* Classic glass border */}
-          <View style={styles.glassBorder} />
-          {/* Subtle inner highlight */}
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.glassHighlight}
-            pointerEvents="none"
-          />
-          <TouchableOpacity
-            onPress={onPress}
-            disabled={isDisabled}
-            activeOpacity={0.9}
-            style={[
-              styles.buttonInner,
-              styles[`button_${size}`],
-            ]}
-          >
-            {buttonContent}
-          </TouchableOpacity>
-        </BlurView>
-      </View>
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={isDisabled}
+        activeOpacity={0.8}
+        style={[
+          styles.buttonWrapper,
+          styles[`button_${size}`],
+          isDisabled && styles.button_disabled,
+          style,
+        ]}
+      >
+        <LinearGradient
+          colors={Colors.gradients.peach}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.buttonGradient,
+            styles[`button_${size}`],
+          ]}
+        >
+          {buttonContent}
+        </LinearGradient>
+      </TouchableOpacity>
     );
   }
+
+  // Secondary and outline variants
+  const gradientColors = variant === 'secondary' 
+    ? Colors.gradients.purple 
+    : Colors.gradients.turquoise;
 
   return (
     <TouchableOpacity
       style={[
-        styles.button,
+        styles.buttonWrapper,
         styles[`button_${variant}`],
         styles[`button_${size}`],
         isDisabled && styles.button_disabled,
@@ -91,56 +90,54 @@ export function Button({
       ]}
       onPress={onPress}
       disabled={isDisabled}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
     >
-      {buttonContent}
+      {variant === 'outline' ? (
+        <View style={[
+          styles.buttonOutline,
+          styles[`button_${size}`],
+        ]}>
+          {buttonContent}
+        </View>
+      ) : (
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.buttonGradient,
+            styles[`button_${size}`],
+          ]}
+        >
+          {buttonContent}
+        </LinearGradient>
+      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   buttonWrapper: {
-    borderRadius: 24,
+    borderRadius: 28,
     overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowColor: 'rgba(255, 154, 158, 0.3)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  button: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  glassBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
-  },
-  glassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  buttonInner: {
+  buttonGradient: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 24,
-    zIndex: 1,
+    borderRadius: 28,
+  },
+  buttonOutline: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: Colors.textPrimary,
+    backgroundColor: 'transparent',
   },
   contentRow: {
     flexDirection: 'row',
@@ -148,19 +145,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   button_primary: {
-    backgroundColor: 'transparent',
+    // Handled by gradient
   },
   button_secondary: {
-    backgroundColor: 'rgba(59, 37, 109, 0.3)',
+    // Handled by gradient
   },
   button_outline: {
     backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
   },
   button_small: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   button_medium: {
     paddingHorizontal: 24,
@@ -174,16 +169,17 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   text: {
-    fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
+    fontWeight: '700',
   },
   text_primary: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
   },
   text_secondary: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
   },
   text_outline: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
   },
   text_small: {
     fontSize: 14,

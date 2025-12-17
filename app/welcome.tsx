@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { ChevronRight } from 'lucide-react-native';
 import { useTypewriter } from '@/hooks/useTypewriter';
 import { setHasSeenWelcome } from '@/lib/welcomeStorage';
+import { Colors, Fonts } from '@/constants/Theme';
 
 const WELCOME_LINES = [
   'welcome to unreal',
@@ -148,7 +149,7 @@ export default function WelcomeScreen() {
 
   return (
     <LinearGradient
-      colors={['#09090A', '#0F0F11']}
+      colors={[Colors.background, Colors.backgroundSecondary]}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
@@ -175,11 +176,18 @@ export default function WelcomeScreen() {
                       fontSize,
                       lineHeight,
                       fontFamily: Platform.select({
-                        ios: index === 0 ? 'Inter-Bold' : 'Inter-Regular',
-                        android: index === 0 ? 'Inter-Bold' : 'Inter-Regular',
-                        default: 'Inter',
+                        ios: index === 0 
+                          ? Fonts.primary.regular 
+                          : Fonts.secondary.bold,
+                        android: index === 0 
+                          ? Fonts.primary.regular 
+                          : Fonts.secondary.bold,
+                        default: index === 0 
+                          ? Fonts.fallback.primary 
+                          : Fonts.fallback.secondary,
                       }),
-                      fontWeight: index === 0 ? '700' : '400',
+                      fontWeight: index === 0 ? '400' : '700',
+                      color: Colors.textPrimary,
                     },
                   ]}
                 >
@@ -204,26 +212,21 @@ export default function WelcomeScreen() {
       {buttonVisible && (
         <Animated.View style={[styles.buttonContainer, buttonAnimatedStyle]}>
           <View style={styles.buttonWrapper}>
-            <BlurView intensity={80} tint="dark" style={styles.button}>
-              {/* Classic glass border */}
-              <View style={styles.glassBorder} />
-              {/* Subtle inner highlight */}
+            <TouchableOpacity
+              onPress={handleGetStarted}
+              activeOpacity={0.9}
+              style={styles.buttonInner}
+            >
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
+                colors={Colors.gradients.peach}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.glassHighlight}
-                pointerEvents="none"
-              />
-              <TouchableOpacity
-                onPress={handleGetStarted}
-                activeOpacity={0.9}
-                style={styles.buttonInner}
+                end={{ x: 1, y: 1 }}
+                style={styles.buttonGradient}
               >
                 <Text style={styles.buttonText}>Get Started</Text>
-                <ChevronRight size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            </BlurView>
+                <ChevronRight size={20} color={Colors.textPrimary} />
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
         </Animated.View>
       )}
@@ -248,8 +251,8 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   lineText: {
-    color: 'rgba(255, 255, 255, 0.92)',
-    letterSpacing: -0.8,
+    color: Colors.textPrimary,
+    letterSpacing: -0.3,
     textAlign: 'left',
   },
   logoContainer: {
@@ -275,56 +278,32 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   buttonWrapper: {
-    borderRadius: 24,
+    borderRadius: 28,
     overflow: 'hidden',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
+    shadowColor: 'rgba(255, 154, 158, 0.4)',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },
-  button: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  glassBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
-  },
-  glassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
   buttonInner: {
+    borderRadius: 28,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 18,
-    paddingHorizontal: 24,
+    paddingHorizontal: 32,
     gap: 10,
-    borderRadius: 24,
-    zIndex: 1,
+    borderRadius: 28,
   },
   buttonText: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
   },
 });
 

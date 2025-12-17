@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';
 import { useState, useEffect } from 'react';
+import { Colors } from '@/constants/Theme';
 
 // Conditionally import liquid-glass only on iOS
 let LiquidGlassView: any;
@@ -49,22 +50,11 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         lazy: true,
-        tabBarActiveTintColor: '#FFFFFF',
-        tabBarInactiveTintColor: 'rgba(150, 150, 150, 0.8)',
-        sceneStyle: { backgroundColor: '#0C0C10' },
-        tabBarStyle: shouldHideTabBar ? {
-          height: 0,
-          opacity: 0,
-          overflow: 'hidden',
-        } : {
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
-          paddingTop: 8,
-          paddingBottom: Platform.OS === 'ios' ? 32 : 16,
-          height: Platform.OS === 'ios' ? 90 : 70,
-          elevation: 0,
-          shadowOpacity: 0,
-          position: 'absolute',
+        tabBarActiveTintColor: Colors.textPrimary,
+        tabBarInactiveTintColor: Colors.textTertiary,
+        sceneStyle: { backgroundColor: Colors.background },
+        tabBarStyle: {
+          display: 'none',
         },
         tabBarBackground: () => (
           <View 
@@ -76,18 +66,18 @@ export default function TabLayout() {
             <View 
               style={{
                 ...StyleSheet.absoluteFillObject,
-                backgroundColor: '#0D0E12',
+                backgroundColor: Colors.background,
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 borderTopWidth: 1,
-                borderTopColor: 'rgba(17, 19, 24, 0.9)',
+                borderTopColor: 'rgba(0, 0, 0, 0.1)',
               }}
             />
           </View>
         ),
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '600',
+          fontWeight: '700',
           marginTop: 4,
         },
         tabBarItemStyle: {
@@ -103,7 +93,7 @@ export default function TabLayout() {
             focused ? (
               <HomeGradientIcon size={size} />
             ) : (
-              <Home size={size} color="rgba(150, 150, 150, 0.8)" />
+              <Home size={size} color={Colors.textTertiary} />
             ),
         }}
       />
@@ -115,7 +105,7 @@ export default function TabLayout() {
             focused ? (
               <SimulationsGradientIcon size={size} />
             ) : (
-              <Layers size={size} color="rgba(150, 150, 150, 0.8)" />
+              <Layers size={size} color={Colors.textTertiary} />
             ),
         }}
       />

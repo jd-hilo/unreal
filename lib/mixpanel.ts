@@ -251,7 +251,6 @@ export const MixpanelEvents = {
   DECISION_SIMULATED: 'Decision Simulated',
   DECISION_SHARED: 'Decision Shared',
   DECISION_SHARE_OPENED: 'Decision Share Opened',
-  DECISION_TWIN_ADDED: 'Decision Twin Added',
 
   // Premium
   PREMIUM_SCREEN_VIEWED: 'Premium Screen Viewed',
@@ -288,9 +287,5 @@ export const MixpanelEvents = {
   ONBOARDING_COMPLETE_VIEWED: 'Onboarding Complete Viewed',
   ONBOARDING_COMPLETE_DECIDE_CLICKED: 'Onboarding Complete Decide Clicked',
   ONBOARDING_COMPLETE_EXPLORE_CLICKED: 'Onboarding Complete Explore Clicked',
-
-  // Lifetime Simulations
-  SIMULATION_CREATED: 'Simulation Created',
-  SIMULATION_YEAR_ADVANCED: 'Simulation Year Advanced',
 } as const;
 

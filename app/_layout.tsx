@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
@@ -11,6 +12,8 @@ import {
 } from '@/lib/mixpanel';
 import { getProfile } from '@/lib/storage';
 import adjustService from '@/adjustService';
+import { Inter_700Bold } from '@expo-google-fonts/inter';
+import { Colors } from '@/constants/Theme';
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -18,6 +21,12 @@ export default function RootLayout() {
   const user = useAuth((state) => state.user);
   const checkPremiumStatus = useTwin((state) => state.checkPremiumStatus);
   const onboardingComplete = useTwin((state) => state.onboardingComplete);
+
+  // Load fonts
+  const [fontsLoaded] = useFonts({
+    Inter_700Bold,
+    'Recoleta-Regular': require('@/assets/fonts/Recoleta-RegularDEMO.otf'),
+  });
   useEffect(() => {
     (async () => {
       try {
@@ -78,7 +87,7 @@ export default function RootLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#0C0C10' },
+        contentStyle: { backgroundColor: Colors.background },
       }}
     >
       <Stack.Screen name="welcome" />
@@ -100,7 +109,7 @@ export default function RootLayout() {
       <Stack.Screen name="profile" />
       <Stack.Screen name="premium" />
       <Stack.Screen name="+not-found" />
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
     </Stack>
   );
 }

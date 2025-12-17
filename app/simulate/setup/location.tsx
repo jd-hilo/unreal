@@ -74,7 +74,7 @@ export default function SetupLocationScreen() {
         </View>
 
         <Text style={styles.description}>
-          Helps your AI twin understand your context for more accurate predictions.
+          This helps your AI twin understand your context and make more accurate predictions about your life trajectory.
         </Text>
 
         <Input
@@ -88,7 +88,10 @@ export default function SetupLocationScreen() {
 
         <View style={styles.exampleBox}>
           <Text style={styles.exampleTitle}>Examples:</Text>
-          <Text style={styles.exampleText}>• Austin, Texas • San Francisco, CA • New York City, NY</Text>
+          <Text style={styles.exampleText}>• Austin, Texas</Text>
+          <Text style={styles.exampleText}>• San Francisco, CA</Text>
+          <Text style={styles.exampleText}>• New York City, NY</Text>
+          <Text style={styles.exampleText}>• London, UK</Text>
         </View>
       </View>
     </OnboardingScreen>
@@ -101,35 +104,35 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   description: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 24,
     color: 'rgba(200, 200, 200, 0.85)',
-    marginBottom: 24,
+    marginBottom: 32,
     textAlign: 'center',
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   exampleBox: {
     backgroundColor: 'rgba(20, 18, 30, 0.6)',
     borderWidth: 1,
     borderColor: 'rgba(59, 37, 109, 0.3)',
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
   },
   exampleTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   exampleText: {
-    fontSize: 13,
+    fontSize: 14,
     color: 'rgba(200, 200, 200, 0.7)',
-    lineHeight: 18,
+    marginBottom: 6,
   },
 });
 

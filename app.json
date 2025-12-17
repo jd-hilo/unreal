@@ -6,11 +6,11 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "unreal",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/images/unreallogo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0C0C10"
+      "backgroundColor": "#FFFFFF"
     },
     "newArchEnabled": true,
     "ios": {

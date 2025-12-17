@@ -19,6 +19,7 @@ import { ChevronRight, Book, Smile, DollarSign, Calendar } from 'lucide-react-na
 import { getProfile } from '@/lib/storage';
 import { Card, CardTitle, CardContent } from '@/components/Card';
 import { ProgressBar } from '@/components/ProgressBar';
+import { Colors, Fonts } from '@/constants/Theme';
 
 interface ProductGuideProps {
   visible: boolean;
@@ -70,8 +71,8 @@ export function ProductGuide({
             <CardContent>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF' }}>Should I quit my job?</Text>
-                  <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: Colors.textPrimary }}>Should I quit my job?</Text>
+                  <Text style={{ fontSize: 13, color: Colors.textSecondary }}>
                     Based on your value of freedom, this aligns with your long-term goals.
                   </Text>
                 </View>
@@ -112,25 +113,25 @@ export function ProductGuide({
         <View style={styles.visualContentContainer}>
           <Card style={{ padding: 12 }}>
             <CardContent>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF', marginBottom: 6 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: Colors.textPrimary, marginBottom: 6 }}>
                 What if I moved to NYC?
               </Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
-                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 12, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255, 215, 0, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
                     <Smile size={16} color="#FFD700" />
                   </View>
                   <View>
-                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Happiness</Text>
+                    <Text style={{ fontSize: 11, color: Colors.textSecondary }}>Happiness</Text>
                     <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFD700' }}>+12%</Text>
                   </View>
                 </View>
-                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 12, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(74, 222, 128, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
                     <DollarSign size={16} color="#4ADE80" />
                   </View>
                   <View>
-                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Net Worth</Text>
+                    <Text style={{ fontSize: 11, color: Colors.textSecondary }}>Net Worth</Text>
                     <Text style={{ fontSize: 14, fontWeight: '700', color: '#4ADE80' }}>$1.2M</Text>
                   </View>
                 </View>
@@ -153,14 +154,14 @@ export function ProductGuide({
               <CardContent>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Calendar size={14} color="rgba(255,255,255,0.5)" />
-                    <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Today, 9:41 AM</Text>
+                    <Calendar size={14} color={Colors.textTertiary} />
+                    <Text style={{ fontSize: 13, color: Colors.textTertiary }}>Today, 9:41 AM</Text>
                   </View>
                   <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(135, 206, 250, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
                     <Smile size={16} color="#87CEFA" />
                   </View>
                 </View>
-                <Text style={{ fontSize: 15, color: 'rgba(255,255,255,0.9)', fontStyle: 'italic', lineHeight: 20 }}>
+                <Text style={{ fontSize: 15, color: Colors.textSecondary, fontStyle: 'italic', lineHeight: 20 }}>
                   "Feeling excited about the new project at work today. It aligns perfectly with my goal to prioritize {topValue.toLowerCase()}..."
                 </Text>
               </CardContent>
@@ -182,20 +183,20 @@ export function ProductGuide({
             <CardContent>
               <View style={{ marginBottom: 6 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>Twin Accuracy</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: Colors.textPrimary }}>Twin Accuracy</Text>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: '#87CEFA' }}>85%</Text>
                 </View>
                 <ProgressBar progress={0.85} gradientColors={['#87CEFA', '#5CA8FF', '#87CEFA']} height={8} showLabel={false} />
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                  <Text style={{ fontSize: 12, color: '#FFFFFF' }}>Values ✓</Text>
+                <View style={{ backgroundColor: 'rgba(0,0,0,0.05)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                  <Text style={{ fontSize: 12, color: Colors.textPrimary }}>Values ✓</Text>
                 </View>
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                  <Text style={{ fontSize: 12, color: '#FFFFFF' }}>Personality ✓</Text>
+                <View style={{ backgroundColor: 'rgba(0,0,0,0.05)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                  <Text style={{ fontSize: 12, color: Colors.textPrimary }}>Personality ✓</Text>
                 </View>
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                  <Text style={{ fontSize: 12, color: '#FFFFFF' }}>Goals ✓</Text>
+                <View style={{ backgroundColor: 'rgba(0,0,0,0.05)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                  <Text style={{ fontSize: 12, color: Colors.textPrimary }}>Goals ✓</Text>
                 </View>
               </View>
             </CardContent>
@@ -428,7 +429,7 @@ export function ProductGuide({
       <View style={styles.container}>
         {/* Dark Overlay */}
         <Animated.View style={[styles.overlay, overlayAnimatedStyle]}>
-          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
           <View style={styles.dimmer} />
         </Animated.View>
 
@@ -447,15 +448,15 @@ export function ProductGuide({
           ]}
         >
            <View style={styles.cardClone}>
-              <BlurView intensity={80} tint="dark" style={styles.cardBlur}>
+              <View style={styles.cardBlur}>
                  <View style={styles.cardContent}>
                     <View style={styles.iconContainer}>
                        {currentStepData.isIconComponent && currentStepData.IconComponent ? (
-                          <currentStepData.IconComponent size={24} color="#FFFFFF" strokeWidth={1.5} />
+                          <currentStepData.IconComponent size={24} color={Colors.textPrimary} strokeWidth={1.5} />
                        ) : (
                           <Image 
                             source={currentStepData.icon}
-                            style={styles.iconImage}
+                            style={[styles.iconImage, { tintColor: Colors.textPrimary }]}
                             resizeMode="contain"
                           />
                        )}
@@ -463,7 +464,7 @@ export function ProductGuide({
                     <Text style={styles.cardTitle}>{currentStepData.cardTitle}</Text>
                     <Text style={styles.cardSubtitle}>{currentStepData.cardSubtitle}</Text>
                  </View>
-              </BlurView>
+              </View>
               {/* Glow effect */}
               <LinearGradient
                 colors={['rgba(135, 206, 250, 0.15)', 'transparent']}
@@ -485,14 +486,14 @@ export function ProductGuide({
              nestedScrollEnabled={true}
              keyboardShouldPersistTaps="handled"
            >
-             <BlurView intensity={80} tint="dark" style={styles.textBubble}>
+             <View style={styles.textBubble}>
                 <View style={styles.headerRow}>
                   {currentStepData.isIconComponent && currentStepData.IconComponent ? (
-                    <currentStepData.IconComponent size={18} color="#87CEFA" strokeWidth={1.5} />
+                    <currentStepData.IconComponent size={18} color={Colors.textPrimary} strokeWidth={1.5} />
                   ) : currentStepData.icon ? (
                     <Image 
                       source={currentStepData.icon}
-                      style={styles.headerIcon}
+                      style={[styles.headerIcon, { tintColor: Colors.textPrimary }]}
                       resizeMode="contain"
                     />
                   ) : null}
@@ -527,7 +528,7 @@ export function ProductGuide({
                     {!isLastStep && <ChevronRight size={14} color="#000" />}
                   </TouchableOpacity>
                 </View>
-             </BlurView>
+             </View>
            </ScrollView>
         </Animated.View>
       </View>
@@ -544,7 +545,7 @@ const styles = StyleSheet.create({
   },
   dimmer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   cardCloneWrapper: {
     position: 'absolute',
@@ -554,13 +555,15 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 32,
     overflow: 'hidden',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   cardBlur: {
     flex: 1,
     padding: 20,
     justifyContent: 'center',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
   },
   cardContent: {
@@ -587,13 +590,15 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
     marginBottom: 4,
     lineHeight: 24,
   },
   cardSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
     lineHeight: 20,
   },
   textContainer: {
@@ -613,13 +618,18 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   textBubble: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
     width: '100%',
     overflow: 'hidden',
     minHeight: 100,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   headerRow: {
     flexDirection: 'row',
@@ -634,12 +644,13 @@ const styles = StyleSheet.create({
   guideTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
     flex: 1,
   },
   guideDescription: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.textSecondary,
     lineHeight: 18,
     marginBottom: 4,
   },
@@ -658,7 +669,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
   },
   dotActive: {
     backgroundColor: '#87CEFA',
