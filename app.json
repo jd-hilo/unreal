@@ -1,21 +1,21 @@
 {
   "expo": {
     "name": "mora",
-    "slug": "mora",
-    "version": "1.3.0",
+    "slug": "unreal",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mora",
-    "userInterfaceStyle": "light",
+    "scheme": "unreal",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/unreallogo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#0C0C10"
     },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.jdhilo2.mora",
+      "bundleIdentifier": "com.jdhilo2.unreal",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
