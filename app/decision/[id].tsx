@@ -20,6 +20,7 @@ import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Colors, Fonts } from '@/constants/Theme';
 
 export default function DecisionResultScreen() {
   const router = useRouter();
@@ -237,7 +238,7 @@ export default function DecisionResultScreen() {
       
       Alert.alert(
         'Premium Feature',
-        'Life trajectory simulations are available with unreal+. Upgrade to unlock this feature.',
+        'Life trajectory simulations are available with mora+. Upgrade to unlock this feature.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Upgrade', onPress: () => router.push('/premium' as any) }
@@ -286,7 +287,7 @@ export default function DecisionResultScreen() {
     
     try {
       // Copy app store link to clipboard
-      const appStoreLink = 'https://apps.apple.com/us/app/unreal-simulate-your-life/id6754901842';
+      const appStoreLink = 'https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842';
       Clipboard.setString(appStoreLink);
 
       // For Instagram Stories, we need to use the share sheet
@@ -313,7 +314,7 @@ export default function DecisionResultScreen() {
     
     try {
       // Copy app store link to clipboard
-      const appStoreLink = 'https://apps.apple.com/us/app/unreal-simulate-your-life/id6754901842';
+      const appStoreLink = 'https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842';
       Clipboard.setString(appStoreLink);
 
       // Snapchat also uses the native share sheet
@@ -339,7 +340,7 @@ export default function DecisionResultScreen() {
     
     try {
       // Copy app store link to clipboard
-      const appStoreLink = 'https://apps.apple.com/us/app/unreal-simulate-your-life/id6754901842';
+      const appStoreLink = 'https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842';
       Clipboard.setString(appStoreLink);
 
       if (await Sharing.isAvailableAsync()) {
@@ -361,15 +362,15 @@ export default function DecisionResultScreen() {
     return (
       <View style={styles.screen}>
         <View style={styles.backgroundGradient}>
-          <StatusBar style="light" />
+          <StatusBar style="dark" />
           <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <View style={styles.topBar}>
               <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
-                <Home size={24} color="#FFFFFF" strokeWidth={2} />
+                <Home size={24} color={Colors.textPrimary} strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="rgba(135, 206, 250, 0.9)" />
+              <ActivityIndicator size="large" color={Colors.textSecondary} />
               <Text style={styles.loadingText}>
                 {predicting ? 'Generating prediction...' : 'Loading...'}
               </Text>
@@ -384,11 +385,11 @@ export default function DecisionResultScreen() {
     return (
       <View style={styles.screen}>
         <View style={styles.backgroundGradient}>
-          <StatusBar style="light" />
+          <StatusBar style="dark" />
           <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <View style={styles.topBar}>
               <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
-                <Home size={24} color="#FFFFFF" strokeWidth={2} />
+                <Home size={24} color={Colors.textPrimary} strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <View style={styles.loadingContainer}>
@@ -409,12 +410,12 @@ export default function DecisionResultScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.backgroundGradient}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
           {/* Top Bar */}
           <View style={styles.topBar}>
             <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
-              <Home size={24} color="#FFFFFF" strokeWidth={2} />
+              <Home size={24} color={Colors.textPrimary} strokeWidth={2} />
             </TouchableOpacity>
             {prediction && (
               <TouchableOpacity 
@@ -423,10 +424,10 @@ export default function DecisionResultScreen() {
                 disabled={sharing}
               >
                 {sharing ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={Colors.textPrimary} />
                 ) : (
                   <View style={styles.shareIconContainer}>
-                    <ShareIcon size={22} color="#FFFFFF" />
+                    <ShareIcon size={22} color={Colors.textPrimary} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -442,19 +443,19 @@ export default function DecisionResultScreen() {
           >
             {/* Main Header */}
             <View style={styles.headerCard}>
-              <BlurView intensity={40} tint="dark" style={styles.headerCardBlur}>
+              <View style={styles.headerCardBlur}>
                 <Text style={styles.headerLabel}>Question</Text>
                 <Text style={styles.headerText}>
                   {decision.question}
                 </Text>
-              </BlurView>
+              </View>
             </View>
 
         {/* Show participants if any */}
         {participants.length > 0 && (
           <View style={styles.participantsSection}>
             <View style={styles.participantsHeader}>
-              <Users size={16} color="rgba(135, 206, 250, 0.9)" />
+              <Users size={16} color={Colors.textSecondary} />
               <Text style={styles.participantsTitle}>
                 Consulted with {participants.length} other {participants.length === 1 ? 'twin' : 'twins'}
               </Text>
@@ -512,7 +513,7 @@ export default function DecisionResultScreen() {
                         <View style={styles.probContainer}>
                           <View style={styles.probBarBackground}>
                             <LinearGradient
-                              colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
+                              colors={Colors.gradients.turquoise}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 0 }}
                             style={[
@@ -592,14 +593,14 @@ export default function DecisionResultScreen() {
             {decision.prediction && (
               <View style={styles.section}>
                 <View style={styles.sectionCard}>
-                  <View style={styles.sectionHeader}>
+                    <View style={styles.sectionHeader}>
                     <View style={styles.sparklesIconContainer}>
-                      <Sparkles size={20} color="rgba(135, 206, 250, 0.9)" />
+                      <Sparkles size={20} color={Colors.textSecondary} />
                     </View>
                     <Text style={styles.sectionTitle}>If things were different…</Text>
                   </View>
                   {loadingSuggestions ? (
-                    <ActivityIndicator size="small" color="rgba(135, 206, 250, 0.9)" style={styles.sectionLoader} />
+                    <ActivityIndicator size="small" color={Colors.textSecondary} style={styles.sectionLoader} />
                   ) : suggestions?.suggestions ? (
                     <View style={styles.suggestionsContainer}>
                       {suggestions.suggestions.map((suggestion: any, index: number) => (
@@ -661,7 +662,7 @@ export default function DecisionResultScreen() {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
+                  colors={Colors.gradients.turquoise}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.simulateButtonGradient}
@@ -735,7 +736,7 @@ export default function DecisionResultScreen() {
                       <View style={styles.shareProbContainer}>
                         <View style={styles.shareProbBarBackground}>
                           <LinearGradient
-                            colors={['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)']}
+                            colors={Colors.gradients.turquoise}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
                             style={[
@@ -758,7 +759,7 @@ export default function DecisionResultScreen() {
             <View style={styles.shareFooter}>
               <View style={styles.shareFooterContent}>
                 <Text style={styles.shareGeneratedBy}>Generated by your AI Twin</Text>
-                <Text style={styles.shareLink}>Build your own AI Twin. Search "Unreal" on{'\n'}the App Store.</Text>
+                <Text style={styles.shareLink}>Build your own AI Twin. Search "Mora" on{'\n'}the App Store.</Text>
               </View>
               <View style={styles.shareAppIcon}>
                  <Image 
@@ -784,7 +785,7 @@ export default function DecisionResultScreen() {
           activeOpacity={1}
           onPress={() => setShowShareModal(false)}
         >
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
           <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
             <View style={styles.shareModalContent}>
               <Text style={styles.shareModalTitle}>Share to</Text>
@@ -843,11 +844,11 @@ export default function DecisionResultScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   backgroundGradient: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
@@ -856,40 +857,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
     paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
   iconButton: {
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
+  },
+  shareButton: {
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
   },
   headerCard: {
     marginBottom: 24,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   headerCardBlur: {
-    padding: 18,
+    padding: 20,
   },
   headerLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: 8,
+    fontFamily: Fonts.secondary.bold,
   },
   headerText: {
     fontSize: 20,
     fontWeight: '600',
     lineHeight: 26,
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     letterSpacing: -0.3,
+    fontFamily: Fonts.secondary.bold,
   },
   content: {
     flex: 1,
@@ -897,53 +910,69 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+    paddingTop: 10,
   },
   predictionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   predictionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     marginBottom: 8,
+    fontFamily: Fonts.secondary.bold,
   },
   predictionValue: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 8,
+    fontFamily: Fonts.primary.regular,
   },
   confidence: {
     fontSize: 16,
     color: '#10B981',
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   section: {
     marginBottom: 24,
   },
   sectionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
-    padding: 18,
+    padding: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 12,
     letterSpacing: 0.2,
+    fontFamily: Fonts.secondary.bold,
   },
   rationale: {
     fontSize: 16,
     lineHeight: 24,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   optionRow: {
     marginBottom: 16,
@@ -951,9 +980,10 @@ const styles = StyleSheet.create({
   optionName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 10,
     letterSpacing: 0.1,
+    fontFamily: Fonts.secondary.bold,
   },
   probContainer: {
     flexDirection: 'row',
@@ -980,20 +1010,17 @@ const styles = StyleSheet.create({
   },
   factor: {
     fontSize: 15,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
     marginBottom: 10,
     lineHeight: 22,
     letterSpacing: 0.1,
+    fontFamily: Fonts.secondary.bold,
   },
   simulateButtonWrapper: {
     marginTop: 24,
     marginBottom: 32,
-    borderRadius: 24,
-    shadowColor: 'rgba(135, 206, 250, 0.4)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 10,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   simulateButtonWrapperNonPremium: {
     marginTop: 24,
@@ -1014,16 +1041,11 @@ const styles = StyleSheet.create({
   },
   simulateButtonPremium: {
     backgroundColor: 'transparent',
-    shadowColor: 'rgba(135, 206, 250, 0.9)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 25,
-    elevation: 16,
   },
   simulateButtonGradient: {
     paddingVertical: 18,
     paddingHorizontal: 24,
-    borderRadius: 24,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1067,15 +1089,21 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   askAnotherButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   goHomeTextContainer: {
     marginTop: 0,
@@ -1087,7 +1115,8 @@ const styles = StyleSheet.create({
   goHomeText: {
     fontSize: 15,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
   },
   loadingContainer: {
     flex: 1,
@@ -1184,17 +1213,18 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   suggestionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'rgba(0,0,0,0.02)',
     borderWidth: 0,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
   },
   suggestionLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 12,
     letterSpacing: 0.2,
+    fontFamily: Fonts.secondary.bold,
   },
   suggestionProbs: {
     gap: 8,
@@ -1207,14 +1237,16 @@ const styles = StyleSheet.create({
   },
   suggestionOption: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
     flex: 1,
+    fontFamily: Fonts.secondary.bold,
   },
   suggestionProb: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     minWidth: 40,
+    fontFamily: Fonts.secondary.bold,
   },
   suggestionDelta: {
     fontSize: 12,
@@ -1222,32 +1254,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    fontFamily: Fonts.secondary.bold,
   },
   suggestionDeltaText: {
     fontSize: 13,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     marginTop: 8,
     fontStyle: 'italic',
+    fontFamily: Fonts.secondary.bold,
   },
   emptyStateText: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 16,
+    fontFamily: Fonts.secondary.bold,
   },
   participantsSection: {
     marginBottom: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 0,
-    borderRadius: 16,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
     shadowRadius: 16,
-    elevation: 0,
+    elevation: 5,
   },
   participantsHeader: {
     flexDirection: 'row',
@@ -1610,15 +1646,17 @@ const styles = StyleSheet.create({
   },
   sideEffectBullet: {
     fontSize: 16,
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.textSecondary,
     fontWeight: '700',
     marginTop: 2,
+    fontFamily: Fonts.secondary.bold,
   },
   sideEffectText: {
     flex: 1,
     fontSize: 15,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
     lineHeight: 22,
+    fontFamily: Fonts.secondary.bold,
   },
   nextStepItem: {
     flexDirection: 'row',
@@ -1629,16 +1667,18 @@ const styles = StyleSheet.create({
   nextStepNumber: {
     fontSize: 32,
     fontWeight: '800',
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.textSecondary,
     lineHeight: 38,
     marginTop: -4,
+    fontFamily: Fonts.secondary.bold,
   },
   nextStepText: {
     flex: 1,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     lineHeight: 24,
     fontWeight: '500',
     paddingTop: 4,
+    fontFamily: Fonts.secondary.bold,
   },
 });

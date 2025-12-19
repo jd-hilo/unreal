@@ -9,6 +9,7 @@ import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
+import { Colors, Fonts } from '@/constants/Theme';
 
 interface Journal {
   id: string;
@@ -48,7 +49,7 @@ export default function JournalScreen() {
   }
 
   function getMoodEmoji(mood: number | null) {
-    if (mood === null) return <Meh size={24} color="#999999" />;
+    if (mood === null) return <Meh size={24} color={Colors.textTertiary} />;
     if (mood >= 4) return <Smile size={24} color="#10B981" />;
     if (mood >= 2) return <Meh size={24} color="#F59E0B" />;
     return <Frown size={24} color="#EF4444" />;
@@ -81,7 +82,7 @@ export default function JournalScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.backgroundGradient}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
           {/* Top Bar */}
           <View style={styles.topBar}>
@@ -92,7 +93,7 @@ export default function JournalScreen() {
               }} 
               style={styles.iconButton}
             >
-              <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+              <ArrowLeft size={24} color={Colors.textPrimary} strokeWidth={2} />
             </TouchableOpacity>
           </View>
 
@@ -115,7 +116,7 @@ export default function JournalScreen() {
               activeOpacity={0.8}
               style={styles.todayCardWrapper}
             >
-              <BlurView intensity={40} tint="dark" style={styles.todayCard}>
+              <View style={styles.todayCard}>
                 <View style={styles.todayCardContent}>
                   {todayJournal ? (
                     <>
@@ -130,14 +131,14 @@ export default function JournalScreen() {
                   ) : (
                     <>
                       <View style={styles.todayIconContainer}>
-                        <BookOpen size={32} color="#FFFFFF" strokeWidth={1.5} />
+                        <BookOpen size={32} color={Colors.textPrimary} strokeWidth={1.5} />
                       </View>
                       <Text style={styles.todayCardTitle}>How are you feeling?</Text>
                       <Text style={styles.todayCardSubtitle}>Start your daily reflection</Text>
                     </>
                   )}
                 </View>
-              </BlurView>
+              </View>
             </TouchableOpacity>
 
             {/* Past Entries */}
@@ -159,7 +160,7 @@ export default function JournalScreen() {
                       activeOpacity={0.8}
                       style={styles.journalCardWrapper}
                     >
-                      <BlurView intensity={40} tint="dark" style={styles.journalCard}>
+                      <View style={styles.journalCard}>
                         <View style={styles.journalCardContent}>
                           <View style={styles.journalIcon}>
                             {getMoodEmoji(journal.mood)}
@@ -182,7 +183,7 @@ export default function JournalScreen() {
                             )}
                           </View>
                         </View>
-                      </BlurView>
+                      </View>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -198,11 +199,11 @@ export default function JournalScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   backgroundGradient: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
   },
   scrollView: {
@@ -231,17 +232,19 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   greeting: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-    lineHeight: 38,
-    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
+    lineHeight: 34,
+    fontFamily: Fonts.primary.regular,
     letterSpacing: -0.5,
   },
   greetingName: {
-    color: '#999999',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.primary.regular,
   },
   greetingRest: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   todayCardWrapper: {
     marginBottom: 40,
@@ -251,9 +254,14 @@ const styles = StyleSheet.create({
   todayCard: {
     borderRadius: 32,
     overflow: 'hidden',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   todayCardContent: {
     padding: 20,
@@ -269,14 +277,16 @@ const styles = StyleSheet.create({
   todayCardTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 4,
     lineHeight: 24,
+    fontFamily: Fonts.secondary.bold,
   },
   todayCardSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textSecondary,
     lineHeight: 20,
+    fontFamily: Fonts.secondary.bold,
   },
   emptySection: {
     alignItems: 'center',
@@ -285,12 +295,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 8,
+    fontFamily: Fonts.secondary.bold,
   },
   emptyText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
   },
   entriesSection: {
     gap: 12,
@@ -298,8 +310,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 16,
+    fontFamily: Fonts.secondary.bold,
   },
   journalCardWrapper: {
     marginBottom: 12,
@@ -309,9 +322,14 @@ const styles = StyleSheet.create({
   journalCard: {
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   journalCardContent: {
     flexDirection: 'row',
@@ -323,7 +341,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -340,23 +358,26 @@ const styles = StyleSheet.create({
   journalDate: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     flex: 1,
+    fontFamily: Fonts.secondary.bold,
   },
   journalMoodBadge: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
   },
   journalMood: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.textSecondary,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   journalPreview: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
+    color: Colors.textTertiary,
     lineHeight: 20,
+    fontFamily: Fonts.secondary.bold,
   },
 });

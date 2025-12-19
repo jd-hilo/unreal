@@ -18,6 +18,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '@/components/Button';
+import { Colors, Fonts } from '@/constants/Theme';
 
 const TOTAL_STEPS = 4;
 
@@ -592,11 +593,11 @@ export default function NewDecisionScreen() {
       <View style={styles.stepContainer}>
         {addedTwins.length > 0 ? (
           <View style={styles.twinAddedCard}>
-            <BlurView intensity={30} tint="dark" style={styles.twinAddedBlur}>
+            <View style={styles.twinAddedBlur}>
               <View style={styles.twinAddedContent}>
                 <View style={styles.twinAddedInfo}>
                   <View style={styles.twinAddedIconContainer}>
-                    <UserPlus size={20} color="#000000" />
+                    <UserPlus size={20} color={Colors.textPrimary} />
                   </View>
                   <Text style={styles.twinAddedName}>{addedTwins[0].name} added</Text>
                 </View>
@@ -604,10 +605,10 @@ export default function NewDecisionScreen() {
                   onPress={() => handleRemoveTwin(addedTwins[0].userId)}
                   style={styles.removeTwinButton}
                 >
-                  <X size={20} color="rgba(255, 255, 255, 0.5)" />
+                  <X size={20} color={Colors.textTertiary} />
                 </TouchableOpacity>
               </View>
-            </BlurView>
+            </View>
           </View>
         ) : (
           <View style={styles.collaboratorSection}>
@@ -616,19 +617,14 @@ export default function NewDecisionScreen() {
               style={styles.airbudsCard}
               activeOpacity={0.8}
             >
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)']}
-                style={styles.airbudsGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
+              <View style={styles.airbudsGradient}>
                 <View style={styles.airbudsInner}>
                   <View style={styles.airbudsIconCircle}>
-                    <Plus size={32} color="#FFFFFF" strokeWidth={2.5} />
+                    <Plus size={32} color={Colors.textPrimary} strokeWidth={2.5} />
                   </View>
                   <Text style={styles.airbudsText}>Tap to invite</Text>
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </View>
         )}
@@ -641,7 +637,7 @@ export default function NewDecisionScreen() {
     return (
       <View style={styles.stepContainer}>
         <View style={styles.reviewCard}>
-          <BlurView intensity={30} tint="dark" style={styles.reviewBlur}>
+          <View style={styles.reviewBlur}>
             <View style={styles.reviewContent}>
               <Text style={styles.reviewLabel}>Question</Text>
               <Text style={styles.reviewValue}>{question}</Text>
@@ -665,7 +661,7 @@ export default function NewDecisionScreen() {
                 </>
               )}
             </View>
-          </BlurView>
+          </View>
         </View>
       </View>
     );
@@ -730,13 +726,8 @@ export default function NewDecisionScreen() {
 
     return (
       <View style={styles.loadingScreen}>
-        <LinearGradient
-          colors={['#050505', '#0A0A0A', '#050505']}
-          style={styles.loadingContainer}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <StatusBar style="light" />
+        <View style={styles.loadingContainer}>
+          <StatusBar style="dark" />
           <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
             <View style={styles.loadingContent}>
               {/* Animated Orb */}
@@ -753,18 +744,20 @@ export default function NewDecisionScreen() {
                   ]}
                 >
                   <LinearGradient
-                    colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.1)', 'rgba(65, 105, 225, 0.05)']}
+                    colors={Colors.gradients.turquoise}
                     style={styles.orbGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   />
                 </Animated.View>
                 <View style={styles.orbInner}>
-                  <Image 
-                    source={require('@/assets/images/cube.png')}
-                    style={styles.loadingCubeIcon}
-                    resizeMode="contain"
-                  />
+                  <View style={styles.cubeShadowWrapper}>
+                    <Image 
+                      source={require('@/assets/images/cube.png')}
+                      style={styles.loadingCubeIcon}
+                      resizeMode="contain"
+                    />
+                  </View>
                 </View>
               </View>
 
@@ -772,11 +765,11 @@ export default function NewDecisionScreen() {
               <View style={styles.textContainer}>
                 <Text style={styles.loadingText}>Asking your twin...</Text>
                 <View style={styles.statusContainer}>
-                  <BlurView intensity={20} tint="dark" style={styles.statusBlur}>
+                  <View style={styles.statusBlur}>
                     <Text style={styles.statusText}>
                       {LOADING_STEPS[loadingStepIndex] || LOADING_STEPS[LOADING_STEPS.length - 1]}
                     </Text>
-                  </BlurView>
+                  </View>
                 </View>
               </View>
 
@@ -788,7 +781,7 @@ export default function NewDecisionScreen() {
                     style={[
                       styles.dot,
                       {
-                        backgroundColor: '#87CEFA',
+                        backgroundColor: Colors.textSecondary,
                         transform: [
                           {
                             scale: pulseAnim.interpolate({
@@ -808,7 +801,7 @@ export default function NewDecisionScreen() {
               </View>
             </View>
           </SafeAreaView>
-        </LinearGradient>
+        </View>
       </View>
     );
   }
@@ -817,7 +810,7 @@ export default function NewDecisionScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.screen}>
         <View style={styles.backgroundGradient}>
-          <StatusBar style="light" />
+          <StatusBar style="dark" />
           <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <KeyboardAvoidingView
               style={styles.container}
@@ -830,7 +823,7 @@ export default function NewDecisionScreen() {
                   style={styles.iconButton}
                   activeOpacity={0.7}
                 >
-                  <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+                  <ArrowLeft size={24} color={Colors.textPrimary} strokeWidth={2} />
                 </TouchableOpacity>
               </View>
 
@@ -840,7 +833,8 @@ export default function NewDecisionScreen() {
                   progress={progress}
                   showLabel={false}
                   height={4}
-                  gradientColors={['#87CEFA', '#87CEFA']}
+                  gradientColors={['#febda1', '#febda1']}
+                  trackColor="rgba(0,0,0,0.05)"
                 />
               </View>
 
@@ -893,35 +887,56 @@ export default function NewDecisionScreen() {
                     (!canProceed || loading || isDerivingOptions) && styles.floatingButtonDisabled
                   ]}
                 >
-                  <LinearGradient
-                    colors={canProceed && !loading && !isDerivingOptions ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[
-                      styles.floatingButton,
-                      canProceed && !loading && !isDerivingOptions && styles.floatingButtonActiveBorder
-                    ]}
-                  >
-                    {currentStep === 4 && (
-                      <Image 
-                        source={require('@/assets/images/cube.png')}
-                        style={styles.cubeIcon}
-                        resizeMode="contain"
-                      />
-                    )}
-                    <Text style={[
-                      styles.floatingButtonText,
-                      (!canProceed || loading || isDerivingOptions) && styles.floatingButtonTextDisabled
-                    ]}>
-                      {loading || isDerivingOptions ? 'Processing...' : getButtonLabel()}
-                    </Text>
-                    {!loading && !isDerivingOptions && (
+                  {canProceed && !loading && !isDerivingOptions ? (
+                    <View
+                      style={[
+                        styles.floatingButton,
+                        styles.floatingButtonActiveBorder,
+                        { backgroundColor: '#febda1' }
+                      ]}
+                    >
+                      {currentStep === 4 && (
+                        <View style={styles.cubeIconShadowWrapper}>
+                          <Image 
+                            source={require('@/assets/images/cube.png')}
+                            style={styles.cubeIcon}
+                            resizeMode="contain"
+                          />
+                        </View>
+                      )}
+                      <Text style={styles.floatingButtonText}>
+                        {getButtonLabel()}
+                      </Text>
                       <ChevronRight 
                         size={20} 
-                        color={(!canProceed || loading || isDerivingOptions) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
+                        color="#FFFFFF" 
                       />
-                    )}
-                  </LinearGradient>
+                    </View>
+                  ) : (
+                    <View style={styles.floatingButton}>
+                      {currentStep === 4 && (
+                        <View style={styles.cubeIconShadowWrapper}>
+                          <Image 
+                            source={require('@/assets/images/cube.png')}
+                            style={styles.cubeIcon}
+                            resizeMode="contain"
+                          />
+                        </View>
+                      )}
+                      <Text style={[
+                        styles.floatingButtonText,
+                        styles.floatingButtonTextDisabled
+                      ]}>
+                        {loading || isDerivingOptions ? 'Processing...' : getButtonLabel()}
+                      </Text>
+                      {!loading && !isDerivingOptions && (
+                        <ChevronRight 
+                          size={20} 
+                          color={Colors.textTertiary} 
+                        />
+                      )}
+                    </View>
+                  )}
                 </TouchableOpacity>
               </View>
             </KeyboardAvoidingView>
@@ -938,7 +953,7 @@ export default function NewDecisionScreen() {
       >
         <View style={[styles.modalOverlay, keyboardVisible && styles.modalOverlayKeyboard]}>
           <View style={styles.modalContent}>
-            <BlurView intensity={40} tint="dark" style={styles.modalBlur}>
+            <View style={styles.modalBlur}>
               <View style={styles.modalInner}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Add Another Twin</Text>
@@ -950,18 +965,18 @@ export default function NewDecisionScreen() {
                     }}
                     style={styles.modalCloseButton}
                   >
-                    <X size={24} color="#FFFFFF" />
+                    <X size={24} color={Colors.textPrimary} />
                   </TouchableOpacity>
                 </View>
 
                 <Text style={styles.modalDescription}>
-                  Enter someone's unreal# — it is listed on their profile page. They will be included in the decision.
+                  Enter someone's mora# — it is listed on their profile page. They will be included in the decision.
                 </Text>
 
                 {recentTwins.length > 0 && (
                   <View style={styles.recentTwinsSection}>
                     <View style={styles.recentTwinsHeader}>
-                      <Clock size={14} color="rgba(200, 200, 200, 0.75)" />
+                      <Clock size={14} color={Colors.textTertiary} />
                       <Text style={styles.recentTwinsLabel}>Recently added</Text>
                     </View>
                     <View style={styles.recentTwinsList}>
@@ -1002,21 +1017,16 @@ export default function NewDecisionScreen() {
                   ]}
                   activeOpacity={0.9}
                 >
-                  <LinearGradient
-                    colors={twinCode.length === 6 && !lookingUpTwin ? ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.modalButton}
-                  >
+                  <View style={styles.modalButton}>
                     {lookingUpTwin ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
+                      <ActivityIndicator size="small" color={Colors.textPrimary} />
                     ) : (
                       <Text style={styles.modalButtonText}>Add Twin</Text>
                     )}
-                  </LinearGradient>
+                  </View>
                 </TouchableOpacity>
               </View>
-            </BlurView>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1030,7 +1040,7 @@ export default function NewDecisionScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <BlurView intensity={40} tint="dark" style={styles.modalBlur}>
+            <View style={styles.modalBlur}>
               <View style={styles.modalInner}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Edit Option</Text>
@@ -1041,7 +1051,7 @@ export default function NewDecisionScreen() {
                     }}
                     style={styles.modalCloseButton}
                   >
-                    <X size={24} color="#FFFFFF" />
+                    <X size={24} color={Colors.textPrimary} />
                   </TouchableOpacity>
                 </View>
 
@@ -1064,17 +1074,12 @@ export default function NewDecisionScreen() {
                   ]}
                   activeOpacity={0.9}
                 >
-                  <LinearGradient
-                    colors={editingOptionText.trim() ? ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.modalButton}
-                  >
+                  <View style={styles.modalButton}>
                     <Text style={styles.modalButtonText}>Save Changes</Text>
-                  </LinearGradient>
+                  </View>
                 </TouchableOpacity>
               </View>
-            </BlurView>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1085,11 +1090,11 @@ export default function NewDecisionScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   backgroundGradient: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
@@ -1107,7 +1112,7 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
   },
   progressBarContainer: {
@@ -1119,20 +1124,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   greeting: {
-    fontSize: 42,
+    fontSize: 28,
     fontWeight: '700',
-    lineHeight: 48,
-    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
+    lineHeight: 34,
+    fontFamily: Fonts.primary.regular,
     letterSpacing: -0.5,
   },
   greetingRest: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   greetingSubtext: {
-    color: '#999999',
-    fontSize: 18,
+    color: Colors.textSecondary,
+    fontSize: 16,
     fontWeight: '500',
     marginTop: 4,
+    fontFamily: Fonts.secondary.bold,
   },
   content: {
     flex: 1,
@@ -1152,7 +1159,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 40,
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.background,
     gap: 12,
   },
   skipButton: {
@@ -1161,17 +1168,20 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   floatingButtonWrapper: {
     borderRadius: 24,
-    overflow: 'visible',
-    shadowColor: 'rgba(135, 206, 250, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   floatingButton: {
     flexDirection: 'row',
@@ -1181,22 +1191,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     borderRadius: 24,
+    backgroundColor: '#FFFFFF',
   },
   floatingButtonActiveBorder: {
     borderWidth: 1,
-    borderColor: '#87CEFA',
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   floatingButtonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
+    opacity: 0.5,
   },
   floatingButtonText: {
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
   floatingButtonTextDisabled: {
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: Colors.textTertiary,
+  },
+  cubeIconShadowWrapper: {
+    shadowColor: 'rgba(0, 0, 0, 0.5)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 15,
   },
   cubeIcon: {
     width: 22,
@@ -1284,25 +1302,37 @@ const styles = StyleSheet.create({
   regenerateButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
     borderRadius: 12,
     padding: 14,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   regenerateText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   twinAddedCard: {
     borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(34, 197, 94, 0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   twinAddedBlur: {
-    backgroundColor: 'rgba(20, 18, 30, 0.3)',
+    backgroundColor: '#FFFFFF',
   },
   twinAddedContent: {
     flexDirection: 'row',
@@ -1318,7 +1348,8 @@ const styles = StyleSheet.create({
   twinAddedName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   removeTwinButton: {
     padding: 4,
@@ -1359,12 +1390,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   airbudsGradient: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
   },
   airbudsInner: {
     alignItems: 'center',
@@ -1374,34 +1412,40 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   airbudsText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
-    opacity: 0.8,
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   twinAddedIconContainer: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#87CEFA', // Unreal blue
+    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   reviewCard: {
     borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   reviewBlur: {
-    backgroundColor: 'rgba(20, 18, 30, 0.3)',
+    backgroundColor: '#FFFFFF',
   },
   reviewContent: {
     padding: 16,
@@ -1409,10 +1453,11 @@ const styles = StyleSheet.create({
   reviewLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.6)',
+    color: Colors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
+    fontFamily: Fonts.secondary.bold,
   },
   reviewLabelSpaced: {
     marginTop: 20,
@@ -1420,8 +1465,9 @@ const styles = StyleSheet.create({
   reviewValue: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     lineHeight: 24,
+    fontFamily: Fonts.secondary.bold,
   },
   reviewOption: {
     flexDirection: 'row',
@@ -1431,18 +1477,20 @@ const styles = StyleSheet.create({
   reviewOptionNumber: {
     fontSize: 15,
     fontWeight: '600',
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   reviewOptionText: {
     flex: 1,
     fontSize: 15,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     lineHeight: 22,
+    fontFamily: Fonts.secondary.bold,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -1457,10 +1505,16 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 10,
   },
   modalBlur: {
-    backgroundColor: 'rgba(20, 18, 30, 0.95)',
+    backgroundColor: '#FFFFFF',
   },
   modalInner: {
     padding: 24,
@@ -1474,16 +1528,18 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   modalCloseButton: {
     padding: 4,
   },
   modalDescription: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
     lineHeight: 20,
     marginBottom: 20,
+    fontFamily: Fonts.secondary.bold,
   },
   recentTwinsSection: {
     marginBottom: 20,
@@ -1497,9 +1553,10 @@ const styles = StyleSheet.create({
   recentTwinsLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    fontFamily: Fonts.secondary.bold,
   },
   recentTwinsList: {
     flexDirection: 'row',
@@ -1507,35 +1564,44 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   recentTwinChip: {
-    backgroundColor: 'rgba(20, 30, 50, 0.4)',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderColor: 'rgba(0,0,0,0.05)',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   recentTwinName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   recentTwinCode: {
     fontSize: 11,
     fontWeight: '600',
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   modalButtonWrapper: {
     borderRadius: 24,
-    overflow: 'visible',
+    overflow: 'hidden',
     marginTop: 8,
-    shadowColor: 'rgba(135, 206, 250, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   modalButton: {
     paddingVertical: 18,
@@ -1543,6 +1609,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 24,
+    backgroundColor: '#FFFFFF',
   },
   modalButtonDisabled: {
     opacity: 0.5,
@@ -1550,15 +1617,17 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   // Loading screen styles
   loadingScreen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   loadingSafeArea: {
     flex: 1,
@@ -1592,14 +1661,26 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   orbEmoji: {
     fontSize: 48,
+  },
+  cubeShadowWrapper: {
+    shadowColor: 'rgba(0, 0, 0, 0.5)',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.8,
+    shadowRadius: 30,
+    elevation: 20,
   },
   loadingCubeIcon: {
     width: 60,
@@ -1614,27 +1695,34 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.5,
+    fontFamily: Fonts.secondary.bold,
   },
   statusContainer: {
     marginTop: 8,
   },
   statusBlur: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   statusText: {
     fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.textSecondary,
     textAlign: 'center',
     fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
   dotsContainer: {
     flexDirection: 'row',
@@ -1646,5 +1734,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    backgroundColor: Colors.textTertiary,
   },
 });

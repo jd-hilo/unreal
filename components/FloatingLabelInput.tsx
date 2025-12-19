@@ -1,6 +1,7 @@
 import { TextInput, View, Text, StyleSheet, TextInputProps, Animated, Platform, TouchableOpacity, Keyboard } from 'react-native';
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import * as Haptics from 'expo-haptics';
+import { Colors, Fonts } from '@/constants/Theme';
 
 interface FloatingLabelInputProps extends TextInputProps {
   label: string;
@@ -105,13 +106,13 @@ export const FloatingLabelInput = forwardRef<TextInput, FloatingLabelInputProps>
     }),
     color: labelAnimation.interpolate({
       inputRange: [0, 1],
-      outputRange: ['rgba(255, 255, 255, 0.5)', 'rgba(135, 206, 250, 0.9)'],
+      outputRange: [Colors.textTertiary, Colors.textSecondary],
     }),
   };
 
   const borderColor = borderAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: ['rgba(135, 206, 250, 0.3)', 'rgba(135, 206, 250, 0.9)'],
+    outputRange: ['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.2)'],
   });
 
   const glowOpacity = borderAnimation.interpolate({
@@ -150,7 +151,7 @@ export const FloatingLabelInput = forwardRef<TextInput, FloatingLabelInputProps>
               onChangeText={handleChangeText}
               onFocus={handleFocus}
               onBlur={handleBlur}
-              placeholderTextColor="rgba(150, 150, 150, 0.5)"
+              placeholderTextColor={Colors.textTertiary}
               multiline={multiline}
               returnKeyType={returnKeyType || (multiline ? 'default' : 'done')}
               onSubmitEditing={handleSubmitEditing}
@@ -165,7 +166,7 @@ export const FloatingLabelInput = forwardRef<TextInput, FloatingLabelInputProps>
             />
         
         {/* Underline */}
-        <View style={[styles.underline, { backgroundColor: isFocused ? 'rgba(135, 206, 250, 0.5)' : 'rgba(135, 206, 250, 0.3)' }]} />
+        <View style={[styles.underline, { backgroundColor: isFocused ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.1)' }]} />
         
         {/* Character count and error */}
         <View style={styles.footer}>
@@ -199,21 +200,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   label: {
-    backgroundColor: '#0C0C10',
+    backgroundColor: Colors.background,
     paddingHorizontal: 0,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   input: {
     fontSize: 18,
     fontWeight: '500',
     letterSpacing: -0.2,
     lineHeight: 20,
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     paddingVertical: 12,
     paddingHorizontal: 0,
     backgroundColor: 'transparent',
     borderWidth: 0,
     minHeight: 24,
+    fontFamily: Fonts.secondary.bold,
   },
   inputMultiline: {
     textAlignVertical: 'top',
@@ -234,8 +237,9 @@ const styles = StyleSheet.create({
   },
   charCount: {
     fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.6)',
+    color: Colors.textTertiary,
     fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
   charCountError: {
     color: '#EF4444',

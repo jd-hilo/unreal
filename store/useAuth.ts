@@ -226,7 +226,7 @@ export const useAuth = create<AuthState>((set) => ({
       email,
       options: {
         shouldCreateUser: false, // Don't create user if doesn't exist
-        emailRedirectTo: 'unreal://reset-password',
+        emailRedirectTo: 'mora://reset-password',
       },
     });
 

@@ -158,7 +158,7 @@ export default function PredictionIntroScreen() {
                   <View style={styles.lockOverlay}>
                     <BlurView intensity={20} tint="dark" style={styles.lockBlur}>
                       <Lock size={20} color="#FFFFFF" strokeWidth={2} />
-                      <Text style={styles.lockText}>unreal+</Text>
+                      <Text style={styles.lockText}>mora+</Text>
                     </BlurView>
                   </View>
                 )}
@@ -184,7 +184,7 @@ export default function PredictionIntroScreen() {
                   <View style={styles.lockOverlay}>
                     <BlurView intensity={20} tint="dark" style={styles.lockBlur}>
                       <Lock size={20} color="#FFFFFF" strokeWidth={2} />
-                      <Text style={styles.lockText}>unreal+</Text>
+                      <Text style={styles.lockText}>mora+</Text>
                     </BlurView>
                   </View>
                 )}

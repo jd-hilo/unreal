@@ -4,12 +4,12 @@ import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { Home, TrendingUp, TrendingDown, Minus, Weight, Heart, DollarSign, MapPin, Smile, Coffee, Lock, Sparkles } from 'lucide-react-native';
 import { useTwin } from '@/store/useTwin';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Colors, Fonts } from '@/constants/Theme';
 
 export default function WhatIfResultScreen() {
   const router = useRouter();
@@ -107,11 +107,11 @@ export default function WhatIfResultScreen() {
     return (
       <View style={styles.screen}>
         <View style={styles.backgroundGradient}>
-          <StatusBar style="light" />
+          <StatusBar style="dark" />
           <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <View style={styles.topBar}>
               <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
-                <Home size={24} color="#FFFFFF" strokeWidth={2} />
+                <Home size={24} color={Colors.textPrimary} strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <View style={styles.loadingContainer}>
@@ -127,11 +127,11 @@ export default function WhatIfResultScreen() {
     return (
       <View style={styles.screen}>
         <View style={styles.backgroundGradient}>
-          <StatusBar style="light" />
+          <StatusBar style="dark" />
           <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <View style={styles.topBar}>
               <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
-                <Home size={24} color="#FFFFFF" strokeWidth={2} />
+                <Home size={24} color={Colors.textPrimary} strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <View style={styles.loadingContainer}>
@@ -257,12 +257,12 @@ export default function WhatIfResultScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.backgroundGradient}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
           {/* Top Bar */}
           <View style={styles.topBar}>
             <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
-              <Home size={24} color="#FFFFFF" strokeWidth={2} />
+              <Home size={24} color={Colors.textPrimary} strokeWidth={2} />
             </TouchableOpacity>
           </View>
 
@@ -275,12 +275,12 @@ export default function WhatIfResultScreen() {
           >
             {/* Main Header */}
             <View style={styles.headerCard}>
-              <BlurView intensity={40} tint="dark" style={styles.headerCardBlur}>
+              <View style={styles.headerCardBlur}>
                 <Text style={styles.headerLabel}>Scenario</Text>
                 <Text style={styles.headerText}>
                   {whatIf.payload?.question || 'What-if scenario'}
                 </Text>
-              </BlurView>
+              </View>
             </View>
 
         {/* New Obsession */}
@@ -424,14 +424,14 @@ export default function WhatIfResultScreen() {
                           </>
                         ) : (
                           <View style={styles.biometricLockContainer}>
-                            <BlurView intensity={40} tint="dark" style={styles.biometricBlur}>
+                            <View style={styles.biometricBlur}>
                               <View style={styles.biometricLockContent}>
                                 <View style={styles.biometricLockIcon}>
-                                  <Lock size={16} color="#FFD700" strokeWidth={2.5} />
+                                  <Lock size={16} color="#F59E0B" strokeWidth={2.5} />
                                 </View>
                                 <Text style={styles.biometricLockText}>Locked</Text>
                               </View>
-                            </BlurView>
+                            </View>
                           </View>
                         )}
                       </View>
@@ -493,11 +493,11 @@ export default function WhatIfResultScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   backgroundGradient: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
@@ -512,16 +512,21 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
   },
   headerCard: {
     marginBottom: 24,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   headerCardBlur: {
     padding: 18,
@@ -529,17 +534,19 @@ const styles = StyleSheet.create({
   headerLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: 8,
+    fontFamily: Fonts.secondary.bold,
   },
   headerText: {
     fontSize: 20,
     fontWeight: '600',
     lineHeight: 26,
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     letterSpacing: -0.3,
+    fontFamily: Fonts.secondary.bold,
   },
   content: {
     flex: 1,
@@ -556,7 +563,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   metricsGrid: {
     flexDirection: 'row',
@@ -567,10 +575,15 @@ const styles = StyleSheet.create({
   metricCard: {
     width: '48%',
     padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   metricHeader: {
     flexDirection: 'row',
@@ -581,9 +594,10 @@ const styles = StyleSheet.create({
   metricName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     flex: 1,
     flexShrink: 1,
+    fontFamily: Fonts.secondary.bold,
   },
   metricValues: {
     flexDirection: 'row',
@@ -595,62 +609,80 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     marginBottom: 4,
+    fontFamily: Fonts.secondary.bold,
   },
   metricNumber: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   metricDiff: {
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+    fontFamily: Fonts.secondary.bold,
   },
   summary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     padding: 18,
     borderRadius: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   summaryTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 12,
     letterSpacing: 0.2,
+    fontFamily: Fonts.secondary.bold,
   },
   summaryText: {
     fontSize: 16,
     lineHeight: 24,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   alignmentCard: {
     marginTop: 16,
     padding: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   alignmentTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 8,
     letterSpacing: 0.2,
+    fontFamily: Fonts.secondary.bold,
   },
   alignmentPercent: {
     fontSize: 32,
     fontWeight: '800',
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.textSecondary,
     marginBottom: 6,
+    fontFamily: Fonts.secondary.bold,
   },
   alignmentNote: {
     fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.65)',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
   },
   chatTwinButton: {
     marginTop: 16,
@@ -667,6 +699,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 16,
+    fontFamily: Fonts.secondary.bold,
   },
   biometricsSection: {
     marginTop: 24,
@@ -674,19 +707,25 @@ const styles = StyleSheet.create({
   },
   biometricsCard: {
     width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
     padding: 18,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   biometricsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 20,
     letterSpacing: 0.2,
+    fontFamily: Fonts.secondary.bold,
   },
   biometricsCardContent: {
     gap: 16,
@@ -699,13 +738,13 @@ const styles = StyleSheet.create({
   },
   biometricRowDivider: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
   },
   biometricIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(10, 132, 255, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -716,31 +755,36 @@ const styles = StyleSheet.create({
   biometricLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+    fontFamily: Fonts.secondary.bold,
   },
   biometricPrimary: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     flexShrink: 1,
+    fontFamily: Fonts.secondary.bold,
   },
   biometricSecondary: {
     fontSize: 13,
-    color: 'rgba(200, 200, 200, 0.7)',
+    color: Colors.textSecondary,
     flexShrink: 1,
+    fontFamily: Fonts.secondary.bold,
   },
   biometricUpdateLink: {
     fontSize: 13,
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.textSecondary,
     flexShrink: 1,
     textDecorationLine: 'underline',
+    fontFamily: Fonts.secondary.bold,
   },
   biometricDetail: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   biometricDetailPositive: {
     color: '#10B981',
@@ -754,9 +798,10 @@ const styles = StyleSheet.create({
   },
   biometricEmptyText: {
     textAlign: 'center',
-    color: 'rgba(135, 206, 250, 0.8)',
+    color: Colors.textSecondary,
     fontSize: 14,
     fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
   biometricLockContainer: {
     marginTop: 4,
@@ -766,6 +811,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingVertical: 8,
     paddingHorizontal: 12,
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
   biometricLockContent: {
     flexDirection: 'row',
@@ -783,17 +829,18 @@ const styles = StyleSheet.create({
   biometricLockText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FFD700',
+    color: '#F59E0B',
+    fontFamily: Fonts.secondary.bold,
   },
   unlockBiometricsButton: {
     marginTop: 20,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#FFD700',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 1,
     shadowRadius: 12,
-    elevation: 8,
+    elevation: 4,
   },
   unlockBiometricsGradient: {
     flexDirection: 'row',
@@ -807,6 +854,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
   disclaimerSection: {
     marginTop: 16,
@@ -814,10 +862,11 @@ const styles = StyleSheet.create({
   },
   disclaimerText: {
     fontSize: 13,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     lineHeight: 20,
     textAlign: 'center',
     fontStyle: 'italic',
+    fontFamily: Fonts.secondary.bold,
   },
   extrasSection: {
     marginTop: 16,
@@ -827,11 +876,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   chaosCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
     padding: 18,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   chaosHeader: {
     flexDirection: 'row',
@@ -842,16 +896,18 @@ const styles = StyleSheet.create({
   chaosLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   chaosValue: {
     fontSize: 16,
     fontWeight: '700',
     color: '#EF4444',
+    fontFamily: Fonts.secondary.bold,
   },
   chaosBarBg: {
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -861,9 +917,9 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   obsessionCard: {
-    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+    backgroundColor: 'rgba(14, 165, 233, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.2)',
+    borderColor: 'rgba(14, 165, 233, 0.1)',
     borderRadius: 20,
     padding: 18,
   },
@@ -874,12 +930,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: 8,
+    fontFamily: Fonts.secondary.bold,
   },
   obsessionText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     lineHeight: 24,
+    fontFamily: Fonts.secondary.bold,
   },
   askAnotherButton: {
     marginTop: 0,
@@ -887,15 +945,21 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   askAnotherButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   goHomeTextContainer: {
     marginTop: 0,
@@ -907,6 +971,7 @@ const styles = StyleSheet.create({
   goHomeText: {
     fontSize: 15,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
   },
 });

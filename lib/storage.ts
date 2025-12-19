@@ -1030,6 +1030,44 @@ export async function getInterestProgress(userId: string): Promise<number> {
 }
 
 /**
+ * Calculate overall profile accuracy/completion progress
+ */
+export async function calculateOverallProgress(userId: string): Promise<number> {
+  try {
+    const [profile, relationships] = await Promise.all([
+      getProfile(userId),
+      getRelationships(userId)
+    ]);
+
+    if (!profile) return 0;
+
+    const coreJson = (profile.core_json as CoreJsonData) || {};
+    const onboardingResponses = coreJson.onboarding_responses || {};
+    
+    const checks = [
+      !!(onboardingResponses['02-now'] ?? onboardingResponses['01-now']), // Life Situation
+      !!onboardingResponses['02-path'], // Path
+      !!(onboardingResponses['01-values'] ?? onboardingResponses['03-values']), // Core Values
+      !!onboardingResponses['04-style'], // Style
+      !!onboardingResponses['05-day'], // Daily Routine
+      !!onboardingResponses['06-stress'], // Stress Response
+      !!(profile.university || onboardingResponses.university),
+      !!(profile.hometown || onboardingResponses.hometown),
+      !!profile.current_location,
+      !!profile.net_worth,
+      !!profile.political_views,
+      (relationships || []).length > 0
+    ];
+
+    const completedCount = checks.filter(Boolean).length;
+    return Math.round((completedCount / checks.length) * 100);
+  } catch (error) {
+    console.error('Error calculating overall progress:', error);
+    return 0;
+  }
+}
+
+/**
  * Delete all user-owned data from application tables.
  * Note: Deleting the auth user requires a server-side admin function;
  * this client method only removes app data scoped by user_id.
@@ -1296,4 +1334,172 @@ export async function deleteYearPrediction(predictionId: string) {
     .eq('id', predictionId);
 
   if (error) throw error;
+}
+
+/**
+ * Get all timelines for a user
+ */
+export async function getTimelines(userId: string) {
+  const { data, error } = await supabase
+    .from('timelines')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Get a single timeline by ID
+ */
+export async function getTimeline(timelineId: string) {
+  const { data, error } = await supabase
+    .from('timelines')
+    .select('*')
+    .eq('id', timelineId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Delete a timeline
+ */
+export async function deleteTimeline(timelineId: string) {
+  const { error } = await supabase
+    .from('timelines')
+    .delete()
+    .eq('id', timelineId);
+
+  if (error) throw error;
+}
+
+/**
+ * Update a timeline
+ */
+export async function updateTimeline(timelineId: string, updates: {
+  title?: string;
+  current_age?: number;
+  current_year?: number;
+  stats?: any;
+  events?: any[];
+  assets?: any[];
+  twin_profile?: any;
+  scenario_count?: number;
+  relationships?: any[];
+}) {
+  const { data, error } = await supabase
+    .from('timelines')
+    .update(updates as any)
+    .eq('id', timelineId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Insert a new timeline
+ */
+export async function insertTimeline(userId: string, payload: {
+  title: string;
+  current_age: number;
+  current_year?: number;
+  stats?: any;
+  events?: any[];
+  assets?: any[];
+  twin_profile?: any;
+  scenario_count?: number;
+  relationships?: any[];
+}) {
+  const { data, error } = await supabase
+    .from('timelines')
+    .insert({
+      user_id: userId,
+      title: payload.title,
+      current_age: payload.current_age,
+      current_year: payload.current_year ?? 1,
+      stats: payload.stats ?? { money: 5, happiness: 5, freedom: 5, growth: 5, relationships: 5 },
+      events: payload.events ?? [],
+      assets: payload.assets ?? [],
+      twin_profile: payload.twin_profile ?? {},
+      scenario_count: payload.scenario_count ?? 0,
+      relationships: payload.relationships ?? [],
+    } as any)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Check simulation credits (returns profile simulation_credits or default 5)
+ */
+export async function checkSimulationCredits(userId: string): Promise<number> {
+  const profile = await getProfile(userId);
+  return profile?.simulation_credits ?? 5;
+}
+
+/**
+ * Decrement simulation credits for a user
+ */
+async function decrementSimulationCredits(userId: string): Promise<void> {
+  const profile = await getProfile(userId);
+  const currentCredits = profile?.simulation_credits ?? 5;
+  const newCredits = Math.max(0, currentCredits - 1);
+  
+  const { error } = await supabase
+    .from('profiles')
+    .update({ simulation_credits: newCredits })
+    .eq('user_id', userId);
+  
+  if (error) throw error;
+}
+
+/**
+ * Create a new timeline with credit checking and decrementing
+ * @param userId - User ID
+ * @param title - Timeline title
+ * @param currentAge - Current age for the timeline
+ * @param stats - Optional stats (defaults to balanced stats)
+ * @param twinProfile - Optional twin profile data
+ * @param relationships - Optional relationships array
+ * @param isPremium - Whether user is premium (bypasses credit check)
+ */
+export async function createTimeline(
+  userId: string,
+  title: string,
+  currentAge: number,
+  stats?: any,
+  twinProfile?: any,
+  relationships?: any[],
+  isPremium: boolean = false
+) {
+  // Check and decrement credits if not premium
+  if (!isPremium) {
+    const credits = await checkSimulationCredits(userId);
+    if (credits <= 0) {
+      const error: any = new Error('INSUFFICIENT_CREDITS');
+      error.message = 'INSUFFICIENT_CREDITS';
+      throw error;
+    }
+    await decrementSimulationCredits(userId);
+  }
+
+  // Create timeline using insertTimeline
+  return await insertTimeline(userId, {
+    title,
+    current_age: currentAge,
+    current_year: 1,
+    stats: stats || { money: 5, happiness: 5, freedom: 5, growth: 5, relationships: 5 },
+    events: [],
+    assets: [],
+    twin_profile: twinProfile || {},
+    scenario_count: 0,
+    relationships: relationships || [],
+  });
 }

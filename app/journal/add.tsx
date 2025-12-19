@@ -12,6 +12,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { Colors, Fonts } from '@/constants/Theme';
 
 const MOODS = [
   { value: 5, label: 'Amazing', icon: SmilePlus, color: '#10B981' },
@@ -363,9 +364,7 @@ export default function AddJournalScreen() {
                     },
                   ]}
                 >
-                  <BlurView 
-                    intensity={40} 
-                    tint="dark" 
+                  <View 
                     style={[
                       styles.moodCard,
                       isSelected && styles.moodCardSelected,
@@ -378,7 +377,7 @@ export default function AddJournalScreen() {
                       ]}>
                         <MoodIcon 
                           size={32} 
-                          color={isSelected ? '#87CEFA' : moodOption.color} 
+                          color={isSelected ? Colors.textPrimary : moodOption.color} 
                         />
                       </View>
                       <View style={styles.moodTextContainer}>
@@ -395,7 +394,7 @@ export default function AddJournalScreen() {
                         </View>
                       )}
                     </View>
-                  </BlurView>
+                  </View>
                 </Animated.View>
               </TouchableOpacity>
             );
@@ -442,13 +441,8 @@ export default function AddJournalScreen() {
 
     return (
       <View style={styles.completionScreen}>
-        <LinearGradient
-          colors={['#050505', '#0A0A0A', '#050505']}
-          style={styles.completionContainer}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <StatusBar style="light" />
+        <View style={styles.completionContainer}>
+          <StatusBar style="dark" />
           <SafeAreaView style={styles.completionSafeArea} edges={['top', 'left', 'right']}>
             <View style={styles.completionContent}>
               {/* Animated Orb */}
@@ -465,7 +459,7 @@ export default function AddJournalScreen() {
                   ]}
                 >
                   <LinearGradient
-                    colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.1)', 'rgba(65, 105, 225, 0.05)']}
+                    colors={Colors.gradients.turquoise}
                     style={styles.completionOrbGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -508,7 +502,7 @@ export default function AddJournalScreen() {
                     ]}
                   >
                     <LinearGradient
-                      colors={['#87CEFA', '#6495ED', '#87CEFA']}
+                      colors={Colors.gradients.turquoise}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={StyleSheet.absoluteFill}
@@ -530,7 +524,7 @@ export default function AddJournalScreen() {
               ]} 
             />
           </SafeAreaView>
-        </LinearGradient>
+        </View>
       </View>
     );
   }
@@ -548,7 +542,7 @@ export default function AddJournalScreen() {
             onPress={() => router.back()} 
             style={styles.backButton}
           >
-            <ArrowLeft size={24} color="#FFFFFF" />
+            <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerSpacer} />
           <TouchableOpacity
@@ -569,13 +563,17 @@ export default function AddJournalScreen() {
               onPress={() => goToStep(currentStep - 1)} 
               style={styles.backButton}
             >
-              <ArrowLeft size={24} color="#FFFFFF" />
+              <ArrowLeft size={24} color={Colors.textPrimary} />
             </TouchableOpacity>
           </View>
 
           {/* Progress Bar */}
           <View style={styles.progressContainer}>
-            <ProgressBar progress={progress} showLabel={false} />
+            <ProgressBar 
+              progress={progress} 
+              showLabel={false} 
+              trackColor="rgba(0,0,0,0.05)"
+            />
           </View>
         </>
       )}
@@ -607,24 +605,12 @@ export default function AddJournalScreen() {
         {currentStep === 2 && (
           <View style={styles.floatingButtonContainer}>
             <View style={styles.floatingButtonWrapper}>
-              <BlurView 
-                intensity={80} 
-                tint="dark" 
+              <View 
                 style={[
                   styles.floatingButton,
                   !canProceed && styles.floatingButtonDisabled
                 ]}
               >
-                {/* Classic glass border */}
-                <View style={styles.buttonGlassBorder} />
-                {/* Subtle inner highlight */}
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.buttonGlassHighlight}
-                  pointerEvents="none"
-                />
                 <TouchableOpacity
                   onPress={handleNextStep}
                   disabled={!canProceed}
@@ -634,9 +620,9 @@ export default function AddJournalScreen() {
                   <Text style={styles.floatingButtonText}>
                     {getButtonLabel()}
                   </Text>
-                  {!saving && <ChevronRight size={20} color="#FFFFFF" />}
+                  {!saving && <ChevronRight size={20} color={Colors.textPrimary} />}
                 </TouchableOpacity>
-              </BlurView>
+              </View>
             </View>
           </View>
         )}
@@ -654,7 +640,7 @@ export default function AddJournalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C0C10',
+    backgroundColor: Colors.background,
   },
   minimalHeader: {
     flexDirection: 'row',
@@ -662,7 +648,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : 20,
     paddingBottom: 12,
-    backgroundColor: '#0C0C10',
+    backgroundColor: Colors.background,
   },
   headerSpacer: {
     flex: 1,
@@ -674,10 +660,11 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 17,
     fontWeight: '600',
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   saveButtonTextDisabled: {
-    color: 'rgba(255, 255, 255, 0.3)',
+    color: Colors.textTertiary,
   },
   header: {
     flexDirection: 'row',
@@ -686,7 +673,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 16,
     gap: 16,
-    backgroundColor: '#0C0C10',
+    backgroundColor: Colors.background,
   },
   backButton: {
     width: 40,
@@ -700,20 +687,22 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 30,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 0,
     letterSpacing: -0.3,
+    fontFamily: Fonts.secondary.bold,
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(135, 206, 250, 0.7)',
+    color: Colors.textSecondary,
     fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
   progressContainer: {
     paddingHorizontal: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(135, 206, 250, 0.15)',
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   contentWrapper: {
     flex: 1,
@@ -749,8 +738,9 @@ const styles = StyleSheet.create({
   dateTextFullScreen: {
     fontSize: 13,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: Colors.textTertiary,
     letterSpacing: 0.3,
+    fontFamily: Fonts.secondary.bold,
   },
   textInputFullScreen: {
     marginTop: 0,
@@ -759,9 +749,10 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 26,
     minHeight: 400,
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     flex: 1,
     textAlignVertical: 'top',
+    fontFamily: Fonts.secondary.bold,
   },
   charCountContainer: {
     alignItems: 'flex-end',
@@ -770,8 +761,9 @@ const styles = StyleSheet.create({
   },
   charCountText: {
     fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.5)',
+    color: Colors.textTertiary,
     fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
   charCountError: {
     color: '#EF4444',
@@ -782,16 +774,18 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     lineHeight: 34,
     marginBottom: 8,
     letterSpacing: -0.3,
+    fontFamily: Fonts.secondary.bold,
   },
   stepSubtitle: {
     fontSize: 16,
-    color: 'rgba(135, 206, 250, 0.7)',
+    color: Colors.textSecondary,
     lineHeight: 24,
     fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
   dateHeader: {
     marginBottom: 8,
@@ -821,16 +815,21 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   moodCard: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   moodCardSelected: {
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-    backgroundColor: '#1A1A1A',
+    borderColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: '#FFFFFF',
   },
   moodCardContent: {
     flexDirection: 'row',
@@ -842,12 +841,12 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   moodIconContainerSelected: {
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
+    backgroundColor: 'rgba(0,0,0,0.08)',
   },
   moodTextContainer: {
     flex: 1,
@@ -855,10 +854,11 @@ const styles = StyleSheet.create({
   moodLabel: {
     fontSize: 18,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   moodLabelSelected: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     fontWeight: '700',
   },
   selectedIndicator: {
@@ -868,15 +868,15 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#87CEFA',
+    backgroundColor: Colors.textPrimary,
   },
   floatingButtonContainer: {
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 32 : 36,
-    backgroundColor: '#0C0C10',
+    backgroundColor: Colors.background,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(59, 37, 109, 0.2)',
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   floatingButtonWrapper: {
     borderRadius: 24,
@@ -889,34 +889,18 @@ const styles = StyleSheet.create({
   },
   floatingButton: {
     borderRadius: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
+    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   floatingButtonDisabled: {
-    opacity: 0.6,
-  },
-  buttonGlassBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
-  },
-  buttonGlassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    opacity: 0.5,
   },
   floatingButtonInner: {
     flexDirection: 'row',
@@ -926,12 +910,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     borderRadius: 24,
-    zIndex: 1,
   },
   floatingButtonText: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   errorContainer: {
     position: 'absolute',
@@ -947,14 +931,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   // Completion screen styles
   completionScreen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   completionContainer: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   completionSafeArea: {
     flex: 1,
@@ -988,11 +974,16 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.2)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   completionCubeIcon: {
     width: 60,
@@ -1005,16 +996,18 @@ const styles = StyleSheet.create({
   completionTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 12,
     textAlign: 'center',
     letterSpacing: -0.5,
+    fontFamily: Fonts.secondary.bold,
   },
   completionSubtitle: {
     fontSize: 16,
-    color: 'rgba(135, 206, 250, 0.8)',
+    color: Colors.textSecondary,
     textAlign: 'center',
     fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
   completionProgressContainer: {
     width: '100%',
@@ -1024,7 +1017,7 @@ const styles = StyleSheet.create({
   completionProgressTrack: {
     width: '100%',
     height: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 6,
     overflow: 'hidden',
   },

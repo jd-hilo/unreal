@@ -9,7 +9,7 @@ import { ChevronRight, ChevronLeft, User, Briefcase, Heart, Sparkles, Zap, Brain
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
-import { BlurView } from 'expo-blur';
+import { Colors, Fonts } from '@/constants/Theme';
 
 const { width } = Dimensions.get('window');
 
@@ -24,7 +24,7 @@ export default function NewSimulationScreen() {
   const [difficulty, setDifficulty] = useState('normal');
 
   const focusOptions = [
-    { id: 'balanced', label: 'Balanced', icon: Brain, color: '#0EA5E9', desc: 'Equal focus on all aspects' },
+    { id: 'balanced', label: 'Balanced', icon: Brain, color: Colors.gradients.turquoise[1], desc: 'Equal focus on all aspects' },
     { id: 'wealth', label: 'Wealth', icon: Briefcase, color: '#10B981', desc: 'Focus on career and money' },
     { id: 'love', label: 'Relationships', icon: Heart, color: '#EC4899', desc: 'Focus on social and love' },
     { id: 'adventure', label: 'Adventure', icon: Globe, color: '#F59E0B', desc: 'Focus on travel and experiences' },
@@ -32,7 +32,7 @@ export default function NewSimulationScreen() {
 
   const difficultyOptions = [
     { id: 'easy', label: 'Dreamy', desc: 'Optimistic outcomes', color: '#60A5FA' },
-    { id: 'normal', label: 'Realistic', desc: 'Standard probabilities', color: '#0EA5E9' },
+    { id: 'normal', label: 'Realistic', desc: 'Standard probabilities', color: Colors.gradients.turquoise[1] },
     { id: 'hard', label: 'Chaotic', desc: 'Unpredictable events', color: '#F87171' },
   ];
 
@@ -138,17 +138,7 @@ export default function NewSimulationScreen() {
 
   return (
     <View style={styles.screen}>
-      <Image 
-        source={require('@/assets/images/splash-icon.png')} // Fallback background
-        style={[StyleSheet.absoluteFill, { opacity: 0.1 }]}
-        blurRadius={30}
-      />
-      <LinearGradient
-        colors={['rgba(10,10,12,0.9)', 'rgba(15,15,20,0.95)', '#000000']}
-        style={StyleSheet.absoluteFill}
-      />
-      
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -157,7 +147,7 @@ export default function NewSimulationScreen() {
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <ChevronLeft size={24} color="#FFF" />
+              <ChevronLeft size={24} color={Colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>New Simulation</Text>
             <View style={styles.headerRight} />
@@ -171,10 +161,10 @@ export default function NewSimulationScreen() {
             {/* Basic Info Section */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <User size={18} color="#C4B5FD" />
+                <User size={18} color={Colors.gradients.purple[1]} />
                 <Text style={styles.sectionTitle}>Basic Info</Text>
               </View>
-              <BlurView intensity={20} tint="dark" style={styles.card}>
+              <View style={styles.card}>
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Name</Text>
                   <TextInput
@@ -182,16 +172,16 @@ export default function NewSimulationScreen() {
                     value={name}
                     onChangeText={setName}
                     placeholder="Name your timeline"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    placeholderTextColor={Colors.textTertiary}
                   />
                 </View>
-              </BlurView>
+              </View>
             </View>
 
             {/* Focus Section */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Brain size={18} color="#C4B5FD" />
+                <Brain size={18} color={Colors.gradients.purple[1]} />
                 <Text style={styles.sectionTitle}>Life Focus</Text>
               </View>
               <View style={styles.grid}>
@@ -200,11 +190,11 @@ export default function NewSimulationScreen() {
                     key={option.id}
                     style={[
                       styles.gridItem,
-                      focus === option.id && { borderColor: option.color, backgroundColor: `${option.color}20` }
+                      focus === option.id && styles.gridItemSelected
                     ]}
                     onPress={() => setFocus(option.id)}
                   >
-                    <View style={[styles.gridIcon, { backgroundColor: `${option.color}30` }]}>
+                    <View style={[styles.gridIcon, { backgroundColor: `${option.color}15` }]}>
                       <option.icon size={20} color={option.color} />
                     </View>
                     <Text style={styles.gridLabel}>{option.label}</Text>
@@ -216,7 +206,7 @@ export default function NewSimulationScreen() {
             {/* Difficulty/Vibe Section */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Sparkles size={18} color="#C4B5FD" />
+                <Sparkles size={18} color={Colors.gradients.purple[1]} />
                 <Text style={styles.sectionTitle}>Simulation Mode</Text>
               </View>
               <ScrollView 
@@ -230,17 +220,17 @@ export default function NewSimulationScreen() {
                     key={option.id}
                     style={[
                       styles.optionCard,
-                      difficulty === option.id && { borderColor: option.color, transform: [{scale: 1.02}] }
+                      difficulty === option.id && styles.optionCardSelected
                     ]}
                     onPress={() => setDifficulty(option.id)}
                   >
-                    <BlurView intensity={30} tint="dark" style={styles.optionContent}>
+                    <View style={styles.optionContent}>
                       <Text style={[styles.optionLabel, { color: option.color }]}>{option.label}</Text>
                       <Text style={styles.optionDesc}>{option.desc}</Text>
                       {difficulty === option.id && (
                         <View style={[styles.selectedDot, { backgroundColor: option.color }]} />
                       )}
-                    </BlurView>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -256,16 +246,13 @@ export default function NewSimulationScreen() {
               disabled={loading}
             >
               <LinearGradient
-                colors={['#2563EB', '#0EA5E9', '#14B8A6']}
+                colors={Colors.gradients.purple}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.createGradient}
               >
                 <Text style={styles.createText}>{loading ? 'Creating...' : 'Start Simulation'}</Text>
-                <View style={styles.priceTag}>
-                  <Zap size={14} color="#FFD700" fill="#FFD700" />
-                  <Text style={styles.priceText}>Start</Text>
-                </View>
+                <ChevronRight size={20} color="#FFFFFF" />
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -278,7 +265,7 @@ export default function NewSimulationScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
@@ -297,14 +284,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFF',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
   },
   headerRight: {
     width: 40, // Balance back button
@@ -345,27 +333,36 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFF',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.12)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 8,
   },
   inputGroup: {
     padding: 16,
   },
   inputLabel: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textTertiary,
     marginBottom: 8,
     textTransform: 'uppercase',
+    fontFamily: Fonts.secondary.bold,
   },
   input: {
     fontSize: 18,
-    color: '#FFF',
+    color: Colors.textPrimary,
     fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
   grid: {
     flexDirection: 'row',
@@ -374,13 +371,22 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     width: (width - 52) / 2,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     gap: 12,
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
+  },
+  gridItemSelected: {
+    borderWidth: 2,
+    borderColor: Colors.gradients.purple[1],
   },
   gridIcon: {
     width: 48,
@@ -390,9 +396,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gridLabel: {
-    color: '#FFF',
+    color: Colors.textPrimary,
     fontWeight: '600',
     fontSize: 14,
+    fontFamily: Fonts.secondary.bold,
   },
   horizontalScroll: {
     marginHorizontal: -20,
@@ -406,11 +413,20 @@ const styles = StyleSheet.create({
     width: 140,
     height: 100,
     marginRight: 12,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
+  },
+  optionCardSelected: {
+    borderWidth: 2,
+    borderColor: Colors.gradients.purple[1],
   },
   optionContent: {
     flex: 1,
@@ -420,11 +436,13 @@ const styles = StyleSheet.create({
   optionLabel: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: Fonts.secondary.bold,
     marginBottom: 4,
   },
   optionDesc: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   selectedDot: {
     position: 'absolute',
@@ -437,11 +455,17 @@ const styles = StyleSheet.create({
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: Colors.background,
   },
   createButton: {
-    borderRadius: 20,
+    borderRadius: 28,
     overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 8,
   },
   createGradient: {
     flexDirection: 'row',
@@ -453,21 +477,8 @@ const styles = StyleSheet.create({
   createText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFF',
-  },
-  priceTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 6,
-  },
-  priceText: {
-    color: '#FFF',
-    fontWeight: '700',
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
 });
 

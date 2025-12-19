@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Users } from 'lucide-react-native';
+import { Colors, Fonts } from '@/constants/Theme';
 
 export default function SetupRelationshipsScreen() {
   const router = useRouter();
@@ -32,14 +33,10 @@ export default function SetupRelationshipsScreen() {
       canContinue={true}
       loading={loading}
       nextLabel="Continue"
-      backgroundGradient={['#050505', '#0F0F18', '#0D0D15', '#050505']}
-      buttonGradient={['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)']}
-      progressBarGradient={['#87CEFA', '#87CEFA']}
-      buttonShadowColor="rgba(65, 105, 225, 0.5)"
     >
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Users size={48} color="#EC4899" strokeWidth={1.5} />
+          <Users size={48} color={Colors.gradients.purple[2]} strokeWidth={1.5} />
         </View>
 
         <Text style={styles.description}>
@@ -67,21 +64,28 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 16,
     lineHeight: 24,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
     marginBottom: 32,
     textAlign: 'center',
+    fontFamily: Fonts.secondary.bold,
   },
   noteBox: {
-    backgroundColor: 'rgba(183, 149, 255, 0.1)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(183, 149, 255, 0.2)',
-    borderRadius: 12,
+    borderColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 16,
     padding: 16,
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   noteText: {
     fontSize: 14,
     lineHeight: 20,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
 });
 

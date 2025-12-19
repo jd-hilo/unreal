@@ -1,8 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useRef, useEffect } from 'react';
-import { BlurView } from 'expo-blur';
 import { Edit2, Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { Colors, Fonts } from '@/constants/Theme';
 
 interface SwipeableOptionCardProps {
   option: string;
@@ -62,7 +62,7 @@ export function SwipeableOptionCard({
       ]}
     >
       <View style={styles.card}>
-        <BlurView intensity={30} tint="dark" style={styles.blurCard}>
+        <View style={styles.blurCard}>
           <View style={styles.cardContent}>
             {/* Edit button on left */}
             <TouchableOpacity
@@ -70,7 +70,7 @@ export function SwipeableOptionCard({
               style={styles.iconButton}
               activeOpacity={0.6}
             >
-              <Edit2 size={18} color="rgba(200, 200, 200, 0.6)" />
+              <Edit2 size={18} color={Colors.textTertiary} />
             </TouchableOpacity>
 
             {/* Number badge */}
@@ -89,10 +89,10 @@ export function SwipeableOptionCard({
               style={styles.iconButton}
               activeOpacity={0.6}
             >
-              <Trash2 size={18} color="rgba(239, 68, 68, 0.7)" />
+              <Trash2 size={18} color="#EF4444" />
             </TouchableOpacity>
           </View>
-        </BlurView>
+        </View>
       </View>
     </Animated.View>
   );
@@ -105,11 +105,17 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(150, 150, 150, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   blurCard: {
-    backgroundColor: 'rgba(20, 18, 30, 0.3)',
+    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
   },
   cardContent: {
@@ -129,16 +135,16 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
+    backgroundColor: '#febda1',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
+    borderWidth: 0,
   },
   numberText: {
     fontSize: 14,
     fontWeight: '700',
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
   textContainer: {
     flex: 1,
@@ -146,8 +152,9 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     lineHeight: 21,
+    fontFamily: Fonts.secondary.bold,
   },
 });
 

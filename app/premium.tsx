@@ -2,13 +2,13 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Sparkles, Zap, Lock, TrendingUp, Brain, Clock, X, Check, Circle, Infinity } from 'lucide-react-native';
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import * as Haptics from 'expo-haptics';
+import { Colors, Fonts } from '@/constants/Theme';
 
 type PurchaseOption = 'weekly' | 'lifetime';
 const { width } = Dimensions.get('window');
@@ -59,14 +59,14 @@ export default function PremiumScreen() {
     // Find the appropriate package based on selected option
     let pkg = selectedOption === 'weekly' 
       ? packages.find(p => 
-          p.product.identifier === 'unreal_weekly_sub' ||
+          p.product.identifier === 'mora_weekly_sub' ||
           p.packageType === 'WEEKLY' || 
           p.identifier === '$rc_weekly' ||
           p.identifier.includes('weekly') ||
           p.identifier.includes('week')
         )
       : packages.find(p => 
-          p.product.identifier === 'unreal_lifetime_v2' ||
+          p.product.identifier === 'mora_lifetime_v2' ||
           p.packageType === 'CUSTOM' || 
           p.packageType === 'LIFETIME' ||
           p.identifier === '$rc_lifetime' ||
@@ -90,7 +90,7 @@ export default function PremiumScreen() {
       const message = selectedOption === 'lifetime' 
         ? 'You now have lifetime access to all premium features!'
         : 'You now have access to all premium features.';
-      Alert.alert('Welcome to unreal+!', message, [
+      Alert.alert('Welcome to mora+!', message, [
         { 
           text: 'Get Started', 
           onPress: () => fromOnboarding 
@@ -120,7 +120,7 @@ export default function PremiumScreen() {
   if (isPremium) {
     return (
       <View style={styles.container}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top']}>
           <View style={styles.header}>
             {fromOnboarding ? (
@@ -129,12 +129,12 @@ export default function PremiumScreen() {
                   onPress={() => router.replace('/onboarding/07-clarifier')} 
                   style={styles.closeButton}
                 >
-                  <X size={24} color="#FFFFFF" />
+                  <X size={24} color={Colors.textPrimary} />
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <ArrowLeft size={24} color="#FFFFFF" />
+                <ArrowLeft size={24} color={Colors.textPrimary} />
               </TouchableOpacity>
             )}
           </View>
@@ -146,9 +146,9 @@ export default function PremiumScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={styles.alreadyPremiumTitle}>Welcome to unreal+</Text>
+            <Text style={styles.alreadyPremiumTitle}>Welcome to mora+</Text>
             <Text style={styles.alreadyPremiumText}>
-              You have access to all unreal+ features including biometrics and simulations.
+              You have access to all mora+ features including biometrics and simulations.
             </Text>
           </View>
         </SafeAreaView>
@@ -186,18 +186,8 @@ export default function PremiumScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       
-      {/* Background Gradient for Header */}
-      <View style={styles.bgGradientContainer}>
-         <LinearGradient
-            colors={['rgba(212, 242, 56, 0.15)', 'transparent']}
-            style={styles.bgGradient}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-          />
-      </View>
-
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           {fromOnboarding ? (
@@ -206,12 +196,12 @@ export default function PremiumScreen() {
                 onPress={() => router.replace('/onboarding/07-clarifier')} 
                 style={styles.closeButton}
               >
-                <X size={24} color="#FFFFFF" />
+                <X size={24} color={Colors.textPrimary} />
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <ArrowLeft size={24} color="#FFFFFF" />
+              <ArrowLeft size={24} color={Colors.textPrimary} />
             </TouchableOpacity>
           )}
         </View>
@@ -226,7 +216,7 @@ export default function PremiumScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={styles.heroTitle}>Unlock unreal+</Text>
+            <Text style={styles.heroTitle}>Unlock mora+</Text>
             <Text style={styles.heroSubtitle}>
               Get full access to biometrics and life trajectory simulations
             </Text>
@@ -239,7 +229,7 @@ export default function PremiumScreen() {
               return (
                 <View key={index} style={styles.featureRow}>
                   <View style={styles.featureIcon}>
-                    <Icon size={20} color="#FFEB3B" strokeWidth={2.5} />
+                    <Icon size={20} color={Colors.gradients.purple[1]} strokeWidth={2.5} />
                   </View>
                   <View style={styles.featureContent}>
                     <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -264,23 +254,18 @@ export default function PremiumScreen() {
               }}
               activeOpacity={0.9}
             >
-              <LinearGradient
-                colors={['#FFEB3B', '#FFC107', '#FFA000']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.saveBadge}
-              >
+              <View style={styles.saveBadge}>
                 <Text style={styles.saveBadgeText}>Save 30%</Text>
-              </LinearGradient>
+              </View>
 
               <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>Lifetime</Text>
                 {selectedOption === 'lifetime' ? (
                   <View style={styles.checkCircle}>
-                    <Check size={12} color="#000" strokeWidth={3} />
+                    <Check size={12} color="#FFFFFF" strokeWidth={3} />
                   </View>
                 ) : (
-                  <Circle size={20} color="rgba(255,255,255,0.3)" />
+                  <Circle size={20} color={Colors.textTertiary} />
                 )}
               </View>
               
@@ -306,10 +291,10 @@ export default function PremiumScreen() {
                 <Text style={styles.cardTitle}>Weekly</Text>
                 {selectedOption === 'weekly' ? (
                    <View style={styles.checkCircle}>
-                    <Check size={12} color="#000" strokeWidth={3} />
+                    <Check size={12} color="#FFFFFF" strokeWidth={3} />
                   </View>
                 ) : (
-                  <Circle size={20} color="rgba(255,255,255,0.3)" />
+                  <Circle size={20} color={Colors.textTertiary} />
                 )}
               </View>
               
@@ -333,8 +318,13 @@ export default function PremiumScreen() {
               disabled={purchasing || loading}
               activeOpacity={0.9}
             >
-               <View style={styles.buttonBorder} />
-               <Text style={styles.purchaseButtonText}>Continue</Text>
+              <LinearGradient
+                colors={Colors.gradients.purple}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Text style={styles.purchaseButtonText}>Continue</Text>
             </TouchableOpacity>
           </Animated.View>
 
@@ -351,7 +341,7 @@ export default function PremiumScreen() {
                <Text style={styles.footerLinkText}>Restore Purchases</Text>
              </TouchableOpacity>
              <Text style={styles.footerSeparator}>•</Text>
-             <TouchableOpacity onPress={() => Linking.openURL('https://pastoral-supply-662.notion.site/Terms-of-Service-unreal-2a32cec59ddf80aca5e3ec91fdf8e529?source=copy_link')}>
+             <TouchableOpacity onPress={() => Linking.openURL('https://pastoral-supply-662.notion.site/Terms-of-Service-mora-2a32cec59ddf80aca5e3ec91fdf8e529?source=copy_link')}>
                <Text style={styles.footerLinkText}>Terms of Service</Text>
              </TouchableOpacity>
           </View>
@@ -365,17 +355,7 @@ export default function PremiumScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
-  },
-  bgGradientContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 400,
-  },
-  bgGradient: {
-    flex: 1,
+    backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
@@ -395,13 +375,15 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   closeButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
   },
   content: {
@@ -438,16 +420,18 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
     marginBottom: 10,
     textAlign: 'center',
   },
   heroSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     maxWidth: '80%',
+    fontFamily: Fonts.secondary.bold,
   },
 
   // Features
@@ -469,14 +453,16 @@ const styles = StyleSheet.create({
   },
   featureTitle: {
     fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   featureDescription: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: Colors.textSecondary,
     lineHeight: 20,
+    fontFamily: Fonts.secondary.bold,
   },
 
   // Pricing Cards
@@ -487,17 +473,22 @@ const styles = StyleSheet.create({
   },
   pricingCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 16,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
     minHeight: 110,
     justifyContent: 'space-between',
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   pricingCardSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: Colors.gradients.purple[1],
+    borderWidth: 2,
   },
   saveBadge: {
     position: 'absolute',
@@ -507,11 +498,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 100,
     zIndex: 10,
+    backgroundColor: Colors.gradients.purple[1],
   },
   saveBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -522,13 +515,14 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
   },
   checkCircle: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.gradients.purple[1],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -538,12 +532,14 @@ const styles = StyleSheet.create({
   cardPrice: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   cardPeriod: {
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
 
   // Button
@@ -556,31 +552,25 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    overflow: 'hidden',
   },
   purchaseButtonDisabled: {
     opacity: 0.6,
-  },
-  buttonBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   purchaseButtonText: {
     fontSize: 17,
     fontWeight: '600',
     color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
 
   // Footer
   finePrint: {
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.4)',
+    color: Colors.textTertiary,
     textAlign: 'center',
     marginBottom: 24,
+    fontFamily: Fonts.secondary.bold,
   },
   footerLinks: {
     flexDirection: 'row',
@@ -590,11 +580,12 @@ const styles = StyleSheet.create({
   },
   footerLinkText: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.4)',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
   },
   footerSeparator: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.2)',
+    color: Colors.textTertiary,
   },
 
   // Already Premium
@@ -618,13 +609,15 @@ const styles = StyleSheet.create({
   alreadyPremiumTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   alreadyPremiumText: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
+    fontFamily: Fonts.secondary.bold,
   },
 });

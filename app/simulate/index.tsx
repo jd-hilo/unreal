@@ -10,7 +10,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { formatDistanceToNow } from 'date-fns';
-import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Fonts } from '@/constants/Theme';
 
@@ -131,7 +130,7 @@ export default function SimulateDashboard() {
           
           <View style={styles.resourceContainer}>
             <LinearGradient
-              colors={['#2563EB', '#0EA5E9', '#14B8A6']}
+              colors={Colors.gradients.purple}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.resourceBadge}
@@ -163,8 +162,9 @@ export default function SimulateDashboard() {
             activeOpacity={0.7}
           >
             <Image 
-               source={require('@/assets/images/cube.png')}
+               source={require('@/assets/images/memoji.png')}
                style={styles.avatar} 
+               resizeMode="contain"
             />
           </TouchableOpacity>
         </View>
@@ -189,7 +189,7 @@ export default function SimulateDashboard() {
             style={styles.newGameCard}
           >
             <LinearGradient
-              colors={['#2563EB', '#0EA5E9', '#14B8A6']}
+              colors={Colors.gradients.purple}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.newGameGradient}
@@ -230,18 +230,12 @@ export default function SimulateDashboard() {
                   onLongPress={() => handleLongPressTimeline(timeline.id)}
                   activeOpacity={0.9}
                 >
-                  <LinearGradient
-                    colors={['rgba(30, 30, 35, 1)', 'rgba(20, 20, 25, 1)']}
-                    style={styles.gameCardBg}
-                  >
+                  <View style={styles.gameCardBg}>
                     <View style={styles.gameCardLeft}>
                       <View style={styles.gameIconContainer}>
-                         <LinearGradient
-                            colors={['rgba(37, 99, 235, 0.3)', 'rgba(14, 165, 233, 0.1)']}
-                            style={styles.gameIcon}
-                         >
-                            <Users size={24} color="#60A5FA" />
-                         </LinearGradient>
+                         <View style={styles.gameIcon}>
+                            <Users size={24} color={Colors.gradients.purple[1]} />
+                         </View>
                       </View>
                       <View style={styles.gameInfo}>
                         <Text style={styles.gameTitle} numberOfLines={1}>{timeline.title}</Text>
@@ -269,7 +263,7 @@ export default function SimulateDashboard() {
                          <Text style={styles.playActionText}>5</Text>
                        </View>
                     </TouchableOpacity>
-                  </LinearGradient>
+                  </View>
                 </TouchableOpacity>
               ))
             )}
@@ -294,7 +288,7 @@ export default function SimulateDashboard() {
                    <Text style={styles.premiumTitle}>Unlock Unlimited Sims</Text>
                    <Text style={styles.premiumSubtitle}>Get Premium for infinite simulations</Text>
             </View>
-                <ChevronRight size={20} color="#FBBF24" />
+                <ChevronRight size={20} color={Colors.textTertiary} />
               </LinearGradient>
             </TouchableOpacity>
           )}
@@ -312,8 +306,19 @@ export default function SimulateDashboard() {
           setTimelineToDelete(null);
         }}
       >
-        <BlurView intensity={20} style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            setDeleteModalVisible(false);
+            setTimelineToDelete(null);
+          }}
+        >
+          <TouchableOpacity 
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.modalContent}
+          >
             <Text style={styles.modalTitle}>Delete Simulation?</Text>
             <Text style={styles.modalMessage}>
               This action cannot be undone. Your simulation and all its progress will be permanently deleted.
@@ -335,8 +340,8 @@ export default function SimulateDashboard() {
                 <Text style={styles.modalDeleteText}>Delete</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </BlurView>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -365,7 +370,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   resourceContainer: {
     flexDirection: 'row',
@@ -387,9 +393,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
     gap: 6,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   resourceText: {
     color: '#FFF',
@@ -397,9 +403,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   resourceTextSimple: {
-    color: '#FFF',
+    color: Colors.textPrimary,
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: Fonts.secondary.bold,
   },
   plusButton: {
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -413,9 +420,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#333',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
     overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
   },
   avatar: {
     width: '80%',
@@ -444,19 +452,20 @@ const styles = StyleSheet.create({
   },
   headerLink: {
     fontSize: 16,
-    color: '#0EA5E9',
+    color: Colors.gradients.purple[1],
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   newGameCard: {
     borderRadius: 24,
     overflow: 'hidden',
     height: 160,
     marginBottom: 32,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
     shadowRadius: 16,
-    elevation: 10,
+    elevation: 5,
   },
   newGameGradient: {
     flex: 1,
@@ -471,14 +480,16 @@ const styles = StyleSheet.create({
   newGameTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FFF',
+    color: '#FFFFFF',
+    fontFamily: Fonts.primary.regular,
     marginBottom: 6,
   },
   newGameSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.9)',
     marginBottom: 16,
     lineHeight: 20,
+    fontFamily: Fonts.secondary.bold,
   },
   playButton: {
     flexDirection: 'row',
@@ -491,9 +502,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   playButtonText: {
-    color: '#2563EB',
+    color: Colors.gradients.purple[1],
     fontWeight: '700',
     fontSize: 14,
+    fontFamily: Fonts.secondary.bold,
   },
   costTag: {
     flexDirection: 'row',
@@ -516,8 +528,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#FFF',
+    fontWeight: '600',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
     marginBottom: 16,
   },
   gamesList: {
@@ -527,20 +540,23 @@ const styles = StyleSheet.create({
   gameCard: {
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
     elevation: 5,
+    marginBottom: 12,
   },
   gameCardBg: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
     gap: 12,
+    backgroundColor: '#FFFFFF',
   },
   gameCardLeft: {
     flexDirection: 'row',
@@ -556,6 +572,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     flexShrink: 0,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   gameIcon: {
     flex: 1,
@@ -569,8 +588,9 @@ const styles = StyleSheet.create({
   },
   gameTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
+    fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
     marginBottom: 6,
   },
   gameStats: {
@@ -580,7 +600,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   statTag: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -588,16 +608,18 @@ const styles = StyleSheet.create({
   },
   statTagText: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.textSecondary,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   gameTime: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: Colors.textTertiary,
     flexShrink: 1,
+    fontFamily: Fonts.secondary.bold,
   },
   playAction: {
-    backgroundColor: '#2563EB',
+    backgroundColor: Colors.gradients.purple[1],
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
@@ -623,24 +645,34 @@ const styles = StyleSheet.create({
   emptyState: {
     padding: 20,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: 'rgba(0,0,0,0.02)',
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   emptyText: {
-    color: 'rgba(255,255,255,0.4)',
+    color: Colors.textTertiary,
     fontSize: 14,
+    fontFamily: Fonts.secondary.bold,
   },
   premiumBanner: {
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.3)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   premiumGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     gap: 12,
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
   },
   premiumIcon: {
     width: 36,
@@ -656,40 +688,49 @@ const styles = StyleSheet.create({
   premiumTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFF',
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   premiumSubtitle: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContent: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 24,
     width: '100%',
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 10,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFF',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   modalMessage: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.textSecondary,
     lineHeight: 20,
     marginBottom: 24,
+    fontFamily: Fonts.secondary.bold,
   },
   modalActions: {
     flexDirection: 'row',
@@ -700,12 +741,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   modalCancelText: {
-    color: '#FFF',
+    color: Colors.textPrimary,
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   modalDeleteButton: {
     paddingVertical: 10,

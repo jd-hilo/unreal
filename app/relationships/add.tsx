@@ -206,7 +206,12 @@ export default function AddRelationshipScreen() {
         {isOnboarding && (
           <>
             <View style={styles.progressBarContainer}>
-              <ProgressBar progress={85} showLabel={false} gradientColors={['#4A90E2', '#357ABD', '#2E6DA4']} />
+              <ProgressBar 
+                progress={85} 
+                showLabel={false} 
+                gradientColors={['#4A90E2', '#357ABD', '#2E6DA4']} 
+                trackColor="rgba(0,0,0,0.05)"
+              />
             </View>
             <TouchableOpacity onPress={() => router.replace('/(tabs)/home')} style={styles.homeButton}>
               <Home size={20} color="rgba(200, 200, 200, 0.75)" />

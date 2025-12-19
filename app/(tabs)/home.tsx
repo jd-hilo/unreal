@@ -3,11 +3,9 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, getInterestProgress, getTodayJournal, getAllYearPredictions } from '@/lib/storage';
-import { Compass, Sparkles, Zap, X, Trash2, Lock, ChevronRight, HelpCircle, Book, User, History, LayoutGrid, ScanLine, Settings, Info, Layers } from 'lucide-react-native';
-import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
+import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions } from '@/lib/storage';
+import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { formatDistanceToNow } from 'date-fns';
@@ -16,14 +14,12 @@ import * as StoreReview from 'expo-store-review';
 import * as Haptics from 'expo-haptics';
 import { Asset } from 'expo-asset';
 import { ProductGuide } from '@/components/ProductGuide';
-import { getHasSeenDecisionGuide, setHasSeenDecisionGuide } from '@/lib/guideStorage';
-import { trackEvent, MixpanelEvents, trackScreenView } from '@/lib/mixpanel';
-import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText, TSpan, Path } from 'react-native-svg';
+import { ProgressBar } from '@/components/ProgressBar';
+import { setHasSeenDecisionGuide } from '@/lib/guideStorage';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { Colors, Fonts } from '@/constants/Theme';
 
 const { width } = Dimensions.get('window');
-const CARD_GAP = 16;
-const CARD_WIDTH = (width - 40 - CARD_GAP) / 2;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -32,58 +28,20 @@ export default function HomeScreen() {
   const [userName, setUserName] = useState('');
   const [recentDecisions, setRecentDecisions] = useState<any[]>([]);
   const [recentWhatIfs, setRecentWhatIfs] = useState<any[]>([]);
-  const [isLoadingDecisions, setIsLoadingDecisions] = useState(true);
-  const [profileProgress, setProfileProgress] = useState(100); // Default to 100 to hide initially
+  const [profileProgress, setProfileProgress] = useState(100); 
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'decision' | 'whatif'; title: string } | null>(null);
-  const [interestProgress, setInterestProgress] = useState(0);
   const [hasTodayJournal, setHasTodayJournal] = useState(false);
   const [showDecisionGuide, setShowDecisionGuide] = useState(false);
-  const [hasCheckedGuide, setHasCheckedGuide] = useState(false);
-  const [decisionCardLayout, setDecisionCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
-  const [whatIfCardLayout, setWhatIfCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
-  const [journalCardLayout, setJournalCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
-  const [twinCardLayout, setTwinCardLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
-  const [guideStep, setGuideStep] = useState(0);
-  const [hasYearPrediction, setHasYearPrediction] = useState(false);
   const [showAccuracyInfo, setShowAccuracyInfo] = useState(false);
-  const [abTestGroup, setAbTestGroup] = useState<'A' | 'B' | null>(null);
-  const whatIfHoverAnim = useRef(new Animated.Value(0)).current;
-  const decisionCardRef = useRef<View>(null);
-  const whatIfCardRef = useRef<View>(null);
-  const journalCardRef = useRef<View>(null);
-  const twinCardRef = useRef<View>(null);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-  const bannerHoverAnim = useRef(new Animated.Value(0)).current;
-  const bannerContinuousHover = useRef(new Animated.Value(0)).current;
-  const twinFloatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Preload images
-    Asset.fromModule(require('@/assets/images/compass.png')).downloadAsync();
-    Asset.fromModule(require('@/assets/images/star.png')).downloadAsync();
-
-    // Continuous subtle hover animation (floating effect)
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(twinFloatAnim, {
-          toValue: 1,
-          duration: 3000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(twinFloatAnim, {
-          toValue: 0,
-          duration: 3000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
+    Asset.fromModule(require('@/assets/images/memoji.png')).downloadAsync();
   }, []);
 
   useEffect(() => {
@@ -104,94 +62,30 @@ export default function HomeScreen() {
       })
       .catch((error) => {
         console.warn('Failed to confirm onboarding status:', error);
-        setIsLoadingDecisions(false);
       });
   }, [user, router, checkOnboardingStatus]);
 
-  // Reload data when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      if (user && useTwin.getState().onboardingComplete) {
-        console.log('Home screen focused - reloading data');
-        loadData();
-        // Check if guide should be shown when navigating to home
-        // Check if guide was reset (user might have clicked "Show Product Guide" from profile)
-        checkGuideStatus();
-      }
-    }, [user])
-  );
-
-  async function checkGuideStatus() {
-    // Product guide is no longer shown automatically
-    // Users can still access it manually via the help button
-    return;
-  }
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     if (!user) return;
 
     try {
-      const profile = await getProfile(user.id);
-      
+      const [profile, decisions, whatifs, progress, journalToday] = await Promise.all([
+        getProfile(user.id),
+        getDecisions(user.id),
+        getWhatIfs(user.id),
+        calculateOverallProgress(user.id),
+        getTodayJournal(user.id)
+      ]);
+
       if (profile?.first_name) {
         setUserName(profile.first_name);
-      } else {
-        setUserName('');
       }
+      setRecentDecisions(decisions || []);
+      setRecentWhatIfs(whatifs || []);
+      setProfileProgress(progress || 0);
+      setHasTodayJournal(!!journalToday);
 
-      const [decisions, whatIfs, relationships, progress, todayJournal, yearPredictions] = await Promise.all([
-        getDecisions(user.id, 5),
-        getWhatIfs(user.id, 5),
-        getRelationships(user.id),
-        getInterestProgress(user.id).catch(() => 0),
-        getTodayJournal(user.id).catch(() => null),
-        getAllYearPredictions(user.id).catch(() => [])
-      ]);
-      setRecentDecisions(decisions);
-      setRecentWhatIfs(whatIfs);
-      setInterestProgress(progress);
-      setHasTodayJournal(!!todayJournal);
-      setHasYearPrediction(yearPredictions.length > 0);
-
-      // Check if we should show the decision guide
-      await checkGuideStatus();
-      
-      // Calculate profile progress
-      if (profile) {
-        const onboardingResponses = profile?.core_json?.onboarding_responses || {};
-        const university = profile?.university || onboardingResponses.university;
-        const hometown = profile?.hometown || onboardingResponses.hometown;
-        const hasRelationships = relationships && relationships.length > 0;
-        
-        // Count completed sections (same logic as profile page)
-        const completedSections = [
-          onboardingResponses['01-now'],
-          onboardingResponses['02-path'],
-          onboardingResponses['03-values'],
-          onboardingResponses['04-style'],
-          onboardingResponses['05-day'],
-          onboardingResponses['06-stress'],
-          university,
-          hometown,
-          profile?.current_location,
-          profile?.net_worth,
-          profile?.political_views,
-          hasRelationships
-        ].filter(Boolean).length;
-        
-        const totalSections = 12;
-        const progress = Math.round((completedSections / totalSections) * 100);
-        setProfileProgress(progress);
-        
-        // Set AB Test Group
-        setAbTestGroup(profile?.ab_test_group || null);
-      }
-    } catch (error) {
-      console.error('Failed to load data:', error);
-    } finally {
-      setIsLoadingDecisions(false);
-      
-      // Trigger fade-in animation after data loads
+      // Trigger entry animation
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -204,248 +98,251 @@ export default function HomeScreen() {
           useNativeDriver: true,
         }),
       ]).start();
-    }
-  }
 
-  async function checkAndShowRatingPrompt() {
-    if (Platform.OS !== 'ios') return;
-
-    try {
-      // Check if rating has been requested before
-      const hasRequestedRating = await AsyncStorage.getItem('hasRequestedRating');
-      if (hasRequestedRating) return;
-
-      const isAvailable = await StoreReview.hasAction();
-      if (isAvailable) {
-        await StoreReview.requestReview();
-        await AsyncStorage.setItem('hasRequestedRating', 'true');
-        
-        // Track review prompt requested
-        trackEvent(MixpanelEvents.REVIEW_PROMPT_REQUESTED);
+      // Check for store review
+      const lastReview = await AsyncStorage.getItem('last_review_request');
+      const now = Date.now();
+      if (!lastReview || now - parseInt(lastReview) > 1000 * 60 * 60 * 24 * 30) {
+        if (decisions.length + whatifs.length >= 3) {
+          const isAvailable = await StoreReview.isAvailableAsync();
+          if (isAvailable) {
+            await StoreReview.requestReview();
+            await AsyncStorage.setItem('last_review_request', now.toString());
+          }
+        }
       }
     } catch (error) {
-      console.warn('Failed to show rating prompt:', error);
+      console.error('Error loading data:', error);
     }
-  }
+  }, [user]);
 
-  function getRelativeUpdate(dateInput?: string | null) {
-    if (!dateInput) return 'Tap to revisit';
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
-    try {
-      const parsed = new Date(dateInput);
-      if (Number.isNaN(parsed.getTime())) {
-        return 'Tap to revisit';
-      }
-
-      return `Updated ${formatDistanceToNow(parsed, { addSuffix: true })}`;
-    } catch (error) {
-      console.warn('Failed to format decision timestamp:', error);
-      return 'Tap to revisit';
-    }
-  }
-
-  function handleLongPressEcho(echo: any) {
-    if (echo.isPlaceholder) return;
-    
+  const handleLongPressEcho = (echo: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setItemToDelete({
       id: echo.id,
       type: echo.type,
       title: echo.title
     });
     setDeleteModalVisible(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }
+  };
 
-  async function handleConfirmDelete() {
-    if (!itemToDelete) return;
+  const confirmDelete = async () => {
+    if (!itemToDelete || !user) return;
 
     try {
       if (itemToDelete.type === 'decision') {
         await deleteDecision(itemToDelete.id);
-      } else if (itemToDelete.type === 'whatif') {
+      } else {
         await deleteWhatIf(itemToDelete.id);
       }
-
-      // Reload data
-      await loadData();
-      
+      loadData();
       setDeleteModalVisible(false);
       setItemToDelete(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      console.error('Failed to delete:', error);
+      console.error('Error deleting item:', error);
       alert('Failed to delete item. Please try again.');
     }
-  }
+  };
 
-  // Merge decisions and what-ifs, sort by date
   const echoEntries = [
-    ...recentDecisions.map((decision) => ({
-        id: decision.id,
-        type: 'decision' as const,
-        title: decision.question || 'Untitled Decision',
-        subtitle: getRelativeUpdate(decision.updated_at || decision.created_at),
-        detail: decision?.prediction?.prediction || 'Revisit this path.',
-        route: `/decision/${decision.id}` as const,
-        isPlaceholder: false,
-        timestamp: new Date(decision.updated_at || decision.created_at).getTime(),
+    ...recentDecisions.map((d) => ({
+      id: d.id,
+      type: 'decision' as const,
+      title: d.question,
+      subtitle: d.status === 'draft' ? 'Draft' : (d.prediction?.prediction || 'Analyzing...'),
+      timestamp: new Date(d.created_at).getTime(),
+      route: `/decision/${d.id}` as const,
     })),
     ...recentWhatIfs.map((whatIf) => ({
       id: whatIf.id,
       type: 'whatif' as const,
-      title: whatIf.payload?.question || 'What If Scenario',
-      subtitle: getRelativeUpdate(whatIf.created_at),
-      detail: 'Explore alternate reality',
+      title: whatIf.payload?.question || 'What-if',
+      subtitle: 'Explore alternate reality',
       route: `/whatif/${whatIf.id}` as const,
-      isPlaceholder: false,
       timestamp: new Date(whatIf.created_at).getTime(),
     }))
   ].sort((a, b) => b.timestamp - a.timestamp).slice(0, 6);
+
+  // Display 99% if daily journal is incomplete, otherwise show actual progress
+  const displayedProgress = hasTodayJournal ? profileProgress : 99;
 
   return (
     <View style={styles.screen}>
       <View style={styles.backgroundGradient}>
         <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-          <Animated.ScrollView
-            style={[styles.scrollView, { 
+          {/* Top Bar */}
+          <View style={styles.topBar}>
+            <View style={styles.topBarLeft}>
+              <Image 
+                source={require('@/assets/images/unreallogo.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.topBarIcons}>
+              <TouchableOpacity
+                style={styles.moraTag}
+                onPress={() => {
+                  if (!isPremium) {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/premium');
+                  }
+                }}
+                activeOpacity={!isPremium ? 0.7 : 1}
+                disabled={isPremium}
+              >
+                <LinearGradient
+                  colors={Colors.gradients.purple}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.moraTagGradient}
+                />
+                <View style={styles.moraTagInner}>
+                  <Text style={styles.moraTagText}>{isPremium ? 'mora+' : 'unlock mora+'}</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.iconButton}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setShowDecisionGuide(true);
+                }}
+              >
+                <HelpCircle size={24} color={Colors.textPrimary} strokeWidth={2} />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.iconButton}
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/home');
+                  router.push('/(tabs)/profile');
+                }}
+              >
+                <Settings size={24} color={Colors.textPrimary} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <Animated.ScrollView 
+            style={[styles.content, { 
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }]
-            }]}
-            contentContainerStyle={styles.content}
+            }]} 
+            contentContainerStyle={styles.contentContainer}
             showsVerticalScrollIndicator={false}
           >
-            {/* Top Bar */}
-            <View style={styles.topBar}>
-              <View style={styles.logoContainer}>
-                 <Image 
-                   source={require('@/assets/images/unreallogo.png')}
-                   style={styles.logoImage}
-                   resizeMode="contain"
-                 />
+            {/* Main Header with Emoji */}
+            <View style={styles.headerContainer}>
+              <View style={styles.headerLeft}>
+                <Text style={styles.greeting}>
+                  <Text style={styles.greetingName}>Hi {userName || 'Friend'},{'\n'}</Text>
+                  <Text style={styles.greetingRest}>What do you want to{'\n'}explore right now?</Text>
+                </Text>
               </View>
-              <View style={styles.topBarIcons}>
-                <TouchableOpacity 
-                  style={styles.iconButton}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    setShowDecisionGuide(true);
-                    setGuideStep(0);
-                  }}
-                >
-                  <HelpCircle size={24} color={Colors.textPrimary} strokeWidth={2} />
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.iconButton}
-                  onPress={async () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/home');
-                    router.push('/(tabs)/profile');
-                  }}
-                >
-                  <Settings size={24} color={Colors.textPrimary} strokeWidth={2} />
-                </TouchableOpacity>
+              <View style={styles.headerRight}>
+                <Image 
+                  source={require('@/assets/images/memoji.png')}
+                  style={styles.headerEmoji}
+                  resizeMode="contain"
+                />
               </View>
             </View>
 
-            {/* Main Header */}
-            <View style={styles.header}>
-              <Text style={styles.greeting}>
-                <Text style={styles.greetingName}>Hi {userName || 'Friend'},{'\n'}</Text>
-                <Text style={styles.greetingRest}>How can I help{'\n'}you today?</Text>
-              </Text>
-            </View>
+            {/* Action Rectangles */}
+            <View style={styles.actionsContainer}>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/(tabs)/simulations');
+                }}
+                activeOpacity={0.8}
+                style={styles.actionRectangle}
+              >
+                <LinearGradient
+                  colors={Colors.gradients.purple}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.cardGradient}
+                />
+                <View style={styles.actionIconContainer}>
+                  <Compass size={24} color={Colors.textPrimary} />
+                </View>
+                <View style={styles.actionContent}>
+                  <Text style={styles.actionTitle}>Simulate</Text>
+                  <Text style={styles.actionSubtitle}>Experience emotional narratives and possible futures</Text>
+                </View>
+                <ChevronRight size={20} color={Colors.textTertiary} />
+              </TouchableOpacity>
 
-            {/* Center: Twin Avatar with Progress Bar */}
-            <View style={styles.twinSection}>
-              {/* Training Card */}
-              <View style={styles.trainingCard}>
-                <View style={styles.progressBarContainer}>
-                  <View style={styles.progressBarLabel}>
-                    <View style={styles.accuracyHeader}>
-                      <Text style={styles.progressBarLabelText}>Training Accuracy</Text>
-                      <TouchableOpacity 
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setShowAccuracyInfo(true);
-                        }}
-                        style={styles.infoButton}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Info size={14} color={Colors.textTertiary} />
-                      </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/decision/new');
+                }}
+                activeOpacity={0.8}
+                style={styles.actionRectangle}
+              >
+                <View style={[styles.cardGradient, { backgroundColor: '#febda1' }]} />
+                <View style={styles.actionIconContainer}>
+                  <CheckCircle size={24} color={Colors.textPrimary} />
+                </View>
+                <View style={styles.actionContent}>
+                  <Text style={styles.actionTitle}>Decide</Text>
+                  <Text style={styles.actionSubtitle}>Receive an authoritative recommendation for your path</Text>
+                </View>
+                <ChevronRight size={20} color={Colors.textTertiary} />
+              </TouchableOpacity>
+
+              {/* Train Section */}
+              <TouchableOpacity
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/home');
+                  router.push('/(tabs)/profile');
+                }}
+                activeOpacity={0.8}
+                style={styles.teachCard}
+              >
+                <View style={styles.teachCardHeader}>
+                  <View style={styles.teachTextContainer}>
+                    <View style={styles.teachTitleRow}>
+                      <Text style={styles.teachTitle}>Train</Text>
+                      <View style={styles.teachPercentageBadge}>
+                        <Text style={styles.teachPercentage}>{displayedProgress}%</Text>
+                      </View>
                     </View>
-                    <Text style={styles.progressBarPercent}>{profileProgress}%</Text>
+                    <Text style={styles.teachSubtitle}>Build a compounding and smarter digital twin</Text>
                   </View>
-                  <View style={styles.progressBarTrack}>
-                    <Animated.View 
-                      style={[
-                        styles.progressBarFill,
-                        {
-                          width: `${profileProgress}%`,
-                        }
-                      ]}
+                  <View style={styles.teachArrowContainer}>
+                    <LinearGradient
+                      colors={Colors.gradients.turquoise}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.teachArrowGradient}
                     >
-                      <LinearGradient
-                        colors={Colors.gradients.turquoise}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={StyleSheet.absoluteFill}
-                      />
-                    </Animated.View>
+                      <ArrowUpRight size={16} color="#FFFFFF" />
+                    </LinearGradient>
                   </View>
                 </View>
-              </View>
-
-              {/* Twin Area Wrapper */}
-              <View style={styles.twinAreaWrapper}>
-                {/* Floating Twin Emoji */}
-                <Animated.View
-                  style={[
-                    styles.twinAvatarContainer,
-                    {
-                      transform: [
-                        {
-                          translateY: twinFloatAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [-10, 10],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <View style={styles.twinAvatar}>
-                    <Text style={styles.twinEmoji}>🤖</Text>
-                  </View>
-                </Animated.View>
-
-                {/* Suggestions Bubbles (Static) */}
-                <TouchableOpacity 
-                  style={[styles.suggestionBubble, { position: 'absolute', top: -60, left: 100, transform: [{ rotate: '-5deg' }] }]}
-                  activeOpacity={0.8}
-                  onPress={() => router.push('/whatif/new')}
-                >
-                  <Text style={styles.suggestionText}>What if I moved to London?</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.suggestionBubble, { position: 'absolute', top: 100, right: 100, transform: [{ rotate: '3deg' }] }]}
-                  activeOpacity={0.8}
-                  onPress={() => router.push('/decision/new')}
-                >
-                  <Text style={styles.suggestionText}>Should I buy a house?</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.suggestionBubble, { position: 'absolute', bottom: -60, left: 120, transform: [{ rotate: '-2deg' }] }]}
-                  activeOpacity={0.8}
-                  onPress={() => router.push('/whatif/new')}
-                >
-                  <Text style={styles.suggestionText}>Quit my job?</Text>
-                </TouchableOpacity>
-              </View>
+                <View style={styles.teachProgressContainer}>
+                  <ProgressBar 
+                    progress={displayedProgress / 100} 
+                    showLabel={false} 
+                    height={6}
+                    gradientColors={Colors.gradients.turquoise}
+                    trackColor="rgba(0,0,0,0.05)"
+                  />
+                </View>
+              </TouchableOpacity>
             </View>
 
             {/* Recent Activity / Echoes */}
@@ -497,160 +394,6 @@ export default function HomeScreen() {
               </View>
             )}
           </Animated.ScrollView>
-
-          {/* Actions Carousel at Bottom - Fixed */}
-          <View style={styles.carouselContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.carouselContent}
-              style={styles.carouselScrollView}
-              decelerationRate="fast"
-              snapToAlignment="start"
-            >
-              {/* Card 1: Decide */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/decision/new');
-                }}
-                activeOpacity={0.8}
-                style={styles.carouselCardWrapper}
-              >
-                <View style={styles.carouselCard}>
-                  <LinearGradient
-                    colors={Colors.gradients.peach}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.cardGradient}
-                  />
-                  <View style={styles.gridCardContent}>
-                    <View style={styles.gridIconContainer}>
-                      <Image 
-                        source={require('@/assets/images/compass.png')}
-                        style={[styles.gridIconImage, { tintColor: Colors.textPrimary }]}
-                        resizeMode="contain"
-                      />
-                    </View>
-                    <Text style={styles.gridCardTitle}>Decide</Text>
-                    <Text style={styles.gridCardSubtitle} numberOfLines={2}>Make a choice</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              {/* Card 2: Explore */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/whatif/new');
-                }}
-                activeOpacity={0.8}
-                style={styles.carouselCardWrapper}
-              >
-                <View style={styles.carouselCard}>
-                  <LinearGradient
-                    colors={Colors.gradients.purple}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.cardGradient}
-                  />
-                  <View style={styles.gridCardContent}>
-                    <View style={styles.gridIconContainer}>
-                      <Image 
-                        source={require('@/assets/images/star.png')}
-                        style={[styles.gridIconImage, { tintColor: Colors.textPrimary }]}
-                        resizeMode="contain"
-                      />
-                    </View>
-                    <Text style={styles.gridCardTitle}>Explore</Text>
-                    <Text style={styles.gridCardSubtitle} numberOfLines={2}>Alternate reality</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              {/* Card 3: Journal */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/journal' as any);
-                }}
-                activeOpacity={0.8}
-                style={styles.carouselCardWrapper}
-              >
-                <View style={styles.carouselCard}>
-                  <LinearGradient
-                    colors={Colors.gradients.turquoise}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.cardGradient}
-                  />
-                  {!hasTodayJournal && (
-                    <View style={styles.notificationDot} />
-                  )}
-                  <View style={styles.gridCardContent}>
-                    <View style={styles.gridIconContainer}>
-                       <Book size={32} color={Colors.textPrimary} strokeWidth={1.5} />
-                    </View>
-                    <Text style={styles.gridCardTitle}>Journal</Text>
-                    <Text style={styles.gridCardSubtitle} numberOfLines={2}>Daily reflection</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              {/* Card 4: Simulations */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/(tabs)/simulations');
-                }}
-                activeOpacity={0.8}
-                style={styles.carouselCardWrapper}
-              >
-                <View style={styles.carouselCard}>
-                  <LinearGradient
-                    colors={['#F3F4F6', '#E5E7EB']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.cardGradient}
-                  />
-                  <View style={styles.gridCardContent}>
-                    <View style={styles.gridIconContainer}>
-                       <Layers size={32} color={Colors.textPrimary} strokeWidth={1.5} />
-                    </View>
-                    <Text style={styles.gridCardTitle}>History</Text>
-                    <Text style={styles.gridCardSubtitle} numberOfLines={2}>Past timelines</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              {/* Card 5: Simulate 2026 */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  trackEvent(MixpanelEvents.YEAR_PREDICTION_BANNER_CLICKED);
-                  router.push('/prediction/2026/intro' as any);
-                }}
-                activeOpacity={0.8}
-                style={styles.carouselCardWrapper}
-              >
-                <View style={styles.carouselCard}>
-                  <LinearGradient
-                    colors={['#E0F2FE', '#F0F9FF']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.cardGradient}
-                  />
-                  <View style={styles.gridCardContent}>
-                    <View style={styles.gridIconContainer}>
-                       <Sparkles size={32} color={Colors.textPrimary} strokeWidth={1.5} />
-                    </View>
-                    <Text style={styles.gridCardTitle}>2026</Text>
-                    <Text style={styles.gridCardSubtitle} numberOfLines={2}>Simulate Future</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
         </SafeAreaView>
       </View>
 
@@ -659,29 +402,14 @@ export default function HomeScreen() {
         <ProductGuide
           visible={showDecisionGuide}
           onDismiss={async () => {
-            await setHasSeenDecisionGuide();
             setShowDecisionGuide(false);
-            setGuideStep(0);
-            trackEvent('Product Guide Skipped');
-            setTimeout(() => {
-              checkAndShowRatingPrompt();
-            }, 1000);
+            await setHasSeenDecisionGuide();
           }}
           onComplete={async () => {
-            await setHasSeenDecisionGuide();
             setShowDecisionGuide(false);
-            setGuideStep(0);
-            trackEvent('Product Guide Completed');
-            setTimeout(() => {
-              checkAndShowRatingPrompt();
-            }, 1000);
+            await setHasSeenDecisionGuide();
           }}
-          targetCardLayout={decisionCardLayout}
-          whatIfCardLayout={whatIfCardLayout}
-          journalCardLayout={journalCardLayout}
-          twinCardLayout={twinCardLayout}
           userId={user?.id}
-          onStepChange={setGuideStep}
         />
       )}
 
@@ -692,64 +420,51 @@ export default function HomeScreen() {
         animationType="fade"
         onRequestClose={() => setShowAccuracyInfo(false)}
       >
-        <View style={styles.accuracyModalOverlay}>
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowAccuracyInfo(false)}
+        >
           <View style={styles.accuracyModalContent}>
-            <View style={styles.accuracyModalHeader}>
-              <Text style={styles.accuracyModalTitle}>Improve Accuracy</Text>
-              <TouchableOpacity 
-                onPress={() => setShowAccuracyInfo(false)}
-                style={styles.accuracyModalCloseButton}
-              >
-                <X size={24} color={Colors.textTertiary} />
+            <View style={styles.accuracyHeaderRow}>
+              <View style={styles.accuracyIconContainer}>
+                <Layers size={24} color="#84FAB0" />
+              </View>
+              <TouchableOpacity onPress={() => setShowAccuracyInfo(false)}>
+                <X size={24} color={Colors.textPrimary} />
               </TouchableOpacity>
             </View>
-            
+
+            <Text style={styles.accuracyModalTitle}>Twin Accuracy</Text>
             <Text style={styles.accuracyModalDescription}>
-              Your twin's accuracy increases as you interact with the app. Here's how to improve it:
+              The more data your twin has, the more accurately it can simulate your life.
             </Text>
-            
-            <View style={styles.accuracyList}>
-              <View style={styles.accuracyItem}>
-                <View style={[styles.accuracyIcon, { backgroundColor: 'rgba(132, 250, 176, 0.1)' }]}>
-                  <User size={18} color="#4ADE80" />
-                </View>
-                <Text style={styles.accuracyItemText}>Complete your profile</Text>
+
+            <View style={styles.accuracyStatsContainer}>
+              <View style={styles.accuracyStatItem}>
+                <Text style={styles.accuracyStatValue}>{displayedProgress}%</Text>
+                <Text style={styles.accuracyStatLabel}>Accuracy</Text>
               </View>
-              
-              <View style={styles.accuracyItem}>
-                <View style={[styles.accuracyIcon, { backgroundColor: 'rgba(135, 206, 250, 0.1)' }]}>
-                  <Book size={18} color="#87CEFA" />
-                </View>
-                <Text style={styles.accuracyItemText}>Add daily journal entries</Text>
-              </View>
-              
-              <View style={styles.accuracyItem}>
-                <View style={[styles.accuracyIcon, { backgroundColor: 'rgba(255, 154, 158, 0.1)' }]}>
-                  <Compass size={18} color="#FF9A9E" />
-                </View>
-                <Text style={styles.accuracyItemText}>Make decisions with AI</Text>
+              <View style={styles.accuracyStatDivider} />
+              <View style={styles.accuracyStatItem}>
+                <Text style={styles.accuracyStatValue}>
+                  {recentDecisions.length + recentWhatIfs.length}
+                </Text>
+                <Text style={styles.accuracyStatLabel}>Data Points</Text>
               </View>
             </View>
 
-            <TouchableOpacity
+            <TouchableOpacity 
+              style={styles.accuracyActionButton}
               onPress={() => {
                 setShowAccuracyInfo(false);
                 router.push('/(tabs)/profile');
               }}
-              style={styles.accuracyActionButton}
-              activeOpacity={0.9}
             >
-              <LinearGradient
-                colors={Colors.gradients.turquoise}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.accuracyActionGradient}
-              >
-                <Text style={styles.accuracyActionText}>Go to Profile</Text>
-              </LinearGradient>
+              <Text style={styles.accuracyActionText}>Train My Mora</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
       {/* Delete Confirmation Modal */}
@@ -759,55 +474,35 @@ export default function HomeScreen() {
         animationType="fade"
         onRequestClose={() => setDeleteModalVisible(false)}
       >
-        <View style={styles.deleteModalOverlay}>
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setDeleteModalVisible(false)}
+        >
           <View style={styles.deleteModalContent}>
-            <View style={styles.deleteModalHeader}>
-              <View style={styles.deleteIconContainer}>
-                <Trash2 size={24} color="#EF4444" />
-              </View>
-              <TouchableOpacity 
-                onPress={() => {
-                  setDeleteModalVisible(false);
-                  setItemToDelete(null);
-                }}
-                style={styles.deleteModalCloseButton}
-              >
-                <X size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.deleteModalTitle}>Delete {itemToDelete?.type === 'decision' ? 'Decision' : 'What If'}?</Text>
-            <Text style={styles.deleteModalDescription}>"{itemToDelete?.title}"</Text>
-            <Text style={styles.deleteModalWarning}>This action cannot be undone.</Text>
-
+            <Text style={styles.deleteModalTitle}>Delete {itemToDelete?.type === 'decision' ? 'Decision' : 'What-if'}?</Text>
+            <Text style={styles.deleteModalDescription}>
+              "{itemToDelete?.title}"{'\n\n'}This action cannot be undone.
+            </Text>
+            
             <View style={styles.deleteModalButtons}>
-              <TouchableOpacity
-                onPress={() => {
-                  setDeleteModalVisible(false);
-                  setItemToDelete(null);
-                }}
-                style={styles.deleteCancelButton}
+              <TouchableOpacity 
+                style={[styles.deleteModalButton, styles.deleteModalCancel]}
+                onPress={() => setDeleteModalVisible(false)}
               >
-                <Text style={styles.deleteCancelButtonText}>Cancel</Text>
+                <Text style={styles.deleteModalCancelText}>Cancel</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleConfirmDelete}
-                style={styles.deleteConfirmButtonWrapper}
-                activeOpacity={0.9}
+              
+              <TouchableOpacity 
+                style={[styles.deleteModalButton, styles.deleteModalConfirm]}
+                onPress={confirmDelete}
               >
-                <LinearGradient
-                  colors={['#EF4444', '#DC2626', '#B91C1C']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.deleteConfirmButton}
-                >
-                  <Text style={styles.deleteConfirmButtonText}>Delete</Text>
-                </LinearGradient>
+                <Trash2 size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={styles.deleteModalConfirmText}>Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -825,241 +520,119 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 220, // Extra padding for fixed carousel at bottom
-  },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
-  logoContainer: {
-    justifyContent: 'center',
+  topBarLeft: {
+    flex: 1,
   },
-  logoImage: {
-    width: 120,
+  logo: {
+    width: 100,
     height: 40,
   },
   topBarIcons: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
+    alignItems: 'center',
+  },
+  moraTag: {
+    borderRadius: 12,
+    padding: 1.5,
+    overflow: 'hidden',
+  },
+  moraTagGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 12,
+  },
+  moraTagInner: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10.5,
+  },
+  moraTagText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 0.5,
   },
   iconButton: {
     padding: 8,
     backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
   },
-  upgradeButton: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    minWidth: 140,
+  content: {
+    flex: 1,
   },
-  upgradeButtonGradient: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.2)',
+  contentContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    marginBottom: 32,
+    marginTop: 10,
   },
-  iconWrapper: {
-    width: 20,
-    height: 20,
-    alignItems: 'center',
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    width: 100,
+    height: 100,
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  premiumIcon: {
-    width: 18,
-    height: 18,
-  },
-  upgradeButtonText: {
-    color: '#999999',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  header: {
-    marginBottom: 8,
+  headerEmoji: {
+    width: 120,
+    height: 120,
+    transform: [{ scale: 1.2 }],
   },
   greeting: {
     fontSize: 28,
-    fontWeight: '700',
     lineHeight: 34,
     fontFamily: Fonts.primary.regular,
     letterSpacing: -0.5,
   },
   greetingName: {
-    color: Colors.textTertiary,
-    fontWeight: '400',
-    fontFamily: Fonts.secondary.bold,
+    color: Colors.textSecondary,
+    fontSize: 24,
+    fontFamily: Fonts.primary.regular,
   },
   greetingRest: {
     color: Colors.textPrimary,
+    fontSize: 24,
     fontFamily: Fonts.secondary.bold,
   },
-  twinSection: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 0,
-    minHeight: 300,
-  },
-  twinAreaWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    position: 'relative',
-  },
-  trainingCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    width: '60%',
-    marginBottom: 16,
-    marginTop: 8,
-    shadowColor: 'rgba(0, 0, 0, 0.08)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
-  progressBarContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  progressBarLabel: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 14,
-  },
-  accuracyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  infoButton: {
-    padding: 2,
-  },
-  progressBarLabelText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
-  },
-  progressBarPercent: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-  },
-  progressBarTrack: {
-    width: '100%',
-    height: 6,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  twinAvatarContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  twinAvatar: {
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: 'rgba(0, 0, 0, 0.08)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    zIndex: 10,
-  },
-  twinEmoji: {
-    fontSize: 140,
-    lineHeight: 160,
-  },
-  suggestionBubble: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 14,
-    maxWidth: 140,
-    shadowColor: 'rgba(0, 0, 0, 0.05)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    zIndex: 5,
-  },
-  suggestionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
-  },
-  carouselContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 200,
-    paddingBottom: Platform.OS === 'ios' ? 48 : 40,
-    paddingLeft: 20,
-  },
-  carouselScrollView: {
-    flex: 1,
-    overflow: 'visible',
-  },
-  carouselContent: {
-    paddingHorizontal: 4, // Align with screen padding logic
+  actionsContainer: {
     gap: 16,
-    paddingRight: 24,
+    marginBottom: 32,
   },
-  carouselCardWrapper: {
-    width: 140,
-    height: 180,
+  actionRectangle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
     borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
     shadowColor: 'rgba(0, 0, 0, 0.06)',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 1,
     shadowRadius: 16,
     elevation: 5,
-    backgroundColor: 'transparent',
-  },
-  carouselCard: {
-    flex: 1,
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
-    padding: 16,
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
   },
   cardGradient: {
     position: 'absolute',
@@ -1069,63 +642,91 @@ const styles = StyleSheet.create({
     bottom: 0,
     opacity: 0.15,
   },
-  gridCardContent: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  gridIconContainer: {
+  actionIconContainer: {
+    marginRight: 12,
     width: 40,
     height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'flex-start',
   },
-  gridIconImage: {
-    width: 40,
-    height: 40,
+  actionContent: {
+    flex: 1,
+    gap: 4,
   },
-  gridCardTitle: {
-    fontSize: 18,
+  actionTitle: {
+    fontSize: 20,
     fontWeight: '700',
     fontFamily: Fonts.primary.regular,
     color: Colors.textPrimary,
-    marginBottom: 4,
-    lineHeight: 22,
   },
-  gridCardSubtitle: {
-    fontSize: 13,
-    color: Colors.textTertiary,
-    fontFamily: Fonts.secondary.bold,
-    fontWeight: '500',
+  actionSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '400',
     lineHeight: 18,
   },
-  notificationDot: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF453A',
-    zIndex: 10,
+  teachCard: {
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.03)',
+    marginTop: 8,
   },
-  progressBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    paddingHorizontal: 8,
+  teachCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  teachTextContainer: {
+    flex: 1,
+    gap: 2,
+  },
+  teachProgressContainer: {
+    width: '100%',
+  },
+  teachTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  teachTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textSecondary,
+  },
+  teachPercentageBadge: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
-  progressBadgeText: {
-    fontSize: 10,
+  teachPercentage: {
+    fontSize: 12,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textSecondary,
+  },
+  teachSubtitle: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    fontWeight: '400',
+  },
+  teachArrowContainer: {
+    marginLeft: 8,
+  },
+  teachArrowGradient: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   echoSection: {
-    marginBottom: 20,
     marginTop: 10,
   },
   sectionHeader: {
@@ -1177,134 +778,112 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   echoTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    fontFamily: Fonts.secondary.bold,
     color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
     marginBottom: 2,
   },
   echoMeta: {
     fontSize: 12,
     color: Colors.textTertiary,
-    fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
-  // Accuracy Modal Styles
-  accuracyModalOverlay: {
+  modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   accuracyModalContent: {
-    width: '100%',
-    maxWidth: 340,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 32,
     padding: 24,
+    width: '100%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 10,
   },
-  accuracyModalHeader: {
+  accuracyHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  accuracyModalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    fontFamily: Fonts.primary.regular,
-    color: Colors.textPrimary,
-  },
-  accuracyModalCloseButton: {
-    padding: 4,
-  },
-  accuracyModalDescription: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginBottom: 24,
-    lineHeight: 22,
-    fontFamily: Fonts.secondary.bold,
-    fontWeight: '500',
-  },
-  accuracyList: {
-    gap: 16,
-    marginBottom: 24,
-  },
-  accuracyItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  accuracyIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  accuracyItemText: {
-    fontSize: 15,
-    color: Colors.textPrimary,
-    fontWeight: '600',
-  },
-  accuracyActionButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  accuracyActionGradient: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  accuracyActionText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  
-  // Retain Modal Styles
-  deleteModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  deleteModalContent: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  deleteModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 20,
   },
-  deleteIconContainer: {
+  accuracyIconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    alignItems: 'center',
+    borderRadius: 16,
+    backgroundColor: 'rgba(132, 250, 176, 0.1)',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  deleteModalCloseButton: {
-    padding: 4,
+  accuracyModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+    marginBottom: 12,
+  },
+  accuracyModalDescription: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 24,
+    fontFamily: Fonts.secondary.bold,
+  },
+  accuracyStatsContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  accuracyStatItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  accuracyStatValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+    marginBottom: 4,
+  },
+  accuracyStatLabel: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  accuracyStatDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  accuracyActionButton: {
+    backgroundColor: '#84FAB0',
+    borderRadius: 20,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  accuracyActionText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  deleteModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
   },
   deleteModalTitle: {
     fontSize: 20,
@@ -1312,158 +891,44 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontFamily: Fonts.primary.regular,
     marginBottom: 12,
+    textAlign: 'center',
   },
   deleteModalDescription: {
     fontSize: 15,
     color: Colors.textSecondary,
-    marginBottom: 16,
-    fontFamily: Fonts.secondary.bold,
-    fontWeight: '500',
-  },
-  deleteModalWarning: {
-    fontSize: 13,
-    color: Colors.textTertiary,
-    fontStyle: 'italic',
+    lineHeight: 20,
+    textAlign: 'center',
     marginBottom: 24,
+    fontFamily: Fonts.secondary.bold,
   },
   deleteModalButtons: {
     flexDirection: 'row',
     gap: 12,
   },
-  deleteCancelButton: {
+  deleteModalButton: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
   },
-  deleteCancelButtonText: {
-    fontSize: 16,
+  deleteModalCancel: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  deleteModalConfirm: {
+    backgroundColor: '#FF453A',
+  },
+  deleteModalCancelText: {
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
-  deleteConfirmButtonWrapper: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  deleteConfirmButton: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteConfirmButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  predictionBanner: {
-    marginBottom: 24,
-    marginVertical: 4,
-    paddingVertical: 2,
-    borderRadius: 999,
-    overflow: 'visible',
-  },
-  predictionBannerContent: {
-    position: 'relative',
-    borderRadius: 999,
-    overflow: 'visible',
-  },
-  predictionBannerBlur: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 999,
-    margin: 1,
-    paddingVertical: 2,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    // Matches app's light card style with gradient border wrapper
-  },
-  predictionBannerBorderWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  predictionBannerBorderGradient: {
-    position: 'absolute',
-    top: '-50%',
-    left: '-50%',
-    width: '200%',
-    height: '200%',
-  },
-  predictionBannerYellowWrapper: {
-    borderRadius: 24,
-    overflow: 'visible',
-    shadowColor: '#2DD4BF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  predictionBannerGrayBackground: {
-    borderRadius: 24,
-    paddingVertical: 2,
-    paddingHorizontal: 2,
-    position: 'relative',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
-    backgroundColor: '#FFFFFF',
-  },
-  predictionBannerYellowGlow: {
-    position: 'absolute',
-    top: -10,
-    left: -10,
-    right: -10,
-    bottom: -10,
-    borderRadius: 24,
-    backgroundColor: '#2DD4BF',
-    opacity: 0.1,
-  },
-  gradientTextContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 18,
-  },
-  sparklesIconWrapper: {
-    marginTop: 2,
-  },
-  predictionBannerInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    gap: 6,
-    position: 'relative',
-    zIndex: 1,
-  },
-  predictionBannerText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    letterSpacing: 0.3,
-    textAlign: 'center',
-  },
-  predictionBannerYellowText: {
+  deleteModalConfirmText: {
     fontSize: 15,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    letterSpacing: 0.8,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-  },
-  predictionBannerSubtext: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginLeft: 8,
-  },
-  predictionBannerChevron: {
-    marginLeft: 'auto',
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
 });

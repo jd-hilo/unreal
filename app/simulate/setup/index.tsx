@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { getProfile, getRelationships } from '@/lib/storage';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Colors } from '@/constants/Theme';
+import { StatusBar } from 'expo-status-bar';
 
 export default function SetupIndexScreen() {
   const router = useRouter();
@@ -47,20 +48,19 @@ export default function SetupIndexScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#050505', '#0F0F18', '#0D0D15', '#050505']}
-      style={styles.container}
-    >
+    <View style={styles.container}>
+      <StatusBar style="dark" />
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#87CEFA" />
+        <ActivityIndicator size="large" color={Colors.gradients.turquoise[0]} />
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,

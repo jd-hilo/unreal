@@ -15,6 +15,7 @@ import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { computeScenarioAlignment } from '@/lib/relevance';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Colors, Fonts } from '@/constants/Theme';
 
 export default function NewWhatIfScreen() {
   const router = useRouter();
@@ -234,13 +235,8 @@ export default function NewWhatIfScreen() {
 
     return (
       <View style={styles.loadingScreen}>
-        <LinearGradient
-          colors={['#050505', '#0A0A0A', '#050505']}
-          style={styles.loadingContainer}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <StatusBar style="light" />
+        <View style={styles.loadingContainer}>
+          <StatusBar style="dark" />
           <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
             <View style={styles.loadingContent}>
               {/* Animated Orb */}
@@ -257,7 +253,7 @@ export default function NewWhatIfScreen() {
                   ]}
                 >
                   <LinearGradient
-                    colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.1)', 'rgba(65, 105, 225, 0.05)']}
+                    colors={Colors.gradients.turquoise}
                     style={styles.orbGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -276,11 +272,11 @@ export default function NewWhatIfScreen() {
               <View style={styles.textContainer}>
                 <Text style={styles.loadingText}>Exploring your alternate life...</Text>
                 <View style={styles.statusContainer}>
-                  <BlurView intensity={20} tint="dark" style={styles.statusBlur}>
+                  <View style={styles.statusBlur}>
                     <Text style={styles.statusText}>
                       {LOADING_STEPS[loadingStepIndex] || LOADING_STEPS[LOADING_STEPS.length - 1]}
                     </Text>
-                  </BlurView>
+                  </View>
                 </View>
               </View>
 
@@ -292,7 +288,7 @@ export default function NewWhatIfScreen() {
                     style={[
                       styles.dot,
                       {
-                        backgroundColor: '#87CEFA',
+                        backgroundColor: Colors.textSecondary,
                         transform: [
                           {
                             scale: pulseAnim.interpolate({
@@ -312,7 +308,7 @@ export default function NewWhatIfScreen() {
               </View>
             </View>
           </SafeAreaView>
-        </LinearGradient>
+        </View>
       </View>
     );
   }
@@ -329,7 +325,7 @@ export default function NewWhatIfScreen() {
             {/* Top Bar */}
             <View style={styles.topBar}>
               <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+                <ArrowLeft size={24} color={Colors.textPrimary} strokeWidth={2} />
               </TouchableOpacity>
             </View>
 
@@ -368,7 +364,7 @@ export default function NewWhatIfScreen() {
               {/* Example Scenarios */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Lightbulb size={18} color="rgba(135, 206, 250, 0.9)" />
+                  <Lightbulb size={18} color={Colors.textSecondary} />
                   <Text style={styles.sectionLabel}>Try these examples</Text>
                 </View>
 
@@ -378,16 +374,16 @@ export default function NewWhatIfScreen() {
                     onPress={() => setWhatIfText('What if I had studied engineering instead of my current major?')}
                     activeOpacity={0.7}
                   >
-                    <BlurView intensity={20} tint="dark" style={styles.exampleCardBlur}>
+                    <View style={styles.exampleCardBlur}>
                       <View style={styles.exampleIcon}>
-                        <GraduationCap size={20} color="rgba(135, 206, 250, 0.9)" />
+                        <GraduationCap size={20} color={Colors.textSecondary} />
                       </View>
                       <View style={styles.exampleContent}>
                         <Text style={styles.exampleTitle}>Different major</Text>
                         <Text style={styles.exampleDesc}>Academic path</Text>
                       </View>
-                      <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
-                    </BlurView>
+                      <ChevronRight size={18} color={Colors.textTertiary} />
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -395,16 +391,16 @@ export default function NewWhatIfScreen() {
                     onPress={() => setWhatIfText('What if I had stayed in my hometown instead of moving?')}
                     activeOpacity={0.7}
                   >
-                    <BlurView intensity={20} tint="dark" style={styles.exampleCardBlur}>
+                    <View style={styles.exampleCardBlur}>
                       <View style={styles.exampleIcon}>
-                        <MapPin size={20} color="rgba(135, 206, 250, 0.9)" />
+                        <MapPin size={20} color={Colors.textSecondary} />
                       </View>
                       <View style={styles.exampleContent}>
                         <Text style={styles.exampleTitle}>Different location</Text>
                         <Text style={styles.exampleDesc}>Where you live</Text>
                       </View>
-                      <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
-                    </BlurView>
+                      <ChevronRight size={18} color={Colors.textTertiary} />
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -412,16 +408,16 @@ export default function NewWhatIfScreen() {
                     onPress={() => setWhatIfText('What if I had started my own business instead of working a corporate job?')}
                     activeOpacity={0.7}
                   >
-                    <BlurView intensity={20} tint="dark" style={styles.exampleCardBlur}>
+                    <View style={styles.exampleCardBlur}>
                       <View style={styles.exampleIcon}>
-                        <Briefcase size={20} color="rgba(135, 206, 250, 0.9)" />
+                        <Briefcase size={20} color={Colors.textSecondary} />
                       </View>
                       <View style={styles.exampleContent}>
                         <Text style={styles.exampleTitle}>Career path</Text>
                         <Text style={styles.exampleDesc}>Professional choice</Text>
                       </View>
-                      <ChevronRight size={18} color="rgba(200, 200, 200, 0.5)" />
-                    </BlurView>
+                      <ChevronRight size={18} color={Colors.textTertiary} />
+                    </View>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -438,33 +434,50 @@ export default function NewWhatIfScreen() {
                   (!canSubmit || loading) && styles.floatingButtonDisabled
                 ]}
               >
-                <LinearGradient
-                  colors={canSubmit && !loading ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[
-                    styles.floatingButtonGradient,
-                    canSubmit && !loading && styles.floatingButtonActiveBorder
-                  ]}
-                >
-                  <Image 
-                    source={require('@/assets/images/cube.png')}
-                    style={styles.cubeIcon}
-                    resizeMode="contain"
-                  />
-                  <Text style={[
-                    styles.floatingButtonText,
-                    (!canSubmit || loading) && styles.floatingButtonTextDisabled
-                  ]}>
-                    {loading ? 'Exploring...' : 'Explore Timeline'}
-                  </Text>
-                  {!loading && (
+                {canSubmit && !loading ? (
+                  <LinearGradient
+                    colors={Colors.gradients.turquoise}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[
+                      styles.floatingButtonGradient,
+                      styles.floatingButtonActiveBorder
+                    ]}
+                  >
+                    <Image 
+                      source={require('@/assets/images/cube.png')}
+                      style={styles.cubeIcon}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.floatingButtonText}>
+                      Explore Timeline
+                    </Text>
                     <ChevronRight 
                       size={20} 
-                      color={(!canSubmit || loading) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
+                      color="#FFFFFF" 
                     />
-                  )}
-                </LinearGradient>
+                  </LinearGradient>
+                ) : (
+                  <View style={styles.floatingButtonGradient}>
+                    <Image 
+                      source={require('@/assets/images/cube.png')}
+                      style={styles.cubeIcon}
+                      resizeMode="contain"
+                    />
+                    <Text style={[
+                      styles.floatingButtonText,
+                      styles.floatingButtonTextDisabled
+                    ]}>
+                      {loading ? 'Exploring...' : 'Explore Timeline'}
+                    </Text>
+                    {!loading && (
+                      <ChevronRight 
+                        size={20} 
+                        color={Colors.textTertiary} 
+                      />
+                    )}
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>
@@ -477,11 +490,11 @@ export default function NewWhatIfScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   backgroundGradient: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
@@ -499,7 +512,7 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
   },
   header: {
@@ -507,20 +520,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   greeting: {
-    fontSize: 42,
+    fontSize: 28,
     fontWeight: '700',
-    lineHeight: 48,
-    fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
+    lineHeight: 34,
+    fontFamily: Fonts.primary.regular,
     letterSpacing: -0.5,
   },
   greetingRest: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   greetingSubtext: {
-    color: '#999999',
-    fontSize: 18,
+    color: Colors.textSecondary,
+    fontSize: 16,
     fontWeight: '500',
     marginTop: 4,
+    fontFamily: Fonts.secondary.bold,
   },
   content: {
     flex: 1,
@@ -541,8 +556,9 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 12,
+    fontFamily: Fonts.secondary.bold,
   },
   scenarioInput: {
     marginTop: 4,
@@ -560,21 +576,27 @@ const styles = StyleSheet.create({
   exampleCard: {
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   exampleCardBlur: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     gap: 12,
+    backgroundColor: '#FFFFFF',
   },
   exampleIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(135, 206, 250, 0.2)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -585,14 +607,16 @@ const styles = StyleSheet.create({
   exampleTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 2,
     flexShrink: 1,
+    fontFamily: Fonts.secondary.bold,
   },
   exampleDesc: {
     fontSize: 13,
-    color: 'rgba(200, 200, 200, 0.6)',
+    color: Colors.textTertiary,
     flexShrink: 1,
+    fontFamily: Fonts.secondary.bold,
   },
   floatingButtonContainer: {
     position: 'absolute',
@@ -601,22 +625,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 20 : 40,
-    backgroundColor: '#050505',
+    backgroundColor: Colors.background,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(135, 206, 250, 0.1)',
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   floatingButton: {
     borderRadius: 24,
-    overflow: 'visible',
-    shadowColor: 'rgba(135, 206, 250, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   floatingButtonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
+    opacity: 0.5,
   },
   floatingButtonGradient: {
     flexDirection: 'row',
@@ -629,15 +654,16 @@ const styles = StyleSheet.create({
   },
   floatingButtonActiveBorder: {
     borderWidth: 1,
-    borderColor: '#87CEFA',
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   floatingButtonText: {
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
   floatingButtonTextDisabled: {
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: Colors.textTertiary,
   },
   cubeIcon: {
     width: 22,
@@ -645,10 +671,11 @@ const styles = StyleSheet.create({
   },
   loadingScreen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   loadingSafeArea: {
     flex: 1,
@@ -682,11 +709,16 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   loadingCubeIcon: {
     width: 60,
@@ -701,27 +733,34 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.5,
+    fontFamily: Fonts.secondary.bold,
   },
   statusContainer: {
     marginTop: 8,
   },
   statusBlur: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   statusText: {
     fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.textSecondary,
     textAlign: 'center',
     fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
   dotsContainer: {
     flexDirection: 'row',

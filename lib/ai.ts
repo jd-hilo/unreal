@@ -2604,6 +2604,7 @@ export async function advanceTimeline({
       messages: [{ role: 'user', content: userPrompt }],
       responseFormat: { type: 'json_object' },
       temperature: 0.7,
+      maxTokens: 8192, // Increased for large JSON responses with multiple events
     });
 
     // Try to extract JSON from the response
@@ -2616,23 +2617,71 @@ export async function advanceTimeline({
       const endIndex = lines.findIndex((line, idx) => idx > startIndex && line.includes('```'));
       if (startIndex !== -1 && endIndex !== -1) {
         jsonContent = lines.slice(startIndex + 1, endIndex).join('\n');
+      } else if (startIndex !== -1) {
+        // Only opening ``` found, remove it and everything before
+        jsonContent = lines.slice(startIndex + 1).join('\n');
       }
     }
     
-    // Try to find JSON object in the content
-    const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+    // Try to find JSON object in the content - use a more robust approach
+    let jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      // Try to find JSON starting from the first {
+      const firstBrace = jsonContent.indexOf('{');
+      if (firstBrace !== -1) {
+        jsonContent = jsonContent.substring(firstBrace);
+        jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+      }
+    }
     if (jsonMatch) {
       jsonContent = jsonMatch[0];
+    }
+
+    // Try to fix common JSON issues before parsing
+    // Remove trailing commas before closing braces/brackets
+    jsonContent = jsonContent.replace(/,(\s*[}\]])/g, '$1');
+    
+    // Try to close incomplete JSON strings
+    const openQuotes = (jsonContent.match(/"/g) || []).length;
+    if (openQuotes % 2 !== 0) {
+      // Odd number of quotes, try to close the last string
+      const lastQuoteIndex = jsonContent.lastIndexOf('"');
+      if (lastQuoteIndex !== -1 && lastQuoteIndex === jsonContent.length - 1) {
+        // Last character is an unclosed quote, remove it
+        jsonContent = jsonContent.slice(0, -1);
+      }
     }
 
     let parsed: TimelineAdvancementResult & { removedAssets?: string[] };
     try {
       parsed = JSON.parse(jsonContent) as TimelineAdvancementResult & { removedAssets?: string[] };
     } catch (parseError: any) {
-      console.error('JSON parse error. Raw content:', content);
-      console.error('Extracted JSON content:', jsonContent);
-      console.error('Parse error:', parseError);
-      throw new Error(`Failed to parse AI response as JSON. The response may have been cut off or malformed. Please try again.`);
+      // Try one more time with a more aggressive fix
+      try {
+        // Try to find and extract just the core JSON structure
+        const braceCount = (jsonContent.match(/\{/g) || []).length;
+        const closeBraceCount = (jsonContent.match(/\}/g) || []).length;
+        
+        if (braceCount > closeBraceCount) {
+          // Missing closing braces, try to add them
+          const missingBraces = braceCount - closeBraceCount;
+          jsonContent = jsonContent + '\n' + '}'.repeat(missingBraces);
+          parsed = JSON.parse(jsonContent) as TimelineAdvancementResult & { removedAssets?: string[] };
+        } else {
+          throw parseError; // Re-throw if we can't fix it
+        }
+      } catch (retryError: any) {
+        console.error('JSON parse error. Raw content length:', content.length);
+        console.error('Raw content preview:', content.substring(0, 500));
+        console.error('Extracted JSON content length:', jsonContent.length);
+        console.error('Extracted JSON preview:', jsonContent.substring(0, 500));
+        console.error('Parse error:', parseError.message);
+        console.error('Retry error:', retryError.message);
+        
+        // Provide more helpful error message
+        const errorMsg = `Failed to parse AI response as JSON. The response may have been cut off (${content.length} chars) or malformed. Please try again with a shorter input.`;
+        throw new Error(errorMsg);
+      }
     }
 
     // Ensure age is correct

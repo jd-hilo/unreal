@@ -6,6 +6,7 @@ import { Input } from '@/components/Input';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { MapPin } from 'lucide-react-native';
 import { getProfile, updateProfileFields, getRelationships } from '@/lib/storage';
+import { Colors, Fonts } from '@/constants/Theme';
 
 export default function SetupLocationScreen() {
   const router = useRouter();
@@ -63,14 +64,10 @@ export default function SetupLocationScreen() {
       canContinue={currentLocation.trim().length > 0}
       loading={loading}
       nextLabel="Continue"
-      backgroundGradient={['#050505', '#0F0F18', '#0D0D15', '#050505']}
-      buttonGradient={['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)']}
-      progressBarGradient={['#87CEFA', '#87CEFA']}
-      buttonShadowColor="rgba(65, 105, 225, 0.5)"
     >
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <MapPin size={48} color="#4169E1" strokeWidth={1.5} />
+          <MapPin size={48} color={Colors.gradients.purple[0]} strokeWidth={1.5} />
         </View>
 
         <Text style={styles.description}>
@@ -109,30 +106,38 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 16,
     lineHeight: 24,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
     marginBottom: 32,
     textAlign: 'center',
+    fontFamily: Fonts.secondary.bold,
   },
   inputContainer: {
     marginBottom: 24,
   },
   exampleBox: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    borderRadius: 12,
+    borderColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 16,
     padding: 16,
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   exampleTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 12,
+    fontFamily: Fonts.secondary.bold,
   },
   exampleText: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.7)',
+    color: Colors.textSecondary,
     marginBottom: 6,
+    fontFamily: Fonts.secondary.bold,
   },
 });
 

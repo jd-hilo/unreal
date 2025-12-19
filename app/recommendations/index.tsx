@@ -114,7 +114,7 @@ export default function RecommendationsIndexScreen() {
       if (lockReason === 'Premium') {
         Alert.alert(
           'Premium Feature',
-          'Unlock personalized recommendations by upgrading to unreal+.',
+          'Unlock personalized recommendations by upgrading to mora+.',
           [
             { text: 'Cancel', style: 'cancel' },
             { 
@@ -210,7 +210,7 @@ export default function RecommendationsIndexScreen() {
             >
               <ArrowLeft size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Unreal Recommendations</Text>
+            <Text style={styles.headerTitle}>Mora Recommendations</Text>
             <View style={styles.placeholder} />
           </View>
 

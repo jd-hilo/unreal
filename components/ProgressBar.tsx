@@ -12,9 +12,16 @@ interface ProgressBarProps {
   showLabel?: boolean;
   height?: number;
   gradientColors?: readonly [string, string, ...string[]];
+  trackColor?: string;
 }
 
-export function ProgressBar({ progress, showLabel = true, height = 8, gradientColors = ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] }: ProgressBarProps) {
+export function ProgressBar({ 
+  progress, 
+  showLabel = true, 
+  height = 8, 
+  gradientColors = ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'],
+  trackColor = 'rgba(255, 255, 255, 0.1)'
+}: ProgressBarProps) {
   // Commented out Reanimated code - using simple static version
   const animatedProgress = useSharedValue(0);
 
@@ -35,7 +42,7 @@ export function ProgressBar({ progress, showLabel = true, height = 8, gradientCo
 
   return (
     <View style={styles.container}>
-      <View style={[styles.track, { height }]}>
+      <View style={[styles.track, { height, backgroundColor: trackColor }]}>
         <Animated.View style={[{ height, borderRadius: 100, overflow: 'hidden' }, animatedStyle]}>
           <LinearGradient
             colors={gradientColors}

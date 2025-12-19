@@ -1,13 +1,14 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, SafeAreaView } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { getDecision, getDecisionParticipants } from '@/lib/storage';
 import { generateTimelineSimulation } from '@/lib/ai';
 import { buildCorePack } from '@/lib/relevance';
-import { ArrowLeft, Sparkles, Zap, Brain } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Zap, Brain, Home } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { Colors, Fonts } from '@/constants/Theme';
+import { StatusBar } from 'expo-status-bar';
 import type { TimelineSimulation } from '@/types/database';
 import Animated, {
   useSharedValue,
@@ -246,13 +247,9 @@ export default function SimulationScreen() {
 
   if (loading || generating) {
     return (
-      <LinearGradient
-        colors={['#09090A', '#0F0F11']}
-        style={styles.container}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      >
-        {/* Matrix Background */}
+      <View style={[styles.container, { backgroundColor: Colors.background }]}>
+        <StatusBar style="dark" />
+        {/* Matrix Background - Updated for Light Theme */}
         <View style={styles.matrixContainer} pointerEvents="none">
           {matrixColumns.map((column, colIdx) => {
             const numbers = Array.from({ length: numbersPerColumn }, () => Math.floor(Math.random() * 10).toString());
@@ -268,7 +265,11 @@ export default function SimulationScreen() {
                 {numbers.map((num, idx) => (
                   <Animated.Text
                     key={idx}
-                    style={[styles.matrixNumber, matrixNumberStyles[colIdx][idx]]}
+                    style={[
+                      styles.matrixNumber, 
+                      matrixNumberStyles[colIdx][idx],
+                      { color: 'rgba(0, 0, 0, 0.05)' }
+                    ]}
                   >
                     {num}
                   </Animated.Text>
@@ -279,23 +280,24 @@ export default function SimulationScreen() {
         </View>
 
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>running different lifelines...</Text>
+          <Text style={[styles.loadingText, { color: Colors.textPrimary }]}>running different lifelines...</Text>
         </View>
-      </LinearGradient>
+      </View>
     );
   }
 
   if (!decision) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: Colors.background }]}>
+        <StatusBar style="dark" />
+        <SafeAreaView style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color="#FFFFFF" />
+            <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Life Trajectory</Text>
-        </View>
+          <Text style={[styles.title, { color: Colors.textPrimary }]}>Life Trajectory</Text>
+        </SafeAreaView>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Decision not found</Text>
+          <Text style={[styles.errorText, { color: Colors.textSecondary }]}>Decision not found</Text>
         </View>
       </View>
     );
@@ -314,12 +316,16 @@ export default function SimulationScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#FFFFFF" />
+          <ArrowLeft size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Life Trajectory</Text>
-      </View>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
+          <Home size={24} color={Colors.textPrimary} />
+        </TouchableOpacity>
+      </SafeAreaView>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {/* Decision Context */}
@@ -365,7 +371,7 @@ export default function SimulationScreen() {
           <View style={styles.section}>
             <View style={styles.sectionCard}>
               <View style={styles.regeneratingContainer}>
-                <ActivityIndicator size="small" color="rgba(135, 206, 250, 0.9)" />
+                <ActivityIndicator size="small" color={Colors.textSecondary} />
                 <Text style={styles.regeneratingText}>Generating timeline for "{selectedOption}"...</Text>
               </View>
             </View>
@@ -429,7 +435,7 @@ export default function SimulationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C0C10',
+    backgroundColor: Colors.background,
   },
   matrixContainer: {
     position: 'absolute',
@@ -448,7 +454,7 @@ const styles = StyleSheet.create({
   },
   matrixNumber: {
     fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.2)',
+    color: 'rgba(0, 0, 0, 0.05)',
     fontFamily: Platform.select({
       ios: 'Courier',
       android: 'monospace',
@@ -460,22 +466,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 0 : 40,
     paddingBottom: 20,
     gap: 16,
-    backgroundColor: '#0C0C10',
+    backgroundColor: Colors.background,
   },
   backButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     flex: 1,
+    fontFamily: Fonts.primary.regular,
   },
   content: {
     flex: 1,
@@ -488,22 +505,24 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 0,
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
     padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 0,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 12,
     letterSpacing: 0.2,
+    fontFamily: Fonts.secondary.bold,
   },
   loadingContainer: {
     flex: 1,
@@ -511,120 +530,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  progressCard: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 24,
-    padding: 24,
-    backgroundColor: 'rgba(20, 30, 50, 0.3)',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-    shadowColor: 'rgba(30, 50, 80, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  progressCardBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.4)',
-    pointerEvents: 'none',
-  },
-  progressCardHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    borderRadius: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  progressCardContent: {
-    alignItems: 'center',
-    gap: 20,
-    zIndex: 1,
-  },
-  progressIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.3)',
-  },
-  progressStatusText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    letterSpacing: 0.2,
-  },
-  progressBarWrapper: {
-    width: '100%',
-    gap: 8,
-  },
-  progressBarBackground: {
-    width: '100%',
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressBarGradient: {
-    flex: 1,
-    borderRadius: 4,
-  },
-  progressPercentText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(135, 206, 250, 0.9)',
-    textAlign: 'right',
-    alignSelf: 'flex-end',
-  },
   loadingText: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     letterSpacing: -0.8,
     textAlign: 'center',
     opacity: 1,
-    fontFamily: Platform.select({
-      ios: 'Inter-Bold',
-      android: 'Inter-Bold',
-      default: 'Inter',
-    }),
-  },
-  animatedBarsContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 150,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-around',
-    gap: 4,
-    opacity: 0.3,
-  },
-  animatedBar: {
-    flex: 1,
-    backgroundColor: 'rgba(135, 206, 250, 0.9)',
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
+    fontFamily: Fonts.primary.regular,
   },
   errorContainer: {
     flex: 1,
@@ -634,13 +547,15 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   question: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     lineHeight: 28,
+    fontFamily: Fonts.secondary.bold,
   },
   optionsGrid: {
     flexDirection: 'row',
@@ -651,11 +566,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
-    borderWidth: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   optionButtonSelected: {
-    backgroundColor: 'rgba(135, 206, 250, 0.2)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   optionButtonDisabled: {
     opacity: 0.5,
@@ -663,31 +585,11 @@ const styles = StyleSheet.create({
   optionButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   optionButtonTextSelected: {
-    color: 'rgba(135, 206, 250, 0.9)',
-  },
-  recommendedBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: '#10B981',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  recommendedBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    color: Colors.textPrimary,
   },
   regeneratingContainer: {
     flexDirection: 'row',
@@ -698,7 +600,8 @@ const styles = StyleSheet.create({
   },
   regeneratingText: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   timelineContainer: {
     gap: 0,
@@ -706,9 +609,10 @@ const styles = StyleSheet.create({
   periodTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 16,
     letterSpacing: 0.2,
+    fontFamily: Fonts.secondary.bold,
   },
   eventsContainer: {
     gap: 12,
@@ -719,7 +623,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     gap: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
   },
   eventRowLast: {
     borderBottomWidth: 0,
@@ -727,9 +631,10 @@ const styles = StyleSheet.create({
   eventTime: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     width: 70,
     paddingTop: 2,
+    fontFamily: Fonts.secondary.bold,
   },
   eventContent: {
     flex: 1,
@@ -738,14 +643,16 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     lineHeight: 22,
     marginBottom: 4,
+    fontFamily: Fonts.secondary.bold,
   },
   eventDescription: {
     fontSize: 15,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
     lineHeight: 22,
+    fontFamily: Fonts.secondary.bold,
   },
   peopleTags: {
     flexDirection: 'row',
@@ -758,19 +665,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: 'rgba(10, 132, 255, 0.2)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   personTagText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#0A84FF',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   generationNote: {
     fontSize: 13,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     lineHeight: 20,
     textAlign: 'left',
     fontStyle: 'italic',
+    fontFamily: Fonts.secondary.bold,
   },
 });
 

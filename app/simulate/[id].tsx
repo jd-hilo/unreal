@@ -6,12 +6,14 @@ import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getTimeline, updateTimeline, getProfile } from '@/lib/storage';
 import { advanceTimeline } from '@/lib/ai';
+import { getSelectedMemoji } from '@/lib/memoji';
 import { ChevronLeft, Plus, User, Lock, DollarSign, Heart, Zap, TrendingUp, TrendingDown, Users, X, ChevronDown, ChevronUp, MapPin, Sparkles, Brain, Briefcase, ChevronRight } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { formatDistanceToNow } from 'date-fns';
+import { Colors, Fonts } from '@/constants/Theme';
 
 const { width } = Dimensions.get('window');
 
@@ -143,6 +145,7 @@ export default function TimelineDetailScreen() {
   const previousNetWorth = useRef<string | null>(null);
   const [currentInventoryIndex, setCurrentInventoryIndex] = useState(0);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(0);
+  const [selectedMemojiUrl, setSelectedMemojiUrl] = useState<string | null>(null);
 
   // Loading messages to cycle through
   const loadingMessages = [
@@ -190,6 +193,16 @@ export default function TimelineDetailScreen() {
       }
       
       setTimeline(timelineData);
+      
+      // Load memoji if user is available
+      if (user?.id) {
+        try {
+          const memojiUrl = await getSelectedMemoji(user.id);
+          setSelectedMemojiUrl(memojiUrl);
+        } catch (error) {
+          console.error('Failed to load selected memoji:', error);
+        }
+      }
     } catch (error) {
       console.error('Failed to load timeline:', error);
       alert('Failed to load timeline');
@@ -365,13 +378,24 @@ export default function TimelineDetailScreen() {
         stats: { ...timeline.stats },
       };
 
+      // Merge new events with existing events
+      const existingEvents = timeline.events || [];
+      const updatedEvents = [...existingEvents, ...(advancement.newEvents || [])];
+
+      // Merge new assets with existing assets and remove specified assets
+      const existingAssets = timeline.assets || [];
+      const removedAssetTypes = (advancement as any).removedAssets || [];
+      const filteredAssets = existingAssets.filter((asset: any) => 
+        !removedAssetTypes.includes(asset.type) && !removedAssetTypes.includes(asset.name)
+      );
+      const updatedAssets = [...filteredAssets, ...(advancement.newAssets || [])];
+
       const updatedTimeline = await updateTimeline(timelineId, {
         current_age: advancement.newAge,
         current_year: currentYear + 1, // Increment simulation year
         stats: newStats,
-        newEvents: advancement.newEvents,
-        newAssets: advancement.newAssets,
-        removedAssetTypes: (advancement as any).removedAssets || [],
+        events: updatedEvents,
+        assets: updatedAssets,
         twin_profile: {
           ...advancement.profileUpdates,
           profileDeltas: advancement.profileDeltas,
@@ -522,13 +546,15 @@ export default function TimelineDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <StatusBar style="light" />
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FFFFFF" />
-          </View>
-        </SafeAreaView>
+      <View style={styles.screen}>
+        <View style={styles.backgroundGradient}>
+          <StatusBar style="dark" />
+          <SafeAreaView style={styles.safeArea}>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={Colors.textPrimary} />
+            </View>
+          </SafeAreaView>
+        </View>
       </View>
     );
   }
@@ -541,13 +567,8 @@ export default function TimelineDetailScreen() {
 
     return (
       <View style={styles.loadingScreen}>
-        <LinearGradient
-          colors={['#050505', '#0A0A0A', '#050505']}
-          style={styles.loadingGradientContainer}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <StatusBar style="light" />
+        <View style={styles.loadingGradientContainer}>
+          <StatusBar style="dark" />
           <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
             <View style={styles.loadingContent}>
               {/* Animated Orb */}
@@ -564,7 +585,7 @@ export default function TimelineDetailScreen() {
                   ]}
                 >
                   <LinearGradient
-                    colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.1)', 'rgba(65, 105, 225, 0.05)']}
+                    colors={Colors.gradients.turquoise}
                     style={styles.orbGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -583,11 +604,11 @@ export default function TimelineDetailScreen() {
               <View style={styles.textContainer}>
                 <Text style={styles.loadingText}>Simulating the next year...</Text>
                 <View style={styles.statusContainer}>
-                  <BlurView intensity={20} tint="dark" style={styles.statusBlur}>
+                  <View style={styles.statusBlur}>
                     <Text style={styles.statusText}>
                       {loadingMessages[currentLoadingMessage]}
                     </Text>
-                  </BlurView>
+                  </View>
                 </View>
               </View>
 
@@ -599,7 +620,7 @@ export default function TimelineDetailScreen() {
                     style={[
                       styles.dot,
                       {
-                        backgroundColor: '#87CEFA',
+                        backgroundColor: Colors.gradients.turquoise[1],
                         transform: [
                           {
                             scale: loadingPulseAnim.interpolate({
@@ -619,31 +640,31 @@ export default function TimelineDetailScreen() {
               </View>
             </View>
           </SafeAreaView>
-        </LinearGradient>
+        </View>
       </View>
     );
   }
 
   if (!timeline) {
     return (
-      <View style={styles.container}>
-        <StatusBar style="light" />
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Timeline not found</Text>
-          </View>
-        </SafeAreaView>
+      <View style={styles.screen}>
+        <View style={styles.backgroundGradient}>
+          <StatusBar style="dark" />
+          <SafeAreaView style={styles.safeArea}>
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>Timeline not found</Text>
+            </View>
+          </SafeAreaView>
+        </View>
       </View>
     );
   }
 
   return (
-    <LinearGradient
-      colors={['#050505', '#0A0A0A', '#000000']}
-      style={styles.container}
-    >
-      <StatusBar style="light" />
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <View style={styles.screen}>
+      <View style={styles.backgroundGradient}>
+        <StatusBar style="dark" />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         {/* Asset Notifications */}
         {assetNotifications.length > 0 && (
           <View style={styles.notificationsContainer} pointerEvents="box-none">
@@ -703,24 +724,27 @@ export default function TimelineDetailScreen() {
           </View>
         )}
 
-        {/* Top Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <ChevronLeft size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-             <Text style={styles.headerTitle} numberOfLines={1}>{timeline.title}</Text>
+        {/* Top Bar */}
+        <View style={styles.topBar}>
+          <View style={styles.topBarLeft}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+              activeOpacity={0.7}
+            >
+              <ChevronLeft size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
           </View>
-          <View style={styles.headerRight}>
-             <View style={styles.turnCounter}>
-                <Zap size={14} color="#FCD34D" fill="#FCD34D" />
-                <Text style={styles.turnText}>
-                  {isPremium ? '∞' : `${timeline.current_year || 1}/3`}
-                </Text>
-             </View>
+          <View style={styles.topBarCenter}>
+            <Text style={styles.topBarTitle} numberOfLines={1}>{timeline.title}</Text>
+          </View>
+          <View style={styles.topBarRight}>
+            <View style={styles.turnCounter}>
+              <Zap size={14} color="#FCD34D" fill="#FCD34D" />
+              <Text style={styles.turnText}>
+                {isPremium ? '∞' : `${timeline.current_year || 1}/3`}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -746,7 +770,11 @@ export default function TimelineDetailScreen() {
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
                 <View style={styles.avatarIconContainer}>
-                  <User size={40} color="#0EA5E9" />
+                  {selectedMemojiUrl ? (
+                    <Image source={{ uri: selectedMemojiUrl }} style={styles.avatarImage} resizeMode="cover" />
+                  ) : (
+                    <Image source={require('@/assets/images/memoji.png')} style={styles.avatarImage} resizeMode="contain" />
+                  )}
                 </View>
                 <View style={styles.ageContainer}>
                   <Text style={styles.ageValue}>{timeline.current_age}</Text>
@@ -920,7 +948,7 @@ export default function TimelineDetailScreen() {
                 style={styles.actionButton}
              >
                 <View style={styles.actionButtonContent}>
-                   <Text style={styles.actionButtonTitle}>Make Decision</Text>
+                   <Text style={styles.actionButtonTitle}>Simulate the Next Year</Text>
                    <Text style={styles.actionButtonSubtitle}>Choose your next move</Text>
                   </View>
                 <View style={styles.actionButtonIcon}>
@@ -971,7 +999,6 @@ export default function TimelineDetailScreen() {
                              <View style={styles.questLevelBadge}>
                                 <Text style={styles.questLevelText}>AGE {timeline.current_age - (timeline.current_year || 1) + year}</Text>
                                 </View>
-                             <Text style={styles.questTitle}>Year {year}</Text>
                               </View>
                           {isExpanded ? <ChevronUp size={20} color="#888" /> : <ChevronDown size={20} color="#888" />}
                           </TouchableOpacity>
@@ -1151,14 +1178,11 @@ export default function TimelineDetailScreen() {
           onRequestClose={() => setScenarioModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <LinearGradient
-              colors={['#1a1a20', '#0f0f12']}
-              style={styles.modalContent}
-            >
+            <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
                   <Sparkles size={20} color="#0EA5E9" />
-                  <Text style={styles.modalTitle}>What do you do?</Text>
+                  <Text style={styles.modalTitle}>What did you do?</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => {
@@ -1167,16 +1191,16 @@ export default function TimelineDetailScreen() {
                   }}
                   style={styles.modalClose}
                 >
-                    <X size={20} color="#FFFFFF" />
+                  <X size={20} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
               <Text style={styles.modalSubtitle}>
-                Describe your next major life decision.
+                Describe some major life events or decisions you made at age {timeline ? timeline.current_age - (timeline.current_year || 1) + 1 : ''}.
               </Text>
               <TextInput
                 style={styles.scenarioInput}
                 placeholder="E.g., I decide to quit my job and travel the world..."
-                placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                placeholderTextColor={Colors.textTertiary}
                 value={scenarioText}
                 onChangeText={setScenarioText}
                 multiline
@@ -1207,7 +1231,7 @@ export default function TimelineDetailScreen() {
                   )}
                 </LinearGradient>
               </TouchableOpacity>
-            </LinearGradient>
+            </View>
           </View>
         </Modal>
 
@@ -1219,10 +1243,7 @@ export default function TimelineDetailScreen() {
           onRequestClose={() => setRelationshipModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <LinearGradient
-              colors={['#1a1a20', '#0f0f12']}
-              style={[styles.modalContent, { maxHeight: '70%' }]}
-            >
+            <View style={[styles.modalContent, { maxHeight: '70%' }]}>
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
                   <Users size={20} color="#EF4444" />
@@ -1232,7 +1253,7 @@ export default function TimelineDetailScreen() {
                   onPress={() => setRelationshipModalVisible(false)}
                   style={styles.modalClose}
                 >
-                  <X size={20} color="#FFFFFF" />
+                  <X size={20} color={Colors.textPrimary} />
                 </TouchableOpacity>
               </View>
               
@@ -1246,7 +1267,7 @@ export default function TimelineDetailScreen() {
                           <Text style={[styles.relationshipTypeText, { color: getRelationshipColor(rel.type) }]}>{rel.type}</Text>
                         </View>
                       </View>
-                      <Text style={styles.relationshipStatus}>Status: <Text style={{color: getStatusColor(rel.status), fontWeight: '700'}}>{rel.status}</Text></Text>
+                      <Text style={styles.relationshipStatus}>Status: <Text style={{color: getStatusColor(rel.status), fontWeight: '700', fontFamily: Fonts.secondary.bold}}>{rel.status}</Text></Text>
                       <Text style={styles.relationshipDesc}>{rel.description}</Text>
                     </View>
                   ))
@@ -1256,25 +1277,30 @@ export default function TimelineDetailScreen() {
                   </View>
                 )}
               </ScrollView>
-            </LinearGradient>
+            </View>
           </View>
         </Modal>
-      </SafeAreaView>
-    </LinearGradient>
+        </SafeAreaView>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
+  },
+  backgroundGradient: {
+    flex: 1,
+    backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
   },
   loadingScreen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -1284,6 +1310,7 @@ const styles = StyleSheet.create({
   },
   loadingGradientContainer: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   loadingSafeArea: {
     flex: 1,
@@ -1317,11 +1344,16 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   loadingCubeIcon: {
     width: 60,
@@ -1336,7 +1368,8 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
     textAlign: 'center',
     letterSpacing: -0.5,
   },
@@ -1344,19 +1377,25 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusBlur: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   statusText: {
     fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.textSecondary,
     textAlign: 'center',
     fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
   dotsContainer: {
     flexDirection: 'row',
@@ -1373,9 +1412,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
     paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
+    position: 'relative',
+  },
+  topBarLeft: {
+    width: 80,
+    alignItems: 'flex-start',
+  },
+  backButton: {
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
+  },
+  topBarCenter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 80,
+  },
+  topBarTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+    textAlign: 'center',
+  },
+  topBarRight: {
+    width: 80,
+    alignItems: 'flex-end',
+  },
+  turnCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  turnText: {
+    color: '#FCD34D',
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: Fonts.secondary.bold,
   },
   errorContainer: {
     flex: 1,
@@ -1384,67 +1469,30 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-  },
-  backButton: {
-    padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
-  },
-  headerTitleContainer: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  turnCounter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(20, 20, 25, 0.8)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  turnText: {
-    color: '#FCD34D',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  headerRight: {
-    width: 40,
-    alignItems: 'flex-end',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 20,
     paddingBottom: 100,
   },
   statsBoard: {
-    backgroundColor: '#1A1A20',
+    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
     marginBottom: 24,
+    marginTop: 10,
     overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   profileHeader: {
     flexDirection: 'row',
@@ -1462,25 +1510,34 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     borderWidth: 2,
-    borderColor: '#0EA5E9',
-    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+    borderColor: Colors.gradients.turquoise[1],
+    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   ageContainer: {
     justifyContent: 'center',
   },
   ageValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#FFF',
-    lineHeight: 28,
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#000000',
+    fontFamily: Fonts.primary.regular,
+    lineHeight: 36,
+    letterSpacing: -0.5,
   },
   ageLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 1,
+    fontSize: 11,
+    fontWeight: '800',
+    color: 'rgba(0, 0, 0, 0.7)',
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 1.5,
+    marginTop: 2,
   },
   contextInfo: {
     alignItems: 'flex-end',
@@ -1508,16 +1565,16 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '48%', // roughly half width with gap
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: 'rgba(0,0,0,0.02)',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   heroStatCard: {
     width: '100%', // Full width for rectangles instead of squares
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   statHeader: {
     flexDirection: 'row',
@@ -1539,26 +1596,31 @@ const styles = StyleSheet.create({
   heroStatValue: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#FFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
   },
   heroStatMax: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
+    color: Colors.textTertiary,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   statSubtext: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
     marginTop: 6,
   },
   secondaryStatValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   secondaryStatUnit: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
   },
   viewMoreRow: {
     flexDirection: 'row',
@@ -1568,12 +1630,13 @@ const styles = StyleSheet.create({
   },
   viewMoreText: {
     fontSize: 11,
-    color: '#666',
+    color: Colors.textTertiary,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   secondaryMetrics: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.02)',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -1585,8 +1648,9 @@ const styles = StyleSheet.create({
   },
   miniMetricLabel: {
     fontSize: 12,
-    color: '#888',
+    color: Colors.textTertiary,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   miniMetricValueRow: {
     flexDirection: 'row',
@@ -1596,7 +1660,8 @@ const styles = StyleSheet.create({
   miniMetricValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   miniMetricDelta: {
     fontSize: 12,
@@ -1605,12 +1670,13 @@ const styles = StyleSheet.create({
   miniMetricDivider: {
     width: 1,
     height: 30,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   previousValueText: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textTertiary,
     fontStyle: 'italic',
+    fontFamily: Fonts.secondary.bold,
     marginTop: 4,
   },
   
@@ -1674,12 +1740,14 @@ const styles = StyleSheet.create({
   actionButtonTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFF',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
     marginBottom: 4,
   },
   actionButtonSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.9)',
+    fontFamily: Fonts.secondary.bold,
   },
   actionButtonIcon: {
     width: 48,
@@ -1698,31 +1766,38 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
   },
   sectionBadge: {
-    backgroundColor: '#1A1A20',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   sectionBadgeText: {
-    color: '#888',
+    color: Colors.textTertiary,
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   eventsList: {
     gap: 12,
     marginBottom: 32,
   },
   questCard: {
-    backgroundColor: '#1A1A20',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(0,0,0,0.05)',
     overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   questHeader: {
     flexDirection: 'row',
@@ -1736,26 +1811,29 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   questLevelBadge: {
-    backgroundColor: '#2A2A30',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
   questLevelText: {
-    color: '#0EA5E9',
-    fontSize: 10,
-    fontWeight: '700',
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: '800',
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 0.5,
   },
   questTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   questContent: {
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   questItem: {
     flexDirection: 'row',
@@ -1770,7 +1848,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 1,
-    backgroundColor: '#333',
+    backgroundColor: 'rgba(0,0,0,0.1)',
   },
   questDot: {
     position: 'absolute',
@@ -1779,21 +1857,24 @@ const styles = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: '#1A1A20',
+    backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#0EA5E9',
+    borderColor: Colors.gradients.turquoise[1],
   },
   questItemTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
     marginBottom: 4,
     width: '100%',
     paddingLeft: 12,
   },
   questItemDesc: {
     fontSize: 15,
-    color: '#888',
+    fontWeight: '400',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
     width: '100%',
     paddingLeft: 12,
     lineHeight: 22,
@@ -1801,17 +1882,18 @@ const styles = StyleSheet.create({
   emptyEvents: {
     padding: 32,
     alignItems: 'center',
-    backgroundColor: '#1A1A20',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     marginBottom: 32,
     borderStyle: 'dashed',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   emptyEventsText: {
-    color: '#666',
+    color: Colors.textTertiary,
     fontSize: 14,
     textAlign: 'center',
+    fontFamily: Fonts.secondary.bold,
   },
   inventorySection: {
     marginBottom: 32,
@@ -1831,9 +1913,10 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.3)',
+    borderColor: 'rgba(0,0,0,0.05)',
     padding: 16,
     justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
   },
   inventoryBannerContent: {
     flexDirection: 'row',
@@ -1845,7 +1928,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1859,7 +1942,8 @@ const styles = StyleSheet.create({
   inventoryBannerName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   inventoryBannerValue: {
     fontSize: 14,
@@ -1868,7 +1952,8 @@ const styles = StyleSheet.create({
   },
   inventoryBannerDesc: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
     lineHeight: 16,
   },
   inventoryBannerIndicator: {
@@ -1881,10 +1966,10 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
   },
   inventoryDotActive: {
-    backgroundColor: '#0EA5E9',
+    backgroundColor: Colors.gradients.turquoise[1],
     width: 20,
   },
   inventoryNav: {
@@ -1897,18 +1982,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   inventoryNavText: {
-    color: '#888',
+    color: Colors.textTertiary,
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
     padding: 20,
   },
@@ -1916,7 +2002,13 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.3)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 10,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1932,27 +2024,30 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   modalClose: {
     padding: 4,
   },
   modalSubtitle: {
-    color: '#888',
+    color: Colors.textSecondary,
     fontSize: 14,
+    fontFamily: Fonts.secondary.bold,
     marginBottom: 20,
   },
   scenarioInput: {
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.02)',
     borderRadius: 16,
     padding: 16,
-    color: '#FFF',
+    color: Colors.textPrimary,
     fontSize: 16,
+    fontFamily: Fonts.secondary.bold,
     minHeight: 120,
     textAlignVertical: 'top',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   modalButton: {
     borderRadius: 20,
@@ -2030,12 +2125,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   relationshipCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(0,0,0,0.02)',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   relationshipHeader: {
     flexDirection: 'row',
@@ -2046,7 +2141,8 @@ const styles = StyleSheet.create({
   relationshipName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   relationshipTypeTag: {
     paddingHorizontal: 8,
@@ -2060,12 +2156,14 @@ const styles = StyleSheet.create({
   },
   relationshipStatus: {
     fontSize: 12,
-    color: '#CCC',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
     marginBottom: 4,
   },
   relationshipDesc: {
     fontSize: 13,
-    color: '#888',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
     lineHeight: 18,
   },
 });

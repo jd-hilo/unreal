@@ -268,8 +268,8 @@ export default function PredictionResultScreen() {
       shareMessage += `${summary}\n\n`;
       
       // Footer
-      shareMessage += `Powered by Unreal\n`;
-      shareMessage += `https://apps.apple.com/us/app/unreal-simulate-your-life/id6754901842`;
+      shareMessage += `Powered by Mora\n`;
+      shareMessage += `https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842`;
       
       await Share.share({
         message: shareMessage,

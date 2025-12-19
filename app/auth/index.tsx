@@ -411,7 +411,7 @@ export default function AuthScreen() {
                 style={styles.linkText}
                 onPress={() =>
                   Linking.openURL(
-                    'https://pastoral-supply-662.notion.site/Terms-of-Service-unreal-2a32cec59ddf80aca5e3ec91fdf8e529?source=copy_link'
+                    'https://pastoral-supply-662.notion.site/Terms-of-Service-mora-2a32cec59ddf80aca5e3ec91fdf8e529?source=copy_link'
                   )
                 }
               >

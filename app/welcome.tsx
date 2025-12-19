@@ -17,7 +17,7 @@ import { setHasSeenWelcome } from '@/lib/welcomeStorage';
 import { Colors, Fonts } from '@/constants/Theme';
 
 const WELCOME_LINES = [
-  'welcome to unreal',
+  'welcome to mora',
   'we help you make sense of big life decisions',
   '(and the small ones too, like what movie to watch tonight)',
   'we build a digital twin of you and run it through alternate lifelines',

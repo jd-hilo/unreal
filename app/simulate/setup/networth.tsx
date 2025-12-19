@@ -7,6 +7,7 @@ import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { DollarSign } from 'lucide-react-native';
 import { getProfile, updateProfileFields, getRelationships } from '@/lib/storage';
 import { useTypewriter } from '@/hooks/useTypewriter';
+import { Colors, Fonts } from '@/constants/Theme';
 
 export default function SetupNetWorthScreen() {
   const router = useRouter();
@@ -89,15 +90,11 @@ export default function SetupNetWorthScreen() {
       canContinue={showForm && netWorth.trim().length > 0}
       loading={loading}
       nextLabel="Continue"
-      backgroundGradient={['#050505', '#0F0F18', '#0D0D15', '#050505']}
-      buttonGradient={['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)']}
-      progressBarGradient={['#87CEFA', '#87CEFA']}
-      buttonShadowColor="rgba(65, 105, 225, 0.5)"
     >
       {showForm ? (
         <Animated.View style={[styles.content, { opacity: formFadeAnim }]}>
           <View style={styles.iconContainer}>
-            <DollarSign size={48} color="#10B981" strokeWidth={1.5} />
+            <DollarSign size={48} color={Colors.gradients.turquoise[0]} strokeWidth={1.5} />
           </View>
 
           <Text style={styles.description}>
@@ -137,30 +134,38 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 16,
     lineHeight: 24,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
     marginBottom: 32,
     textAlign: 'center',
+    fontFamily: Fonts.secondary.bold,
   },
   inputContainer: {
     marginBottom: 24,
   },
   exampleBox: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    borderRadius: 12,
+    borderColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 16,
     padding: 16,
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   exampleTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 12,
+    fontFamily: Fonts.secondary.bold,
   },
   exampleText: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.7)',
+    color: Colors.textSecondary,
     marginBottom: 6,
+    fontFamily: Fonts.secondary.bold,
   },
 });
 

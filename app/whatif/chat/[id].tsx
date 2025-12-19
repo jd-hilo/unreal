@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, SafeAreaView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Send } from 'lucide-react-native';
+import { ArrowLeft, Send, Home } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/useAuth';
 import { twinChatReply } from '@/lib/ai';
 import { buildCorePack } from '@/lib/relevance';
+import { Colors, Fonts } from '@/constants/Theme';
+import { StatusBar } from 'expo-status-bar';
 
 type Bubble = {
   id: string;
@@ -100,14 +102,15 @@ export default function WhatIfChatScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
+        <StatusBar style="dark" />
+        <SafeAreaView style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color="#FFFFFF" />
+            <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.title}>Chat with Your Twin</Text>
-        </View>
+        </SafeAreaView>
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color="#4169E1" />
+          <ActivityIndicator color={Colors.textSecondary} />
           <Text style={styles.loadingText}>Loading twin context...</Text>
         </View>
       </View>
@@ -119,12 +122,16 @@ export default function WhatIfChatScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.header}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#FFFFFF" />
+          <ArrowLeft size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Chat with Your Twin</Text>
-      </View>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
+          <Home size={24} color={Colors.textPrimary} />
+        </TouchableOpacity>
+      </SafeAreaView>
 
       <ScrollView ref={scrollRef} style={styles.chat} contentContainerStyle={styles.chatContent}>
         {!messages.length && (
@@ -168,7 +175,7 @@ export default function WhatIfChatScreen() {
         <TextInput
           style={styles.input}
           placeholder="Message your twin..."
-          placeholderTextColor="rgba(200,200,200,0.5)"
+          placeholderTextColor={Colors.textTertiary}
           value={input}
           onChangeText={setInput}
           editable={!sending}
@@ -186,27 +193,39 @@ export default function WhatIfChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C0C10',
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 0 : 40,
     paddingBottom: 16,
     gap: 16,
+    backgroundColor: Colors.background,
   },
   backButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     flex: 1,
+    fontFamily: Fonts.primary.regular,
   },
   loadingWrap: {
     alignItems: 'center',
@@ -215,7 +234,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loadingText: {
-    color: '#4169E1',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   chat: {
     flex: 1,
@@ -227,24 +247,32 @@ const styles = StyleSheet.create({
   introCard: {
     margin: 16,
     padding: 16,
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(0,0,0,0.05)',
     borderRadius: 16,
     gap: 8,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   introTitle: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     fontWeight: '700',
     fontSize: 16,
+    fontFamily: Fonts.secondary.bold,
   },
   introText: {
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
     fontSize: 14,
+    fontFamily: Fonts.secondary.bold,
   },
   introHint: {
-    color: 'rgba(200, 200, 200, 0.65)',
+    color: Colors.textTertiary,
     fontSize: 12,
+    fontFamily: Fonts.secondary.bold,
   },
   bubbleWrap: {
     marginTop: 8,
@@ -262,22 +290,24 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   twinBubble: {
-    backgroundColor: 'rgba(35, 30, 55, 0.9)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(120, 90, 200, 0.25)',
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   userBubble: {
-    backgroundColor: '#5B3DF5',
+    backgroundColor: '#84FAB0', // Turquoise background for user
   },
   bubbleText: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     fontSize: 15,
     lineHeight: 20,
+    fontFamily: Fonts.secondary.bold,
   },
   timestamp: {
-    color: 'rgba(200, 200, 200, 0.45)',
+    color: Colors.textTertiary,
     fontSize: 10,
     marginTop: 4,
+    fontFamily: Fonts.secondary.bold,
   },
   inputBar: {
     flexDirection: 'row',
@@ -285,23 +315,25 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(59, 37, 109, 0.3)',
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: Colors.background,
   },
   input: {
     flex: 1,
-    backgroundColor: 'rgba(20, 18, 30, 0.9)',
-    color: '#FFFFFF',
+    backgroundColor: '#FFFFFF',
+    color: Colors.textPrimary,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
+    borderColor: 'rgba(0,0,0,0.1)',
+    fontFamily: Fonts.secondary.bold,
   },
   sendBtn: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#5B3DF5',
+    backgroundColor: '#84FAB0', // Match user bubble
     alignItems: 'center',
     justifyContent: 'center',
   },

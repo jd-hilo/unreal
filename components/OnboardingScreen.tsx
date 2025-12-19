@@ -6,6 +6,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ChevronRight, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { Colors, Fonts } from '@/constants/Theme';
+import { StatusBar } from 'expo-status-bar';
 
 interface OnboardingScreenProps {
   title: string | ReactNode;
@@ -34,10 +36,10 @@ export function OnboardingScreen({
   nextLabel = 'Continue',
   loading = false,
   canContinue = true,
-  backgroundGradient = ['#050505', '#0F0F18', '#0D0D15', '#050505'],
-  buttonGradient = ['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)'],
-  progressBarGradient = ['#87CEFA', '#87CEFA'],
-  buttonShadowColor = 'rgba(135, 206, 250, 0.5)',
+  backgroundGradient = [Colors.background, Colors.background, Colors.background, Colors.background],
+  buttonGradient = Colors.gradients.turquoise,
+  progressBarGradient = Colors.gradients.turquoise,
+  buttonShadowColor = 'rgba(0, 0, 0, 0.1)',
   animatedButton = false,
 }: OnboardingScreenProps) {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -134,12 +136,8 @@ export function OnboardingScreen({
   }
 
   return (
-    <LinearGradient
-      colors={backgroundGradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
-      style={styles.gradientBackground}
-    >
+    <View style={styles.gradientBackground}>
+      <StatusBar style="dark" />
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -147,7 +145,7 @@ export function OnboardingScreen({
     >
       {/* Progress Header */}
       <View style={styles.header}>
-          <ProgressBar progress={progress} showLabel={false} height={4} gradientColors={progressBarGradient} />
+          <ProgressBar progress={progress} showLabel={false} height={4} gradientColors={progressBarGradient} trackColor="rgba(0,0,0,0.05)" />
       </View>
 
       <ScrollView
@@ -198,34 +196,41 @@ export function OnboardingScreen({
             pressed && !(!canContinue || loading || isProcessing) && { opacity: 0.9 }
           ]}
         >
-          <LinearGradient
-            colors={canContinue && !loading && !isProcessing ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+          <View
             style={[
               styles.floatingButton,
-              canContinue && !loading && !isProcessing && styles.floatingButtonActiveBorder
+              canContinue && !loading && !isProcessing && styles.floatingButtonActive,
+              (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled
             ]}
           >
+            {canContinue && !loading && !isProcessing ? (
+              <LinearGradient
+                colors={buttonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+            ) : null}
             <Text style={[
               styles.floatingButtonText,
               (!canContinue || loading || isProcessing) && styles.floatingButtonTextDisabled
             ]}>{loading || isProcessing ? "Continuing" : nextLabel}</Text>
             <ChevronRight 
               size={20} 
-              color={(!canContinue || loading || isProcessing) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
+              color={(!canContinue || loading || isProcessing) ? Colors.textTertiary : "#FFFFFF"} 
             />
-          </LinearGradient>
+          </View>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   gradientBackground: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   container: {
     flex: 1,
@@ -235,7 +240,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   content: {
     flex: 1,
@@ -251,14 +256,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     lineHeight: 36,
     marginBottom: 8,
+    fontFamily: Fonts.secondary.bold,
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     lineHeight: 24,
+    fontFamily: Fonts.secondary.bold,
   },
   body: {
     gap: 16,
@@ -270,7 +277,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(59, 37, 109, 0.2)',
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   skipButton: {
     alignItems: 'center',
@@ -278,17 +285,18 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textTertiary,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   floatingButtonWrapper: {
     borderRadius: 24,
     overflow: 'visible',
-    shadowColor: 'rgba(135, 206, 250, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   buttonGlow: {
     position: 'absolute',
@@ -297,7 +305,7 @@ const styles = StyleSheet.create({
     right: -10,
     bottom: -10,
     borderRadius: 34,
-    backgroundColor: 'rgba(65, 105, 225, 0.4)',
+    backgroundColor: 'rgba(132, 250, 176, 0.2)',
   },
   floatingButton: {
     flexDirection: 'row',
@@ -307,10 +315,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     borderRadius: 24,
+    overflow: 'hidden',
   },
-  floatingButtonActiveBorder: {
-    borderWidth: 1,
-    borderColor: '#87CEFA',
+  floatingButtonActive: {
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   floatingButtonAnimated: {
     borderRadius: 24,
@@ -321,6 +333,7 @@ const styles = StyleSheet.create({
   floatingButtonDisabled: {
     shadowOpacity: 0,
     elevation: 0,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   shimmer: {
     position: 'absolute',
@@ -365,9 +378,10 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
   floatingButtonTextDisabled: {
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: Colors.textTertiary,
   },
   floatingButtonTextBright: {
     textShadowColor: 'rgba(255, 255, 255, 0.5)',
