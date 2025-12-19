@@ -730,28 +730,11 @@ export async function generateUniqueTwinCode(userId: string): Promise<string> {
  */
 /**
  * Assign A/B test group to a user
- * Alternates between 'A' and 'B' to maintain 50/50 distribution
+ * Currently assigns all users to group B
  */
 export async function assignABTestGroup(userId: string): Promise<'A' | 'B'> {
-  // Check current distribution to maintain 50/50 split
-  const { data: groupCounts, error: countError } = await supabase
-    .from('profiles')
-    .select('ab_test_group')
-    .not('ab_test_group', 'is', null);
-  
-  if (countError) {
-    console.error('Failed to count AB test groups:', countError);
-    // Fallback to random assignment if count fails
-    const group: 'A' | 'B' = Math.random() < 0.5 ? 'A' : 'B';
-    return await saveABTestGroup(userId, group);
-  }
-  
-  // Count users in each group
-  const countA = groupCounts?.filter(p => p.ab_test_group === 'A').length || 0;
-  const countB = groupCounts?.filter(p => p.ab_test_group === 'B').length || 0;
-  
-  // Assign to the group with fewer users, or alternate if equal
-  const group: 'A' | 'B' = countB < countA ? 'B' : 'A';
+  // Assign all users to group B
+  const group: 'A' | 'B' = 'B';
   
   return await saveABTestGroup(userId, group);
 }

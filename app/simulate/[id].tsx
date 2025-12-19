@@ -1025,7 +1025,6 @@ export default function TimelineDetailScreen() {
                              <View style={styles.questLevelBadge}>
                                 <Text style={styles.questLevelText}>AGE {timeline.current_age - (timeline.current_year || 1) + year}</Text>
                                 </View>
-                             <Text style={styles.questTitle}>Year {year}</Text>
                               </View>
                           {isExpanded ? <ChevronUp size={20} color="#888" /> : <ChevronDown size={20} color="#888" />}
                           </TouchableOpacity>
@@ -1800,14 +1799,15 @@ const styles = StyleSheet.create({
   },
   questLevelBadge: {
     backgroundColor: '#2A2A30',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
   questLevelText: {
     color: '#0EA5E9',
-    fontSize: 10,
+    fontSize: 16,
     fontWeight: '700',
+    letterSpacing: 0.5,
   },
   questTitle: {
     fontSize: 16,
@@ -1847,8 +1847,8 @@ const styles = StyleSheet.create({
     borderColor: '#0EA5E9',
   },
   questItemTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#FFF',
     marginBottom: 4,
     width: '100%',

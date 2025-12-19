@@ -65,3 +65,4 @@ CREATE TRIGGER update_year_predictions_updated_at
 
 
 
+
