@@ -1,20 +1,19 @@
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/Button';
+import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withSpring,
-  withSequence,
-  withRepeat,
   Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTypewriter } from '@/hooks/useTypewriter';
 import { ChevronRight } from 'lucide-react-native';
+import { Colors, Fonts } from '@/constants/Theme';
+import { StatusBar } from 'expo-status-bar';
 
 const TITLE_LINES = [
   "let's build your digital twin",
@@ -39,7 +38,6 @@ export default function ChooseOnboardingMethod() {
   const lineOpacities = TITLE_LINES.map(() => useSharedValue(0));
   const buttonOpacity = useSharedValue(0);
   const buttonScale = useSharedValue(0.96);
-  const backgroundPulse = useSharedValue(0);
 
   const handleLineStart = (lineIndex: number) => {
     // Trigger haptic at start of each line
@@ -87,19 +85,6 @@ export default function ChooseOnboardingMethod() {
 
   const allComplete = isComplete;
 
-
-  // Background pulse effect
-  useEffect(() => {
-    backgroundPulse.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 3000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      false
-    );
-  }, []);
-
   function handleContinue() {
     if (isContinuing) return; // Prevent double-clicks
     
@@ -127,24 +112,9 @@ export default function ChooseOnboardingMethod() {
     transform: [{ scale: buttonScale.value }],
   }));
 
-  const backgroundPulseStyle = useAnimatedStyle(() => ({
-    opacity: 0.1 + backgroundPulse.value * 0.1,
-  }));
-
   return (
-    <LinearGradient
-      colors={['#050505', '#0F0F18', '#0D0D15', '#050505']}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
-    >
-      {/* Animated background pulse */}
-      <Animated.View style={[styles.backgroundPulse, backgroundPulseStyle]}>
-        <LinearGradient
-          colors={['rgba(65, 105, 225, 0.3)', 'transparent']}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
+    <View style={styles.container}>
+      <StatusBar style="dark" />
 
       <View style={styles.content}>
         <View style={styles.textContainer}>
@@ -168,11 +138,11 @@ export default function ChooseOnboardingMethod() {
                       fontSize,
                       lineHeight,
                       fontFamily: Platform.select({
-                        ios: index === 0 ? 'Inter-Bold' : 'Inter-Regular',
-                        android: index === 0 ? 'Inter-Bold' : 'Inter-Regular',
-                        default: 'Inter',
+                        ios: index === 0 ? Fonts.primary.regular : Fonts.secondary.bold,
+                        android: index === 0 ? Fonts.primary.regular : Fonts.secondary.bold,
+                        default: index === 0 ? Fonts.fallback.primary : Fonts.fallback.secondary,
                       }),
-                      fontWeight: index === 0 ? '700' : '400',
+                      fontWeight: index === 0 ? '400' : '700',
                     },
                   ]}
                 >
@@ -186,29 +156,34 @@ export default function ChooseOnboardingMethod() {
 
       {showButton && (
         <Animated.View style={[styles.footer, buttonAnimatedStyle]}>
-          <Button
-            title={isContinuing ? "Continuing" : "Continue"}
+          <TouchableOpacity
             onPress={handleContinue}
-            size="large"
             disabled={isContinuing}
-            icon={isContinuing ? <ChevronRight size={20} color="#FFFFFF" /> : <ChevronRight size={20} color="#FFFFFF" />}
-          />
+            activeOpacity={0.9}
+            style={styles.buttonWrapper}
+          >
+            <LinearGradient
+              colors={Colors.gradients.turquoise}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.buttonText}>
+                {isContinuing ? "Continuing" : "Continue"}
+              </Text>
+              <ChevronRight size={20} color="#FFFFFF" />
+            </LinearGradient>
+          </TouchableOpacity>
         </Animated.View>
       )}
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  backgroundPulse: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    backgroundColor: Colors.background,
   },
   content: {
     flex: 1,
@@ -223,13 +198,37 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   lineText: {
-    color: 'rgba(255, 255, 255, 0.92)',
+    color: Colors.textPrimary,
     letterSpacing: -0.8,
     textAlign: 'left',
   },
   footer: {
     padding: 24,
     paddingBottom: 40,
+  },
+  buttonWrapper: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
+  },
+  buttonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    gap: 10,
+    borderRadius: 24,
+  },
+  buttonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
 });
 

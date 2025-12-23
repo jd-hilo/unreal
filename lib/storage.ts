@@ -84,6 +84,95 @@ export async function getProfile(userId: string) {
   return data;
 }
 
+export async function assignABTestGroup(userId: string): Promise<'A' | 'B'> {
+  // Check if user already has an AB test group assigned
+  const profile = await getProfile(userId);
+  
+  if (profile?.ab_test_group) {
+    return profile.ab_test_group as 'A' | 'B';
+  }
+  
+  // Count users in each group (excluding current user)
+  const { data: groupCounts, error: countError } = await supabase
+    .from('profiles')
+    .select('ab_test_group')
+    .not('user_id', 'eq', userId)
+    .not('ab_test_group', 'is', null);
+
+  if (countError) {
+    console.error('Error counting AB test groups:', countError);
+    // Default to 'A' if query fails
+    const abTestGroup: 'A' | 'B' = 'A';
+    await supabase
+      .from('profiles')
+      .upsert(
+        {
+          user_id: userId,
+          ab_test_group: abTestGroup,
+          core_json: profile?.core_json || {},
+          values_json: profile?.values_json || [],
+        } as any,
+        { onConflict: 'user_id' }
+      );
+    return abTestGroup;
+  }
+
+  // Count users in each group
+  const groupACount = (groupCounts || []).filter((p: any) => p.ab_test_group === 'A').length;
+  const groupBCount = (groupCounts || []).filter((p: any) => p.ab_test_group === 'B').length;
+
+  // Determine the next group: assign to the group with fewer users, or alternate if equal
+  let abTestGroup: 'A' | 'B';
+  if (groupACount === 0 && groupBCount === 0) {
+    // No previous assignments, start with 'A'
+    abTestGroup = 'A';
+  } else if (groupBCount < groupACount) {
+    // Group B has fewer users, assign to B
+    abTestGroup = 'B';
+  } else if (groupACount < groupBCount) {
+    // Group A has fewer users, assign to A
+    abTestGroup = 'A';
+  } else {
+    // Equal counts, alternate based on last assignment
+    // Get the most recently created user with an AB test group
+    const { data: lastUser } = await supabase
+      .from('profiles')
+      .select('ab_test_group')
+      .not('user_id', 'eq', userId)
+      .not('ab_test_group', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (lastUser?.ab_test_group === 'A') {
+      abTestGroup = 'B';
+    } else if (lastUser?.ab_test_group === 'B') {
+      abTestGroup = 'A';
+    } else {
+      // Fallback: alternate based on total count
+      abTestGroup = (groupACount + groupBCount) % 2 === 0 ? 'A' : 'B';
+    }
+  }
+  
+  // Update the profile with the AB test group
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        user_id: userId,
+        ab_test_group: abTestGroup,
+        core_json: profile?.core_json || {},
+        values_json: profile?.values_json || [],
+      } as any,
+      { onConflict: 'user_id' }
+    )
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return abTestGroup;
+}
+
 export async function upsertRelationships(userId: string, relationships: RelationshipExtraction[]) {
   const dbRelationships = relationships.map((rel) => ({
     user_id: userId,
@@ -1045,8 +1134,8 @@ export async function calculateOverallProgress(userId: string): Promise<number> 
     const onboardingResponses = coreJson.onboarding_responses || {};
     
     const checks = [
-      !!(onboardingResponses['02-now'] ?? onboardingResponses['01-now']), // Life Situation
-      !!onboardingResponses['02-path'], // Path
+      !!(onboardingResponses['01-now-group'] ?? onboardingResponses['02-now'] ?? onboardingResponses['01-now']), // Life Situation
+      !!(onboardingResponses['02-path-group'] ?? onboardingResponses['02-path']), // Path
       !!(onboardingResponses['01-values'] ?? onboardingResponses['03-values']), // Core Values
       !!onboardingResponses['04-style'], // Style
       !!onboardingResponses['05-day'], // Daily Routine

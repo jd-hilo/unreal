@@ -1005,7 +1005,7 @@ const styles = StyleSheet.create({
   probText: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: 'rgba(0, 0, 0, 0.7)',
     minWidth: 40,
   },
   factor: {
@@ -1502,7 +1502,7 @@ const styles = StyleSheet.create({
   shareProbText: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: 'rgba(0, 0, 0, 0.7)',
     minWidth: 40,
   },
   shareWhatIf: {

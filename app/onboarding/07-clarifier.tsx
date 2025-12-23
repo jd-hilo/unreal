@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
-import { View, Text, StyleSheet, Animated, Image } from 'react-native';
+import { View, Text, StyleSheet, Animated, Image, Platform, Easing } from 'react-native';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { useTwin } from '@/store/useTwin';
 import { useAuth } from '@/store/useAuth';
@@ -9,12 +9,23 @@ import { trackEvent, MixpanelEvents, setUserProperty } from '@/lib/mixpanel';
 import { summarizeOnboardingGroup, type OnboardingSummaryData } from '@/lib/ai';
 import { useTypewriter } from '@/hooks/useTypewriter';
 import * as Haptics from 'expo-haptics';
+import { Colors, Fonts } from '@/constants/Theme';
+
+const LOADING_STEPS = [
+  'Analyzing your past...',
+  'Building desires...',
+  'Instilling hometown values...',
+  'Structuring decision patterns...',
+  'Finalizing your digital twin...'
+];
 
 export default function OnboardingStep7() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const setOnboardingComplete = useTwin((state) => state.setOnboardingComplete);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const loadingIntervalRef = useRef<number | null>(null);
   
   // Typewriter animation for title
   const titleText = "it's time to create your digital twin";
@@ -55,21 +66,57 @@ export default function OnboardingStep7() {
     }
   }, [titleComplete]);
   
-  // Animation values
+  // Animation values for carousel
   const fadeAnim = useRef(new Animated.Value(0)).current;
   
-  // Start fade in animation when loading
+  // Start carousel animation when loading
   useEffect(() => {
     if (isSummarizing) {
-      // Slow fade in animation for cube
+      setCurrentStep(0);
+      // Initial fade in
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 2000, // 2 seconds for slow fade
+        duration: 500,
         useNativeDriver: true,
       }).start();
+
+      // Start rotating carousel
+      if (loadingIntervalRef.current) clearInterval(loadingIntervalRef.current);
+      loadingIntervalRef.current = setInterval(() => {
+        // Fade out
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start(() => {
+          setCurrentStep((prev) => {
+            if (prev < LOADING_STEPS.length - 1) {
+              return prev + 1;
+            }
+            return prev;
+          });
+          // Fade in
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }).start();
+        });
+      }, 2000); // Change step every 2 seconds
+
+      return () => {
+        if (loadingIntervalRef.current) clearInterval(loadingIntervalRef.current);
+        loadingIntervalRef.current = null;
+        fadeAnim.setValue(0);
+      };
     } else {
-      // Reset animation when not loading
+      // Reset animations
       fadeAnim.setValue(0);
+      setCurrentStep(0);
+      if (loadingIntervalRef.current) {
+        clearInterval(loadingIntervalRef.current);
+        loadingIntervalRef.current = null;
+      }
     }
   }, [isSummarizing]);
 
@@ -246,7 +293,7 @@ export default function OnboardingStep7() {
 
   return (
     <OnboardingScreen
-      title={animatedTitle}
+      title={isSummarizing ? "We're creating your digital twin" : animatedTitle}
       progress={0.90}
       onNext={handleComplete}
       nextLabel={isSummarizing ? "Creating" : "Create Digital Twin"}
@@ -260,25 +307,18 @@ export default function OnboardingStep7() {
             styles.loadingContainer,
             {
               opacity: fadeAnim,
+              transform: [{
+                translateY: fadeAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [10, 0]
+                })
+              }]
             }
           ]}
         >
-          {/* Cube image fading in */}
-          <Animated.View
-            style={[
-              styles.cubeContainer,
-              {
-                opacity: fadeAnim,
-              },
-            ]}
-          >
-            <Image
-              source={require('@/assets/images/cube.png')}
-              style={styles.cubeImage}
-              resizeMode="contain"
-            />
-          </Animated.View>
-          
+          <Text style={styles.loadingText}>
+            {LOADING_STEPS[currentStep]}
+          </Text>
         </Animated.View>
       ) : null}
     </OnboardingScreen>
@@ -287,28 +327,30 @@ export default function OnboardingStep7() {
 
 const styles = StyleSheet.create({
   loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-    position: 'relative',
-  },
-  cubeContainer: {
-    width: 200,
-    height: 200,
-    marginBottom: 40,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cubeImage: {
-    width: '100%',
-    height: '100%',
+  loadingText: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+    fontFamily: Fonts.primary.regular,
   },
   animatedTitle: {
     fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '400',
+    color: Colors.textPrimary,
     lineHeight: 36,
     marginBottom: 8,
+    fontFamily: Platform.select({
+      ios: Fonts.primary.regular,
+      android: Fonts.primary.regular,
+      default: Fonts.fallback.primary,
+    }),
   },
   cursor: {
     color: 'rgba(65, 105, 225, 0.9)',

@@ -148,12 +148,7 @@ export default function WelcomeScreen() {
   });
 
   return (
-    <LinearGradient
-      colors={[Colors.background, Colors.backgroundSecondary]}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
-    >
+    <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.textContainer}>
           {WELCOME_LINES.map((_, index) => {
@@ -175,17 +170,9 @@ export default function WelcomeScreen() {
                     {
                       fontSize,
                       lineHeight,
-                      fontFamily: Platform.select({
-                        ios: index === 0 
-                          ? Fonts.primary.regular 
-                          : Fonts.secondary.bold,
-                        android: index === 0 
-                          ? Fonts.primary.regular 
-                          : Fonts.secondary.bold,
-                        default: index === 0 
-                          ? Fonts.fallback.primary 
-                          : Fonts.fallback.secondary,
-                      }),
+                      fontFamily: index === 0 
+                        ? Fonts.primary.regular 
+                        : Fonts.secondary.bold,
                       fontWeight: index === 0 ? '400' : '700',
                       color: Colors.textPrimary,
                     },
@@ -230,13 +217,14 @@ export default function WelcomeScreen() {
           </View>
         </Animated.View>
       )}
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   content: {
     flex: 1,

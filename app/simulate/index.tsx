@@ -156,7 +156,7 @@ export default function SimulateDashboard() {
           <TouchableOpacity 
             style={styles.profileBadge}
             onPress={async () => {
-              await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/simulations');
+              await AsyncStorage.setItem('previous_route_before_profile', '/simulate');
               router.push('/(tabs)/profile');
             }}
             activeOpacity={0.7}

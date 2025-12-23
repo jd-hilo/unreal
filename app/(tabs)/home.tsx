@@ -35,6 +35,36 @@ export default function HomeScreen() {
   const [showDecisionGuide, setShowDecisionGuide] = useState(false);
   const [showAccuracyInfo, setShowAccuracyInfo] = useState(false);
   
+  // Layout refs for ProductGuide
+  const simulateRef = useRef<View>(null);
+  const decideRef = useRef<View>(null);
+  const trainRef = useRef<View>(null);
+  
+  const [simulateLayout, setSimulateLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
+  const [decideLayout, setDecideLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
+  const [trainLayout, setTrainLayout] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
+
+  const measureLayouts = async () => {
+    const measure = (ref: any) => {
+      return new Promise<{x: number, y: number, width: number, height: number} | undefined>((resolve) => {
+        if (!ref.current) return resolve(undefined);
+        ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+          resolve({ x, y, width, height });
+        });
+      });
+    };
+
+    const [sim, dec, train] = await Promise.all([
+      measure(simulateRef),
+      measure(decideRef),
+      measure(trainRef)
+    ]);
+
+    setSimulateLayout(sim);
+    setDecideLayout(dec);
+    setTrainLayout(train);
+  };
+  
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -170,8 +200,8 @@ export default function HomeScreen() {
     }))
   ].sort((a, b) => b.timestamp - a.timestamp).slice(0, 6);
 
-  // Display 99% if daily journal is incomplete, otherwise show actual progress
-  const displayedProgress = hasTodayJournal ? profileProgress : 99;
+  // Display actual profile progress
+  const displayedProgress = profileProgress;
 
   return (
     <View style={styles.screen}>
@@ -211,8 +241,9 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.iconButton}
-                onPress={() => {
+                onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  await measureLayouts();
                   setShowDecisionGuide(true);
                 }}
               >
@@ -259,51 +290,64 @@ export default function HomeScreen() {
 
             {/* Action Rectangles */}
             <View style={styles.actionsContainer}>
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/(tabs)/simulations');
-                }}
-                activeOpacity={0.8}
-                style={styles.actionRectangle}
+              <View 
+                ref={simulateRef}
+                style={styles.actionRectangleWrapper}
+                collapsable={false}
               >
-                <LinearGradient
-                  colors={Colors.gradients.purple}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.cardGradient}
-                />
-                <View style={styles.actionIconContainer}>
-                  <Compass size={24} color={Colors.textPrimary} />
-                </View>
-                <View style={styles.actionContent}>
-                  <Text style={styles.actionTitle}>Simulate</Text>
-                  <Text style={styles.actionSubtitle}>Experience emotional narratives and possible futures</Text>
-                </View>
-                <ChevronRight size={20} color={Colors.textTertiary} />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/simulate');
+                  }}
+                  activeOpacity={0.8}
+                  style={styles.actionRectangle}
+                >
+                  <LinearGradient
+                    colors={Colors.gradients.purple}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardGradient}
+                  />
+                  <View style={styles.actionIconContainer}>
+                    <Compass size={24} color={Colors.textPrimary} />
+                  </View>
+                  <View style={styles.actionContent}>
+                    <Text style={styles.actionTitle}>Simulate</Text>
+                    <Text style={styles.actionSubtitle}>Experience emotional narratives and possible futures</Text>
+                  </View>
+                  <ChevronRight size={20} color={Colors.textTertiary} />
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/decision/new');
-                }}
-                activeOpacity={0.8}
-                style={styles.actionRectangle}
+              <View 
+                ref={decideRef}
+                style={styles.actionRectangleWrapper}
+                collapsable={false}
               >
-                <View style={[styles.cardGradient, { backgroundColor: '#febda1' }]} />
-                <View style={styles.actionIconContainer}>
-                  <CheckCircle size={24} color={Colors.textPrimary} />
-                </View>
-                <View style={styles.actionContent}>
-                  <Text style={styles.actionTitle}>Decide</Text>
-                  <Text style={styles.actionSubtitle}>Receive an authoritative recommendation for your path</Text>
-                </View>
-                <ChevronRight size={20} color={Colors.textTertiary} />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/decision/new');
+                  }}
+                  activeOpacity={0.8}
+                  style={styles.actionRectangle}
+                >
+                  <View style={[styles.cardGradient, { backgroundColor: '#febda1' }]} />
+                  <View style={styles.actionIconContainer}>
+                    <CheckCircle size={24} color={Colors.textPrimary} />
+                  </View>
+                  <View style={styles.actionContent}>
+                    <Text style={styles.actionTitle}>Decide</Text>
+                    <Text style={styles.actionSubtitle}>Receive an authoritative recommendation for your path</Text>
+                  </View>
+                  <ChevronRight size={20} color={Colors.textTertiary} />
+                </TouchableOpacity>
+              </View>
 
               {/* Train Section */}
               <TouchableOpacity
+                ref={trainRef}
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/home');
@@ -410,6 +454,9 @@ export default function HomeScreen() {
             await setHasSeenDecisionGuide();
           }}
           userId={user?.id}
+          simulateLayout={simulateLayout}
+          decideLayout={decideLayout}
+          trainLayout={trainLayout}
         />
       )}
 
@@ -619,6 +666,13 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 32,
   },
+  actionRectangleWrapper: {
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
+  },
   actionRectangle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -627,11 +681,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: 'rgba(0, 0, 0, 0.06)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 5,
     overflow: 'hidden',
   },
   cardGradient: {

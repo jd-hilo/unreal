@@ -1,5 +1,6 @@
 import { TextInput, View, Text, StyleSheet, TextInputProps, ViewStyle, Keyboard } from 'react-native';
 import { useState } from 'react';
+import { Colors } from '@/constants/Theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -39,7 +40,7 @@ export function Input({
             style,
             isFocused && styles.input_focused,
             error && styles.input_error,
-            { color: '#FFFFFF' }, // Ensure text is always white
+            { color: Colors.textPrimary }, // Ensure text is black
           ]}
           placeholderTextColor={props.placeholderTextColor || "rgba(150, 150, 150, 0.6)"}
           returnKeyType={finalReturnKeyType}
@@ -65,7 +66,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 10,
   },
   inputWrapper: {
@@ -78,7 +79,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingVertical: 0,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     minHeight: 24,
   },
   input_focused: {
@@ -89,11 +90,11 @@ const styles = StyleSheet.create({
   },
   underline: {
     height: 1,
-    backgroundColor: 'rgba(135, 206, 250, 0.3)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
     marginTop: 4,
   },
   underlineFocused: {
-    backgroundColor: 'rgba(135, 206, 250, 0.6)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     height: 1.5,
   },
   error: {

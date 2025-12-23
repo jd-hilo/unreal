@@ -4,9 +4,11 @@ import { useState, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { getJournals, getTodayJournal } from '@/lib/storage';
 import { ArrowLeft, BookOpen, Smile, Meh, Frown } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { format } from 'date-fns';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
@@ -110,35 +112,32 @@ export default function JournalScreen() {
               </Text>
             </View>
 
-            {/* Today's Card */}
+            {/* Reflect Button */}
             <TouchableOpacity
               onPress={handleAddJournal}
-              activeOpacity={0.8}
-              style={styles.todayCardWrapper}
+              activeOpacity={0.9}
+              style={styles.reflectButton}
             >
-              <View style={styles.todayCard}>
-                <View style={styles.todayCardContent}>
-                  {todayJournal ? (
-                    <>
-                      <View style={styles.todayIconContainer}>
-                        {getMoodEmoji(todayJournal.mood)}
-                      </View>
-                      <Text style={styles.todayCardTitle}>Today's Entry</Text>
-                      <Text style={styles.todayCardSubtitle}>
-                        {getMoodLabel(todayJournal.mood)}
-                      </Text>
-                    </>
-                  ) : (
-                    <>
-                      <View style={styles.todayIconContainer}>
-                        <BookOpen size={32} color={Colors.textPrimary} strokeWidth={1.5} />
-                      </View>
-                      <Text style={styles.todayCardTitle}>How are you feeling?</Text>
-                      <Text style={styles.todayCardSubtitle}>Start your daily reflection</Text>
-                    </>
+              <LinearGradient
+                colors={Colors.gradients.turquoise}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.reflectGradient}
+              >
+                <View style={styles.reflectContent}>
+                  <Text style={styles.reflectTitle}>Reflect on Your Day</Text>
+                  {todayJournal && (
+                    <Text style={styles.reflectSubtitle}>
+                      {getMoodLabel(todayJournal.mood)}
+                    </Text>
                   )}
                 </View>
-              </View>
+                <Image 
+                  source={require('@/assets/images/cube.png')} 
+                  style={styles.reflectImage}
+                  resizeMode="contain"
+                />
+              </LinearGradient>
             </TouchableOpacity>
 
             {/* Past Entries */}
@@ -246,47 +245,48 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
   },
-  todayCardWrapper: {
+  reflectButton: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    height: 120,
     marginBottom: 40,
-    borderRadius: 32,
-    overflow: 'hidden',
-  },
-  todayCard: {
-    borderRadius: 32,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: 'rgba(0, 0, 0, 0.08)',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowRadius: 16,
+    elevation: 5,
   },
-  todayCardContent: {
-    padding: 20,
-    alignItems: 'flex-start',
+  reflectGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 24,
   },
-  todayIconContainer: {
-    marginBottom: 16,
-    width: 48,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
+  reflectContent: {
+    flex: 1,
+    zIndex: 2,
   },
-  todayCardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 4,
-    lineHeight: 24,
-    fontFamily: Fonts.secondary.bold,
+  reflectTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: Fonts.primary.regular,
+    marginBottom: 6,
   },
-  todayCardSubtitle: {
+  reflectSubtitle: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: 'rgba(255,255,255,0.9)',
     lineHeight: 20,
     fontFamily: Fonts.secondary.bold,
+  },
+  reflectImage: {
+    width: 80,
+    height: 80,
+    position: 'absolute',
+    right: -10,
+    bottom: -10,
+    opacity: 0.9,
+    transform: [{rotate: '-10deg'}],
   },
   emptySection: {
     alignItems: 'center',

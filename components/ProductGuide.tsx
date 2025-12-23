@@ -25,10 +25,9 @@ interface ProductGuideProps {
   visible: boolean;
   onDismiss: () => void;
   onComplete: () => void;
-  targetCardLayout?: { x: number; y: number; width: number; height: number };
-  whatIfCardLayout?: { x: number; y: number; width: number; height: number };
-  journalCardLayout?: { x: number; y: number; width: number; height: number };
-  twinCardLayout?: { x: number; y: number; width: number; height: number };
+  simulateLayout?: { x: number; y: number; width: number; height: number };
+  decideLayout?: { x: number; y: number; width: number; height: number };
+  trainLayout?: { x: number; y: number; width: number; height: number };
   userId?: string;
   onStepChange?: (step: number) => void;
 }
@@ -40,10 +39,9 @@ export function ProductGuide({
   onDismiss, 
   onComplete, 
   onStepChange,
-  targetCardLayout,
-  whatIfCardLayout,
-  journalCardLayout,
-  twinCardLayout,
+  simulateLayout,
+  decideLayout,
+  trainLayout,
   userId
 }: ProductGuideProps) {
   const insets = useSafeAreaInsets();
@@ -63,11 +61,51 @@ export function ProductGuide({
 
   const steps = [
     {
-      id: 'decision',
+      id: 'simulate',
+      title: "Simulate Your Life",
+      renderContent: () => (
+        <View style={styles.visualContentContainer}>
+          <Card style={{ padding: 12, backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.05)' }}>
+            <CardContent>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: Colors.textPrimary, marginBottom: 6 }}>
+                What if I moved to NYC?
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 12, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(135, 206, 250, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Smile size={16} color="#87CEFA" />
+                  </View>
+                  <View>
+                    <Text style={{ fontSize: 11, color: Colors.textSecondary }}>Happiness</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#87CEFA' }}>+12%</Text>
+                  </View>
+                </View>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 12, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(74, 222, 128, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
+                    <DollarSign size={16} color="#4ADE80" />
+                  </View>
+                  <View>
+                    <Text style={{ fontSize: 11, color: Colors.textSecondary }}>Net Worth</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#4ADE80' }}>$1.2M</Text>
+                  </View>
+                </View>
+              </View>
+            </CardContent>
+          </Card>
+        </View>
+      ),
+      layout: simulateLayout,
+      icon: require('@/assets/images/compass.png'),
+      cardTitle: "Simulate",
+      cardSubtitle: "Experience emotional narratives and possible futures",
+      isHorizontal: true,
+    },
+    {
+      id: 'decide',
       title: "Make Better Decisions",
       renderContent: () => (
         <View style={styles.visualContentContainer}>
-          <Card style={{ padding: 12 }}>
+          <Card style={{ padding: 12, backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.05)' }}>
             <CardContent>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <View style={{ flex: 1, gap: 4 }}>
@@ -101,85 +139,18 @@ export function ProductGuide({
           </Card>
         </View>
       ),
-      layout: targetCardLayout,
-      icon: require('@/assets/images/compass.png'),
-      cardTitle: "Decide",
-      cardSubtitle: "Make a choice, simulate the outcomes"
-    },
-    {
-      id: 'whatif',
-      title: "See Your Alternate Life",
-      renderContent: () => (
-        <View style={styles.visualContentContainer}>
-          <Card style={{ padding: 12 }}>
-            <CardContent>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: Colors.textPrimary, marginBottom: 6 }}>
-                What if I moved to NYC?
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
-                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 12, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255, 215, 0, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Smile size={16} color="#FFD700" />
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 11, color: Colors.textSecondary }}>Happiness</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFD700' }}>+12%</Text>
-                  </View>
-                </View>
-                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 12, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(74, 222, 128, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
-                    <DollarSign size={16} color="#4ADE80" />
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 11, color: Colors.textSecondary }}>Net Worth</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#4ADE80' }}>$1.2M</Text>
-                  </View>
-                </View>
-              </View>
-            </CardContent>
-          </Card>
-        </View>
-      ),
-      layout: whatIfCardLayout,
+      layout: decideLayout,
       icon: require('@/assets/images/star.png'),
-      cardTitle: "Explore",
-      cardSubtitle: "See your alternate life"
+      cardTitle: "Decide",
+      cardSubtitle: "Receive an authoritative recommendation for your path",
+      isHorizontal: true,
     },
     {
-      id: 'journal',
-      title: "Stay in Sync",
-      renderContent: () => (
-         <View style={styles.visualContentContainer}>
-            <Card style={{ padding: 12 }}>
-              <CardContent>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Calendar size={14} color={Colors.textTertiary} />
-                    <Text style={{ fontSize: 13, color: Colors.textTertiary }}>Today, 9:41 AM</Text>
-                  </View>
-                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(135, 206, 250, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Smile size={16} color="#87CEFA" />
-                  </View>
-                </View>
-                <Text style={{ fontSize: 15, color: Colors.textSecondary, fontStyle: 'italic', lineHeight: 20 }}>
-                  "Feeling excited about the new project at work today. It aligns perfectly with my goal to prioritize {topValue.toLowerCase()}..."
-                </Text>
-              </CardContent>
-            </Card>
-         </View>
-      ),
-      layout: journalCardLayout,
-      isIconComponent: true,
-      IconComponent: Book,
-      cardTitle: "Journal",
-      cardSubtitle: "Daily reflection"
-    },
-    {
-      id: 'twin',
+      id: 'train',
       title: "Train Your Twin",
       renderContent: () => (
         <View style={styles.visualContentContainer}>
-          <Card style={{ padding: 12 }}>
+          <Card style={{ padding: 12, backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.05)' }}>
             <CardContent>
               <View style={{ marginBottom: 6 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -203,10 +174,11 @@ export function ProductGuide({
           </Card>
         </View>
       ),
-      layout: twinCardLayout,
+      layout: trainLayout,
       icon: require('@/assets/images/cube.png'),
-      cardTitle: "My Twin",
-      cardSubtitle: "Training..."
+      cardTitle: "Train",
+      cardSubtitle: "Build a compounding and smarter digital twin",
+      isHorizontal: true,
     },
   ];
 
@@ -315,13 +287,13 @@ export function ProductGuide({
   const layout = currentStepData.layout || { x: width / 2 - 80, y: height / 2 - 100, width: 160, height: 180 };
   
   // Adjust vertical position to align perfectly with home screen elements
-  // Subtracting a small offset to account for potential status bar/safe area discrepancies
-  const verticalOffset = Platform.OS === 'ios' ? 48 : 0;
+  // We use measureInWindow which gives absolute coordinates, so no offset needed usually
+  const verticalOffset = 0;
   const adjustedY = layout.y - verticalOffset;
 
   // Determine text position (above or below card) accounting for safe areas
-  // Steps 3 and 4 (journal, twin) should always show text above the card
-  const isJournalOrTwinStep = currentStep === 2 || currentStep === 3;
+  // Step 2 (Train) should always show text above the card (since it's at the bottom)
+  const isTrainStep = currentStep === 2;
   const isTopHalf = adjustedY < screenHeight / 2;
   
   // Safe area padding - ensure enough space for button and content
@@ -330,9 +302,9 @@ export function ProductGuide({
   const bottomSafeArea = Math.max(insets.bottom, 34) + 60; 
   const topSafeArea = Math.max(insets.top, 47) + 24;
   
-  // For journal and twin steps, always position text above the card
+  // For Train step, always position text above the card
   // For other steps, use normal logic (text below if card is in top half, above if in bottom half)
-  const shouldPositionAbove = isJournalOrTwinStep || !isTopHalf;
+  const shouldPositionAbove = isTrainStep || !isTopHalf;
   
   // Calculate card boundaries
   const cardBottom = adjustedY + layout.height;
@@ -449,20 +421,32 @@ export function ProductGuide({
         >
            <View style={styles.cardClone}>
               <View style={styles.cardBlur}>
-                 <View style={styles.cardContent}>
-                    <View style={styles.iconContainer}>
+                 <View style={[
+                   styles.cardContent,
+                   (currentStepData as any).isHorizontal && styles.cardContentHorizontal
+                 ]}>
+                    <View style={[
+                      styles.iconContainer,
+                      (currentStepData as any).isHorizontal && styles.iconContainerHorizontal
+                    ]}>
                        {currentStepData.isIconComponent && currentStepData.IconComponent ? (
-                          <currentStepData.IconComponent size={24} color={Colors.textPrimary} strokeWidth={1.5} />
+                          <currentStepData.IconComponent size={(currentStepData as any).isHorizontal ? 24 : 24} color={Colors.textPrimary} strokeWidth={1.5} />
                        ) : (
                           <Image 
                             source={currentStepData.icon}
-                            style={[styles.iconImage, { tintColor: Colors.textPrimary }]}
+                            style={[
+                              styles.iconImage, 
+                              (currentStepData as any).isHorizontal && styles.iconImageHorizontal,
+                              currentStepData.id === 'train' ? {} : { tintColor: Colors.textPrimary }
+                            ]}
                             resizeMode="contain"
                           />
                        )}
                     </View>
-                    <Text style={styles.cardTitle}>{currentStepData.cardTitle}</Text>
-                    <Text style={styles.cardSubtitle}>{currentStepData.cardSubtitle}</Text>
+                    <View style={(currentStepData as any).isHorizontal ? styles.textContainerHorizontal : null}>
+                      <Text style={styles.cardTitle}>{currentStepData.cardTitle}</Text>
+                      <Text style={styles.cardSubtitle}>{currentStepData.cardSubtitle}</Text>
+                    </View>
                  </View>
               </View>
               {/* Glow effect */}
@@ -493,7 +477,10 @@ export function ProductGuide({
                   ) : currentStepData.icon ? (
                     <Image 
                       source={currentStepData.icon}
-                      style={[styles.headerIcon, { tintColor: Colors.textPrimary }]}
+                      style={[
+                        styles.headerIcon, 
+                        currentStepData.id === 'train' ? {} : { tintColor: Colors.textPrimary }
+                      ]}
                       resizeMode="contain"
                     />
                   ) : null}
@@ -549,11 +536,11 @@ const styles = StyleSheet.create({
   },
   cardCloneWrapper: {
     position: 'absolute',
-    borderRadius: 32,
+    borderRadius: 24,
   },
   cardClone: {
     flex: 1,
-    borderRadius: 32,
+    borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -564,12 +551,16 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 24,
   },
   cardContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'flex-start',
+  },
+  cardContentHorizontal: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   iconContainer: {
     marginBottom: 16,
@@ -578,9 +569,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
+  iconContainerHorizontal: {
+    marginBottom: 0,
+    marginRight: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textContainerHorizontal: {
+    flex: 1,
+    gap: 4,
+  },
   iconImage: {
     width: 48,
     height: 48,
+  },
+  iconImageHorizontal: {
+    width: 24,
+    height: 24,
   },
   visualContentContainer: {
     marginVertical: 2,
@@ -635,7 +644,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 0,
   },
   headerIcon: {
     width: 18,

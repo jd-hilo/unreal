@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useState } from 'react';
 import { Input } from './Input';
 import * as Haptics from 'expo-haptics';
+import { Colors, Fonts } from '@/constants/Theme';
 
 interface ChoiceQuestionProps {
   question: string;
@@ -96,25 +97,36 @@ const styles = StyleSheet.create({
   question: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 16,
     lineHeight: 20,
+    fontFamily: Fonts.secondary.bold,
   },
   optionsContainer: {
     gap: 12,
   },
   option: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: 'rgba(135, 206, 250, 0.2)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     padding: 16,
     minHeight: 56,
     justifyContent: 'center',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   optionSelected: {
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
-    borderColor: 'rgba(135, 206, 250, 0.6)',
+    backgroundColor: '#FFFFFF',
+    borderColor: Colors.gradients.turquoise[1],
+    borderWidth: 2,
+    shadowColor: Colors.gradients.turquoise[1],
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
   },
   optionContent: {
     flexDirection: 'row',
@@ -126,29 +138,30 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: 'rgba(135, 206, 250, 0.5)',
+    borderColor: 'rgba(0, 0, 0, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioSelected: {
-    borderColor: 'rgba(135, 206, 250, 0.9)',
+    borderColor: Colors.gradients.turquoise[1],
   },
   radioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: 'rgba(135, 206, 250, 0.9)',
+    backgroundColor: Colors.gradients.turquoise[1],
   },
   optionText: {
     fontSize: 16,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.textSecondary,
     flex: 1,
     lineHeight: 20,
+    fontFamily: Fonts.secondary.bold,
   },
   optionTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontWeight: '700',
   },
   otherInputContainer: {
     marginTop: 12,

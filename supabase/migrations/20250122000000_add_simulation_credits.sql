@@ -12,3 +12,4 @@ CREATE INDEX IF NOT EXISTS idx_profiles_simulation_credits ON profiles(simulatio
 
 
 
+

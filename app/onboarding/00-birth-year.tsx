@@ -6,6 +6,7 @@ import { View, StyleSheet } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { Colors } from '@/constants/Theme';
 
 export default function BirthYearScreen() {
   const router = useRouter();
@@ -58,10 +59,8 @@ export default function BirthYearScreen() {
       progress={0.30}
       onNext={handleNext}
       canContinue={selectedYear.length > 0}
-      backgroundGradient={['#050505', '#0F0F18', '#0D0D15', '#050505']}
-      buttonGradient={['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)']}
-      progressBarGradient={['#87CEFA', '#87CEFA']}
-      buttonShadowColor="rgba(65, 105, 225, 0.5)"
+      buttonGradient={Colors.gradients.turquoise}
+      progressBarGradient={Colors.gradients.turquoise}
     >
       <View style={styles.container}>
         <ChoiceQuestion

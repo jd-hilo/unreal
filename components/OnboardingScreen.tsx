@@ -138,6 +138,18 @@ export function OnboardingScreen({
   return (
     <View style={styles.gradientBackground}>
       <StatusBar style="dark" />
+      {/* Background gradient overlay */}
+      <LinearGradient
+        colors={[
+          'rgba(232, 122, 127, 0.15)', // peach
+          'rgba(132, 250, 176, 0.15)', // turquoise
+          'rgba(192, 132, 252, 0.15)', // purple
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -145,7 +157,9 @@ export function OnboardingScreen({
     >
       {/* Progress Header */}
       <View style={styles.header}>
-          <ProgressBar progress={progress} showLabel={false} height={4} gradientColors={progressBarGradient} trackColor="rgba(0,0,0,0.05)" />
+          <View style={styles.progressBarContainer}>
+            <ProgressBar progress={progress} showLabel={false} height={4} gradientColors={progressBarGradient} trackColor="rgba(0,0,0,0.05)" />
+          </View>
       </View>
 
       <ScrollView
@@ -239,8 +253,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  progressBarContainer: {
+    marginTop: 5,
   },
   content: {
     flex: 1,
@@ -276,8 +291,6 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 32 : 36,
     backgroundColor: 'transparent',
     gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   skipButton: {
     alignItems: 'center',
@@ -333,7 +346,7 @@ const styles = StyleSheet.create({
   floatingButtonDisabled: {
     shadowOpacity: 0,
     elevation: 0,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: 'transparent',
   },
   shimmer: {
     position: 'absolute',

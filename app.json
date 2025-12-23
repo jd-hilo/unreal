@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/images/unreallogo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0C0C10"
+      "backgroundColor": "#FFFFFF"
     },
     "newArchEnabled": true,
     "ios": {

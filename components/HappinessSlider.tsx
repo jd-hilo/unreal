@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useState, useEffect } from 'react';
 import * as Haptics from 'expo-haptics';
+import { Colors, Fonts } from '@/constants/Theme';
 
 interface HappinessSliderProps {
   value: number | null;
@@ -61,31 +62,41 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 16,
     lineHeight: 20,
+    fontFamily: Fonts.secondary.bold,
   },
   sliderContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    gap: 4,
   },
   sliderButton: {
     flex: 1,
-    height: 44,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 8,
-    marginHorizontal: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(135, 206, 250, 0.2)',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   sliderButtonSelected: {
-    backgroundColor: 'rgba(135, 206, 250, 0.3)',
-    borderColor: 'rgba(135, 206, 250, 0.8)',
+    backgroundColor: '#FFFFFF',
+    borderColor: Colors.gradients.turquoise[1],
     borderWidth: 2,
+    shadowColor: Colors.gradients.turquoise[1],
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
   },
   firstButton: {
     marginLeft: 0,
@@ -96,20 +107,23 @@ const styles = StyleSheet.create({
   sliderText: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   sliderTextSelected: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     fontWeight: '700',
   },
   labelsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 4,
+    marginTop: 8,
   },
   endLabel: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
   },
 });
 

@@ -11,30 +11,26 @@ import { useTypewriter } from '@/hooks/useTypewriter';
 import { trackEvent, MixpanelEvents, trackScreenView } from '@/lib/mixpanel';
 import { useAuth } from '@/store/useAuth';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
-import { generateInterestingDecisionQuestions, generateInterestingWhatIfScenarios, deriveDecisionOptionsWithContext, predictDecision, runWhatIf } from '@/lib/ai';
-import { insertDecision, updateDecisionPrediction, insertWhatIf, getProfile, getRelationships } from '@/lib/storage';
-import { computeScenarioAlignment } from '@/lib/relevance';
+import { generateInterestingDecisionQuestions, deriveDecisionOptionsWithContext, predictDecision } from '@/lib/ai';
+import { insertDecision, updateDecisionPrediction } from '@/lib/storage';
+import { Colors, Fonts } from '@/constants/Theme';
 
 export default function OnboardingCompleteScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [showButtons, setShowButtons] = useState(false);
   const [navigatingDecide, setNavigatingDecide] = useState(false);
-  const [navigatingExplore, setNavigatingExplore] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
-  const [abTestGroup, setAbTestGroup] = useState<'A' | 'B' | null>(null);
   const loadingIntervalRef = useRef<number | null>(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const LOADING_STEPS = [
-    'Creating your decision...',
-    'Analyzing your profile...',
-    'Building context...',
-    'Consulting your twin...',
-    'Calculating probabilities...',
-    'Finalizing recommendation...'
+    'Analyzing your past...',
+    'Building desires...',
+    'Instilling hometown values...',
+    'Structuring decision patterns...',
+    'Finalizing your digital twin...'
   ];
   
   // Button slide-up animations
@@ -50,13 +46,6 @@ export default function OnboardingCompleteScreen() {
   useEffect(() => {
     trackScreenView('Onboarding Complete', {});
     trackEvent(MixpanelEvents.ONBOARDING_COMPLETE_VIEWED);
-    
-    // Load AB Test Group
-    if (user?.id) {
-      getProfile(user.id).then(profile => {
-        setAbTestGroup(profile?.ab_test_group || null);
-      });
-    }
   }, [user]);
 
   useEffect(() => {
@@ -90,62 +79,48 @@ export default function OnboardingCompleteScreen() {
 
   const startLoadingTicker = () => {
     setLoadingStepIndex(0);
+    // Initial fade in
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+
     if (loadingIntervalRef.current) clearInterval(loadingIntervalRef.current);
     loadingIntervalRef.current = setInterval(() => {
-      setLoadingStepIndex((prev) => {
-        if (prev < LOADING_STEPS.length - 1) {
-          return prev + 1;
-        }
-        return prev;
+      // Fade out
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setLoadingStepIndex((prev) => {
+          if (prev < LOADING_STEPS.length - 1) {
+            return prev + 1;
+          }
+          return prev;
+        });
+        // Fade in
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
       });
-    }, 800);
+    }, 2000); // Slower interval for readability
   };
 
   const stopLoadingTicker = () => {
     if (loadingIntervalRef.current) clearInterval(loadingIntervalRef.current);
     loadingIntervalRef.current = null;
+    fadeAnim.setValue(0);
   };
 
   // Loading animation and steps
   useEffect(() => {
     if (showLoading) {
-      setLoadingStepIndex(0);
-      
-      // Start pulse animation
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.1,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-
-      // Start rotation animation
-      Animated.loop(
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: 3000,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      ).start();
-
       startLoadingTicker();
-      
-      return () => {
-        stopLoadingTicker();
-        pulseAnim.setValue(1);
-        rotateAnim.setValue(0);
-      };
+      return () => stopLoadingTicker();
     }
   }, [showLoading]);
 
@@ -219,186 +194,33 @@ export default function OnboardingCompleteScreen() {
     }
   }
 
-  async function handleExplore() {
-    console.log('handleExplore called', { user: !!user, navigatingExplore });
-    if (!user) {
-      console.warn('No user found');
-      return;
-    }
-    if (navigatingExplore) {
-      console.log('Already navigating');
-      return;
-    }
-    
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    trackEvent(MixpanelEvents.ONBOARDING_COMPLETE_EXPLORE_CLICKED);
-    setNavigatingExplore(true);
-    setShowLoading(true);
-    startLoadingTicker();
-
-    try {
-      // Generate interesting scenarios based on user profile
-      const corePack = await buildCorePack(user.id);
-      const scenarios = await generateInterestingWhatIfScenarios(corePack, 3);
-      const scenario = scenarios[0] || 'What if I made a different choice?';
-      
-      // Get profile data for what-if processing
-      const profile = await getProfile(user.id);
-      const baselineSummary = profile?.narrative_summary || 'No profile data available';
-      const relationships = await getRelationships(user.id);
-      
-      // Extract current biometric values from profile
-      const currentBiometrics: {
-        location?: string | null;
-        netWorth?: string | null;
-        relationshipStatus?: string | null;
-      } = {
-        location: profile?.current_location || profile?.core_json?.city || null,
-        netWorth: profile?.net_worth || null,
-        relationshipStatus: profile?.core_json?.relationship_status || null,
-      };
-      
-      // If user has a partner/spouse, override relationshipStatus
-      const hasPartner = (relationships || []).some((r: any) => {
-        const type = (r?.relationship_type || '').toLowerCase();
-        return type === 'partner' || type === 'spouse';
-      });
-      if (hasPartner) {
-        currentBiometrics.relationshipStatus = 'in a relationship';
-      }
-      
-      // Run what-if analysis
-      const result = await runWhatIf(baselineSummary, scenario, currentBiometrics, profile);
-      
-      // Compute Scenario-specific Alignment Score
-      let twinAlignmentScore: number | null = null;
-      try {
-        twinAlignmentScore = await computeScenarioAlignment(user.id, result.summary, result.metrics, result.biometrics);
-      } catch (e) {
-        console.warn('Failed to compute scenario alignment:', e);
-      }
-      
-      // Create what-if record
-      const whatIfData = await insertWhatIf(user.id, {
-        counterfactual_type: 'general',
-        payload: { 
-          question: scenario,
-          chaosLevel: result.chaosLevel,
-          chaosMessage: result.chaosMessage,
-          newObsession: result.newObsession,
-          timelineVibe: result.timelineVibe,
-        },
-        metrics: result.metrics,
-        summary: result.summary,
-        biometrics: result.biometrics,
-        twinAlignmentScore: twinAlignmentScore ?? undefined,
-      });
-      
-      trackEvent(MixpanelEvents.WHAT_IF_CREATED, {
-        what_if_id: whatIfData.id,
-        has_biometrics: !!result.biometrics
-      });
-      
-      // Navigate directly to result
-      router.replace(`/whatif/${whatIfData.id}`);
-    } catch (error) {
-      console.error('Failed to create what-if:', error);
-      // Fallback to form screen if something fails
-      router.push('/whatif/new');
-    } finally {
-      stopLoadingTicker();
-      setShowLoading(false);
-      setNavigatingExplore(false);
-    }
-  }
 
   const renderLoadingScreen = () => {
-    const rotateInterpolate = rotateAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: ['0deg', '360deg'],
-    });
-
     return (
-      <View style={styles.loadingScreen}>
-        <LinearGradient
-          colors={['#050505', '#0A0A0A', '#050505']}
-          style={styles.loadingContainer}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <StatusBar style="light" />
-          <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
-            <View style={styles.loadingContent}>
-              {/* Animated Orb */}
-              <View style={styles.orbContainer}>
-                <Animated.View
-                  style={[
-                    styles.orbOuter,
-                    {
-                      transform: [
-                        { scale: pulseAnim },
-                        { rotate: rotateInterpolate },
-                      ],
-                    },
-                  ]}
-                >
-                  <LinearGradient
-                    colors={['rgba(135, 206, 250, 0.2)', 'rgba(100, 181, 246, 0.1)', 'rgba(65, 105, 225, 0.05)']}
-                    style={styles.orbGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  />
-                </Animated.View>
-                <View style={styles.orbInner}>
-                  <Image 
-                    source={require('@/assets/images/cube.png')}
-                    style={styles.loadingCubeIcon}
-                    resizeMode="contain"
-                  />
-                </View>
-              </View>
-
-              {/* Loading Text */}
-              <View style={styles.loadingTextContainer}>
-                <Text style={styles.loadingText}>Asking your twin...</Text>
-                <View style={styles.statusContainer}>
-                  <BlurView intensity={20} tint="dark" style={styles.statusBlur}>
-                    <Text style={styles.statusText}>
-                      {LOADING_STEPS[loadingStepIndex] || LOADING_STEPS[LOADING_STEPS.length - 1]}
-                    </Text>
-                  </BlurView>
-                </View>
-              </View>
-
-              {/* Loading Dots */}
-              <View style={styles.dotsContainer}>
-                {[0, 1, 2].map((index) => (
-                  <Animated.View
-                    key={index}
-                    style={[
-                      styles.dot,
-                      {
-                        backgroundColor: '#87CEFA',
-                        transform: [
-                          {
-                            scale: pulseAnim.interpolate({
-                              inputRange: [1, 1.1],
-                              outputRange: [1, 1.2],
-                            }),
-                          },
-                        ],
-                        opacity: pulseAnim.interpolate({
-                          inputRange: [1, 1.1],
-                          outputRange: [0.5, 1],
-                        }),
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
+      <View style={[styles.loadingScreen, { backgroundColor: Colors.background }]}>
+        <StatusBar style="dark" />
+        <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
+          <View style={styles.loadingContent}>
+            <View style={styles.loadingTextContainer}>
+              <Animated.Text 
+                style={[
+                  styles.loadingText, 
+                  { 
+                    opacity: fadeAnim,
+                    transform: [{
+                      translateY: fadeAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [10, 0]
+                      })
+                    }]
+                  }
+                ]}
+              >
+                {LOADING_STEPS[loadingStepIndex]}
+              </Animated.Text>
             </View>
-          </SafeAreaView>
-        </LinearGradient>
+          </View>
+        </SafeAreaView>
       </View>
     );
   };
@@ -410,7 +232,7 @@ export default function OnboardingCompleteScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.backgroundGradient}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
           <View style={styles.container}>
             {/* Typing Text */}
@@ -441,23 +263,23 @@ export default function OnboardingCompleteScreen() {
                     style={styles.button}
                     disabled={navigatingDecide}
                   >
-                    <BlurView intensity={40} tint="dark" style={styles.buttonBlur} pointerEvents="box-none">
+                    <View style={styles.buttonBlur}>
                       <View style={styles.buttonContent} pointerEvents="box-none">
                         <View style={styles.buttonIconContainer}>
                           <Image 
                             source={require('@/assets/images/compass.png')}
-                            style={styles.buttonIcon}
+                            style={[styles.buttonIcon, { tintColor: '#FFFFFF' }]}
                             resizeMode="contain"
                           />
                         </View>
                         <View style={styles.buttonTextContainer}>
-                          <Text style={styles.buttonTitle}>Twin Decides for You</Text>
+                          <Text style={styles.buttonTitle}>Decide for me</Text>
                           <Text style={styles.buttonSubtitle}>
                             Make a choice, simulate outcomes
                           </Text>
                         </View>
                       </View>
-                    </BlurView>
+                    </View>
                   </TouchableOpacity>
                 </Animated.View>
 
@@ -474,36 +296,29 @@ export default function OnboardingCompleteScreen() {
                 >
                   <TouchableOpacity
                     onPress={() => {
-                      console.log('Explore button pressed');
-                      if (abTestGroup === 'B') {
-                        router.push('/simulate/new?fromOnboarding=true');
-                      } else {
-                        handleExplore();
-                      }
+                      console.log('Simulate button pressed');
+                      router.push('/simulate/new?fromOnboarding=true');
                     }}
                     activeOpacity={0.8}
                     style={styles.button}
-                    disabled={navigatingExplore}
                   >
-                    <BlurView intensity={40} tint="dark" style={styles.buttonBlur} pointerEvents="box-none">
+                    <View style={styles.buttonBlur}>
                       <View style={styles.buttonContent} pointerEvents="box-none">
                         <View style={styles.buttonIconContainer}>
                           <Image 
                             source={require('@/assets/images/star.png')}
-                            style={styles.buttonIcon}
+                            style={[styles.buttonIcon, { tintColor: '#FFFFFF' }]}
                             resizeMode="contain"
                           />
                         </View>
                         <View style={styles.buttonTextContainer}>
-                          <Text style={styles.buttonTitle}>
-                            {abTestGroup === 'B' ? 'Simulate your Life' : 'Explore alternate lives'}
-                          </Text>
+                          <Text style={styles.buttonTitle}>Simulate your life</Text>
                           <Text style={styles.buttonSubtitle}>
-                            {abTestGroup === 'B' ? 'Explore Alternate Realities' : 'See your alternate reality'}
+                            Explore Alternate Realities
                           </Text>
                         </View>
                       </View>
-                    </BlurView>
+                    </View>
                   </TouchableOpacity>
                 </Animated.View>
               </View>
@@ -518,11 +333,11 @@ export default function OnboardingCompleteScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   backgroundGradient: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
@@ -534,23 +349,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   textContainer: {
-    marginBottom: 100,
+    marginBottom: 40,
     alignItems: 'center',
   },
   typingText: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     letterSpacing: -0.5,
   },
   buttonsContainer: {
     width: '100%',
     gap: 16,
-    marginTop: 20,
+    marginTop: 0,
   },
   loadingScreen: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
@@ -564,81 +379,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  orbContainer: {
-    width: 120,
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    marginBottom: 32,
-  },
-  orbOuter: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    overflow: 'hidden',
-  },
-  orbGradient: {
-    width: '100%',
-    height: '100%',
-  },
-  orbInner: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  loadingCubeIcon: {
-    width: 60,
-    height: 60,
-    opacity: 0.9,
-  },
   loadingTextContainer: {
     alignItems: 'center',
     gap: 16,
     width: '100%',
   },
   loadingText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '600',
+    color: Colors.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.5,
+    fontFamily: Fonts.primary.regular,
   },
-  statusContainer: {
-    marginTop: 8,
-  },
-  statusBlur: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
-  },
-  statusText: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  dotsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
+  // Legacy styles kept for reference but unused
+  orbContainer: { display: 'none' },
+  orbOuter: { display: 'none' },
+  orbGradient: { display: 'none' },
+  orbInner: { display: 'none' },
+  loadingCubeIcon: { display: 'none' },
+  statusContainer: { display: 'none' },
+  statusBlur: { display: 'none' },
+  statusText: { display: 'none' },
+  dotsContainer: { display: 'none' },
+  dot: { display: 'none' },
   buttonWrapper: {
     width: '100%',
   },
@@ -646,9 +410,14 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   buttonBlur: {
     padding: 20,
@@ -662,7 +431,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: Colors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -677,12 +446,12 @@ const styles = StyleSheet.create({
   buttonTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     letterSpacing: -0.3,
   },
   buttonSubtitle: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     lineHeight: 20,
   },
 });

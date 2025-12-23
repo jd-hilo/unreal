@@ -5,6 +5,7 @@ import { Input } from '@/components/Input';
 import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { saveOnboardingResponse } from '@/lib/storage';
+import { Colors } from '@/constants/Theme';
 
 export default function OnboardingStep1() {
   const router = useRouter();
@@ -58,10 +59,8 @@ export default function OnboardingStep1() {
       progress={0.125}
       onNext={handleNext}
       canContinue={text.trim().length > 0}
-      backgroundGradient={['#050505', '#0F0F18', '#0D0D15', '#050505']}
-      buttonGradient={['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)']}
-      progressBarGradient={['#87CEFA', '#87CEFA']}
-      buttonShadowColor="rgba(65, 105, 225, 0.5)"
+      buttonGradient={Colors.gradients.turquoise}
+      progressBarGradient={Colors.gradients.turquoise}
     >
       <View style={styles.inputWrapper}>
         <Input
@@ -76,7 +75,7 @@ export default function OnboardingStep1() {
           containerStyle={styles.inputContainer}
           returnKeyType="done"
           blurOnSubmit={true}
-          placeholderTextColor="rgba(255, 255, 255, 0.5)"
+          placeholderTextColor={Colors.textTertiary}
         />
       </View>
       
@@ -100,14 +99,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: -0.2,
     lineHeight: 20,
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     paddingVertical: 12,
     paddingHorizontal: 0,
     minHeight: 120,
   },
   helperText: {
     fontSize: 15,
-    color: 'rgba(200, 200, 200, 0.7)',
+    color: Colors.textSecondary,
     marginTop: 16,
     fontWeight: '400',
   },

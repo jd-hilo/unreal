@@ -9,6 +9,7 @@ import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import * as Haptics from 'expo-haptics';
+import { Colors } from '@/constants/Theme';
 
 const INTERESTS = [
   { emoji: '🎵', label: 'Music' },
@@ -431,10 +432,8 @@ export default function LifeSituationGroupScreen() {
       progress={getProgress()}
       onNext={handleNext}
       canContinue={canContinue()}
-      backgroundGradient={['#050505', '#0F0F18', '#0D0D15', '#050505']}
-      buttonGradient={['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)']}
-      progressBarGradient={['#87CEFA', '#87CEFA']}
-      buttonShadowColor="rgba(65, 105, 225, 0.5)"
+      buttonGradient={Colors.gradients.turquoise}
+      progressBarGradient={Colors.gradients.turquoise}
     >
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Work Status Question */}
@@ -458,7 +457,7 @@ export default function LifeSituationGroupScreen() {
               onChangeText={(value) => updateAnswer('currentJob', value)}
               autoFocus={true}
               containerStyle={styles.subQuestionInput}
-              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              placeholderTextColor={Colors.textTertiary}
             />
           </View>
         )}
@@ -551,7 +550,7 @@ export default function LifeSituationGroupScreen() {
               onChangeText={(value) => updateAnswer('partnerFirstName', value)}
               autoFocus={true}
               containerStyle={styles.subQuestionInput}
-              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              placeholderTextColor={Colors.textTertiary}
             />
           </View>
         )}
@@ -602,7 +601,7 @@ export default function LifeSituationGroupScreen() {
               textAlignVertical="top"
               autoFocus={true}
               containerStyle={styles.goalsInput}
-              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              placeholderTextColor={Colors.textTertiary}
             />
           </View>
         )}
@@ -669,7 +668,7 @@ const styles = StyleSheet.create({
   },
   interestsSubtitle: {
     fontSize: 15,
-    color: 'rgba(200, 200, 200, 0.7)',
+    color: Colors.textSecondary,
     marginBottom: 20,
     fontWeight: '400',
   },
@@ -684,15 +683,24 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(65, 105, 225, 0.2)',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     width: '48%',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   interestCardSelected: {
-    backgroundColor: 'rgba(65, 105, 225, 0.2)',
-    borderColor: 'rgba(65, 105, 225, 0.8)',
+    backgroundColor: '#FFFFFF',
+    borderColor: Colors.gradients.turquoise[1],
     borderWidth: 2,
+    shadowColor: Colors.gradients.turquoise[1],
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
   },
   emoji: {
     fontSize: 24,
@@ -701,14 +709,14 @@ const styles = StyleSheet.create({
   interestLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: Colors.textSecondary,
     flex: 1,
     flexShrink: 1,
     lineHeight: 18,
   },
   interestLabelSelected: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontWeight: '700',
   },
 });
 

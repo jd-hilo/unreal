@@ -6,6 +6,7 @@ import { useAuth } from '@/store/useAuth';
 import { saveOnboardingResponse, getProfile } from '@/lib/storage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import * as Haptics from 'expo-haptics';
+import { Colors } from '@/constants/Theme';
 
 const INTERESTS = [
   { emoji: '🎵', label: 'Music' },
@@ -149,10 +150,8 @@ export default function InterestsScreen() {
       progress={0.65}
       onNext={handleNext}
       canContinue={selectedInterests.length > 0}
-      backgroundGradient={['#050505', '#0F0F18', '#0D0D15', '#050505']}
-      buttonGradient={['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)']}
-      progressBarGradient={['#87CEFA', '#87CEFA']}
-      buttonShadowColor="rgba(65, 105, 225, 0.5)"
+      buttonGradient={Colors.gradients.turquoise}
+      progressBarGradient={Colors.gradients.turquoise}
     >
       <View style={styles.scrollContainer}>
         <ScrollView 
@@ -236,14 +235,14 @@ const styles = StyleSheet.create({
   },
   scrollbarTrack: {
     width: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 2,
     marginLeft: 4,
     position: 'relative',
   },
   scrollbarThumb: {
     width: 4,
-    backgroundColor: 'rgba(65, 105, 225, 0.6)',
+    backgroundColor: Colors.gradients.turquoise[1],
     borderRadius: 2,
     position: 'absolute',
     left: 0,
@@ -251,7 +250,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15,
-    color: 'rgba(200, 200, 200, 0.7)',
+    color: Colors.textSecondary,
     marginBottom: 20,
     fontWeight: '400',
   },
@@ -266,15 +265,24 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(65, 105, 225, 0.2)',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     width: '48%',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   interestCardSelected: {
-    backgroundColor: 'rgba(65, 105, 225, 0.2)',
-    borderColor: 'rgba(65, 105, 225, 0.8)',
+    backgroundColor: '#FFFFFF',
+    borderColor: Colors.gradients.turquoise[1],
     borderWidth: 2,
+    shadowColor: Colors.gradients.turquoise[1],
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
   },
   emoji: {
     fontSize: 24,
@@ -283,13 +291,13 @@ const styles = StyleSheet.create({
   interestLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: Colors.textSecondary,
     flex: 1,
     flexShrink: 1,
   },
   interestLabelSelected: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontWeight: '700',
   },
 });
 

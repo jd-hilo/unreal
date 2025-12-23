@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Input } from './Input';
 import * as Haptics from 'expo-haptics';
+import { Colors, Fonts } from '@/constants/Theme';
 
 const VALUES = [
   'Freedom',
@@ -86,7 +87,7 @@ export function MultiSelectValues({
             numberOfLines={4}
             textAlignVertical="top"
             containerStyle={styles.contextInput}
-            placeholderTextColor="rgba(255, 255, 255, 0.5)"
+            placeholderTextColor={Colors.textTertiary}
           />
         </View>
       )}
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
   },
   instruction: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.8)',
+    color: Colors.textSecondary,
     marginBottom: 20,
     lineHeight: 20,
   },
@@ -115,36 +116,47 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   valueChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: 'rgba(135, 206, 250, 0.2)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     paddingHorizontal: 20,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     minHeight: 44,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   valueChipSelected: {
-    backgroundColor: 'rgba(135, 206, 250, 0.15)',
-    borderColor: 'rgba(135, 206, 250, 0.6)',
+    backgroundColor: '#FFFFFF',
+    borderColor: Colors.gradients.turquoise[1],
+    borderWidth: 2,
+    shadowColor: Colors.gradients.turquoise[1],
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
   },
   valueText: {
     fontSize: 15,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.textSecondary,
     lineHeight: 18,
+    fontFamily: Fonts.secondary.bold,
   },
   valueTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontWeight: '700',
   },
   checkmark: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: 'rgba(135, 206, 250, 0.9)',
+    backgroundColor: Colors.gradients.turquoise[1],
     alignItems: 'center',
     justifyContent: 'center',
   },

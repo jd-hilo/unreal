@@ -389,6 +389,19 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
+          {!isPremium && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Premium</Text>
+              <View style={styles.cardContainer}>
+                <TouchableOpacity onPress={() => router.push('/premium' as any)} style={[styles.rowCard, styles.rowCardFirst, styles.rowCardLast]}>
+                  <View style={styles.rowIcon}><Sparkles size={20} color="#FFD700" /></View>
+                  <View style={styles.rowContent}><Text style={styles.rowTitle}>Unlock mora+</Text><Text style={styles.rowSubtitle}>Upgrade</Text></View>
+                  <ChevronRight size={20} color={Colors.textTertiary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Identity</Text>
             <View style={styles.cardContainer}>
@@ -475,12 +488,13 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Account</Text>
             <View style={styles.cardContainer}>
-              <TouchableOpacity onPress={() => !isPremium && router.push('/premium' as any)} style={[styles.rowCard, styles.rowCardFirst, styles.rowCardBorder]} disabled={isPremium}>
-                <View style={styles.rowIcon}><Sparkles size={20} color="#FFD700" /></View>
-                <View style={styles.rowContent}><Text style={styles.rowTitle}>Premium</Text><Text style={styles.rowSubtitle}>{isPremium ? 'Active' : 'Upgrade'}</Text></View>
-                {!isPremium && <ChevronRight size={20} color={Colors.textTertiary} />}
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSendFeedback} style={[styles.rowCard, styles.rowCardBorder]}><View style={styles.rowIcon}><Mail size={20} color={Colors.textPrimary} /></View><View style={styles.rowContent}><Text style={styles.rowTitle}>Send Feedback</Text></View><ChevronRight size={20} color={Colors.textTertiary} /></TouchableOpacity>
+              {isPremium && (
+                <TouchableOpacity style={[styles.rowCard, styles.rowCardFirst, styles.rowCardBorder]} disabled>
+                  <View style={styles.rowIcon}><Sparkles size={20} color="#FFD700" /></View>
+                  <View style={styles.rowContent}><Text style={styles.rowTitle}>Premium</Text><Text style={styles.rowSubtitle}>Active</Text></View>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={handleSendFeedback} style={[styles.rowCard, !isPremium && styles.rowCardFirst, styles.rowCardBorder]}><View style={styles.rowIcon}><Mail size={20} color={Colors.textPrimary} /></View><View style={styles.rowContent}><Text style={styles.rowTitle}>Send Feedback</Text></View><ChevronRight size={20} color={Colors.textTertiary} /></TouchableOpacity>
               <TouchableOpacity onPress={handleShowProductGuide} style={[styles.rowCard, styles.rowCardBorder]}><View style={styles.rowIcon}><Info size={20} color={Colors.textPrimary} /></View><View style={styles.rowContent}><Text style={styles.rowTitle}>Product Guide</Text></View><ChevronRight size={20} color={Colors.textTertiary} /></TouchableOpacity>
               <TouchableOpacity onPress={handleSignOut} style={[styles.rowCard, styles.rowCardBorder]}><View style={styles.rowIcon}><LogOut size={20} color={Colors.textPrimary} /></View><View style={styles.rowContent}><Text style={styles.rowTitle}>Sign Out</Text></View><ChevronRight size={20} color={Colors.textTertiary} /></TouchableOpacity>
               <TouchableOpacity onPress={handleDeleteAccount} style={[styles.rowCard, styles.rowCardLast]}><View style={styles.rowIcon}><Trash2 size={20} color="#EF4444" /></View><View style={styles.rowContent}><Text style={[styles.rowTitle, { color: '#EF4444' }]}>Delete Account</Text></View></TouchableOpacity>

@@ -15,7 +15,7 @@ export const Colors = {
   gradients: {
     peach: ['#E87A7F', '#E4B5D3', '#E4B8A6'] as const,
     purple: ['#C084FC', '#8EC5FC', '#A8C0EE'] as const,
-    turquoise: ['#84FAB0', '#8FD3F4', '#A1C4FD'] as const,
+    turquoise: ['#6BCA9A', '#6BB8D4', '#7AA5E8'] as const,
   },
   
   // Legacy dark mode colors (for reference, will be replaced)

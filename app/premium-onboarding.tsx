@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Check, Circle, Brain, Zap, Infinity, Sparkles } from 'lucide-react-native';
+import { X, Check, Circle, Brain, Zap, Infinity, Sparkles } from 'lucide-react-native';
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
@@ -14,7 +14,7 @@ import { useAuth } from '@/store/useAuth';
 type PurchaseOption = 'weekly' | 'lifetime';
 const { width } = Dimensions.get('window');
 
-export default function PremiumScreen() {
+export default function PremiumOnboardingScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const { isPremium, packages, loading, purchasing, restoring, purchase, restore } = usePremium();
@@ -26,7 +26,8 @@ export default function PremiumScreen() {
   // Track premium screen viewed
   useEffect(() => {
     trackEvent(MixpanelEvents.PREMIUM_SCREEN_VIEWED, {
-      is_premium: isPremium
+      is_premium: isPremium,
+      from_onboarding: true
     });
   }, []);
 
@@ -82,7 +83,8 @@ export default function PremiumScreen() {
     // Track purchase started
     trackEvent(MixpanelEvents.PREMIUM_PURCHASE_STARTED, {
       plan_type: selectedOption,
-      product_id: pkg.product.identifier
+      product_id: pkg.product.identifier,
+      from_onboarding: true
     });
 
     const success = await purchase(pkg);
@@ -93,7 +95,7 @@ export default function PremiumScreen() {
       Alert.alert('Welcome to mora+!', message, [
         { 
           text: 'Get Started', 
-          onPress: () => router.replace('/(tabs)/home')
+          onPress: () => router.replace('/onboarding/07-clarifier')
         }
       ]);
     }
@@ -105,7 +107,7 @@ export default function PremiumScreen() {
       Alert.alert('Success!', 'Your premium subscription has been restored.', [
         { 
           text: 'Continue', 
-          onPress: () => router.replace('/(tabs)/home')
+          onPress: () => router.replace('/onboarding/07-clarifier')
         }
       ]);
     } else {
@@ -119,9 +121,14 @@ export default function PremiumScreen() {
         <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top']}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <ArrowLeft size={24} color={Colors.textPrimary} />
-            </TouchableOpacity>
+            <View style={styles.headerRight}>
+              <TouchableOpacity 
+                onPress={() => router.replace('/onboarding/07-clarifier')} 
+                style={styles.closeButton}
+              >
+                <X size={24} color={Colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.alreadyPremiumContainer}>
             <View style={styles.premiumBadgeContainer}>
@@ -147,9 +154,14 @@ export default function PremiumScreen() {
       
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color={Colors.textPrimary} />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              onPress={() => router.replace('/onboarding/07-clarifier')} 
+              style={styles.closeButton}
+            >
+              <X size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
@@ -163,10 +175,7 @@ export default function PremiumScreen() {
               />
             </View>
             <Text style={styles.heroTitle}>
-              Unlock mora+
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              Get full access to biometrics and life trajectory simulations
+              Your digital twin is waiting for you
             </Text>
           </View>
 
@@ -364,13 +373,17 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     zIndex: 10,
   },
-  backButton: {
+  headerRight: {
+    width: '100%',
+    alignItems: 'flex-end',
+  },
+  closeButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
     backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
   },
   content: {
     flex: 1,
@@ -408,60 +421,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
   },
-  heroSubtitle: {
-    fontSize: 16,
-    fontWeight: '400',
-    fontFamily: Fonts.secondary.bold,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 20,
-    marginTop: 8,
-  },
 
-
-  // Features Section
-  featuresSection: {
-    marginBottom: 32,
-  },
-  featuresTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    fontFamily: Fonts.primary.regular,
-    color: Colors.textPrimary,
-    marginBottom: 20,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-    gap: 16,
-  },
-  featureIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  featureContent: {
-    flex: 1,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: Fonts.secondary.bold,
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  featureDescription: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.fallback.secondary,
-    fontWeight: '400',
-    lineHeight: 20,
-  },
 
   // Pricing Cards
   pricingContainer: {
@@ -581,6 +541,49 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
   },
 
+  // Features Section
+  featuresSection: {
+    marginBottom: 32,
+  },
+  featuresTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
+    marginBottom: 20,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+    gap: 16,
+  },
+  featureIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  featureContent: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  featureDescription: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.fallback.secondary,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+
   // Footer
   finePrint: {
     fontSize: 13,
@@ -638,3 +641,4 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
   },
 });
+

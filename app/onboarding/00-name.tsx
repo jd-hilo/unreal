@@ -7,6 +7,7 @@ import { useAuth } from '@/store/useAuth';
 import { updateProfileFields, getProfile, saveOnboardingResponse } from '@/lib/storage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { supabase } from '@/lib/supabase';
+import { Colors } from '@/constants/Theme';
 
 export default function OnboardingStep0() {
   const router = useRouter();
@@ -125,10 +126,8 @@ export default function OnboardingStep0() {
       progress={0.25}
       onNext={handleNext}
       canContinue={firstName.trim().length > 0}
-      backgroundGradient={['#050505', '#0F0F18', '#0D0D15', '#050505']}
-      buttonGradient={['rgba(65, 105, 225, 0.9)', 'rgba(30, 58, 138, 0.8)', 'rgba(65, 105, 225, 0.7)']}
-      progressBarGradient={['#87CEFA', '#87CEFA']}
-      buttonShadowColor="rgba(65, 105, 225, 0.5)"
+      buttonGradient={Colors.gradients.turquoise}
+      progressBarGradient={Colors.gradients.turquoise}
     >
       <View style={styles.inputWrapper}>
         <Input
@@ -142,7 +141,7 @@ export default function OnboardingStep0() {
           onSubmitEditing={handleNext}
           style={styles.input}
           containerStyle={styles.inputContainer}
-          placeholderTextColor="rgba(255, 255, 255, 0.5)"
+          placeholderTextColor={Colors.textTertiary}
         />
       </View>
       
@@ -171,7 +170,7 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 15,
-    color: 'rgba(200, 200, 200, 0.7)',
+    color: Colors.textSecondary,
     marginTop: 16,
     fontWeight: '400',
   },

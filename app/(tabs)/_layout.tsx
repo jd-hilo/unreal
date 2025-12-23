@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
-import { Home, Layers } from 'lucide-react-native';
-import { HomeGradientIcon, SimulationsGradientIcon } from '@/components/GradientIcons';
+import { Home } from 'lucide-react-native';
+import { HomeGradientIcon } from '@/components/GradientIcons';
 import { BlurView } from 'expo-blur';
 import { StyleSheet, Platform, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -94,18 +94,6 @@ export default function TabLayout() {
               <HomeGradientIcon size={size} />
             ) : (
               <Home size={size} color={Colors.textTertiary} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="simulations"
-        options={{
-          title: 'Simulations',
-          tabBarIcon: ({ focused, size }) => 
-            focused ? (
-              <SimulationsGradientIcon size={size} />
-            ) : (
-              <Layers size={size} color={Colors.textTertiary} />
             ),
         }}
       />

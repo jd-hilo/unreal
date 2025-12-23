@@ -21,6 +21,9 @@ import { Input } from '@/components/Input';
 import { ChevronRight, ArrowLeft } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import { PhoneAuth } from '@/components/phoneAuth';
+import { Colors, Fonts } from '@/constants/Theme';
+import { StatusBar } from 'expo-status-bar';
+
 export default function AuthScreen() {
   const router = useRouter();
   const { user, initialized, signIn, signUp, appleSignIn, resetPassword } = useAuth();
@@ -223,12 +226,8 @@ export default function AuthScreen() {
   // Email Page
   if (step === 'email') {
     return (
-      <LinearGradient
-        colors={['#050505', '#0F0F18', '#0D0D15', '#050505']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.gradientBackground}
-      >
+      <View style={styles.gradientBackground}>
+        <StatusBar style="dark" />
         <KeyboardAvoidingView
           style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -271,7 +270,7 @@ export default function AuthScreen() {
                   onSubmitEditing={handleContinue}
                   style={styles.input}
                   containerStyle={styles.inputContainer}
-                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  placeholderTextColor={Colors.textTertiary}
                 />
               </View>
 
@@ -290,33 +289,28 @@ export default function AuthScreen() {
                 (loading || !email) && styles.floatingButtonDisabled
               ]}
             >
-              <LinearGradient
-                colors={email && !loading ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[
-                  styles.floatingButton,
-                  email && !loading && styles.floatingButtonActiveBorder
-                ]}
-              >
-                {loading ? (
-                  <Text style={[
-                    styles.floatingButtonText,
-                    (loading || !email) && styles.floatingButtonTextDisabled
-                  ]}>Updating</Text>
-                ) : (
-                  <>
-                    <Text style={[
-                      styles.floatingButtonText,
-                      (loading || !email) && styles.floatingButtonTextDisabled
-                    ]}>Continue</Text>
-                    <ChevronRight 
-                      size={20} 
-                      color={(loading || !email) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
-                    />
-                  </>
-                )}
-              </LinearGradient>
+              {email && !loading ? (
+                <LinearGradient
+                  colors={Colors.gradients.turquoise}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.floatingButton}
+                >
+                  <Text style={styles.floatingButtonText}>Continue</Text>
+                  <ChevronRight size={20} color="#FFFFFF" />
+                </LinearGradient>
+              ) : (
+                <View style={[styles.floatingButton, styles.floatingButtonDisabled]}>
+                  {loading ? (
+                    <Text style={styles.floatingButtonTextDisabled}>Updating</Text>
+                  ) : (
+                    <>
+                      <Text style={styles.floatingButtonTextDisabled}>Continue</Text>
+                      <ChevronRight size={20} color={Colors.textTertiary} />
+                    </>
+                  )}
+                </View>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -341,18 +335,14 @@ export default function AuthScreen() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </LinearGradient>
+      </View>
     );
   }
 
   // Password Page
   return (
-    <LinearGradient
-      colors={['#050505', '#050505']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
-      style={styles.gradientBackground}
-    >
+    <View style={styles.gradientBackground}>
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -365,7 +355,7 @@ export default function AuthScreen() {
             style={styles.backButton}
             activeOpacity={0.7}
           >
-            <ArrowLeft size={24} color="#FFFFFF" />
+            <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -401,7 +391,7 @@ export default function AuthScreen() {
                 onSubmitEditing={handleAuth}
                 style={styles.input}
                 containerStyle={styles.inputContainer}
-                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                placeholderTextColor={Colors.textTertiary}
               />
             </View>
 
@@ -444,43 +434,39 @@ export default function AuthScreen() {
                 (loading || !password) && styles.floatingButtonDisabled
               ]}
             >
-              <LinearGradient
-                colors={password && !loading ? ['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[
-                  styles.floatingButton,
-                  password && !loading && styles.floatingButtonActiveBorder
-                ]}
-              >
-                {loading ? (
-                  <Text style={[
-                    styles.floatingButtonText,
-                    (loading || !password) && styles.floatingButtonTextDisabled
-                  ]}>Updating</Text>
-                ) : (
-                  <>
-                    <Text style={[
-                      styles.floatingButtonText,
-                      (loading || !password) && styles.floatingButtonTextDisabled
-                    ]}>Continue</Text>
-                    <ChevronRight 
-                      size={20} 
-                      color={(loading || !password) ? "rgba(255,255,255,0.5)" : "#FFFFFF"} 
-                    />
-                  </>
-                )}
-              </LinearGradient>
+              {password && !loading ? (
+                <LinearGradient
+                  colors={Colors.gradients.turquoise}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.floatingButton}
+                >
+                  <Text style={styles.floatingButtonText}>Continue</Text>
+                  <ChevronRight size={20} color="#FFFFFF" />
+                </LinearGradient>
+              ) : (
+                <View style={[styles.floatingButton, styles.floatingButtonDisabled]}>
+                  {loading ? (
+                    <Text style={styles.floatingButtonTextDisabled}>Updating</Text>
+                  ) : (
+                    <>
+                      <Text style={styles.floatingButtonTextDisabled}>Continue</Text>
+                      <ChevronRight size={20} color={Colors.textTertiary} />
+                    </>
+                  )}
+                </View>
+              )}
             </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   gradientBackground: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   container: {
     flex: 1,
@@ -489,8 +475,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
     position: 'relative',
   },
   backButton: {
@@ -500,7 +484,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
     padding: 8,
     borderRadius: 12,
-    backgroundColor: 'rgba(20, 30, 50, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
   content: {
     flex: 1,
@@ -516,14 +500,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     lineHeight: 36,
     marginBottom: 8,
+    fontFamily: Fonts.secondary.bold,
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     lineHeight: 24,
+    fontFamily: Fonts.secondary.bold,
   },
   body: {
     gap: 16,
@@ -539,7 +525,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '500',
     letterSpacing: -0.3,
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     paddingVertical: 12,
     paddingHorizontal: 0,
   },
@@ -554,17 +540,15 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 32 : 36,
     backgroundColor: 'transparent',
     gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(59, 37, 109, 0.2)',
   },
   floatingButtonWrapper: {
     borderRadius: 24,
-    overflow: 'visible',
-    shadowColor: 'rgba(135, 206, 250, 0.5)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   floatingButton: {
     flexDirection: 'row',
@@ -575,12 +559,8 @@ const styles = StyleSheet.create({
     gap: 10,
     borderRadius: 24,
   },
-  floatingButtonActiveBorder: {
-    borderWidth: 1,
-    borderColor: '#87CEFA',
-  },
   floatingButtonDisabled: {
-    borderRadius: 24,
+    backgroundColor: 'rgba(0,0,0,0.05)',
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -588,9 +568,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
   floatingButtonTextDisabled: {
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
   },
   appleButton: {
     backgroundColor: '#000000',
@@ -601,6 +583,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#000000',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   appleButtonContent: {
     flexDirection: 'row',
@@ -627,18 +614,19 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
   },
   termsText: {
     fontSize: 12,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     marginTop: 16,
     marginBottom: 2,
     lineHeight: 16,
   },
   linkText: {
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.gradients.turquoise[1],
     textDecorationLine: 'underline',
     fontWeight: '600',
   },
@@ -649,7 +637,7 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.gradients.turquoise[1],
     fontWeight: '600',
   },
   resetPasswordSuccess: {
