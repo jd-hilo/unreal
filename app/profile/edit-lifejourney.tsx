@@ -1,11 +1,13 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
-import { Button } from '@/components/Button';
-import { ArrowLeft } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { getProfile, saveOnboardingResponse } from '@/lib/storage';
+import { Colors, Fonts } from '@/constants/Theme';
+import { StatusBar } from 'expo-status-bar';
 
 export default function EditLifeJourneyScreen() {
   const router = useRouter();
@@ -50,10 +52,11 @@ export default function EditLifeJourneyScreen() {
 
   if (initialLoading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.gradientBackground}>
+        <StatusBar style="dark" />
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color="#FFFFFF" />
+            <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.title}>Life Journey</Text>
         </View>
@@ -62,13 +65,27 @@ export default function EditLifeJourneyScreen() {
   }
 
   return (
+    <View style={styles.gradientBackground}>
+      <StatusBar style="dark" />
+      {/* Background gradient overlay */}
+      <LinearGradient
+        colors={[
+          'rgba(232, 122, 127, 0.15)', // peach
+          'rgba(132, 250, 176, 0.15)', // turquoise
+          'rgba(192, 132, 252, 0.15)', // purple
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#FFFFFF" />
+          <ArrowLeft size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Life Journey</Text>
       </View>
@@ -99,31 +116,56 @@ export default function EditLifeJourneyScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button
-          title={loading ? 'Saving...' : 'Save'}
+        <Pressable
           onPress={handleSave}
           disabled={loading}
-          style={styles.saveButton}
-        />
+          style={({ pressed }) => [
+            styles.saveButtonWrapper,
+            pressed && { opacity: 0.9 }
+          ]}
+        >
+          <View style={[
+            styles.saveButton,
+            loading && styles.saveButtonDisabled
+          ]}>
+            {!loading && (
+              <LinearGradient
+                colors={Colors.gradients.turquoise}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
+            <Text style={[
+              styles.saveButtonText,
+              loading && styles.saveButtonTextDisabled
+            ]}>
+              {loading ? 'Saving...' : 'Save'}
+            </Text>
+            {!loading && <ChevronRight size={20} color="#FFFFFF" />}
+          </View>
+        </Pressable>
       </View>
     </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientBackground: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#0C0C10',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: 0,
+    paddingBottom: 20,
     gap: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
   },
   backButton: {
     width: 40,
@@ -134,7 +176,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
     flex: 1,
   },
   content: {
@@ -143,18 +186,19 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 24,
     paddingTop: 32,
-    paddingBottom: 12,
+    paddingBottom: 120,
   },
   description: {
     fontSize: 16,
     lineHeight: 24,
-    color: 'rgba(200, 200, 200, 0.85)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
     marginBottom: 16,
   },
   aiNote: {
-    backgroundColor: 'rgba(135, 206, 250, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
     borderLeftWidth: 3,
-    borderLeftColor: 'rgba(135, 206, 250, 0.5)',
+    borderLeftColor: Colors.gradients.turquoise[1],
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
@@ -163,7 +207,8 @@ const styles = StyleSheet.create({
   aiNoteText: {
     fontSize: 14,
     lineHeight: 20,
-    color: 'rgba(135, 206, 250, 0.9)',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
     fontStyle: 'italic',
   },
   inputContainer: {
@@ -171,14 +216,40 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 24,
-    paddingTop: 6,
-    paddingBottom: 6,
-    backgroundColor: '#0C0C10',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(59, 37, 109, 0.2)',
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 36,
+    backgroundColor: 'transparent',
+  },
+  saveButtonWrapper: {
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   saveButton: {
-    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  saveButtonDisabled: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  saveButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  saveButtonTextDisabled: {
+    color: Colors.textTertiary,
   },
 });
 
