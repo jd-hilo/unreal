@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
-import { View, Text, StyleSheet, Animated, Image } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { useTwin } from '@/store/useTwin';
 import { useAuth } from '@/store/useAuth';
@@ -55,22 +55,78 @@ export default function OnboardingStep7() {
     }
   }, [titleComplete]);
   
-  // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Messages for creating digital twin
+  const TWIN_MESSAGES = [
+    "Loading desires...",
+    "Analyzing situation...",
+    "Mapping values...",
+    "Understanding journey...",
+    "Processing decisions...",
+    "Building personality...",
+    "Creating twin...",
+    "Almost ready...",
+  ];
+
+  // Animation values for messages
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+  const messageOpacity = useRef(new Animated.Value(0)).current;
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Start fade in animation when loading
+  // Cycle through messages with fade in/out animation
   useEffect(() => {
-    if (isSummarizing) {
-      // Slow fade in animation for cube
-      Animated.timing(fadeAnim, {
+    if (!isSummarizing) {
+      // Reset when not loading
+      setCurrentMessageIndex(0);
+      messageOpacity.setValue(0);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      return;
+    }
+
+    const showNextMessage = (index: number) => {
+      if (index >= TWIN_MESSAGES.length) {
+        // Loop back to start
+        setCurrentMessageIndex(0);
+        showNextMessage(0);
+        return;
+      }
+
+      // Fade in
+      messageOpacity.setValue(0);
+      setCurrentMessageIndex(index);
+      
+      Animated.timing(messageOpacity, {
         toValue: 1,
-        duration: 2000, // 2 seconds for slow fade
+        duration: 600,
         useNativeDriver: true,
       }).start();
-    } else {
-      // Reset animation when not loading
-      fadeAnim.setValue(0);
-    }
+
+      // Stay visible, then fade out
+      timeoutRef.current = setTimeout(() => {
+        Animated.timing(messageOpacity, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }).start(() => {
+          // Move to next message after fade out
+          timeoutRef.current = setTimeout(() => {
+            showNextMessage(index + 1);
+          }, 100);
+        });
+      }, 1200); // Stay visible for 1.2 seconds
+    };
+
+    // Start showing messages
+    showNextMessage(0);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
   }, [isSummarizing]);
 
   async function handleComplete() {
@@ -255,31 +311,20 @@ export default function OnboardingStep7() {
       animatedButton={!isSummarizing}
     >
       {isSummarizing ? (
-        <Animated.View 
-          style={[
-            styles.loadingContainer,
-            {
-              opacity: fadeAnim,
-            }
-          ]}
-        >
-          {/* Cube image fading in */}
+        <View style={styles.loadingContainer}>
           <Animated.View
             style={[
-              styles.cubeContainer,
+              styles.messageContainer,
               {
-                opacity: fadeAnim,
+                opacity: messageOpacity,
               },
             ]}
           >
-            <Image
-              source={require('@/assets/images/cube.png')}
-              style={styles.cubeImage}
-              resizeMode="contain"
-            />
+            <Text style={styles.loadingMessage}>
+              {TWIN_MESSAGES[currentMessageIndex]}
+            </Text>
           </Animated.View>
-          
-        </Animated.View>
+        </View>
       ) : null}
     </OnboardingScreen>
   );
@@ -290,18 +335,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 80,
+    minHeight: 120,
     position: 'relative',
   },
-  cubeContainer: {
-    width: 200,
-    height: 200,
-    marginBottom: 40,
+  messageContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cubeImage: {
-    width: '100%',
-    height: '100%',
+  loadingMessage: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    letterSpacing: 0.3,
   },
   animatedTitle: {
     fontSize: 32,

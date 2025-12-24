@@ -99,6 +99,7 @@ export default function RootLayout() {
       <Stack.Screen name="journal" />
       <Stack.Screen name="profile" />
       <Stack.Screen name="premium" />
+      <Stack.Screen name="onboarding-premium" />
       <Stack.Screen name="+not-found" />
       <StatusBar style="light" />
     </Stack>

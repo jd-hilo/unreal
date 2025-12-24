@@ -611,3 +611,20 @@ export interface TimelineTwinProfile {
   netWorth?: string;
   [key: string]: any;
 }
+
+export interface DailyStory {
+  id: string;
+  title: string;
+  summary: string;
+  url: string;
+  publishedAt: string;
+  impactScore: number; // -100 to +100, negative = bad, positive = good
+  affectedMetrics: {
+    money?: number; // -100 to +100
+    happiness?: number; // -100 to +100
+    freedom?: number; // -100 to +100
+    growth?: number; // -100 to +100
+    relationships?: number; // -100 to +100
+  };
+  explanation: string;
+}

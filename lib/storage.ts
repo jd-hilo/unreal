@@ -730,13 +730,45 @@ export async function generateUniqueTwinCode(userId: string): Promise<string> {
  */
 /**
  * Assign A/B test group to a user
- * Currently assigns all users to group B
+ * Alternates between A and B based on the last assigned user
+ * If last user was A, assign B; if last user was B, assign A
+ * If no other users exist, defaults to A
  */
 export async function assignABTestGroup(userId: string): Promise<'A' | 'B'> {
-  // Assign all users to group B
-  const group: 'A' | 'B' = 'B';
-  
-  return await saveABTestGroup(userId, group);
+  try {
+    // Get the most recently created profile (excluding current user)
+    // Order by created_at DESC to get the most recent user
+    const { data: recentProfiles, error: queryError } = await supabase
+      .from('profiles')
+      .select('ab_test_group, created_at')
+      .neq('user_id', userId)
+      .not('ab_test_group', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    if (queryError) {
+      console.error('Error querying recent profiles for AB test assignment:', queryError);
+      // Default to A if query fails
+      return await saveABTestGroup(userId, 'A');
+    }
+    
+    // If there are no other users with assigned groups, default to A
+    if (!recentProfiles || recentProfiles.length === 0) {
+      return await saveABTestGroup(userId, 'A');
+    }
+    
+    // Get the last assigned user's group
+    const lastUserGroup = recentProfiles[0].ab_test_group;
+    
+    // Alternate: if last was A, assign B; if last was B, assign A
+    const group: 'A' | 'B' = lastUserGroup === 'A' ? 'B' : 'A';
+    
+    return await saveABTestGroup(userId, group);
+  } catch (error) {
+    console.error('Error in assignABTestGroup:', error);
+    // Default to A on any error
+    return await saveABTestGroup(userId, 'A');
+  }
 }
 
 /**

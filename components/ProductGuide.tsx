@@ -15,7 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { ChevronRight, Book, Smile, DollarSign, Calendar } from 'lucide-react-native';
+import { ChevronRight, Book, Smile, DollarSign, Calendar, Globe, TrendingUp, TrendingDown } from 'lucide-react-native';
 import { getProfile } from '@/lib/storage';
 import { Card, CardTitle, CardContent } from '@/components/Card';
 import { ProgressBar } from '@/components/ProgressBar';
@@ -30,6 +30,7 @@ interface ProductGuideProps {
   twinCardLayout?: { x: number; y: number; width: number; height: number };
   userId?: string;
   onStepChange?: (step: number) => void;
+  abTestGroup?: 'A' | 'B' | null;
 }
 
 const { width, height } = Dimensions.get('window');
@@ -43,7 +44,8 @@ export function ProductGuide({
   whatIfCardLayout,
   journalCardLayout,
   twinCardLayout,
-  userId
+  userId,
+  abTestGroup
 }: ProductGuideProps) {
   const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(0);
@@ -60,7 +62,8 @@ export function ProductGuide({
   // We'll use the full screen height for positioning calculations to avoid confusion
   const screenHeight = height;
 
-  const steps = [
+  // Build steps array conditionally based on A/B test group
+  const baseSteps = [
     {
       id: 'decision',
       title: "Make Better Decisions",
@@ -144,35 +147,88 @@ export function ProductGuide({
       cardTitle: "Explore",
       cardSubtitle: "See your alternate life"
     },
-    {
-      id: 'journal',
-      title: "Stay in Sync",
-      renderContent: () => (
-         <View style={styles.visualContentContainer}>
-            <Card style={{ padding: 12 }}>
-              <CardContent>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+  ];
+
+  // Add Journal step for A users or World Effect step for B users
+  const journalOrWorldEffectStep = abTestGroup === 'B' ? {
+    id: 'world-effect',
+    title: "World Effect",
+    renderContent: () => (
+      <View style={styles.visualContentContainer}>
+        <Card style={{ padding: 12 }}>
+          <CardContent>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Calendar size={14} color="rgba(255,255,255,0.5)" />
-                    <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Today, 9:41 AM</Text>
-                  </View>
-                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(135, 206, 250, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Smile size={16} color="#87CEFA" />
+                    <TrendingDown size={14} color="#EF4444" />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#EF4444' }}>-45</Text>
                   </View>
                 </View>
-                <Text style={{ fontSize: 15, color: 'rgba(255,255,255,0.9)', fontStyle: 'italic', lineHeight: 20 }}>
-                  "Feeling excited about the new project at work today. It aligns perfectly with my goal to prioritize {topValue.toLowerCase()}..."
-                </Text>
-              </CardContent>
-            </Card>
-         </View>
-      ),
-      layout: journalCardLayout,
-      isIconComponent: true,
-      IconComponent: Book,
-      cardTitle: "Journal",
-      cardSubtitle: "Daily reflection"
-    },
+                <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(16, 185, 129, 0.1)' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <TrendingUp size={14} color="#10B981" />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>+20</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: '#FFFFFF', marginBottom: 6 }}>
+              Tech layoffs affect your industry
+            </Text>
+            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 18 }}>
+              Recent layoffs in tech could impact your job security and career growth opportunities...
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+              <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                <Text style={{ fontSize: 11, color: '#EF4444' }}>💰 Growth</Text>
+              </View>
+              <View style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                <Text style={{ fontSize: 11, color: '#10B981' }}>😊 Happiness</Text>
+              </View>
+            </View>
+          </CardContent>
+        </Card>
+      </View>
+    ),
+    layout: journalCardLayout,
+    isIconComponent: true,
+    IconComponent: Globe,
+    cardTitle: "World Effect",
+    cardSubtitle: "How the world is affecting you"
+  } : {
+    id: 'journal',
+    title: "Stay in Sync",
+    renderContent: () => (
+       <View style={styles.visualContentContainer}>
+          <Card style={{ padding: 12 }}>
+            <CardContent>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Calendar size={14} color="rgba(255,255,255,0.5)" />
+                  <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Today, 9:41 AM</Text>
+                </View>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(135, 206, 250, 0.1)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Smile size={16} color="#87CEFA" />
+                </View>
+              </View>
+              <Text style={{ fontSize: 15, color: 'rgba(255,255,255,0.9)', fontStyle: 'italic', lineHeight: 20 }}>
+                "Feeling excited about the new project at work today. It aligns perfectly with my goal to prioritize {topValue.toLowerCase()}..."
+              </Text>
+            </CardContent>
+          </Card>
+       </View>
+    ),
+    layout: journalCardLayout,
+    isIconComponent: true,
+    IconComponent: Book,
+    cardTitle: "Journal",
+    cardSubtitle: "Daily reflection"
+  };
+
+  const steps = [
+    ...baseSteps,
+    journalOrWorldEffectStep,
     {
       id: 'twin',
       title: "Train Your Twin",

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, getInterestProgress, getTodayJournal, getAllYearPredictions } from '@/lib/storage';
-import { Compass, Sparkles, Zap, X, Trash2, Lock, ChevronRight, HelpCircle, Book, User, History, LayoutGrid, ScanLine, Settings } from 'lucide-react-native';
+import { Compass, Sparkles, Zap, X, Trash2, Lock, ChevronRight, HelpCircle, Book, User, History, LayoutGrid, ScanLine, Settings, AlertTriangle, Globe } from 'lucide-react-native';
 import { CompassGradientIcon, StarGradientIcon } from '@/components/GradientIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -18,7 +18,6 @@ import { Asset } from 'expo-asset';
 import { ProductGuide } from '@/components/ProductGuide';
 import { getHasSeenDecisionGuide, setHasSeenDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent, MixpanelEvents, trackScreenView } from '@/lib/mixpanel';
-import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText, TSpan, Path } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 16;
@@ -400,88 +399,52 @@ export default function HomeScreen() {
                       {
                         scale: bannerHoverAnim.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [1, 0.94],
+                          outputRange: [1, 0.98],
                         }),
                       },
                       {
                         translateY: bannerContinuousHover.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [-2, 2],
+                          outputRange: [0, -4],
                         }),
                       },
                     ],
-                    opacity: bannerHoverAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [1, 0.85],
-                    }),
                   },
                 ]}
               >
-                {/* Gray Background with Gradient Text/Icons */}
-                <View style={styles.predictionBannerYellowWrapper}>
-                  <View style={styles.predictionBannerGrayBackground}>
-                    {/* Inner glow effect */}
-                    <View style={styles.predictionBannerYellowGlow} />
+                <LinearGradient
+                  colors={['#1C1C1E', '#1C1C1E']} // Solid dark background to match result screens
+                  style={styles.predictionCard}
+                >
+                  <View style={styles.predictionCardInner}>
+                    <View style={styles.predictionHeader}>
+                      <View style={styles.predictionIconBadge}>
+                        <Sparkles size={20} color="#2DD4BF" fill="#2DD4BF" />
+                      </View>
+                      <Text style={styles.predictionLabel}>NEW FEATURE</Text>
+                    </View>
                     
-                    {/* Content */}
-                    <View style={styles.predictionBannerInner}>
-                      {/* Gradient Sparkles Icon */}
-                      <View style={styles.sparklesIconWrapper}>
-                        <Svg width={22} height={22} viewBox="0 0 24 24">
-                          <Defs>
-                            <SvgLinearGradient id="bannerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <Stop offset="0%" stopColor="#2DD4BF" />
-                              <Stop offset="100%" stopColor="#3B82F6" />
-                            </SvgLinearGradient>
-                          </Defs>
-                          <Path
-                            d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z"
-                            fill="url(#bannerGradient)"
-                          />
-                        </Svg>
+                    <View style={styles.predictionMainContent}>
+                      <View style={styles.predictionTextContent}>
+                        <Text style={styles.predictionTitle}>Simulate your 2026</Text>
+                        <Text style={styles.predictionSubtitle}>See what the year holds for you</Text>
                       </View>
                       
-                      {/* Gradient Text */}
-                      <View style={styles.gradientTextContainer}>
-                        <Svg width={180} height={18}>
-                          <Defs>
-                            <SvgLinearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                              <Stop offset="0%" stopColor="#2DD4BF" />
-                              <Stop offset="100%" stopColor="#3B82F6" />
-                            </SvgLinearGradient>
-                          </Defs>
-                          <SvgText
-                            x="0"
-                            y="14"
-                            fontSize="15"
-                            fontWeight="800"
-                            fill="url(#textGradient)"
-                          >
-                            SIMULATE YOUR 2026
-                          </SvgText>
-                        </Svg>
+                      <View style={styles.predictionArrowButton}>
+                        <ChevronRight size={24} color="#2DD4BF" />
                       </View>
-                      
-                      {/* Gradient Chevron Icon */}
-                      <Svg width={22} height={22} viewBox="0 0 24 24">
-                        <Defs>
-                          <SvgLinearGradient id="chevronGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <Stop offset="0%" stopColor="#2DD4BF" />
-                            <Stop offset="100%" stopColor="#3B82F6" />
-                          </SvgLinearGradient>
-                        </Defs>
-                        <Path
-                          d="M9 18L15 12L9 6"
-                          stroke="url(#chevronGradient)"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          fill="none"
-                        />
-                      </Svg>
                     </View>
                   </View>
-                </View>
+                  
+                  {/* Decorative faint glow */}
+                  <LinearGradient
+                    colors={['rgba(45, 212, 191, 0.15)', 'transparent']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.predictionGlow}
+                    pointerEvents="none"
+                  />
+                </LinearGradient>
               </Animated.View>
             </TouchableOpacity>
 
@@ -563,40 +526,73 @@ export default function HomeScreen() {
                 </Animated.View>
               </TouchableOpacity>
 
-              {/* Card 3: Journal */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/journal' as any);
-                }}
-                activeOpacity={0.8}
-                style={styles.gridCardWrapper}
-              >
-                <View 
-                  ref={journalCardRef}
-                  style={styles.gridCard}
-                  onLayout={() => {
-                    journalCardRef.current?.measureInWindow((x, y, width, height) => {
-                      setJournalCardLayout({ x, y, width, height });
-                    });
+              {/* Card 3: Journal (A users) or World Effect (B users) */}
+              {abTestGroup === 'B' ? (
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/world-effect' as any);
                   }}
+                  activeOpacity={0.8}
+                  style={styles.gridCardWrapper}
                 >
-                  <BlurView intensity={40} tint="dark" style={styles.gridCardBlur}>
-                    {!hasTodayJournal && (
-                      <View style={styles.notificationDot} />
-                    )}
-                    <View style={styles.gridCardContent}>
-                      <View style={styles.gridIconContainer}>
-                         <Book size={32} color="#FFFFFF" strokeWidth={1.5} />
+                  <View 
+                    ref={journalCardRef}
+                    style={styles.gridCard}
+                    onLayout={() => {
+                      journalCardRef.current?.measureInWindow((x, y, width, height) => {
+                        setJournalCardLayout({ x, y, width, height });
+                      });
+                    }}
+                  >
+                    <BlurView intensity={40} tint="dark" style={styles.gridCardBlur}>
+                      <View style={styles.gridCardContent}>
+                        <View style={styles.gridIconContainer}>
+                          <Globe size={32} color="#FFFFFF" strokeWidth={1.5} />
+                        </View>
+                        <Text style={styles.gridCardTitle}>World Effect</Text>
+                        <Text style={styles.gridCardSubtitle} numberOfLines={2}>
+                          How the world is affecting you
+                        </Text>
                       </View>
-                      <Text style={styles.gridCardTitle}>Journal</Text>
-                      <Text style={styles.gridCardSubtitle} numberOfLines={2}>
-                        {hasTodayJournal ? 'Entry complete' : 'Daily reflection'}
-                      </Text>
-                    </View>
-                  </BlurView>
-                </View>
-              </TouchableOpacity>
+                    </BlurView>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/journal' as any);
+                  }}
+                  activeOpacity={0.8}
+                  style={styles.gridCardWrapper}
+                >
+                  <View 
+                    ref={journalCardRef}
+                    style={styles.gridCard}
+                    onLayout={() => {
+                      journalCardRef.current?.measureInWindow((x, y, width, height) => {
+                        setJournalCardLayout({ x, y, width, height });
+                      });
+                    }}
+                  >
+                    <BlurView intensity={40} tint="dark" style={styles.gridCardBlur}>
+                      {!hasTodayJournal && (
+                        <View style={styles.notificationDot} />
+                      )}
+                      <View style={styles.gridCardContent}>
+                        <View style={styles.gridIconContainer}>
+                          <Book size={32} color="#FFFFFF" strokeWidth={1.5} />
+                        </View>
+                        <Text style={styles.gridCardTitle}>Journal</Text>
+                        <Text style={styles.gridCardSubtitle} numberOfLines={2}>
+                          {hasTodayJournal ? 'Entry complete' : 'Daily reflection'}
+                        </Text>
+                      </View>
+                    </BlurView>
+                  </View>
+                </TouchableOpacity>
+              )}
 
               {/* Card 4: Twin Status */}
               <TouchableOpacity
@@ -730,6 +726,7 @@ export default function HomeScreen() {
           twinCardLayout={twinCardLayout}
           userId={user?.id}
           onStepChange={setGuideStep}
+          abTestGroup={abTestGroup}
         />
       )}
 
@@ -1000,6 +997,8 @@ const styles = StyleSheet.create({
   },
   echoCardWrapper: {
     width: width * 0.7,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   echoCard: {
     flexDirection: 'row',
@@ -1010,6 +1009,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
     gap: 12,
+    overflow: 'hidden',
   },
   echoIcon: {
     width: 36,
@@ -1118,109 +1118,83 @@ const styles = StyleSheet.create({
   predictionBanner: {
     marginBottom: 24,
     marginVertical: 4,
-    paddingVertical: 2,
-    borderRadius: 999,
-    overflow: 'visible',
   },
   predictionBannerContent: {
-    position: 'relative',
-    borderRadius: 999,
-    overflow: 'visible',
+    shadowColor: '#2DD4BF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  predictionBannerBlur: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 999,
-    margin: 1,
-    paddingVertical: 2,
+  predictionCard: {
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    // Matches app's dark card style with gradient border wrapper
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#1C1C1E',
   },
-  predictionBannerBorderWrapper: {
+  predictionCardInner: {
+    padding: 20,
+    zIndex: 1,
+  },
+  predictionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  predictionIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(45, 212, 191, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  predictionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2DD4BF',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  predictionMainContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  predictionTextContent: {
+    flex: 1,
+  },
+  predictionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+    letterSpacing: -0.5,
+  },
+  predictionSubtitle: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  predictionArrowButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  predictionGlow: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  predictionBannerBorderGradient: {
-    position: 'absolute',
-    top: '-50%',
-    left: '-50%',
-    width: '200%',
-    height: '200%',
-  },
-  predictionBannerYellowWrapper: {
-    borderRadius: 24,
-    overflow: 'visible',
-    shadowColor: '#2DD4BF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  predictionBannerGrayBackground: {
-    borderRadius: 24,
-    paddingVertical: 2,
-    paddingHorizontal: 2,
-    position: 'relative',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    backgroundColor: '#2A2A2A',
-  },
-  predictionBannerYellowGlow: {
-    position: 'absolute',
-    top: -10,
-    left: -10,
-    right: -10,
-    bottom: -10,
-    borderRadius: 24,
-    backgroundColor: '#2DD4BF',
-    opacity: 0.05,
-  },
-  gradientTextContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 18,
-  },
-  sparklesIconWrapper: {
-    marginTop: 2,
-  },
-  predictionBannerInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    gap: 6,
-    position: 'relative',
-    zIndex: 1,
-  },
-  predictionBannerText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-    textAlign: 'center',
-  },
-  predictionBannerYellowText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-  },
-  predictionBannerSubtext: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginLeft: 8,
-  },
-  predictionBannerChevron: {
-    marginLeft: 'auto',
+    zIndex: 0,
   },
 });

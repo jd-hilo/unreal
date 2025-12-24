@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { trackEvent, resetMixpanel, MixpanelEvents, setUserProperty } from '@/lib/mixpanel';
+import { trackEvent, resetMixpanel, MixpanelEvents, setUserProperty, identifyUser } from '@/lib/mixpanel';
 import { assignABTestGroup } from '@/lib/storage';
 import { router } from 'expo-router';
 
@@ -52,15 +52,17 @@ export const useAuth = create<AuthState>((set) => ({
     if (data.session && data.user?.id) {
       set({ session: data.session, user: data.session.user || data.user });
       
+      // Identify user in Mixpanel first
+      await identifyUser(data.user.id);
+      
       // Assign A/B test group for new user
       try {
         const abTestGroup = await assignABTestGroup(data.user.id);
-        // Track in Mixpanel
+        // Track in Mixpanel as user property (not in event)
         setUserProperty('ab_test_group', abTestGroup);
         trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
           user_id: data.user.id,
           email,
-          ab_test_group: abTestGroup,
         });
       } catch (abError) {
         console.error('Failed to assign AB test group:', abError);
@@ -96,6 +98,9 @@ export const useAuth = create<AuthState>((set) => ({
           const existingProfile = await getProfile(user.id);
           const isNewUser = !existingProfile;
           
+          // Identify user in Mixpanel first
+          await identifyUser(user.id);
+          
           // Track sign up for new users
           if (isNewUser) {
             trackEvent(MixpanelEvents.SIGN_UP_STARTED, { 
@@ -106,13 +111,12 @@ export const useAuth = create<AuthState>((set) => ({
             // Assign A/B test group for new user
             try {
               const abTestGroup = await assignABTestGroup(user.id);
-              // Track in Mixpanel
+              // Track in Mixpanel as user property (not in event)
               setUserProperty('ab_test_group', abTestGroup);
               trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
                 user_id: user.id,
                 email: user.email,
                 method: 'apple',
-                ab_test_group: abTestGroup,
               });
             } catch (abError) {
               console.error('Failed to assign AB test group:', abError);
@@ -341,6 +345,9 @@ export const useAuth = create<AuthState>((set) => ({
     if (data.session && data.user?.id) {
       set({ session: data.session, user: data.session.user || data.user });
       
+      // Identify user in Mixpanel first
+      await identifyUser(data.user.id);
+      
       // Check if this is a new user by checking if profile exists
       const { getProfile } = await import('@/lib/storage');
       const existingProfile = await getProfile(data.user.id);
@@ -350,12 +357,11 @@ export const useAuth = create<AuthState>((set) => ({
       if (isNewUser) {
         try {
           const abTestGroup = await assignABTestGroup(data.user.id);
-          // Track in Mixpanel
+          // Track in Mixpanel as user property (not in event)
           setUserProperty('ab_test_group', abTestGroup);
           trackEvent(MixpanelEvents.SIGN_UP_COMPLETED, {
             user_id: data.user.id,
             method: 'phone',
-            ab_test_group: abTestGroup,
           });
         } catch (abError) {
           console.error('Failed to assign AB test group:', abError);

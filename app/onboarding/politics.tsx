@@ -11,6 +11,7 @@ export default function PoliticsScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [selectedValue, setSelectedValue] = useState('');
+  const [abTestGroup, setAbTestGroup] = useState<'A' | 'B' | null>(null);
 
   useEffect(() => {
     loadExistingData();
@@ -22,6 +23,9 @@ export default function PoliticsScreen() {
       const profile = await getProfile(user.id);
       if (profile?.political_views) {
         setSelectedValue(profile.political_views);
+      }
+      if (profile?.ab_test_group) {
+        setAbTestGroup(profile.ab_test_group as 'A' | 'B');
       }
     } catch (error) {
       console.error('Failed to load existing data:', error);
@@ -42,7 +46,14 @@ export default function PoliticsScreen() {
         console.error('Failed to save political views:', error);
       }
     }
-    router.push('/premium?fromOnboarding=true');
+    
+    // Only show onboarding-premium for B users
+    if (abTestGroup === 'B') {
+      router.push('/onboarding-premium');
+    } else {
+      // A users go to regular premium or skip to next step
+      router.push('/premium?fromOnboarding=true');
+    }
   }
 
   return (

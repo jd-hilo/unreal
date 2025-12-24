@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Linking, Animated, Dimensions } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Sparkles, Zap, Lock, TrendingUp, Brain, Clock, X, Check, Circle, Infinity } from 'lucide-react-native';
+import { X, Check, Circle } from 'lucide-react-native';
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
@@ -13,10 +13,8 @@ import * as Haptics from 'expo-haptics';
 type PurchaseOption = 'weekly' | 'lifetime';
 const { width } = Dimensions.get('window');
 
-export default function PremiumScreen() {
+export default function OnboardingPremiumScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const fromOnboarding = params.fromOnboarding === 'true';
   const { isPremium, packages, loading, purchasing, restoring, purchase, restore } = usePremium();
   const [selectedOption, setSelectedOption] = useState<PurchaseOption>('lifetime'); // Default to lifetime/best value
   
@@ -26,7 +24,8 @@ export default function PremiumScreen() {
   // Track premium screen viewed
   useEffect(() => {
     trackEvent(MixpanelEvents.PREMIUM_SCREEN_VIEWED, {
-      is_premium: isPremium
+      is_premium: isPremium,
+      from_onboarding: true
     });
   }, []);
 
@@ -82,7 +81,8 @@ export default function PremiumScreen() {
     // Track purchase started
     trackEvent(MixpanelEvents.PREMIUM_PURCHASE_STARTED, {
       plan_type: selectedOption,
-      product_id: pkg.product.identifier
+      product_id: pkg.product.identifier,
+      from_onboarding: true
     });
 
     const success = await purchase(pkg);
@@ -93,9 +93,7 @@ export default function PremiumScreen() {
       Alert.alert('Welcome to unreal+!', message, [
         { 
           text: 'Get Started', 
-          onPress: () => fromOnboarding 
-            ? router.replace('/onboarding/07-clarifier') 
-            : router.replace('/(tabs)/home')
+          onPress: () => router.replace('/onboarding/07-clarifier')
         }
       ]);
     }
@@ -107,9 +105,7 @@ export default function PremiumScreen() {
       Alert.alert('Success!', 'Your premium subscription has been restored.', [
         { 
           text: 'Continue', 
-          onPress: () => fromOnboarding 
-            ? router.replace('/onboarding/07-clarifier') 
-            : router.replace('/(tabs)/home')
+          onPress: () => router.replace('/onboarding/07-clarifier')
         }
       ]);
     } else {
@@ -123,20 +119,14 @@ export default function PremiumScreen() {
         <StatusBar style="light" />
         <SafeAreaView style={styles.safeArea} edges={['top']}>
           <View style={styles.header}>
-            {fromOnboarding ? (
-              <View style={styles.headerRight}>
-                <TouchableOpacity 
-                  onPress={() => router.replace('/onboarding/07-clarifier')} 
-                  style={styles.closeButton}
-                >
-                  <X size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <ArrowLeft size={24} color="#FFFFFF" />
+            <View style={styles.headerRight}>
+              <TouchableOpacity 
+                onPress={() => router.replace('/onboarding/07-clarifier')} 
+                style={styles.closeButton}
+              >
+                <X size={24} color="#FFFFFF" />
               </TouchableOpacity>
-            )}
+            </View>
           </View>
           <View style={styles.alreadyPremiumContainer}>
             <View style={styles.premiumBadgeContainer}>
@@ -156,34 +146,6 @@ export default function PremiumScreen() {
     );
   }
 
-  const features = [
-    {
-      icon: Infinity,
-      title: 'Unlimited Simulations',
-      description: 'Create unlimited timelines and simulate unlimited years',
-    },
-    {
-      icon: Zap,
-      title: 'Simulate Decision Outcomes',
-      description: 'Long-term outcomes for every decision',
-    },
-    {
-      icon: Brain,
-      title: 'Future Biometric Prediction',
-      description: 'Detailed biometric predictions for scenarios',
-    },
-    {
-      icon: Sparkles,
-      title: 'Best Case & Worst Case Scenarios',
-      description: 'Optimistic and challenging future predictions',
-    },
-    {
-      icon: TrendingUp,
-      title: 'Advanced Analysis',
-      description: 'Deeper insights into your choices',
-    },
-  ];
-
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -200,20 +162,14 @@ export default function PremiumScreen() {
 
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          {fromOnboarding ? (
-            <View style={styles.headerRight}>
-              <TouchableOpacity 
-                onPress={() => router.replace('/onboarding/07-clarifier')} 
-                style={styles.closeButton}
-              >
-                <X size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <ArrowLeft size={24} color="#FFFFFF" />
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              onPress={() => router.replace('/onboarding/07-clarifier')} 
+              style={styles.closeButton}
+            >
+              <X size={24} color="#FFFFFF" />
             </TouchableOpacity>
-          )}
+          </View>
         </View>
 
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
@@ -226,10 +182,7 @@ export default function PremiumScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={styles.heroTitle}>Unlock unreal+</Text>
-            <Text style={styles.heroSubtitle}>
-              Get full access to biometrics and life trajectory simulations
-            </Text>
+            <Text style={styles.heroTitle}>Your Digital Twin is Waiting for You</Text>
           </View>
 
           {/* Pricing Cards */}
@@ -305,24 +258,6 @@ export default function PremiumScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Features List - Left Aligned */}
-          <View style={styles.featuresSection}>
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <View key={index} style={styles.featureRow}>
-                  <View style={styles.featureIcon}>
-                    <Icon size={20} color="#FFEB3B" strokeWidth={2.5} />
-                  </View>
-                  <View style={styles.featureContent}>
-                    <Text style={styles.featureTitle}>{feature.title}</Text>
-                    <Text style={styles.featureDescription}>{feature.description}</Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-
           {/* Continue Button */}
           <Animated.View 
             style={[
@@ -393,12 +328,6 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'flex-end',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   closeButton: {
     width: 40,
     height: 40,
@@ -442,44 +371,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 10,
     textAlign: 'center',
-  },
-  heroSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.6)',
-    textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: '80%',
-  },
-
-  // Features
-  featuresSection: {
-    marginBottom: 32,
-    paddingHorizontal: 10,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-    gap: 16,
-  },
-  featureIcon: {
-    marginTop: 2,
-  },
-  featureContent: {
-    flex: 1,
-  },
-  featureTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  featureDescription: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
-    lineHeight: 20,
   },
 
   // Pricing Cards
@@ -642,3 +534,4 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 });
+

@@ -2731,3 +2731,150 @@ export async function advanceTimeline({
     throw error;
   }
 }
+
+export interface StoryImpactScore {
+  overallScore: number; // -100 to +100, negative = bad impact, positive = good impact
+  affectedMetrics: {
+    money?: number; // -100 to +100
+    happiness?: number; // -100 to +100
+    freedom?: number; // -100 to +100
+    growth?: number; // -100 to +100
+    relationships?: number; // -100 to +100
+  };
+  explanation: string; // Why this story affects the user (positively or negatively)
+}
+
+/**
+ * Score a news story's impact on a user's twin metrics
+ * Returns positive scores for beneficial impacts and negative scores for harmful impacts
+ */
+export async function scoreStoryImpact(
+  userProfile: {
+    core_json?: any;
+    values_json?: string[];
+    narrative_summary?: string | null;
+    current_location?: string | null;
+    first_name?: string | null;
+  },
+  story: {
+    title: string;
+    summary: string;
+  }
+): Promise<StoryImpactScore> {
+  try {
+    // Build context about the user
+    const values = userProfile.values_json || [];
+    const coreJson = userProfile.core_json || {};
+    const narrative = userProfile.narrative_summary || 'No narrative available.';
+    
+    // Extract key user information
+    // Prioritize explicitly passed location, then core_json fields
+    const userLocation = userProfile.current_location || coreJson.current_location || coreJson.city || 'unknown location';
+    const userJob = coreJson.role || coreJson.job || coreJson.primary_role || 'unknown profession';
+    const userAge = coreJson.age_range || 'unknown age';
+    const userValues = values.join(', ') || 'no specific values';
+    const userName = userProfile.first_name || 'the user';
+    
+    const systemPrompt = `You are an AI that analyzes how news stories affect individuals based on their personal values, location, career, and life situation.
+    
+Your task is to score how a news story impacts a specific user named "${userName}" across 5 key life metrics:
+- money: Financial impact (income, expenses, investments, economic opportunities)
+- happiness: Emotional well-being and life satisfaction
+- freedom: Personal autonomy, choices, and independence
+- growth: Personal development, learning, career advancement
+- relationships: Social connections, family, friendships, romantic relationships
+
+SCORING RULES:
+- Score range: -100 to +100 for each metric
+- Positive scores (+1 to +100): Story creates opportunities, benefits, or favorable conditions
+- Negative scores (-100 to -1): Story creates threats, challenges, or unfavorable conditions
+- Zero (0): No significant impact on that metric. MOST stories should have 0 impact if they are geographically irrelevant.
+- Only score metrics that are actually affected (omit metrics with no impact)
+
+CRITICAL - RELEVANCE FILTERING:
+1. First, check if the story is geographically relevant. If it's a LOCAL story (e.g. "Mayor of Paris announces...") and the user is NOT there, impact is ZERO.
+2. Second, check if the story affects the user's PROFESSION or INDUSTRY (e.g. "Tech layoffs" affects a software engineer anywhere).
+3. Third, check if the story aligns with or threatens the user's VALUES and GOALS (e.g. "New environmental policy" affects someone who values sustainability).
+4. Fourth, check if the story has GLOBAL economic/political consequences (e.g. "Interest rates rise", "New pandemic").
+
+If none of these connections exist, return overallScore: 0.
+
+EXPLANATION RULES:
+- REFER TO THE USER BY NAME ("${userName}"), NEVER "you" or "your".
+- Treat "${userName}" as a 3rd person subject.
+- Do NOT repeatedly mention the location. Vary the connection point (profession, values, age).
+- FOCUS ON BENEFITS & GOALS: Frame the explanation in terms of how this helps the user achieve their goals.
+- USE PHRASING LIKE:
+  - "This can help ${userName} achieve their goal of [Goal] because..."
+  - "This advances ${userName}'s interest in [Interest] by..."
+  - "This opportunity supports ${userName}'s value of [Value]..."
+- Be specific about the mechanism of impact.
+
+Consider the FULL profile:
+1. User's Name: ${userName}
+2. User's profession & industry: ${userJob}
+3. User's values & priorities: ${userValues}
+4. User's life narrative & goals: ${narrative}
+5. User's location: ${userLocation}
+6. User's age & life stage: ${userAge}
+
+Return a JSON object with:
+- overallScore: A single number (-100 to +100) representing the overall impact
+- affectedMetrics: An object with only the metrics that are affected (money, happiness, freedom, growth, relationships), each with a score from -100 to +100
+- explanation: A clear 2-3 sentence explanation of why this story affects this specific user and whether it's positive or negative
+
+Be specific and personalized. Consider how this story relates to the user's unique situation.`;
+
+    const userMessage = `Analyze this news story for the user described above:
+
+Title: ${story.title}
+Summary: ${story.summary}
+
+Provide your analysis as a JSON object with overallScore, affectedMetrics, and explanation.`;
+
+    const response = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.7,
+      maxTokens: 1000,
+    });
+
+    // Parse the JSON response
+    let jsonContent = response.trim();
+    if (jsonContent.startsWith('```json')) {
+      jsonContent = jsonContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    } else if (jsonContent.startsWith('```')) {
+      jsonContent = jsonContent.replace(/```\n?/g, '').trim();
+    }
+
+    const parsed = JSON.parse(jsonContent);
+
+    // Validate and normalize the response
+    const result: StoryImpactScore = {
+      overallScore: Math.max(-100, Math.min(100, parsed.overallScore || 0)),
+      affectedMetrics: {},
+      explanation: parsed.explanation || 'No explanation provided.',
+    };
+
+    // Normalize metric scores
+    const metrics = ['money', 'happiness', 'freedom', 'growth', 'relationships'];
+    metrics.forEach(metric => {
+      if (parsed.affectedMetrics && parsed.affectedMetrics[metric] !== undefined) {
+        result.affectedMetrics[metric as keyof StoryImpactScore['affectedMetrics']] = 
+          Math.max(-100, Math.min(100, parsed.affectedMetrics[metric]));
+      }
+    });
+
+    return result;
+  } catch (error: any) {
+    console.error('Story impact scoring error:', error);
+    
+    // Return neutral score on error
+    return {
+      overallScore: 0,
+      affectedMetrics: {},
+      explanation: 'Unable to analyze story impact at this time.',
+    };
+  }
+}
