@@ -2,7 +2,7 @@
   "expo": {
     "name": "mora",
     "slug": "unreal",
-    "version": "1.2.0",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "unreal",
@@ -16,12 +16,16 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.jdhilo2.unreal",
+      "buildNumber": "41",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSMicrophoneUsageDescription": "This app needs microphone access to enable voice conversations with your AI twin builder, Sol.",
         "NSLocationWhenInUseUsageDescription": "This app needs location access to provide personalized local recommendations for restaurants, bars, and things to do near you."
       }
+    },
+    "android": {
+      "versionCode": 41
     },
     "web": {
       "bundler": "metro",
