@@ -4,3 +4,4 @@ ALTER TABLE timelines ADD COLUMN IF NOT EXISTS relationships jsonb[] DEFAULT '{}
 
 
 
+

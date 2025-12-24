@@ -74,7 +74,11 @@ export function WorldEffectInfoModal({ visible, story, onClose }: WorldEffectInf
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+              <ScrollView 
+                style={styles.scrollView} 
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+              >
                 {/* Story Title */}
                 <Text style={styles.storyTitle}>{story.title}</Text>
 
@@ -198,7 +202,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1A1A1A',
     borderRadius: 24,
     overflow: 'hidden',
-    maxHeight: '100%',
+    height: 600,
     width: '100%',
     maxWidth: 500,
     borderWidth: 1,
@@ -208,6 +212,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 10,
+    flexDirection: 'column',
   },
   header: {
     flexDirection: 'row',
@@ -229,7 +234,10 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   scrollView: {
-    maxHeight: '100%',
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
   storyTitle: {
     fontSize: 20,

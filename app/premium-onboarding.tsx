@@ -1,20 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Linking, Animated, Dimensions } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Check, Circle } from 'lucide-react-native';
+import { X, Check, Circle, Brain, Zap, Infinity, Sparkles } from 'lucide-react-native';
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import * as Haptics from 'expo-haptics';
+import { useAuth } from '@/store/useAuth';
 
 type PurchaseOption = 'weekly' | 'lifetime';
 const { width } = Dimensions.get('window');
 
-export default function OnboardingPremiumScreen() {
+export default function PremiumOnboardingScreen() {
   const router = useRouter();
+  const user = useAuth((state) => state.user);
   const { isPremium, packages, loading, purchasing, restoring, purchase, restore } = usePremium();
   const [selectedOption, setSelectedOption] = useState<PurchaseOption>('lifetime'); // Default to lifetime/best value
   
@@ -58,14 +59,14 @@ export default function OnboardingPremiumScreen() {
     // Find the appropriate package based on selected option
     let pkg = selectedOption === 'weekly' 
       ? packages.find(p => 
-          p.product.identifier === 'unreal_weekly_sub' ||
+          p.product.identifier === 'mora_weekly_sub' ||
           p.packageType === 'WEEKLY' || 
           p.identifier === '$rc_weekly' ||
           p.identifier.includes('weekly') ||
           p.identifier.includes('week')
         )
       : packages.find(p => 
-          p.product.identifier === 'unreal_lifetime_v2' ||
+          p.product.identifier === 'mora_lifetime_v2' ||
           p.packageType === 'CUSTOM' || 
           p.packageType === 'LIFETIME' ||
           p.identifier === '$rc_lifetime' ||
@@ -90,7 +91,7 @@ export default function OnboardingPremiumScreen() {
       const message = selectedOption === 'lifetime' 
         ? 'You now have lifetime access to all premium features!'
         : 'You now have access to all premium features.';
-      Alert.alert('Welcome to unreal+!', message, [
+      Alert.alert('Welcome to mora+!', message, [
         { 
           text: 'Get Started', 
           onPress: () => router.replace('/onboarding/07-clarifier')
@@ -116,7 +117,7 @@ export default function OnboardingPremiumScreen() {
   if (isPremium) {
     return (
       <View style={styles.container}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top']}>
           <View style={styles.header}>
             <View style={styles.headerRight}>
@@ -136,9 +137,9 @@ export default function OnboardingPremiumScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={styles.alreadyPremiumTitle}>Welcome to unreal+</Text>
+            <Text style={styles.alreadyPremiumTitle}>Welcome to mora+</Text>
             <Text style={styles.alreadyPremiumText}>
-              You have access to all unreal+ features including biometrics and simulations.
+              You have access to all mora+ features including biometrics and simulations.
             </Text>
           </View>
         </SafeAreaView>
@@ -148,18 +149,8 @@ export default function OnboardingPremiumScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       
-      {/* Background Gradient for Header */}
-      <View style={styles.bgGradientContainer}>
-         <LinearGradient
-            colors={['rgba(212, 242, 56, 0.15)', 'transparent']}
-            style={styles.bgGradient}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-          />
-      </View>
-
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           <View style={styles.headerRight}>
@@ -177,85 +168,101 @@ export default function OnboardingPremiumScreen() {
           <View style={styles.heroSection}>
             <View style={styles.heroIconContainer}>
               <Image 
-                source={require('@/assets/images/premium.png')}
+                source={require('@/assets/images/cube.png')}
                 style={styles.heroIconImage}
                 resizeMode="contain"
               />
             </View>
-            <Text style={styles.heroTitle}>Your Digital Twin is Waiting for You</Text>
+            <Text style={styles.heroTitle}>
+              Your digital twin is waiting for you
+            </Text>
           </View>
 
           {/* Pricing Cards */}
           <View style={styles.pricingContainer}>
             {/* Lifetime Card (Best Value) */}
-            <TouchableOpacity
-              style={[
-                styles.pricingCard,
-                selectedOption === 'lifetime' && styles.pricingCardSelected
-              ]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSelectedOption('lifetime');
-              }}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={['#FFEB3B', '#FFC107', '#FFA000']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.saveBadge}
+            <View style={styles.pricingCardWrapper}>
+              <TouchableOpacity
+                style={[
+                  styles.pricingCard,
+                  selectedOption === 'lifetime' && styles.pricingCardSelected
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedOption('lifetime');
+                }}
+                activeOpacity={0.9}
               >
-                <Text style={styles.saveBadgeText}>Best Value</Text>
-              </LinearGradient>
+                <LinearGradient
+                  colors={['#FFEB3B', '#FFC107', '#FFA000']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.saveBadge}
+                >
+                  <Text style={styles.saveBadgeText}>Best Value</Text>
+                </LinearGradient>
 
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>Lifetime</Text>
-                {selectedOption === 'lifetime' ? (
-                  <View style={styles.checkCircle}>
-                    <Check size={12} color="#000" strokeWidth={3} />
-                  </View>
-                ) : (
-                  <Circle size={20} color="rgba(255,255,255,0.3)" />
-                )}
-              </View>
-              
-              <View style={styles.cardPriceContainer}>
-                <View style={styles.priceRow}>
-                  <Text style={styles.cardPriceOriginal}>$50</Text>
-                  <Text style={styles.cardPrice}>$29.99</Text>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>Lifetime</Text>
+                  {selectedOption === 'lifetime' ? (
+                    <LinearGradient
+                      colors={['#FFEB3B', '#FFC107', '#FFA000']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.checkCircle}
+                    >
+                      <Check size={12} color="#FFFFFF" strokeWidth={3} />
+                    </LinearGradient>
+                  ) : (
+                    <Circle size={20} color="rgba(255,255,255,0.3)" />
+                  )}
                 </View>
-                <Text style={styles.cardPeriod}>one-time</Text>
-              </View>
-            </TouchableOpacity>
+                
+                <View style={styles.cardPriceContainer}>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.cardPriceOriginal}>$50</Text>
+                    <Text style={styles.cardPrice}>$29.99</Text>
+                  </View>
+                  <Text style={styles.cardPeriod}>one-time</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
 
             {/* Weekly Card */}
-            <TouchableOpacity
-              style={[
-                styles.pricingCard,
-                selectedOption === 'weekly' && styles.pricingCardSelected
-              ]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSelectedOption('weekly');
-              }}
-              activeOpacity={0.9}
-            >
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>Weekly</Text>
-                {selectedOption === 'weekly' ? (
-                   <View style={styles.checkCircle}>
-                    <Check size={12} color="#000" strokeWidth={3} />
-                  </View>
-                ) : (
-                  <Circle size={20} color="rgba(255,255,255,0.3)" />
-                )}
-              </View>
-              
-              <View style={styles.cardPriceContainer}>
-                <Text style={styles.cardPrice}>$4.99</Text>
-                <Text style={styles.cardPeriod}>/ week</Text>
-              </View>
-            </TouchableOpacity>
+            <View style={styles.pricingCardWrapper}>
+              <TouchableOpacity
+                style={[
+                  styles.pricingCard,
+                  selectedOption === 'weekly' && styles.pricingCardSelected
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedOption('weekly');
+                }}
+                activeOpacity={0.9}
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>Weekly</Text>
+                  {selectedOption === 'weekly' ? (
+                    <LinearGradient
+                      colors={['#FFEB3B', '#FFC107', '#FFA000']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.checkCircle}
+                    >
+                      <Check size={12} color="#FFFFFF" strokeWidth={3} />
+                    </LinearGradient>
+                  ) : (
+                    <Circle size={20} color="rgba(255,255,255,0.3)" />
+                  )}
+                </View>
+                
+                <View style={styles.cardPriceContainer}>
+                  <Text style={styles.cardPrice}>$4.99</Text>
+                  <Text style={styles.cardPeriod}>/ week</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Continue Button */}
@@ -271,8 +278,13 @@ export default function OnboardingPremiumScreen() {
               disabled={purchasing || loading}
               activeOpacity={0.9}
             >
-               <View style={styles.buttonBorder} />
-               <Text style={styles.purchaseButtonText}>Continue</Text>
+              <LinearGradient
+                colors={['rgba(135, 206, 250, 0.1)', 'rgba(135, 206, 250, 0.05)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Text style={styles.purchaseButtonText}>Continue</Text>
             </TouchableOpacity>
           </Animated.View>
 
@@ -283,13 +295,59 @@ export default function OnboardingPremiumScreen() {
               : 'One-time payment. No recurring charges.'}
           </Text>
 
+          {/* Features List */}
+          <View style={styles.featuresSection}>
+            <Text style={styles.featuresTitle}>What You'll Get</Text>
+            {[
+              {
+                icon: Infinity,
+                title: 'Unlimited Simulations',
+                description: 'Create unlimited timelines and simulate unlimited years',
+              },
+              {
+                icon: Zap,
+                title: 'Simulate Decision Outcomes',
+                description: 'Long-term outcomes for every decision',
+              },
+              {
+                icon: Brain,
+                title: 'Future Biometric Prediction',
+                description: 'Detailed biometric predictions for scenarios',
+              },
+              {
+                icon: Sparkles,
+                title: 'Best Case & Worst Case Scenarios',
+                description: 'Optimistic and challenging future predictions',
+              },
+            ].map((feature, index) => {
+              const Icon = feature.icon;
+              return (
+                <View key={index} style={styles.featureRow}>
+                  <View style={styles.featureIcon}>
+                    <LinearGradient
+                      colors={['rgba(45, 212, 191, 0.2)', 'rgba(59, 130, 246, 0.1)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <Icon size={24} color="#FFFFFF" strokeWidth={2} />
+                  </View>
+                  <View style={styles.featureContent}>
+                    <Text style={styles.featureTitle}>{feature.title}</Text>
+                    <Text style={styles.featureDescription}>{feature.description}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
           {/* Footer Links */}
           <View style={styles.footerLinks}>
              <TouchableOpacity onPress={handleRestore}>
                <Text style={styles.footerLinkText}>Restore Purchases</Text>
              </TouchableOpacity>
              <Text style={styles.footerSeparator}>•</Text>
-             <TouchableOpacity onPress={() => Linking.openURL('https://pastoral-supply-662.notion.site/Terms-of-Service-unreal-2a32cec59ddf80aca5e3ec91fdf8e529?source=copy_link')}>
+             <TouchableOpacity onPress={() => Linking.openURL('https://pastoral-supply-662.notion.site/Terms-of-Service-mora-2a32cec59ddf80aca5e3ec91fdf8e529?source=copy_link')}>
                <Text style={styles.footerLinkText}>Terms of Service</Text>
              </TouchableOpacity>
           </View>
@@ -304,16 +362,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
-  },
-  bgGradientContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 400,
-  },
-  bgGradient: {
-    flex: 1,
   },
   safeArea: {
     flex: 1,
@@ -333,7 +381,7 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 20,
   },
   content: {
@@ -348,8 +396,8 @@ const styles = StyleSheet.create({
   // Hero
   heroSection: {
     alignItems: 'center',
-    marginBottom: 40,
-    marginTop: 45,
+    marginBottom: 50,
+    marginTop: 20,
   },
   heroIconContainer: {
     width: 100,
@@ -357,42 +405,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
-    // Add glow effect behind logo
-    shadowColor: '#D4F238',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 40,
   },
   heroIconImage: {
     width: 100,
     height: 100,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
+    lineHeight: 38,
+    paddingHorizontal: 20,
+    marginBottom: 12,
   },
+
 
   // Pricing Cards
   pricingContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 40,
+    marginBottom: 32,
+  },
+  pricingCardWrapper: {
+    flex: 1,
+    position: 'relative',
   },
   pricingCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 16,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
     minHeight: 110,
     justifyContent: 'space-between',
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
   },
   pricingCardSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: '#FFC107',
+    borderWidth: 2,
+    shadowColor: '#FFEB3B',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 8,
   },
   saveBadge: {
     position: 'absolute',
@@ -406,7 +467,7 @@ const styles = StyleSheet.create({
   saveBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -423,7 +484,6 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -449,7 +509,8 @@ const styles = StyleSheet.create({
   },
   cardPeriod: {
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: '700',
   },
 
   // Button
@@ -462,23 +523,55 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    overflow: 'hidden',
   },
   purchaseButtonDisabled: {
     opacity: 0.6,
-  },
-  buttonBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   purchaseButtonText: {
     fontSize: 17,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+
+  // Features Section
+  featuresSection: {
+    marginBottom: 32,
+  },
+  featuresTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 20,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+    gap: 16,
+  },
+  featureIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  featureContent: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  featureDescription: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: '400',
+    lineHeight: 20,
   },
 
   // Footer
@@ -487,6 +580,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.4)',
     textAlign: 'center',
     marginBottom: 24,
+    fontWeight: '700',
   },
   footerLinks: {
     flexDirection: 'row',
@@ -497,10 +591,11 @@ const styles = StyleSheet.create({
   footerLinkText: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.4)',
+    fontWeight: '700',
   },
   footerSeparator: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.2)',
+    color: 'rgba(255, 255, 255, 0.4)',
   },
 
   // Already Premium
@@ -529,9 +624,10 @@ const styles = StyleSheet.create({
   },
   alreadyPremiumText: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: 'rgba(255, 255, 255, 0.6)',
     textAlign: 'center',
     lineHeight: 24,
+    fontWeight: '700',
   },
 });
 

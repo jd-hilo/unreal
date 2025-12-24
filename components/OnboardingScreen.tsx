@@ -190,7 +190,6 @@ export function OnboardingScreen({
         <Pressable
           onPress={handleNext}
           disabled={!canContinue || loading || isProcessing}
-          delayPressIn={0}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={({ pressed }) => [
             styles.floatingButtonWrapper,

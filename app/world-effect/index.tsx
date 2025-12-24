@@ -276,7 +276,7 @@ export default function WorldEffectScreen() {
             >
               {/* Header Section */}
               <View style={styles.pageHeader}>
-                <Text style={styles.pageTitle}>World Effect</Text>
+                <Text style={styles.pageTitle} numberOfLines={1} adjustsFontSizeToFit>World Effect</Text>
               </View>
               
               <Text style={styles.cardLabel}>Daily Aggregate</Text>
@@ -453,11 +453,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   pageTitle: {
-    fontSize: 36,
+    fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 0,
-    letterSpacing: -1,
+    letterSpacing: -0.3,
     fontFamily: 'Recoleta-Regular',
   },
   cardLabel: {

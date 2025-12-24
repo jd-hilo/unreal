@@ -16,8 +16,21 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useTwin } from '@/store/useTwin';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
-import { captureRef } from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
+// Conditionally import react-native-view-shot to avoid native module errors
+let captureRef: any = null;
+try {
+  const viewShot = require('react-native-view-shot');
+  captureRef = viewShot.captureRef;
+} catch (e) {
+  console.warn('react-native-view-shot not available:', e);
+}
+// Conditionally import expo-sharing to avoid native module errors
+let Sharing: any = null;
+try {
+  Sharing = require('expo-sharing');
+} catch (e) {
+  console.warn('expo-sharing not available:', e);
+}
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
@@ -262,6 +275,12 @@ export default function DecisionResultScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
+      if (!captureRef) {
+        Alert.alert('Error', 'Share feature is not available. Please rebuild the app.');
+        setSharing(false);
+        return;
+      }
+
       const uri = await captureRef(viewShotRef, {
         format: 'png',
         quality: 0.9,
@@ -291,13 +310,15 @@ export default function DecisionResultScreen() {
 
       // For Instagram Stories, we need to use the share sheet
       // Instagram doesn't support direct image sharing via URL scheme
-      if (await Sharing.isAvailableAsync()) {
+      if (Sharing && await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(shareImageUri, {
           UTI: 'public.image',
           mimeType: 'image/png',
           dialogTitle: 'Share to Instagram',
         });
         trackEvent(MixpanelEvents.DECISION_SHARED, { decision_id: decision.id, platform: 'instagram' });
+      } else {
+        Alert.alert('Error', 'Share feature is not available. Please rebuild the app.');
       }
       setShowShareModal(false);
     } catch (error) {
@@ -317,13 +338,15 @@ export default function DecisionResultScreen() {
       Clipboard.setString(appStoreLink);
 
       // Snapchat also uses the native share sheet
-      if (await Sharing.isAvailableAsync()) {
+      if (Sharing && await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(shareImageUri, {
           UTI: 'public.image',
           mimeType: 'image/png',
           dialogTitle: 'Share to Snapchat',
         });
         trackEvent(MixpanelEvents.DECISION_SHARED, { decision_id: decision.id, platform: 'snapchat' });
+      } else {
+        Alert.alert('Error', 'Share feature is not available. Please rebuild the app.');
       }
       setShowShareModal(false);
     } catch (error) {
@@ -342,13 +365,15 @@ export default function DecisionResultScreen() {
       const appStoreLink = 'https://apps.apple.com/us/app/unreal-simulate-your-life/id6754901842';
       Clipboard.setString(appStoreLink);
 
-      if (await Sharing.isAvailableAsync()) {
+      if (Sharing && await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(shareImageUri, {
           UTI: 'public.image',
           mimeType: 'image/png',
           dialogTitle: 'Share your Decision',
         });
         trackEvent(MixpanelEvents.DECISION_SHARED, { decision_id: decision.id, platform: 'other' });
+      } else {
+        Alert.alert('Error', 'Share feature is not available. Please rebuild the app.');
       }
       setShowShareModal(false);
     } catch (error) {
