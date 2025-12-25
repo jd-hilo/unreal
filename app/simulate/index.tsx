@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   newGameCard: {
     borderRadius: 24,
     overflow: 'hidden',
-    height: 160,
+    minHeight: 190,
     marginBottom: 32,
     shadowColor: 'rgba(0, 0, 0, 0.06)',
     shadowOffset: { width: 0, height: 6 },
@@ -471,7 +471,8 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 32,
+    paddingVertical: 36,
   },
   newGameContent: {
     flex: 1,
@@ -482,14 +483,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     fontFamily: Fonts.primary.regular,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   newGameSubtitle: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.9)',
-    marginBottom: 16,
+    marginBottom: 18,
     lineHeight: 20,
-    fontFamily: Fonts.secondary.bold,
+    fontWeight: '400',
   },
   playButton: {
     flexDirection: 'row',

@@ -962,11 +962,10 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '400',
     color: Colors.textPrimary,
     marginBottom: 12,
     letterSpacing: 0.2,
-    fontFamily: Fonts.secondary.bold,
   },
   rationale: {
     fontSize: 16,

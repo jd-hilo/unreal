@@ -384,6 +384,12 @@ export default function ProfileScreen() {
               <View style={styles.singleCardContent}>
                 <View style={styles.singleCardHeader}><View style={styles.singleCardIcon}><BookOpen size={24} color={Colors.textPrimary} /></View><Text style={styles.singleCardTitle}>Journal</Text></View>
                 <Text style={styles.singleCardSubtitle}>{journalComplete ? "Today's entry complete" : "Log your day"}</Text>
+                {!journalComplete && (
+                  <View style={styles.journalBadge}>
+                    <Clock size={12} color="#FFFFFF" strokeWidth={2.5} />
+                    <Text style={styles.journalBadgeText}>Complete daily journal</Text>
+                  </View>
+                )}
               </View>
               {journalComplete ? <CheckCircle2 size={24} color="#4ADE80" /> : <ChevronRight size={20} color={Colors.textTertiary} />}
             </TouchableOpacity>
@@ -563,6 +569,23 @@ const styles = StyleSheet.create({
   singleCardIcon: { marginRight: 4 },
   singleCardTitle: { fontSize: 16, fontFamily: Fonts.secondary.bold, fontWeight: '600', color: Colors.textPrimary },
   singleCardSubtitle: { fontSize: 13, fontFamily: Fonts.secondary.bold, color: Colors.textTertiary },
+  journalBadge: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  journalBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
   infoModalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   infoModalContent: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
   infoModalCloseButton: { position: 'absolute', top: 16, right: 16, padding: 4 },

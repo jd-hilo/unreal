@@ -268,9 +268,9 @@ const styles = StyleSheet.create({
   },
   reflectTitle: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
-    fontFamily: Fonts.primary.regular,
+    fontFamily: Fonts.secondary.bold,
     marginBottom: 6,
   },
   reflectSubtitle: {

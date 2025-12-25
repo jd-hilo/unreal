@@ -63,6 +63,7 @@ export default function NewDecisionScreen() {
   const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(null);
   const [editingOptionText, setEditingOptionText] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
     loadRecentTwins();
@@ -70,11 +71,17 @@ export default function NewDecisionScreen() {
     // Keyboard listeners for modal positioning
     const keyboardWillShow = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardVisible(true)
+      (e) => {
+        setKeyboardVisible(true);
+        setKeyboardHeight(e.endCoordinates.height);
+      }
     );
     const keyboardWillHide = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardVisible(false)
+      () => {
+        setKeyboardVisible(false);
+        setKeyboardHeight(0);
+      }
     );
     
     return () => {
@@ -868,7 +875,7 @@ export default function NewDecisionScreen() {
               </ScrollView>
 
               {/* Floating Action Button */}
-              <View style={styles.floatingButtonContainer}>
+              <View style={[styles.floatingButtonContainer, keyboardVisible && { bottom: keyboardHeight }]}>
                 {currentStep === 3 && (
                   <TouchableOpacity
                     onPress={() => goToStep(4)}
@@ -1137,9 +1144,8 @@ const styles = StyleSheet.create({
   greetingSubtext: {
     color: Colors.textSecondary,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '400',
     marginTop: 4,
-    fontFamily: Fonts.secondary.bold,
   },
   content: {
     flex: 1,

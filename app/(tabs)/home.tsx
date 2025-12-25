@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions } from '@/lib/storage';
-import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle } from 'lucide-react-native';
+import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Clock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -34,6 +34,8 @@ export default function HomeScreen() {
   const [hasTodayJournal, setHasTodayJournal] = useState(false);
   const [showDecisionGuide, setShowDecisionGuide] = useState(false);
   const [showAccuracyInfo, setShowAccuracyInfo] = useState(false);
+  const [cooldownTime, setCooldownTime] = useState<string | null>(null);
+  const [isCooldown, setIsCooldown] = useState(false);
   
   // Layout refs for ProductGuide
   const simulateRef = useRef<View>(null);
@@ -70,9 +72,31 @@ export default function HomeScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    // Preload images
-    Asset.fromModule(require('@/assets/images/memoji.png')).downloadAsync();
-  }, []);
+    let interval: NodeJS.Timeout;
+
+    if (isCooldown && !isPremium && recentDecisions.length > 0) {
+      interval = setInterval(() => {
+        const lastDecisionTime = new Date(recentDecisions[0].created_at).getTime();
+        const now = Date.now();
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        
+        if (now - lastDecisionTime < twentyFourHours) {
+          const remaining = twentyFourHours - (now - lastDecisionTime);
+          const hours = Math.floor(remaining / (1000 * 60 * 60));
+          const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+          setCooldownTime(`${hours}h ${minutes}m`);
+        } else {
+          setIsCooldown(false);
+          setCooldownTime(null);
+          clearInterval(interval);
+        }
+      }, 60000); // Update every minute
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isCooldown, isPremium, recentDecisions]);
 
   useEffect(() => {
     if (!user) {
@@ -114,6 +138,27 @@ export default function HomeScreen() {
       setRecentWhatIfs(whatifs || []);
       setProfileProgress(progress || 0);
       setHasTodayJournal(!!journalToday);
+
+      // Check for cooldown (non-premium only)
+      if (!isPremium && decisions && decisions.length > 0) {
+        const lastDecisionTime = new Date(decisions[0].created_at).getTime();
+        const now = Date.now();
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        
+        if (now - lastDecisionTime < twentyFourHours) {
+          setIsCooldown(true);
+          const remaining = twentyFourHours - (now - lastDecisionTime);
+          const hours = Math.floor(remaining / (1000 * 60 * 60));
+          const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+          setCooldownTime(`${hours}h ${minutes}m`);
+        } else {
+          setIsCooldown(false);
+          setCooldownTime(null);
+        }
+      } else {
+        setIsCooldown(false);
+        setCooldownTime(null);
+      }
 
       // Trigger entry animation
       Animated.parallel([
@@ -307,7 +352,7 @@ export default function HomeScreen() {
                     colors={Colors.gradients.purple}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={styles.cardGradient}
+                    style={[styles.cardGradient, { opacity: 0.25 }]}
                   />
                   <View style={styles.actionIconContainer}>
                     <Compass size={24} color={Colors.textPrimary} />
@@ -328,20 +373,37 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    if (isCooldown) {
+                      Alert.alert(
+                        "Decision Limit Reached",
+                        "Free users can make one decision every 24 hours. Upgrade to mora+ for unlimited decisions.",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          { text: "Upgrade", onPress: () => router.push('/premium') }
+                        ]
+                      );
+                      return;
+                    }
                     router.push('/decision/new');
                   }}
                   activeOpacity={0.8}
-                  style={styles.actionRectangle}
+                  style={[styles.actionRectangle, isCooldown && { opacity: 0.8 }]}
                 >
-                  <View style={[styles.cardGradient, { backgroundColor: '#febda1' }]} />
+                  <View style={[styles.cardGradient, { backgroundColor: '#fe9d7a', opacity: 0.25 }]} />
                   <View style={styles.actionIconContainer}>
-                    <CheckCircle size={24} color={Colors.textPrimary} />
+                    {isCooldown ? (
+                      <Clock size={24} color={Colors.textPrimary} />
+                    ) : (
+                      <CheckCircle size={24} color={Colors.textPrimary} />
+                    )}
                   </View>
                   <View style={styles.actionContent}>
                     <Text style={styles.actionTitle}>Decide</Text>
-                    <Text style={styles.actionSubtitle}>Receive an authoritative recommendation for your path</Text>
+                    <Text style={styles.actionSubtitle}>
+                      {isCooldown ? `Next decision in ${cooldownTime}` : "Receive an authoritative recommendation for your path"}
+                    </Text>
                   </View>
-                  <ChevronRight size={20} color={Colors.textTertiary} />
+                  {!isCooldown && <ChevronRight size={20} color={Colors.textTertiary} />}
                 </TouchableOpacity>
               </View>
 
@@ -364,7 +426,13 @@ export default function HomeScreen() {
                         <Text style={styles.teachPercentage}>{displayedProgress}%</Text>
                       </View>
                     </View>
-                    <Text style={styles.teachSubtitle}>Build a compounding and smarter digital twin</Text>
+                    <Text style={styles.teachSubtitle}>Train your twin for more accurate answers</Text>
+                    {!hasTodayJournal && (
+                      <View style={styles.journalBadge}>
+                        <Clock size={12} color="#FFFFFF" strokeWidth={2.5} />
+                        <Text style={styles.journalBadgeText}>Complete daily journal</Text>
+                      </View>
+                    )}
                   </View>
                   <View style={styles.teachArrowContainer}>
                     <LinearGradient
@@ -629,37 +697,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 32,
-    marginTop: 10,
+    marginBottom: 24,
+    marginTop: 8,
   },
   headerLeft: {
     flex: 1,
   },
   headerRight: {
-    width: 100,
-    height: 100,
+    width: 70,
+    height: 70,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerEmoji: {
-    width: 120,
-    height: 120,
-    transform: [{ scale: 1.2 }],
+    width: 80,
+    height: 80,
+    transform: [{ scale: 1 }],
   },
   greeting: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 22,
+    lineHeight: 28,
     fontFamily: Fonts.primary.regular,
     letterSpacing: -0.5,
   },
   greetingName: {
     color: Colors.textSecondary,
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: Fonts.primary.regular,
   },
   greetingRest: {
     color: Colors.textPrimary,
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: Fonts.secondary.bold,
   },
   actionsContainer: {
@@ -764,6 +832,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textTertiary,
     fontWeight: '400',
+  },
+  journalBadge: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  journalBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
   teachArrowContainer: {
     marginLeft: 8,
