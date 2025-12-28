@@ -288,5 +288,14 @@ export const MixpanelEvents = {
   ONBOARDING_COMPLETE_VIEWED: 'Onboarding Complete Viewed',
   ONBOARDING_COMPLETE_DECIDE_CLICKED: 'Onboarding Complete Decide Clicked',
   ONBOARDING_COMPLETE_EXPLORE_CLICKED: 'Onboarding Complete Explore Clicked',
+
+  // Compatibility Tests
+  COMPATIBILITY_INFO_CONTINUED: 'Compatibility Info Continued',
+  COMPATIBILITY_TWIN_FOUND: 'Compatibility Twin Found',
+  COMPATIBILITY_TEST_STARTED: 'Compatibility Test Started',
+  COMPATIBILITY_TEST_COMPLETED: 'Compatibility Test Completed',
+  COMPATIBILITY_TEST_VIEWED: 'Compatibility Test Viewed',
+  COMPATIBILITY_TEST_SHARED: 'Compatibility Test Shared',
+  COMPATIBILITY_INVITE_SENT: 'Compatibility Invite Sent',
 } as const;
 

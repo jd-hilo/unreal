@@ -26,6 +26,7 @@ export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Inter_700Bold,
     'Recoleta-Regular': require('@/assets/fonts/Recoleta-RegularDEMO.otf'),
+    'Recoleta-Semibold': require('@/assets/fonts/recoleta-semibold.otf'),
   });
   useEffect(() => {
     (async () => {

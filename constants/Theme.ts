@@ -29,7 +29,7 @@ export const Fonts = {
   // Primary font - Recoleta
   primary: {
     regular: 'Recoleta-Regular',
-    // Add more weights as needed when font files are uploaded
+    semibold: 'Recoleta-Semibold',
   },
   
   // Secondary font - Inter Bold (700)

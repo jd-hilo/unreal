@@ -316,6 +316,32 @@ export default function HomeScreen() {
             contentContainerStyle={styles.contentContainer}
             showsVerticalScrollIndicator={false}
           >
+            {/* Compatibility Test Banner */}
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/compatibility/info');
+              }}
+              activeOpacity={0.8}
+              style={styles.compatibilityBanner}
+            >
+              <LinearGradient
+                colors={['rgba(45, 212, 191, 0.2)', 'rgba(45, 212, 191, 0.05)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.compatibilityBannerGradient}
+              />
+              <View style={styles.compatibilityBannerContent}>
+                <View style={styles.compatibilityBannerTextContainer}>
+                  <Text style={styles.compatibilityBannerTitle}>Check Compatibility</Text>
+                  <Text style={styles.compatibilityBannerSubtitle}>See how your twin aligns with others</Text>
+                </View>
+                <View style={styles.compatibilityBannerIcon}>
+                  <ChevronRight size={20} color={Colors.gradients.turquoise[0]} />
+                </View>
+              </View>
+            </TouchableOpacity>
+
             {/* Main Header with Emoji */}
             <View style={styles.headerContainer}>
               <View style={styles.headerLeft}>
@@ -692,6 +718,51 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+  compatibilityBanner: {
+    marginTop: 8,
+    marginBottom: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(45, 212, 191, 0.2)',
+  },
+  compatibilityBannerGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  compatibilityBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  compatibilityBannerTextContainer: {
+    flex: 1,
+    gap: 2,
+  },
+  compatibilityBannerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+  },
+  compatibilityBannerSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  compatibilityBannerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(45, 212, 191, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerContainer: {
     flexDirection: 'row',
