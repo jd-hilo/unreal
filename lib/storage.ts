@@ -53,6 +53,9 @@ export async function updateProfileFields(
     avatar_variant?: string;
     avatar_colors?: string[];
     avatar_reason?: string;
+    life_situation?: string;
+    life_journey?: string;
+    core_value?: string;
   }
 ) {
   // Get existing profile to preserve core_json and values_json

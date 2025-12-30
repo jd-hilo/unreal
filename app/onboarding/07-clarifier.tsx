@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, Animated, Image, Platform, Easing } from 'react
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { useTwin } from '@/store/useTwin';
 import { useAuth } from '@/store/useAuth';
-import { completeOnboarding, getProfile, saveOnboardingResponse } from '@/lib/storage';
+import { completeOnboarding, getProfile, saveOnboardingResponse, updateProfileFields } from '@/lib/storage';
 import { trackEvent, MixpanelEvents, setUserProperty } from '@/lib/mixpanel';
 import { summarizeOnboardingGroup, type OnboardingSummaryData } from '@/lib/ai';
 import { useTypewriter } from '@/hooks/useTypewriter';
@@ -193,15 +193,89 @@ export default function OnboardingStep7() {
       };
 
       // Generate AI summaries
+      console.log('🔄 [Twin Creation] Generating summaries with data:', {
+        hasLifeSituation: !!lifeSituationData,
+        hasLifeJourney: !!lifeJourneyData,
+        hasValues: !!valuesData,
+      });
+      
       const summaries = await summarizeOnboardingGroup(summaryData);
+      
+      // Extract age from summaries (calculated by summarizeOnboardingGroup)
+      const age = summaries.age;
+      
+      console.log('✅ [Twin Creation] Generated summaries:', {
+        '01-now': summaries['01-now'] ? `${summaries['01-now'].substring(0, 50)}...` : 'EMPTY',
+        '02-path': summaries['02-path'] ? `${summaries['02-path'].substring(0, 50)}...` : 'EMPTY',
+        '03-values': summaries['03-values'] ? `${summaries['03-values'].substring(0, 50)}...` : 'EMPTY',
+        age: age || 'not calculated',
+      });
 
-      // Save summarized responses
-      if (summaries['01-now']) {
-        await saveOnboardingResponse(user.id, '01-now', summaries['01-now']);
+      // Always save summarized responses (they should have fallbacks, but save even if empty)
+      console.log('💾 [Twin Creation] Saving summaries to profile...');
+      
+      // Determine final values for each summary (with fallbacks)
+      let finalLifeSituation = '';
+      let finalLifeJourney = '';
+      let finalCoreValue = '';
+      
+      // Always save Life Situation - save to both '02-now' (preferred) and '01-now' (legacy) for compatibility
+      if (summaries['01-now'] && summaries['01-now'].trim()) {
+        finalLifeSituation = summaries['01-now'];
+        await saveOnboardingResponse(user.id, '02-now', finalLifeSituation);
+        await saveOnboardingResponse(user.id, '01-now', finalLifeSituation);
+        console.log('✅ [Twin Creation] Saved 02-now (Life Situation) to core_json:', finalLifeSituation.substring(0, 100));
+      } else {
+        console.warn('⚠️ [Twin Creation] 01-now summary is empty or missing');
+        // Try to generate a minimal fallback
+        finalLifeSituation = age ? `You are ${age} years old and navigating your current life path.` : 'You are working towards your goals and building your life.';
+        await saveOnboardingResponse(user.id, '02-now', finalLifeSituation);
+        await saveOnboardingResponse(user.id, '01-now', finalLifeSituation);
+        console.log('✅ [Twin Creation] Saved minimal fallback for 02-now to core_json');
       }
-      if (summaries['02-path']) {
-        await saveOnboardingResponse(user.id, '02-path', summaries['02-path']);
+      
+      // Always save 02-path (Life Journey) - should have fallback if data exists
+      if (summaries['02-path'] && summaries['02-path'].trim()) {
+        finalLifeJourney = summaries['02-path'];
+        await saveOnboardingResponse(user.id, '02-path', finalLifeJourney);
+        console.log('✅ [Twin Creation] Saved 02-path (Life Journey) to core_json:', finalLifeJourney.substring(0, 100));
+      } else {
+        console.warn('⚠️ [Twin Creation] 02-path summary is empty or missing');
+        // Try to generate a minimal fallback
+        finalLifeJourney = 'Your life journey has shaped who you are today, with experiences and choices that have led you to where you are now.';
+        await saveOnboardingResponse(user.id, '02-path', finalLifeJourney);
+        console.log('✅ [Twin Creation] Saved minimal fallback for 02-path to core_json');
       }
+      
+      // Always save Core Values - save to both '01-values' (preferred) and '03-values' (legacy) for compatibility
+      if (summaries['03-values'] && summaries['03-values'].trim()) {
+        finalCoreValue = summaries['03-values'];
+        await saveOnboardingResponse(user.id, '01-values', finalCoreValue);
+        await saveOnboardingResponse(user.id, '03-values', finalCoreValue);
+        console.log('✅ [Twin Creation] Saved 01-values (Core Values) to core_json:', finalCoreValue.substring(0, 100));
+      } else if (valuesData?.values && valuesData.values.length > 0) {
+        // Generate fallback from values data
+        finalCoreValue = `Your core values include ${valuesData.values.join(', ')}. ${valuesData.context || 'These values guide your decisions and shape how you approach life.'}`;
+        await saveOnboardingResponse(user.id, '01-values', finalCoreValue);
+        await saveOnboardingResponse(user.id, '03-values', finalCoreValue);
+        console.log('✅ [Twin Creation] Saved fallback 01-values from values data to core_json');
+      } else {
+        console.warn('⚠️ [Twin Creation] 03-values summary is empty and no values data available');
+        // Still save a minimal fallback
+        finalCoreValue = 'Your values guide your decisions and shape how you approach life.';
+        await saveOnboardingResponse(user.id, '01-values', finalCoreValue);
+        await saveOnboardingResponse(user.id, '03-values', finalCoreValue);
+        console.log('✅ [Twin Creation] Saved minimal fallback for 01-values to core_json');
+      }
+      
+      // Now save to dedicated columns as well
+      console.log('💾 [Twin Creation] Saving summaries to dedicated columns...');
+      await updateProfileFields(user.id, {
+        life_situation: finalLifeSituation,
+        life_journey: finalLifeJourney,
+        core_value: finalCoreValue,
+      });
+      console.log('✅ [Twin Creation] Saved summaries to dedicated columns (life_situation, life_journey, core_value)');
       if (summaries['06-stress']) {
         await saveOnboardingResponse(user.id, '06-stress', summaries['06-stress']);
       }

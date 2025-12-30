@@ -5,7 +5,7 @@ import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
-import { getProfile, saveOnboardingResponse } from '@/lib/storage';
+import { getProfile, saveOnboardingResponse, updateProfileFields } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
 
@@ -25,8 +25,9 @@ export default function EditLifeSituationScreen() {
     
     try {
       const profile = await getProfile(user.id);
-      // Prefer new key '02-now', fallback to legacy '01-now'
+      // Prefer dedicated column, then new key '02-now', fallback to legacy '01-now'
       const existing =
+        profile?.life_situation ??
         profile?.core_json?.onboarding_responses?.['02-now'] ??
         profile?.core_json?.onboarding_responses?.['01-now'];
       if (existing) {
@@ -44,8 +45,13 @@ export default function EditLifeSituationScreen() {
 
     setLoading(true);
     try {
-      // Save to the new key
-      await saveOnboardingResponse(user.id, '02-now', response.trim());
+      const trimmedResponse = response.trim();
+      // Save to both core_json and dedicated column
+      await saveOnboardingResponse(user.id, '02-now', trimmedResponse);
+      await saveOnboardingResponse(user.id, '01-now', trimmedResponse); // Also save to legacy key
+      await updateProfileFields(user.id, {
+        life_situation: trimmedResponse,
+      });
       router.back();
     } catch (error) {
       console.error('Failed to save:', error);

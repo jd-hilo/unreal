@@ -1523,6 +1523,7 @@ export interface OnboardingSummaryData {
 export interface OnboardingSummaryResult {
   '01-now': string; // Current life situation summary
   '02-path': string; // Life journey summary
+  '03-values'?: string; // Core values summary paragraph
   '06-stress'?: string; // Stress handling (if provided)
   '04-style'?: string; // Decision style (if provided)
   interests?: string[]; // User interests (if provided)
@@ -1766,6 +1767,9 @@ export async function summarizeOnboardingGroup(data: OnboardingSummaryData): Pro
     return {
       '01-now': 'Mock summary of current life situation',
       '02-path': 'Mock summary of life journey',
+      '03-values': data.values && data.values.selected && data.values.selected.length > 0
+        ? `Your core values include ${data.values.selected.join(', ')}. ${data.values.context || 'These values guide your decisions and shape how you approach life.'}`
+        : undefined,
       values_json: data.values?.selected || [],
       age: data.birthYear ? new Date().getFullYear() - parseInt(data.birthYear) : undefined,
     };
@@ -1812,6 +1816,15 @@ Include age in the summary where relevant if provided.`;
     'Write a natural, flowing summary in second person (you/your) that tells the story of how they got to where they are today.',
   ].filter(Boolean).join('\n') : '';
 
+  const valuesPrompt = data.values && data.values.selected && data.values.selected.length > 0 ? [
+    'Transform these core values into a coherent narrative summary (3-6 sentences):',
+    '',
+    `Selected Values: ${data.values.selected.join(', ')}`,
+    data.values.context ? `Additional Context: ${data.values.context}` : '',
+    '',
+    'Write a natural, flowing summary in second person (you/your) that explains what these values mean to them and how they guide their decisions and life choices.',
+  ].filter(Boolean).join('\n') : '';
+
   try {
     const summaries: OnboardingSummaryResult = {
       '01-now': '',
@@ -1820,7 +1833,7 @@ Include age in the summary where relevant if provided.`;
       age,
     };
 
-    // Generate 01-now summary
+    // Generate 01-now summary - always generate, even if data is minimal
     if (nowPrompt) {
       try {
         const nowContent = await callClaude({
@@ -1830,23 +1843,28 @@ Include age in the summary where relevant if provided.`;
         });
         summaries['01-now'] = nowContent.trim() || '';
       } catch (error: any) {
-        // If API key is missing, create a basic summary from the data
-        if (error?.message?.includes('API key not configured')) {
-          console.warn('Anthropic API key not configured, using fallback summary');
-          const fallbackNow = data.lifeSituation ? [
-            `You are currently ${data.lifeSituation.lifeStage || 'in a life stage'}`,
-            `working as ${data.lifeSituation.workStatus || 'employed'}`,
-            `and ${data.lifeSituation.livingSituation || 'living independently'}`,
-            age ? `at age ${age}` : '',
-          ].filter(Boolean).join(', ') + '.' : '';
-          summaries['01-now'] = fallbackNow;
-        } else {
-          throw error;
-        }
+        console.warn('Failed to generate 01-now summary, using fallback:', error);
+        // Always create a fallback summary if AI fails
+        const fallbackNow = data.lifeSituation ? [
+          `You are currently ${data.lifeSituation.lifeStage || 'in a life stage'}`,
+          `working as ${data.lifeSituation.workStatus || 'employed'}`,
+          `and ${data.lifeSituation.livingSituation || 'living independently'}`,
+          age ? `at age ${age}` : '',
+        ].filter(Boolean).join(', ') + '.' : (age ? `You are ${age} years old and navigating your current life path.` : 'You are working towards your goals and building your life.');
+        summaries['01-now'] = fallbackNow;
       }
+    } else if (data.lifeSituation || age) {
+      // Generate fallback even if prompt wasn't created
+      const fallbackNow = data.lifeSituation ? [
+        `You are currently ${data.lifeSituation.lifeStage || 'in a life stage'}`,
+        `working as ${data.lifeSituation.workStatus || 'employed'}`,
+        `and ${data.lifeSituation.livingSituation || 'living independently'}`,
+        age ? `at age ${age}` : '',
+      ].filter(Boolean).join(', ') + '.' : (age ? `You are ${age} years old and navigating your current life path.` : 'You are working towards your goals and building your life.');
+      summaries['01-now'] = fallbackNow;
     }
 
-    // Generate 02-path summary
+    // Generate 02-path summary - always generate, even if data is minimal
     if (pathPrompt) {
       try {
         const pathContent = await callClaude({
@@ -1856,21 +1874,52 @@ Include age in the summary where relevant if provided.`;
         });
         summaries['02-path'] = pathContent.trim() || '';
       } catch (error: any) {
-        // If API key is missing, create a basic summary from the data
-        if (error?.message?.includes('API key not configured')) {
-          console.warn('Anthropic API key not configured, using fallback summary');
-          const fallbackPath = data.lifeJourney ? [
-            `You grew up in ${data.lifeJourney.hometownOther || data.lifeJourney.hometown || 'your hometown'}`,
-            data.lifeJourney.wentToCollege === 'Yes' && data.lifeJourney.collegeName 
-              ? `and attended ${data.lifeJourney.collegeName}`
-              : '',
-            `Your career started ${data.lifeJourney.careerStart || 'in your field'}`,
-          ].filter(Boolean).join(', ') + '.' : '';
-          summaries['02-path'] = fallbackPath;
-        } else {
-          throw error;
-        }
+        console.warn('Failed to generate 02-path summary, using fallback:', error);
+        // Always create a fallback summary if AI fails
+        const fallbackPath = data.lifeJourney ? [
+          `You grew up in ${data.lifeJourney.hometownOther || data.lifeJourney.hometown || 'your hometown'}`,
+          data.lifeJourney.wentToCollege === 'Yes' && data.lifeJourney.collegeName 
+            ? `and attended ${data.lifeJourney.collegeName}`
+            : '',
+          `Your career started ${data.lifeJourney.careerStart || 'in your field'}`,
+        ].filter(Boolean).join(', ') + '.' : 'Your life journey has shaped who you are today, with experiences and choices that have led you to where you are now.';
+        summaries['02-path'] = fallbackPath;
       }
+    } else if (data.lifeJourney) {
+      // Generate fallback even if prompt wasn't created
+      const fallbackPath = [
+        `You grew up in ${data.lifeJourney.hometownOther || data.lifeJourney.hometown || 'your hometown'}`,
+        data.lifeJourney.wentToCollege === 'Yes' && data.lifeJourney.collegeName 
+          ? `and attended ${data.lifeJourney.collegeName}`
+          : '',
+        `Your career started ${data.lifeJourney.careerStart || 'in your field'}`,
+      ].filter(Boolean).join(', ') + '.';
+      summaries['02-path'] = fallbackPath;
+    }
+
+    // Generate 03-values summary - always generate, even if data is minimal
+    if (valuesPrompt) {
+      try {
+        const valuesContent = await callClaude({
+          system: systemPrompt,
+          messages: [{ role: 'user', content: valuesPrompt }],
+          temperature: 0.7,
+        });
+        summaries['03-values'] = valuesContent.trim() || '';
+      } catch (error: any) {
+        console.warn('Failed to generate 03-values summary, using fallback:', error);
+        // Always create a fallback summary if AI fails
+        const fallbackValues = data.values && data.values.selected && data.values.selected.length > 0
+          ? `Your core values include ${data.values.selected.join(', ')}. ${data.values.context || 'These values guide your decisions and shape how you approach life.'}`
+          : (data.values?.selected && data.values.selected.length > 0
+            ? `Your core values include ${data.values.selected.join(', ')}. These values guide your decisions and shape how you approach life.`
+            : 'Your values guide your decisions and shape how you approach life.');
+        summaries['03-values'] = fallbackValues;
+      }
+    } else if (data.values?.selected && data.values.selected.length > 0) {
+      // Generate fallback even if prompt wasn't created
+      const fallbackValues = `Your core values include ${data.values.selected.join(', ')}. ${data.values.context || 'These values guide your decisions and shape how you approach life.'}`;
+      summaries['03-values'] = fallbackValues;
     }
 
     // Add optional summaries if provided
@@ -1891,6 +1940,9 @@ Include age in the summary where relevant if provided.`;
     return {
       '01-now': '',
       '02-path': '',
+      '03-values': data.values && data.values.selected && data.values.selected.length > 0
+        ? `Your core values include ${data.values.selected.join(', ')}. ${data.values.context || 'These values guide your decisions and shape how you approach life.'}`
+        : undefined,
       values_json: data.values?.selected || [],
       age,
       '06-stress': data.stressHandling,

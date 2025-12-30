@@ -5,7 +5,7 @@ import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
-import { getProfile, saveOnboardingResponse } from '@/lib/storage';
+import { getProfile, saveOnboardingResponse, updateProfileFields } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
 
@@ -25,8 +25,12 @@ export default function EditLifeJourneyScreen() {
     
     try {
       const profile = await getProfile(user.id);
-      if (profile?.core_json?.onboarding_responses?.['02-path']) {
-        setResponse(profile.core_json.onboarding_responses['02-path']);
+      // Prefer dedicated column, then fallback to core_json
+      const existing =
+        profile?.life_journey ??
+        profile?.core_json?.onboarding_responses?.['02-path'];
+      if (existing) {
+        setResponse(existing);
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -40,7 +44,12 @@ export default function EditLifeJourneyScreen() {
 
     setLoading(true);
     try {
-      await saveOnboardingResponse(user.id, '02-path', response.trim());
+      const trimmedResponse = response.trim();
+      // Save to both core_json and dedicated column
+      await saveOnboardingResponse(user.id, '02-path', trimmedResponse);
+      await updateProfileFields(user.id, {
+        life_journey: trimmedResponse,
+      });
       router.back();
     } catch (error) {
       console.error('Failed to save:', error);

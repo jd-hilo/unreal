@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Alert, Platform } from 'react-native';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, Alert, Platform, Animated, Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { ChoiceQuestion } from '@/components/ChoiceQuestion';
 import { useAuth } from '@/store/useAuth';
-import { updateProfileFields, saveOnboardingResponse } from '@/lib/storage';
+import { updateProfileFields, saveOnboardingResponse, getProfile } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import * as Location from 'expo-location';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTypewriter } from '@/hooks/useTypewriter';
+import { Sparkles, MapPin } from 'lucide-react-native';
 
 // Conditionally import expo-location
 let LocationModule: typeof Location | null = null;
@@ -333,6 +336,24 @@ export default function LocalPreferencesScreen() {
     return true;
   }, [isInitialQuestion, currentQuestion, currentQuestionIndex, answers, otherValues, wantsLocalRecs]);
 
+  const { displayedLines, isComplete: typewriterComplete } = useTypewriter(
+    ["Where should I go to dinner?"],
+    { speed: 50 }
+  );
+
+  const mockResponseFade = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (typewriterComplete && isInitialQuestion) {
+      Animated.timing(mockResponseFade, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+        delay: 500,
+      }).start();
+    }
+  }, [typewriterComplete, isInitialQuestion]);
+
   if (isInitialQuestion) {
     return (
       <OnboardingScreen
@@ -361,6 +382,75 @@ export default function LocalPreferencesScreen() {
                 setWantsLocalRecs(value === 'Yes');
               }}
             />
+          </View>
+
+          {/* iPhone Mockup Visualization */}
+          <View style={styles.mockupContainer}>
+            <View style={styles.iphoneFrame}>
+              <View style={styles.iphoneScreen}>
+                <View style={styles.iphoneNotch} />
+                
+                <ScrollView 
+                  style={styles.mockResultScroll} 
+                  contentContainerStyle={styles.mockResultContainer}
+                  showsVerticalScrollIndicator={false}
+                  scrollEnabled={false}
+                >
+                  {/* Mock Question Card */}
+                  <View style={styles.mockHeaderCard}>
+                    <Text style={styles.mockHeaderLabel}>Question</Text>
+                    <Text style={styles.mockHeaderValue}>
+                      {displayedLines[0]}
+                    </Text>
+                  </View>
+
+                  <Animated.View style={{ opacity: mockResponseFade }}>
+                    {/* Mock Prediction Card */}
+                    <View style={styles.mockPredictionCard}>
+                      <Text style={styles.mockPredictionLabel}>Recommended</Text>
+                      <Text style={styles.mockPredictionValue}>L'Artusi</Text>
+                      <Text style={styles.mockConfidence}>94% confidence</Text>
+                    </View>
+
+                    {/* Mock Rationale Card */}
+                    <View style={styles.mockSectionCard}>
+                      <Text style={styles.mockSectionTitle}>Why this choice?</Text>
+                      <Text style={styles.mockRationale}>
+                        Based on your preference for Italian cuisine and high-energy atmospheres, L'Artusi is a perfect match.
+                      </Text>
+                    </View>
+
+                    {/* Mock Options Card */}
+                    <View style={styles.mockSectionCard}>
+                      <Text style={styles.mockSectionTitle}>All Options</Text>
+                      <View style={styles.mockOptionRow}>
+                        <Text style={styles.mockOptionName}>L'Artusi</Text>
+                        <View style={styles.mockProbContainer}>
+                          <View style={styles.mockProbBarBg}>
+                            <LinearGradient
+                              colors={Colors.gradients.turquoise}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={[styles.mockProbBar, { width: '94%' }]}
+                            />
+                          </View>
+                          <Text style={styles.mockProbValue}>94%</Text>
+                        </View>
+                      </View>
+                      <View style={styles.mockOptionRow}>
+                        <Text style={styles.mockOptionName}>I Sodi</Text>
+                        <View style={styles.mockProbContainer}>
+                          <View style={styles.mockProbBarBg}>
+                            <View style={[styles.mockProbBar, { width: '68%', backgroundColor: 'rgba(0,0,0,0.1)' }]} />
+                          </View>
+                          <Text style={styles.mockProbValue}>68%</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </Animated.View>
+                </ScrollView>
+              </View>
+            </View>
           </View>
         </View>
       </OnboardingScreen>
@@ -438,6 +528,146 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     fontFamily: Fonts.secondary.regular,
+  },
+  mockupContainer: {
+    marginTop: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  iphoneFrame: {
+    width: 280,
+    height: 480,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 40,
+    padding: 10,
+    borderWidth: 4,
+    borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  iphoneScreen: {
+    flex: 1,
+    backgroundColor: '#F2F2F7', // Light gray background like the real app
+    borderRadius: 32,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  iphoneNotch: {
+    width: 120,
+    height: 20,
+    backgroundColor: '#1a1a1a',
+    position: 'absolute',
+    top: 0,
+    left: 70,
+    borderBottomLeftRadius: 15,
+    borderBottomRightRadius: 15,
+    zIndex: 10,
+  },
+  mockResultScroll: {
+    flex: 1,
+  },
+  mockResultContainer: {
+    padding: 12,
+    paddingTop: 32,
+  },
+  mockHeaderCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  mockHeaderLabel: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  mockHeaderValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  mockPredictionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  mockPredictionLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: Colors.textTertiary,
+    marginBottom: 4,
+  },
+  mockPredictionValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  mockConfidence: {
+    fontSize: 10,
+    color: '#10B981',
+    fontWeight: '600',
+  },
+  mockSectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  mockSectionTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  mockRationale: {
+    fontSize: 10,
+    lineHeight: 14,
+    color: Colors.textSecondary,
+  },
+  mockOptionRow: {
+    marginBottom: 10,
+  },
+  mockOptionName: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  mockProbContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  mockProbBarBg: {
+    flex: 1,
+    height: 4,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  mockProbBar: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  mockProbValue: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    minWidth: 25,
   },
 });
 

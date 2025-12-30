@@ -22,15 +22,28 @@ export default function OnboardingCompleteScreen() {
   const [navigatingDecide, setNavigatingDecide] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
+  const [loadingAction, setLoadingAction] = useState<'decide' | 'simulate' | null>(null);
   const loadingIntervalRef = useRef<number | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
 
-  const LOADING_STEPS = [
-    'Analyzing your past...',
-    'Building desires...',
-    'Instilling hometown values...',
-    'Structuring decision patterns...',
-    'Finalizing your digital twin...'
+  const DECIDE_LOADING_STEPS = [
+    'Creating your decision...',
+    'Analyzing your profile...',
+    'Building context...',
+    'Consulting your twin...',
+    'Calculating probabilities...',
+    'Finalizing recommendation...'
+  ];
+
+  const SIMULATE_LOADING_STEPS = [
+    'Initializing timeline...',
+    'Analyzing your current life...',
+    'Mapping relationships...',
+    'Setting up scenarios...',
+    'Preparing simulations...',
+    'Finalizing your timeline...'
   ];
   
   // Button slide-up animations
@@ -86,34 +99,52 @@ export default function OnboardingCompleteScreen() {
       useNativeDriver: true,
     }).start();
 
+    // Start pulse animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Start rotate animation
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 3000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+
     if (loadingIntervalRef.current) clearInterval(loadingIntervalRef.current);
     loadingIntervalRef.current = setInterval(() => {
-      // Fade out
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
-        setLoadingStepIndex((prev) => {
-          if (prev < LOADING_STEPS.length - 1) {
-            return prev + 1;
-          }
-          return prev;
-        });
-        // Fade in
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }).start();
+      setLoadingStepIndex((prev) => {
+        const maxIndex = (loadingAction === 'decide' ? DECIDE_LOADING_STEPS : SIMULATE_LOADING_STEPS).length - 1;
+        if (prev < maxIndex) {
+          return prev + 1;
+        }
+        return prev;
       });
-    }, 2000); // Slower interval for readability
+    }, 2000);
   };
 
   const stopLoadingTicker = () => {
     if (loadingIntervalRef.current) clearInterval(loadingIntervalRef.current);
     loadingIntervalRef.current = null;
     fadeAnim.setValue(0);
+    pulseAnim.setValue(1);
+    rotateAnim.setValue(0);
   };
 
   // Loading animation and steps
@@ -137,6 +168,7 @@ export default function OnboardingCompleteScreen() {
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     trackEvent(MixpanelEvents.ONBOARDING_COMPLETE_DECIDE_CLICKED);
+    setLoadingAction('decide');
     setNavigatingDecide(true);
     setShowLoading(true);
     startLoadingTicker();
@@ -196,31 +228,92 @@ export default function OnboardingCompleteScreen() {
 
 
   const renderLoadingScreen = () => {
+    const rotateInterpolate = rotateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    const currentLoadingSteps = loadingAction === 'decide' ? DECIDE_LOADING_STEPS : SIMULATE_LOADING_STEPS;
+    const mainText = loadingAction === 'decide' ? 'Asking your twin...' : 'Simulating the next year...';
+
     return (
-      <View style={[styles.loadingScreen, { backgroundColor: Colors.background }]}>
-        <StatusBar style="dark" />
-        <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
-          <View style={styles.loadingContent}>
-            <View style={styles.loadingTextContainer}>
-              <Animated.Text 
-                style={[
-                  styles.loadingText, 
-                  { 
-                    opacity: fadeAnim,
-                    transform: [{
-                      translateY: fadeAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [10, 0]
-                      })
-                    }]
-                  }
-                ]}
-              >
-                {LOADING_STEPS[loadingStepIndex]}
-              </Animated.Text>
+      <View style={styles.loadingScreen}>
+        <View style={styles.loadingContainer}>
+          <StatusBar style="dark" />
+          <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
+            <View style={styles.loadingContent}>
+              {/* Animated Orb */}
+              <View style={styles.orbContainer}>
+                <Animated.View
+                  style={[
+                    styles.orbOuter,
+                    {
+                      transform: [
+                        { scale: pulseAnim },
+                        { rotate: rotateInterpolate },
+                      ],
+                    },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={Colors.gradients.turquoise}
+                    style={styles.orbGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                </Animated.View>
+                <View style={styles.orbInner}>
+                  <View style={styles.cubeShadowWrapper}>
+                    <Image 
+                      source={require('@/assets/images/cube.png')}
+                      style={styles.loadingCubeIcon}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Loading Text */}
+              <View style={styles.textContainer}>
+                <Text style={styles.loadingText}>{mainText}</Text>
+                <View style={styles.statusContainer}>
+                  <View style={styles.statusBlur}>
+                    <Text style={styles.statusText}>
+                      {currentLoadingSteps[loadingStepIndex] || currentLoadingSteps[currentLoadingSteps.length - 1]}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Loading Dots */}
+              <View style={styles.dotsContainer}>
+                {[0, 1, 2].map((index) => (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.dot,
+                      {
+                        backgroundColor: Colors.textSecondary,
+                        transform: [
+                          {
+                            scale: pulseAnim.interpolate({
+                              inputRange: [1, 1.1],
+                              outputRange: [1, 1.2],
+                            }),
+                          },
+                        ],
+                        opacity: pulseAnim.interpolate({
+                          inputRange: [1, 1.1],
+                          outputRange: [0.5, 1],
+                        }),
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
             </View>
-          </View>
-        </SafeAreaView>
+          </SafeAreaView>
+        </View>
       </View>
     );
   };
@@ -297,7 +390,16 @@ export default function OnboardingCompleteScreen() {
                   <TouchableOpacity
                     onPress={() => {
                       console.log('Simulate button pressed');
-                      router.push('/simulate/new?fromOnboarding=true');
+                      setLoadingAction('simulate');
+                      setShowLoading(true);
+                      startLoadingTicker();
+                      // Small delay to show loading screen before navigation
+                      setTimeout(() => {
+                        router.push('/simulate/new?fromOnboarding=true');
+                        stopLoadingTicker();
+                        setShowLoading(false);
+                        setLoadingAction(null);
+                      }, 500);
                     }}
                     activeOpacity={0.8}
                     style={styles.button}
@@ -349,7 +451,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   textContainer: {
-    marginBottom: 40,
+    marginBottom: 120,
     alignItems: 'center',
   },
   typingText: {
@@ -361,14 +463,15 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     width: '100%',
     gap: 16,
-    marginTop: 0,
+    marginTop: 100,
   },
   loadingScreen: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   loadingSafeArea: {
     flex: 1,
@@ -379,30 +482,100 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  loadingTextContainer: {
+  orbContainer: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 32,
+  },
+  orbOuter: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'hidden',
+  },
+  orbGradient: {
+    width: '100%',
+    height: '100%',
+  },
+  orbInner: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  cubeShadowWrapper: {
+    shadowColor: 'rgba(0, 0, 0, 0.5)',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.8,
+    shadowRadius: 30,
+    elevation: 20,
+  },
+  loadingCubeIcon: {
+    width: 60,
+    height: 60,
+    opacity: 0.9,
+  },
+  textContainer: {
     alignItems: 'center',
     gap: 16,
     width: '100%',
   },
   loadingText: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '700',
     color: Colors.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.5,
-    fontFamily: Fonts.primary.regular,
+    fontFamily: Fonts.secondary.bold,
   },
-  // Legacy styles kept for reference but unused
-  orbContainer: { display: 'none' },
-  orbOuter: { display: 'none' },
-  orbGradient: { display: 'none' },
-  orbInner: { display: 'none' },
-  loadingCubeIcon: { display: 'none' },
-  statusContainer: { display: 'none' },
-  statusBlur: { display: 'none' },
-  statusText: { display: 'none' },
-  dotsContainer: { display: 'none' },
-  dot: { display: 'none' },
+  statusContainer: {
+    marginTop: 8,
+  },
+  statusBlur: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  statusText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   buttonWrapper: {
     width: '100%',
   },

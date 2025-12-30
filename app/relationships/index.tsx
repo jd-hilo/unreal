@@ -8,9 +8,6 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
 import { Plus, Users, Heart, Briefcase, GraduationCap, UserCircle, X, Trash2 } from 'lucide-react-native';
-import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '@/constants/Theme';
 
 const RELATIONSHIP_TYPES = [
   'Partner', 'Spouse', 'Family', 'Friend', 'Mentor', 
@@ -170,18 +167,15 @@ export default function RelationshipsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Relationships</Text>
-          <Text style={styles.subtitle}>
-            People who influence your decisions
-          </Text>
-        </View>
-      </SafeAreaView>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Relationships</Text>
+        <Text style={styles.subtitle}>
+          People who influence your decisions
+        </Text>
+      </View>
 
       <ScrollView 
         style={styles.content}
@@ -245,7 +239,7 @@ export default function RelationshipsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Relationship</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <X size={24} color={Colors.textPrimary} />
+                <X size={24} color="#000000" />
               </TouchableOpacity>
             </View>
 
@@ -349,35 +343,32 @@ export default function RelationshipsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
-  },
-  safeArea: {
-    backgroundColor: Colors.background,
+    backgroundColor: '#0C0C10',
   },
   header: {
-    paddingTop: 20,
+    paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    backgroundColor: Colors.background,
+    backgroundColor: '#0C0C10',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    borderBottomColor: 'rgba(135, 206, 250, 0.2)',
   },
   backButton: {
     marginBottom: 16,
   },
   backText: {
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   content: {
     flex: 1,
@@ -396,12 +387,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: 'rgba(200, 200, 200, 0.75)',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -411,23 +402,18 @@ const styles = StyleSheet.create({
   relationshipCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: '#0C0C10',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
+    borderColor: 'rgba(135, 206, 250, 0.3)',
     gap: 12,
-    shadowColor: 'rgba(0, 0, 0, 0.05)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
   },
   relationshipIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.backgroundSecondary,
+    backgroundColor: 'rgba(20, 18, 30, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -438,16 +424,16 @@ const styles = StyleSheet.create({
   relationshipName: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: '#FFFFFF',
   },
   relationshipType: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: 'rgba(200, 200, 200, 0.75)',
     textTransform: 'capitalize',
   },
   relationshipLocation: {
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: 'rgba(150, 150, 150, 0.6)',
   },
   influenceBadge: {
     backgroundColor: '#F3F4F6',
@@ -466,9 +452,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 24,
-    backgroundColor: Colors.background,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: '#0C0C10',
   },
   modalOverlay: {
     flex: 1,
@@ -476,7 +460,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: Colors.background,
+    backgroundColor: '#0C0C10',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
@@ -487,12 +471,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    borderBottomColor: 'rgba(135, 206, 250, 0.2)',
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: '#FFFFFF',
   },
   modalScroll: {
     flex: 1,
@@ -507,7 +491,7 @@ const styles = StyleSheet.create({
   modalSectionLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   modalOptionsGrid: {
@@ -520,20 +504,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    backgroundColor: Colors.backgroundSecondary,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+    backgroundColor: '#0C0C10',
   },
   modalOptionSelected: {
-    borderColor: Colors.textPrimary,
-    backgroundColor: Colors.textPrimary,
+    borderColor: 'rgba(135, 206, 250, 0.6)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
   },
   modalOptionText: {
     fontSize: 14,
     fontWeight: '500',
-    color: Colors.textSecondary,
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   modalOptionTextSelected: {
-    color: Colors.background,
+    color: '#FFFFFF',
   },
   modalSliderButtons: {
     flexDirection: 'row',
@@ -544,22 +528,22 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    backgroundColor: Colors.backgroundSecondary,
+    borderColor: 'rgba(135, 206, 250, 0.3)',
+    backgroundColor: '#0C0C10',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalSliderButtonActive: {
-    borderColor: Colors.textPrimary,
-    backgroundColor: Colors.textPrimary,
+    borderColor: 'rgba(135, 206, 250, 0.6)',
+    backgroundColor: 'rgba(135, 206, 250, 0.15)',
   },
   modalSliderButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: 'rgba(200, 200, 200, 0.75)',
   },
   modalSliderButtonTextActive: {
-    color: Colors.background,
+    color: '#FFFFFF',
   },
   modalFooter: {
     flexDirection: 'row',

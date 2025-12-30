@@ -5,7 +5,7 @@ import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
-import { getProfile, saveOnboardingResponse } from '@/lib/storage';
+import { getProfile, saveOnboardingResponse, updateProfileFields } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
 
@@ -25,8 +25,9 @@ export default function EditValuesScreen() {
     
     try {
       const profile = await getProfile(user.id);
-      // Prefer new key '01-values', fallback to legacy '03-values'
+      // Prefer dedicated column, then new key '01-values', fallback to legacy '03-values'
       const existing =
+        profile?.core_value ??
         profile?.core_json?.onboarding_responses?.['01-values'] ??
         profile?.core_json?.onboarding_responses?.['03-values'];
       if (existing) {
@@ -44,8 +45,13 @@ export default function EditValuesScreen() {
 
     setLoading(true);
     try {
-      // Save to the new key
-      await saveOnboardingResponse(user.id, '01-values', response.trim());
+      const trimmedResponse = response.trim();
+      // Save to both core_json and dedicated column
+      await saveOnboardingResponse(user.id, '01-values', trimmedResponse);
+      await saveOnboardingResponse(user.id, '03-values', trimmedResponse); // Also save to legacy key
+      await updateProfileFields(user.id, {
+        core_value: trimmedResponse,
+      });
       router.back();
     } catch (error) {
       console.error('Failed to save:', error);

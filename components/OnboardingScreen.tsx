@@ -138,18 +138,6 @@ export function OnboardingScreen({
   return (
     <View style={styles.gradientBackground}>
       <StatusBar style="dark" />
-      {/* Background gradient overlay */}
-      <LinearGradient
-        colors={[
-          'rgba(232, 122, 127, 0.15)', // peach
-          'rgba(132, 250, 176, 0.15)', // turquoise
-          'rgba(192, 132, 252, 0.15)', // purple
-        ]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

@@ -23,6 +23,9 @@ export interface Database {
           values_json: string[];
           narrative_summary: string | null;
           narrative_embedding: number[] | null;
+          life_situation: string | null;
+          life_journey: string | null;
+          core_value: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -45,6 +48,9 @@ export interface Database {
           values_json?: string[];
           narrative_summary?: string | null;
           narrative_embedding?: number[] | null;
+          life_situation?: string | null;
+          life_journey?: string | null;
+          core_value?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -67,6 +73,9 @@ export interface Database {
           values_json?: string[];
           narrative_summary?: string | null;
           narrative_embedding?: number[] | null;
+          life_situation?: string | null;
+          life_journey?: string | null;
+          core_value?: string | null;
           created_at?: string;
           updated_at?: string;
         };

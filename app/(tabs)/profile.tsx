@@ -116,8 +116,10 @@ export default function ProfileScreen() {
     if (!profileData) return;
     
     const onboardingResponses = profileData?.core_json?.onboarding_responses || {};
-    const lifeSituationResp = onboardingResponses['02-now'] ?? onboardingResponses['01-now'];
-    const coreValuesResp = onboardingResponses['01-values'] ?? onboardingResponses['03-values'];
+    // Pull from dedicated columns first, then fall back to core_json
+    const lifeSituationResp = profileData?.life_situation ?? onboardingResponses['02-now'] ?? onboardingResponses['01-now'];
+    const lifeJourneyResp = profileData?.life_journey ?? onboardingResponses['02-path'];
+    const coreValuesResp = profileData?.core_value ?? onboardingResponses['01-values'] ?? onboardingResponses['03-values'];
     const university = profileData?.university || onboardingResponses.university;
     const hometown = profileData?.hometown || onboardingResponses.hometown;
     const currentLocation = profileData?.current_location;
@@ -126,7 +128,7 @@ export default function ProfileScreen() {
     
     const tempCards: ProfileCard[] = [
       { id: '02-now', title: '', subtitle: '', completed: !!lifeSituationResp },
-      { id: '02-path', title: '', subtitle: '', completed: !!onboardingResponses['02-path'] },
+      { id: '02-path', title: '', subtitle: '', completed: !!lifeJourneyResp },
       { id: '01-values', title: '', subtitle: '', completed: !!coreValuesResp },
       { id: '04-style', title: '', subtitle: '', completed: !!onboardingResponses['04-style'] },
       { id: '05-day', title: '', subtitle: '', completed: !!onboardingResponses['05-day'] },
@@ -294,8 +296,10 @@ export default function ProfileScreen() {
   }
 
   const onboardingResponses = profileData?.core_json?.onboarding_responses || {};
-  const lifeSituationResp = onboardingResponses['02-now'] ?? onboardingResponses['01-now'];
-  const coreValuesResp = onboardingResponses['01-values'] ?? onboardingResponses['03-values'];
+  // Pull from dedicated columns first, then fall back to core_json
+  const lifeSituationResp = profileData?.life_situation ?? onboardingResponses['02-now'] ?? onboardingResponses['01-now'];
+  const lifeJourneyResp = profileData?.life_journey ?? onboardingResponses['02-path'];
+  const coreValuesResp = profileData?.core_value ?? onboardingResponses['01-values'] ?? onboardingResponses['03-values'];
   const university = profileData?.university || onboardingResponses.university;
   const hometown = profileData?.hometown || onboardingResponses.hometown;
   const currentLocation = profileData?.current_location;
@@ -310,13 +314,62 @@ export default function ProfileScreen() {
     { id: 'political_views', title: 'Politics', subtitle: politicalViews || 'Not set', route: '/profile/edit-politics' as any, completed: !!politicalViews, icon: Flag },
   ];
 
+  // Helper function to truncate text for preview
+  const truncateText = (text: string | undefined, maxLength: number = 60): string => {
+    if (!text) return 'Not set';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength).trim() + '...';
+  };
+
   const mindsetCards: ProfileCard[] = [
-    { id: '02-now', title: 'Life Situation', subtitle: 'Where are you now?', route: '/profile/edit-lifesituation' as any, completed: !!lifeSituationResp, icon: User },
-    { id: '02-path', title: 'Life Journey', subtitle: 'How did you get here?', route: '/profile/edit-lifejourney' as any, completed: !!onboardingResponses['02-path'], icon: Briefcase },
-    { id: '01-values', title: 'Core Values', subtitle: 'What matters most?', route: '/profile/edit-values' as any, completed: !!coreValuesResp, icon: Heart },
-    { id: '04-style', title: 'Decision Style', subtitle: 'How do you decide?', route: '/profile/edit-decisionstyle' as any, completed: !!onboardingResponses['04-style'], icon: Brain },
-    { id: '05-day', title: 'Typical Day', subtitle: 'Walk through a day', route: '/profile/edit-typicalday' as any, completed: !!onboardingResponses['05-day'], icon: Clock },
-    { id: '06-stress', title: 'Stress Response', subtitle: 'Reaction to stress', route: '/profile/edit-stress' as any, completed: !!onboardingResponses['06-stress'], icon: Zap },
+    { 
+      id: '02-now', 
+      title: 'Life Situation', 
+      subtitle: lifeSituationResp ? truncateText(lifeSituationResp, 80) : 'Where are you now?', 
+      route: '/profile/edit-lifesituation' as any, 
+      completed: !!lifeSituationResp, 
+      icon: User 
+    },
+    { 
+      id: '02-path', 
+      title: 'Life Journey', 
+      subtitle: lifeJourneyResp ? truncateText(lifeJourneyResp, 80) : 'How did you get here?', 
+      route: '/profile/edit-lifejourney' as any, 
+      completed: !!lifeJourneyResp, 
+      icon: Briefcase 
+    },
+    { 
+      id: '01-values', 
+      title: 'Core Values', 
+      subtitle: coreValuesResp ? truncateText(coreValuesResp, 80) : 'What matters most?', 
+      route: '/profile/edit-values' as any, 
+      completed: !!coreValuesResp, 
+      icon: Heart 
+    },
+    { 
+      id: '04-style', 
+      title: 'Decision Style', 
+      subtitle: onboardingResponses['04-style'] ? truncateText(onboardingResponses['04-style'], 80) : 'How do you decide?', 
+      route: '/profile/edit-decisionstyle' as any, 
+      completed: !!onboardingResponses['04-style'], 
+      icon: Brain 
+    },
+    { 
+      id: '05-day', 
+      title: 'Typical Day', 
+      subtitle: onboardingResponses['05-day'] ? truncateText(onboardingResponses['05-day'], 80) : 'Walk through a day', 
+      route: '/profile/edit-typicalday' as any, 
+      completed: !!onboardingResponses['05-day'], 
+      icon: Clock 
+    },
+    { 
+      id: '06-stress', 
+      title: 'Stress Response', 
+      subtitle: onboardingResponses['06-stress'] ? truncateText(onboardingResponses['06-stress'], 80) : 'Reaction to stress', 
+      route: '/profile/edit-stress' as any, 
+      completed: !!onboardingResponses['06-stress'], 
+      icon: Zap 
+    },
   ];
 
   const getRelationshipEmoji = (relationshipType: string): string => {
@@ -499,6 +552,9 @@ export default function ProfileScreen() {
                 <TouchableOpacity key={card.id} style={styles.gridCard} onPress={() => handleCardPress(card)} activeOpacity={0.8}>
                   <View style={styles.gridIcon}>{card.icon && <card.icon size={24} color={card.completed ? '#4ADE80' : Colors.textTertiary} />}</View>
                   <Text style={styles.gridTitle}>{card.title}</Text>
+                  {card.subtitle && (
+                    <Text style={styles.gridSubtitle} numberOfLines={2}>{card.subtitle}</Text>
+                  )}
                   <View style={styles.gridStatus}>{card.completed ? <CheckCircle2 size={16} color="#4ADE80" /> : <CircleIcon size={16} color={Colors.textTertiary} />}</View>
                 </TouchableOpacity>
               ))}
@@ -575,7 +631,8 @@ const styles = StyleSheet.create({
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   gridCard: { width: (width - 40 - 12) / 2, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 3, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', justifyContent: 'space-between', minHeight: 100 },
   gridIcon: { marginBottom: 12 },
-  gridTitle: { fontSize: 15, fontFamily: Fonts.secondary.bold, fontWeight: '600', color: Colors.textPrimary, marginBottom: 8 },
+  gridTitle: { fontSize: 15, fontFamily: Fonts.secondary.bold, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4 },
+  gridSubtitle: { fontSize: 12, fontFamily: Fonts.secondary.regular, color: Colors.textSecondary, lineHeight: 16, marginBottom: 8, flex: 1 },
   gridStatus: { alignSelf: 'flex-end' },
   singleCard: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#FFFFFF', borderRadius: 24, shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', overflow: 'hidden' },
   singleCardContent: { flex: 1 },
