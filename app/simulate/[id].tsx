@@ -6,7 +6,7 @@ import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getTimeline, updateTimeline, getProfile } from '@/lib/storage';
 import { advanceTimeline } from '@/lib/ai';
-import { getSelectedMemoji } from '@/lib/memoji';
+import { Avatar } from '@/components/Avatar';
 import { ChevronLeft, Plus, User, Lock, DollarSign, Heart, Zap, TrendingUp, TrendingDown, Users, X, ChevronDown, ChevronUp, MapPin, Sparkles, Brain, Briefcase, ChevronRight } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -131,6 +131,7 @@ export default function TimelineDetailScreen() {
   const user = useAuth((state) => state.user);
   const { isPremium } = useTwin();
   const [timeline, setTimeline] = useState<any>(null);
+  const [profileData, setProfileData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [addingScenario, setAddingScenario] = useState(false);
   const [scenarioModalVisible, setScenarioModalVisible] = useState(false);
@@ -145,7 +146,6 @@ export default function TimelineDetailScreen() {
   const previousNetWorth = useRef<string | null>(null);
   const [currentInventoryIndex, setCurrentInventoryIndex] = useState(0);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(0);
-  const [selectedMemojiUrl, setSelectedMemojiUrl] = useState<string | null>(null);
 
   // Loading messages to cycle through
   const loadingMessages = [
@@ -184,7 +184,10 @@ export default function TimelineDetailScreen() {
     if (!timelineId) return;
 
     try {
-      const timelineData = await getTimeline(timelineId);
+      const [timelineData, profile] = await Promise.all([
+        getTimeline(timelineId),
+        user ? getProfile(user.id) : Promise.resolve(null)
+      ]);
       
       // Store previous values before updating
       if (timeline) {
@@ -193,16 +196,8 @@ export default function TimelineDetailScreen() {
       }
       
       setTimeline(timelineData);
+      setProfileData(profile);
       
-      // Load memoji if user is available
-      if (user?.id) {
-        try {
-          const memojiUrl = await getSelectedMemoji(user.id);
-          setSelectedMemojiUrl(memojiUrl);
-        } catch (error) {
-          console.error('Failed to load selected memoji:', error);
-        }
-      }
     } catch (error) {
       console.error('Failed to load timeline:', error);
       alert('Failed to load timeline');
@@ -728,7 +723,7 @@ export default function TimelineDetailScreen() {
         <View style={styles.topBar}>
           <View style={styles.topBarLeft}>
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={() => router.push('/simulate')}
               style={styles.backButton}
               activeOpacity={0.7}
             >
@@ -770,11 +765,12 @@ export default function TimelineDetailScreen() {
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
                 <View style={styles.avatarIconContainer}>
-                  {selectedMemojiUrl ? (
-                    <Image source={{ uri: selectedMemojiUrl }} style={styles.avatarImage} resizeMode="cover" />
-                  ) : (
-                    <Image source={require('@/assets/images/memoji.png')} style={styles.avatarImage} resizeMode="contain" />
-                  )}
+                  <Avatar 
+                    name={timeline?.twin_profile?.name || user?.email || 'Friend'} 
+                    size={64} 
+                    variant={(profileData?.avatar_variant as any) || 'beam'} 
+                    colors={profileData?.avatar_colors || undefined}
+                  />
                 </View>
                 <View style={styles.ageContainer}>
                   <Text style={styles.ageValue}>{timeline.current_age}</Text>

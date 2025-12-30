@@ -10,6 +10,9 @@ import { completeOnboarding } from '@/lib/storage';
 import { Input } from '@/components/Input';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Sparkles, CheckCircle2, Circle, ChevronRight, Home } from 'lucide-react-native';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors } from '@/constants/Theme';
 
 const RELATIONSHIP_TYPES = [
   'Partner', 'Spouse', 'Family', 'Friend', 'Mentor', 
@@ -196,13 +199,10 @@ export default function AddRelationshipScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={isOnboarding ? ['#0C0C10', '#0F0F11', '#0F1A2E', '#1A2D4E'] : ['#0C0C10', '#0F0F11']}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
-    >
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.header}>
         {isOnboarding && (
           <>
             <View style={styles.progressBarContainer}>
@@ -214,7 +214,7 @@ export default function AddRelationshipScreen() {
               />
             </View>
             <TouchableOpacity onPress={() => router.replace('/(tabs)/home')} style={styles.homeButton}>
-              <Home size={20} color="rgba(200, 200, 200, 0.75)" />
+              <Home size={20} color={Colors.textSecondary} />
               <Text style={styles.homeText}>Home</Text>
             </TouchableOpacity>
           </>
@@ -234,7 +234,7 @@ export default function AddRelationshipScreen() {
             style={[styles.modeButton, mode === 'ai' && styles.modeButtonActive]}
             onPress={() => setMode('ai')}
           >
-            <Sparkles size={16} color={mode === 'ai' ? '#FFFFFF' : '#666666'} />
+            <Sparkles size={16} color={mode === 'ai' ? Colors.background : Colors.textTertiary} />
             <Text style={[styles.modeButtonText, mode === 'ai' && styles.modeButtonTextActive]}>
               AI Extract
             </Text>
@@ -501,21 +501,26 @@ export default function AddRelationshipScreen() {
           </TouchableOpacity>
         )}
       </View>
-    </LinearGradient>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
+  },
+  safeArea: {
+    backgroundColor: Colors.background,
   },
   header: {
-    paddingTop: 60,
+    paddingTop: 20,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(59, 37, 109, 0.2)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
   progressBarContainer: {
     marginBottom: 20,
@@ -525,7 +530,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
   },
   homeButton: {
     flexDirection: 'row',
@@ -535,7 +540,7 @@ const styles = StyleSheet.create({
   },
   homeText: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
   },
   headerTitleContainer: {
     marginBottom: 24,
@@ -543,14 +548,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 40,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 8,
     letterSpacing: -1,
     lineHeight: 44,
   },
   subtitle: {
     fontSize: 20,
-    color: '#D4F238', // Using the app's accent color (Neon Green/Yellow) or similar
+    color: Colors.textSecondary,
     fontWeight: '600',
     marginBottom: 0,
     letterSpacing: -0.5,
@@ -561,7 +566,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 16,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     fontWeight: '600',
   },
   modeToggle: {
@@ -577,21 +582,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    backgroundColor: '#0C0C10',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: Colors.backgroundSecondary,
     gap: 6,
   },
   modeButtonActive: {
-    borderColor: '#000000',
-    backgroundColor: '#000000',
+    borderColor: Colors.textPrimary,
+    backgroundColor: Colors.textPrimary,
   },
   modeButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
   },
   modeButtonTextActive: {
-    color: '#FFFFFF',
+    color: Colors.background,
   },
   content: {
     flex: 1,
@@ -607,7 +612,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   sectionHelp: {
@@ -625,20 +630,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    backgroundColor: '#0C0C10',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: Colors.backgroundSecondary,
   },
   optionSelected: {
-    borderColor: '#000000',
-    backgroundColor: '#000000',
+    borderColor: Colors.textPrimary,
+    backgroundColor: Colors.textPrimary,
   },
   optionText: {
     fontSize: 14,
     fontWeight: '500',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
   },
   optionTextSelected: {
-    color: '#FFFFFF',
+    color: Colors.background,
   },
   sliderContainer: {
     gap: 12,
@@ -670,22 +675,22 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(59, 37, 109, 0.3)',
-    backgroundColor: '#0C0C10',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: Colors.backgroundSecondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sliderButtonActive: {
-    borderColor: '#000000',
-    backgroundColor: '#000000',
+    borderColor: Colors.textPrimary,
+    backgroundColor: Colors.textPrimary,
   },
   sliderButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
   },
   sliderButtonTextActive: {
-    color: '#FFFFFF',
+    color: Colors.background,
   },
   error: {
     color: '#EF4444',
@@ -694,14 +699,14 @@ const styles = StyleSheet.create({
   },
   aiInstructions: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     lineHeight: 20,
     marginBottom: 8,
   },
   inputCard: {
-    backgroundColor: 'rgba(20, 18, 30, 0.6)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
+    backgroundColor: Colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 16,
     padding: 16,
   },
@@ -730,7 +735,7 @@ const styles = StyleSheet.create({
   extractedTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   extractedList: {
@@ -739,17 +744,17 @@ const styles = StyleSheet.create({
   extractedCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(20, 20, 25, 0.8)',
+    backgroundColor: Colors.backgroundSecondary,
     borderRadius: 16,
     padding: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(59, 37, 109, 0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     gap: 12,
-    opacity: 0.85,
+    opacity: 0.7,
   },
   extractedCardSelected: {
-    borderColor: '#60A5FA',
-    backgroundColor: '#0C0C10',
+    borderColor: Colors.textPrimary,
+    backgroundColor: Colors.background,
     opacity: 1,
   },
   extractedIcon: {
@@ -763,18 +768,18 @@ const styles = StyleSheet.create({
   extractedName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
   },
   extractedNameUnselected: {
-    color: '#9CA3AF',
+    color: Colors.textTertiary,
   },
   extractedDetails: {
     fontSize: 14,
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     textTransform: 'capitalize',
   },
   extractedDetailsUnselected: {
-    color: '#6B7280',
+    color: Colors.textTertiary,
   },
   footer: {
     position: 'absolute',
@@ -784,9 +789,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 32 : 36,
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.background,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(59, 37, 109, 0.2)',
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
   },
   footerButtons: {
     flexDirection: 'row',
@@ -806,7 +811,7 @@ const styles = StyleSheet.create({
   },
   buttonOutline: {
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: Colors.textPrimary,
     backgroundColor: 'transparent',
     shadowOpacity: 0,
     elevation: 0,
@@ -828,7 +833,7 @@ const styles = StyleSheet.create({
   buttonTextOutline: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     paddingVertical: 18,
     paddingHorizontal: 24,
     textAlign: 'center',

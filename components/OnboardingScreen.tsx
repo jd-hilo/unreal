@@ -266,14 +266,14 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   titleSection: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '700',
     color: Colors.textPrimary,
-    lineHeight: 36,
-    marginBottom: 8,
+    lineHeight: 28,
+    marginBottom: 6,
     fontFamily: Fonts.secondary.bold,
   },
   subtitle: {
@@ -346,7 +346,9 @@ const styles = StyleSheet.create({
   floatingButtonDisabled: {
     shadowOpacity: 0,
     elevation: 0,
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   shimmer: {
     position: 'absolute',

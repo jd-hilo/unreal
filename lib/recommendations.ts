@@ -209,6 +209,35 @@ function buildProfileContext(
     sections.push(profile.values_json.join(', '));
   }
 
+  // FOOD PREFERENCES (from core_json.onboarding_responses)
+  if (profile.core_json?.onboarding_responses?.['local-preferences']) {
+    try {
+      const localPrefs = JSON.parse(profile.core_json.onboarding_responses['local-preferences']);
+      
+      if (localPrefs.food_preferences && typeof localPrefs.food_preferences === 'object') {
+        sections.push('\n=== FOOD PREFERENCES ===');
+        const foodPrefs = localPrefs.food_preferences as Record<string, string>;
+        if (foodPrefs.diet) sections.push(`Diet: ${foodPrefs.diet}`);
+        if (foodPrefs.flavor) sections.push(`Flavor Preference: ${foodPrefs.flavor}`);
+        if (foodPrefs.texture) sections.push(`Texture Preference: ${foodPrefs.texture}`);
+        if (foodPrefs.cuisine) sections.push(`Preferred Cuisine: ${foodPrefs.cuisine}`);
+        if (foodPrefs.priority) sections.push(`Food Priority: ${foodPrefs.priority}`);
+      }
+
+      if (localPrefs.fun_preferences && typeof localPrefs.fun_preferences === 'object') {
+        sections.push('\n=== ACTIVITY PREFERENCES ===');
+        const funPrefs = localPrefs.fun_preferences as Record<string, string>;
+        if (funPrefs.energy_level) sections.push(`Energy Level Preference: ${funPrefs.energy_level}`);
+        if (funPrefs.social_style) sections.push(`Social Style: ${funPrefs.social_style}`);
+        if (funPrefs.activity_type) sections.push(`Preferred Activity Type: ${funPrefs.activity_type}`);
+        if (funPrefs.vibe) sections.push(`Music/Atmosphere Vibe: ${funPrefs.vibe}`);
+        if (funPrefs.priority) sections.push(`Activity Priority: ${funPrefs.priority}`);
+      }
+    } catch (error) {
+      console.warn('Failed to parse local preferences:', error);
+    }
+  }
+
   // ONBOARDING RESPONSES (Life Context, Goals, Decision Style, etc.)
   if (profile.core_json?.onboarding_responses) {
     sections.push('\n=== LIFE CONTEXT & GOALS ===');
@@ -341,6 +370,7 @@ async function callAIForRecommendations(
       userPrompt += `- Top 5 restaurants (with cuisine types)\n`;
       userPrompt += `- Top 3 bars or nightlife spots\n`;
       userPrompt += `- Top 2 things to do or activities\n\n`;
+      userPrompt += `IMPORTANT: Prioritize LOCAL, INDEPENDENT restaurants and venues over chain restaurants. Only suggest chains if there are no good local options available.\n\n`;
     }
   }
 

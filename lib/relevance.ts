@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { getProfile, getRelationships, getCareerEntries, getJournals, getDecisions } from './storage';
+import { getProfile, getRelationships, getCareerEntries, getJournals } from './storage';
 import { embedText } from './ai';
 
 export async function buildCorePack(primaryUserId: string, allUserIds?: string[]): Promise<string> {
@@ -126,6 +126,35 @@ async function buildSingleUserCorePack(userId: string): Promise<string> {
     sections.push(profile.core_json.motivation);
   }
 
+  // Add food and activity preferences if available (from core_json.onboarding_responses)
+  if (profile.core_json?.onboarding_responses?.['local-preferences']) {
+    try {
+      const localPrefs = JSON.parse(profile.core_json.onboarding_responses['local-preferences']);
+      
+      if (localPrefs.food_preferences && typeof localPrefs.food_preferences === 'object') {
+        sections.push('\nFOOD PREFERENCES');
+        const foodPrefs = localPrefs.food_preferences as Record<string, string>;
+        if (foodPrefs.diet) sections.push(`Diet: ${foodPrefs.diet}`);
+        if (foodPrefs.flavor) sections.push(`Flavor: ${foodPrefs.flavor}`);
+        if (foodPrefs.texture) sections.push(`Texture: ${foodPrefs.texture}`);
+        if (foodPrefs.cuisine) sections.push(`Cuisine: ${foodPrefs.cuisine}`);
+        if (foodPrefs.priority) sections.push(`Priority: ${foodPrefs.priority}`);
+      }
+
+      if (localPrefs.fun_preferences && typeof localPrefs.fun_preferences === 'object') {
+        sections.push('\nACTIVITY PREFERENCES');
+        const funPrefs = localPrefs.fun_preferences as Record<string, string>;
+        if (funPrefs.energy_level) sections.push(`Energy Level: ${funPrefs.energy_level}`);
+        if (funPrefs.social_style) sections.push(`Social Style: ${funPrefs.social_style}`);
+        if (funPrefs.activity_type) sections.push(`Activity Type: ${funPrefs.activity_type}`);
+        if (funPrefs.vibe) sections.push(`Vibe: ${funPrefs.vibe}`);
+        if (funPrefs.priority) sections.push(`Priority: ${funPrefs.priority}`);
+      }
+    } catch (error) {
+      console.warn('Failed to parse local preferences:', error);
+    }
+  }
+
   const result = sections.join('\n');
   const packEndTime = performance.now();
   console.log(`[CorePack] Single user pack built in ${(packEndTime - packStartTime).toFixed(2)}ms, result length: ${result.length} chars`);
@@ -221,23 +250,7 @@ export async function buildRelevancePack(userId: string, question: string): Prom
     }
   }
 
-  // 3) Past similar decisions with outcomes
-  const recentDecisions = await getDecisions(userId, 5);
-  if (recentDecisions.length > 0) {
-    bullets.push('\nPast similar decisions:');
-    recentDecisions.slice(0, 3).forEach((dec) => {
-      let line = `- ${dec.question}`;
-      if (dec.prediction) {
-        line += ` → Chose: ${dec.prediction.prediction}`;
-        if (dec.prediction.factors && dec.prediction.factors.length > 0) {
-          line += ` (factors: ${dec.prediction.factors.slice(0, 2).join(', ')})`;
-        }
-      }
-      bullets.push(line);
-    });
-  }
-
-  // 4) Recent journals (7-30 days)
+  // 3) Recent journals (7-30 days)
   const recentJournals = await getJournals(userId, 7);
   if (recentJournals.length > 0) {
     const avgMood = recentJournals.reduce((sum, j) => sum + (j.mood || 0), 0) / recentJournals.length;

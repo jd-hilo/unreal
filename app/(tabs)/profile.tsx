@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useTextScramble } from '@/hooks/useTextScramble';
 import * as Haptics from 'expo-haptics';
-import { getSelectedMemoji } from '@/lib/memoji';
+import { Avatar } from '@/components/Avatar';
 import { Colors, Fonts } from '@/constants/Theme';
 
 const { width } = Dimensions.get('window');
@@ -98,7 +98,6 @@ export default function ProfileScreen() {
   const animatedTwinCode = useTextScramble(twinCode, 1500);
   const [animatedProgress, setAnimatedProgress] = useState(0);
   const progressAnimRef = useRef<Animated.Value | null>(null);
-  const [selectedMemojiUrl, setSelectedMemojiUrl] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -193,14 +192,28 @@ export default function ProfileScreen() {
       setFirstName(profile?.first_name || '');
       setOverallProgressValue(overallProgress);
       
-      if (user?.id) {
+      // Auto-generate and save avatar for existing users who don't have one
+      if (profile && !profile.avatar_variant) {
         try {
-          const memojiUrl = await getSelectedMemoji(user.id);
-          setSelectedMemojiUrl(memojiUrl);
+          const avatarVariant = 'beam';
+          const avatarColors = ["#92A1C6", "#146A7C", "#F0AB3D", "#C271B4", "#C20D90"];
+          const avatarReason = "This unique gradient signature is generated from your biometric data and decision patterns. It represents the core of your digital twin.";
+          
+          await updateProfileFields(user.id, {
+            avatar_variant: avatarVariant,
+            avatar_colors: avatarColors,
+            avatar_reason: avatarReason,
+          });
+          
+          // Reload profile to get updated avatar data
+          const updatedProfile = await getProfile(user.id);
+          setProfileData(updatedProfile);
         } catch (error) {
-          console.error('Failed to load selected memoji:', error);
+          console.error('Failed to auto-generate avatar:', error);
+          // Don't block the UI if avatar generation fails
         }
       }
+      
     } catch (error) {
       console.error('Failed to load profile:', error);
     } finally {
@@ -354,11 +367,12 @@ export default function ProfileScreen() {
                 <AnimatedProgressArc progress={animatedProgress / 100} />
               </Svg>
               <View style={styles.avatarContainer}>
-                {selectedMemojiUrl ? (
-                  <Image source={{ uri: selectedMemojiUrl }} style={styles.avatarImage} resizeMode="cover" />
-                ) : (
-                  <Image source={require('@/assets/images/memoji.png')} style={styles.avatarImage} resizeMode="contain" />
-                )}
+                <Avatar 
+                  name={firstName || user?.email || 'Friend'} 
+                  size={80} 
+                  variant={(profileData?.avatar_variant as any) || 'beam'} 
+                  colors={profileData?.avatar_colors || undefined}
+                />
               </View>
               <View style={styles.percentageBadgeWrapper}>
                 <View style={styles.percentageBadge}><AnimatedPercentageText progress={animatedProgress} /></View>

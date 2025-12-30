@@ -18,6 +18,7 @@ export default function OnboardingLayout() {
       <Stack.Screen name="06-stress" />
       <Stack.Screen name="politics" />
       <Stack.Screen name="07-clarifier" />
+      <Stack.Screen name="local-preferences" />
     </Stack>
   );
 }

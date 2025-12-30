@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { formatDistanceToNow } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Fonts } from '@/constants/Theme';
+import { Avatar } from '@/components/Avatar';
 
 export default function SimulateDashboard() {
   const router = useRouter();
@@ -23,6 +24,8 @@ export default function SimulateDashboard() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [timelineToDelete, setTimelineToDelete] = useState<string | null>(null);
   const [simulationCredits, setSimulationCredits] = useState<number | null>(null);
+  const [userName, setUserName] = useState<string>('');
+  const [profileData, setProfileData] = useState<any>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -43,6 +46,8 @@ export default function SimulateDashboard() {
 
       setTimelines(timelinesData || []);
       setSimulationCredits(profile?.simulation_credits ?? 5);
+      setUserName(profile?.first_name || user?.email || 'Friend');
+      setProfileData(profile);
 
       const responses = profile?.core_json?.onboarding_responses || {};
       const birthYearVal = responses['birth-year'] || responses['00-birth-year'];
@@ -161,10 +166,11 @@ export default function SimulateDashboard() {
             }}
             activeOpacity={0.7}
           >
-            <Image 
-               source={require('@/assets/images/memoji.png')}
-               style={styles.avatar} 
-               resizeMode="contain"
+            <Avatar 
+              name={userName} 
+              size={40} 
+              variant={(profileData?.avatar_variant as any) || 'beam'} 
+              colors={profileData?.avatar_colors || undefined}
             />
           </TouchableOpacity>
         </View>

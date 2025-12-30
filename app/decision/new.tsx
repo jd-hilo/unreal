@@ -5,9 +5,10 @@ import { useAuth } from '@/store/useAuth';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { SwipeableOptionCard } from '@/components/SwipeableOptionCard';
 import { ArrowLeft, ChevronRight, X, UserPlus, Clock, Sparkles, Check, Plus } from 'lucide-react-native';
-import { insertDecision, updateDecisionPrediction, getUserByTwinCode, addDecisionParticipant } from '@/lib/storage';
+import { insertDecision, updateDecisionPrediction, getUserByTwinCode, addDecisionParticipant, getProfile } from '@/lib/storage';
 import { predictDecision, generateInterestingDecisionQuestions } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
+import { isLocationSpecificQuestion } from '@/lib/decision';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
@@ -24,9 +25,13 @@ const TOTAL_STEPS = 4;
 
 export default function NewDecisionScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ question?: string; autoSubmit?: string }>();
+  const params = useLocalSearchParams<{ question?: string | string[]; autoSubmit?: string | string[] }>();
   const user = useAuth((state) => state.user);
-  const autoSubmit = params.autoSubmit === 'true';
+  
+  // Safely extract params (handle both string and array cases)
+  const questionParam = Array.isArray(params.question) ? params.question[0] : params.question;
+  const autoSubmitParam = Array.isArray(params.autoSubmit) ? params.autoSubmit[0] : params.autoSubmit;
+  const autoSubmit = autoSubmitParam === 'true';
   const autoSubmitStarted = useRef(false);
   
   // Step management
@@ -36,7 +41,7 @@ export default function NewDecisionScreen() {
   const questionInputRef = useRef<TextInput>(null);
   
   // Form data
-  const [question, setQuestion] = useState(params.question || '');
+  const [question, setQuestion] = useState(questionParam || '');
   const [derivedOptions, setDerivedOptions] = useState<string[]>([]);
   const [isDerivingOptions, setIsDerivingOptions] = useState(false);
   const [loading, setLoading] = useState(autoSubmit); // Show loading immediately if autoSubmit
@@ -98,7 +103,8 @@ export default function NewDecisionScreen() {
 
       const processAutoSubmit = async () => {
         try {
-          let questionToUse = params.question?.trim() || '';
+          const questionParamValue = Array.isArray(params.question) ? params.question[0] : params.question;
+          let questionToUse = (questionParamValue && typeof questionParamValue === 'string') ? questionParamValue.trim() : '';
 
           // Generate question if not provided
           if (!questionToUse) {
@@ -111,8 +117,58 @@ export default function NewDecisionScreen() {
 
           // Derive options
           const corePack = await buildCorePack(user.id);
+          let optionsContext = corePack;
+          
+          // Add location context if this is a location-specific question
+          if (isLocationSpecificQuestion(questionToUse)) {
+            try {
+              const profile = await getProfile(user.id);
+              
+              // Get location_enabled from core_json.onboarding_responses
+              let locationEnabled = false;
+              if (profile?.core_json?.onboarding_responses?.['local-preferences']) {
+                try {
+                  const localPrefs = JSON.parse(profile.core_json.onboarding_responses['local-preferences']);
+                  locationEnabled = localPrefs.location_enabled === true;
+                } catch (e) {
+                  console.warn('Failed to parse local preferences:', e);
+                }
+              }
+              
+              // Conditionally import expo-location
+              let Location: typeof import('expo-location') | null = null;
+              try {
+                Location = require('expo-location');
+              } catch (e) {
+                // expo-location not available
+              }
+              
+              if (locationEnabled && Location) {
+                try {
+                  const { status } = await Location.getForegroundPermissionsAsync();
+                  if (status === 'granted') {
+                    const location = await Location.getCurrentPositionAsync({
+                      accuracy: Location.Accuracy.Balanced,
+                    });
+                    const locationContext = `\n\nCURRENT GPS LOCATION: ${location.coords.latitude}, ${location.coords.longitude}\nUse this exact location to recommend REAL restaurants, bars, or venues nearby. IMPORTANT: Prioritize LOCAL, INDEPENDENT restaurants and venues over chain restaurants. Only suggest chains if there are no good local options nearby. Provide specific venue names, addresses, and why they match the user's preferences.`;
+                    optionsContext += locationContext;
+                  }
+                } catch (error) {
+                  console.warn('Failed to get real-time location, using fallback:', error);
+                }
+              }
+              
+              // Add fallback location context if available
+              if (profile?.current_location && !optionsContext.includes('CURRENT GPS LOCATION')) {
+                optionsContext += `\n\nLOCATION FALLBACK: ${profile.current_location}\nUse this city/area to recommend REAL restaurants, bars, or venues. IMPORTANT: Prioritize LOCAL, INDEPENDENT restaurants and venues over chain restaurants. Only suggest chains if there are no good local options. Provide specific venue names and why they match the user's preferences.`;
+              }
+            } catch (error) {
+              console.warn('Failed to enhance location context:', error);
+            }
+          }
+          
           const { deriveDecisionOptionsWithContext } = await import('@/lib/ai');
-          const options = await deriveDecisionOptionsWithContext(questionToUse, corePack);
+          const options = await deriveDecisionOptionsWithContext(questionToUse, optionsContext);
           setDerivedOptions(options);
 
           // Submit
@@ -169,27 +225,27 @@ export default function NewDecisionScreen() {
       };
 
       processAutoSubmit();
-    } else if (params.question && params.question.trim() && currentStep === 1 && !autoSubmit) {
+    } else if (questionParam && typeof questionParam === 'string' && questionParam.trim() && currentStep === 1 && !autoSubmit) {
       // Normal flow: pre-fill question and auto-derive options
-      setQuestion(params.question);
+      setQuestion(questionParam);
       const timer = setTimeout(() => {
         handleDeriveOptions();
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [autoSubmit, params.question, user]);
+  }, [autoSubmit, questionParam, user]);
 
 
   // Auto-focus question input when on step 1
   useEffect(() => {
-    if (currentStep === 1 && !params.question) {
+    if (currentStep === 1 && !questionParam) {
       // Small delay to ensure the component is rendered
       const timer = setTimeout(() => {
         questionInputRef.current?.focus();
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [currentStep, params.question]);
+  }, [currentStep, questionParam]);
 
   // Loading animation and steps
   useEffect(() => {
@@ -325,6 +381,54 @@ export default function NewDecisionScreen() {
         const allUserIds = [user.id, ...addedTwins.map(t => t.userId)];
         const { buildCorePack } = await import('@/lib/relevance');
         context = await buildCorePack(user.id, allUserIds);
+      }
+      
+      // Add location context if this is a location-specific question
+      if (isLocationSpecificQuestion(question.trim()) && user) {
+        try {
+          const profile = await getProfile(user.id);
+          
+          // Get location_enabled from core_json.onboarding_responses
+          let locationEnabled = false;
+          if (profile?.core_json?.onboarding_responses?.['local-preferences']) {
+            try {
+              const localPrefs = JSON.parse(profile.core_json.onboarding_responses['local-preferences']);
+              locationEnabled = localPrefs.location_enabled === true;
+            } catch (e) {
+              console.warn('Failed to parse local preferences:', e);
+            }
+          }
+          
+          // Conditionally import expo-location
+          let Location: typeof import('expo-location') | null = null;
+          try {
+            Location = require('expo-location');
+          } catch (e) {
+            // expo-location not available
+          }
+          
+          if (locationEnabled && Location) {
+            try {
+              const { status } = await Location.getForegroundPermissionsAsync();
+              if (status === 'granted') {
+                const location = await Location.getCurrentPositionAsync({
+                  accuracy: Location.Accuracy.Balanced,
+                });
+                const locationContext = `\n\nCURRENT GPS LOCATION: ${location.coords.latitude}, ${location.coords.longitude}\nUse this exact location to recommend REAL restaurants, bars, or venues nearby. IMPORTANT: Prioritize LOCAL, INDEPENDENT restaurants and venues over chain restaurants. Only suggest chains if there are no good local options nearby. Provide specific venue names, addresses, and why they match the user's preferences.`;
+                context += locationContext;
+              }
+            } catch (error) {
+              console.warn('Failed to get real-time location, using fallback:', error);
+            }
+          }
+          
+          // Add fallback location context if available
+          if (profile?.current_location && !context.includes('CURRENT GPS LOCATION')) {
+            context += `\n\nLOCATION FALLBACK: ${profile.current_location}\nUse this city/area to recommend REAL restaurants, bars, or venues. IMPORTANT: Prioritize LOCAL, INDEPENDENT restaurants and venues over chain restaurants. Only suggest chains if there are no good local options. Provide specific venue names and why they match the user's preferences.`;
+          }
+        } catch (error) {
+          console.warn('Failed to enhance location context:', error);
+        }
       }
       
       const options = await deriveDecisionOptionsWithContext(question.trim(), context);
@@ -806,6 +910,22 @@ export default function NewDecisionScreen() {
                   />
                 ))}
               </View>
+            </View>
+          </SafeAreaView>
+        </View>
+      </View>
+    );
+  }
+
+  // Early return if user is not loaded
+  if (!user) {
+    return (
+      <View style={styles.screen}>
+        <View style={styles.backgroundGradient}>
+          <StatusBar style="dark" />
+          <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <View style={[styles.loadingContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+              <ActivityIndicator size="large" color={Colors.textPrimary} />
             </View>
           </SafeAreaView>
         </View>

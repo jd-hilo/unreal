@@ -3,8 +3,8 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions } from '@/lib/storage';
-import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Clock } from 'lucide-react-native';
+import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields } from '@/lib/storage';
+import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -26,6 +26,7 @@ export default function HomeScreen() {
   const user = useAuth((state) => state.user);
   const { checkOnboardingStatus, isPremium } = useTwin();
   const [userName, setUserName] = useState('');
+  const [profileData, setProfileData] = useState<any>(null);
   const [recentDecisions, setRecentDecisions] = useState<any[]>([]);
   const [recentWhatIfs, setRecentWhatIfs] = useState<any[]>([]);
   const [profileProgress, setProfileProgress] = useState(100); 
@@ -34,8 +35,6 @@ export default function HomeScreen() {
   const [hasTodayJournal, setHasTodayJournal] = useState(false);
   const [showDecisionGuide, setShowDecisionGuide] = useState(false);
   const [showAccuracyInfo, setShowAccuracyInfo] = useState(false);
-  const [cooldownTime, setCooldownTime] = useState<string | null>(null);
-  const [isCooldown, setIsCooldown] = useState(false);
   
   // Layout refs for ProductGuide
   const simulateRef = useRef<View>(null);
@@ -56,14 +55,14 @@ export default function HomeScreen() {
       });
     };
 
-    const [sim, dec, train] = await Promise.all([
-      measure(simulateRef),
+    const [dec, sim, train] = await Promise.all([
       measure(decideRef),
+      measure(simulateRef),
       measure(trainRef)
     ]);
 
-    setSimulateLayout(sim);
     setDecideLayout(dec);
+    setSimulateLayout(sim);
     setTrainLayout(train);
   };
   
@@ -71,32 +70,6 @@ export default function HomeScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    if (isCooldown && !isPremium && recentDecisions.length > 0) {
-      interval = setInterval(() => {
-        const lastDecisionTime = new Date(recentDecisions[0].created_at).getTime();
-        const now = Date.now();
-        const twentyFourHours = 24 * 60 * 60 * 1000;
-        
-        if (now - lastDecisionTime < twentyFourHours) {
-          const remaining = twentyFourHours - (now - lastDecisionTime);
-          const hours = Math.floor(remaining / (1000 * 60 * 60));
-          const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-          setCooldownTime(`${hours}h ${minutes}m`);
-        } else {
-          setIsCooldown(false);
-          setCooldownTime(null);
-          clearInterval(interval);
-        }
-      }, 60000); // Update every minute
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isCooldown, isPremium, recentDecisions]);
 
   useEffect(() => {
     if (!user) {
@@ -134,31 +107,34 @@ export default function HomeScreen() {
       if (profile?.first_name) {
         setUserName(profile.first_name);
       }
+      setProfileData(profile);
       setRecentDecisions(decisions || []);
       setRecentWhatIfs(whatifs || []);
       setProfileProgress(progress || 0);
       setHasTodayJournal(!!journalToday);
 
-      // Check for cooldown (non-premium only)
-      if (!isPremium && decisions && decisions.length > 0) {
-        const lastDecisionTime = new Date(decisions[0].created_at).getTime();
-        const now = Date.now();
-        const twentyFourHours = 24 * 60 * 60 * 1000;
-        
-        if (now - lastDecisionTime < twentyFourHours) {
-          setIsCooldown(true);
-          const remaining = twentyFourHours - (now - lastDecisionTime);
-          const hours = Math.floor(remaining / (1000 * 60 * 60));
-          const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-          setCooldownTime(`${hours}h ${minutes}m`);
-        } else {
-          setIsCooldown(false);
-          setCooldownTime(null);
+      // Auto-generate and save avatar for existing users who don't have one
+      if (profile && !profile.avatar_variant) {
+        try {
+          const avatarVariant = 'beam';
+          const avatarColors = ["#92A1C6", "#146A7C", "#F0AB3D", "#C271B4", "#C20D90"];
+          const avatarReason = "This unique gradient signature is generated from your biometric data and decision patterns. It represents the core of your digital twin.";
+          
+          await updateProfileFields(user.id, {
+            avatar_variant: avatarVariant,
+            avatar_colors: avatarColors,
+            avatar_reason: avatarReason,
+          });
+          
+          // Reload profile to get updated avatar data
+          const updatedProfile = await getProfile(user.id);
+          setProfileData(updatedProfile);
+        } catch (error) {
+          console.error('Failed to auto-generate avatar:', error);
+          // Don't block the UI if avatar generation fails
         }
-      } else {
-        setIsCooldown(false);
-        setCooldownTime(null);
       }
+
 
       // Trigger entry animation
       Animated.parallel([
@@ -316,8 +292,8 @@ export default function HomeScreen() {
             contentContainerStyle={styles.contentContainer}
             showsVerticalScrollIndicator={false}
           >
-            {/* Compatibility Test Banner */}
-            <TouchableOpacity
+            {/* Compatibility Test Banner - Hidden for now */}
+            {/* <TouchableOpacity
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push('/compatibility/info');
@@ -340,9 +316,9 @@ export default function HomeScreen() {
                   <ChevronRight size={20} color={Colors.gradients.turquoise[0]} />
                 </View>
               </View>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
-            {/* Main Header with Emoji */}
+            {/* Main Header */}
             <View style={styles.headerContainer}>
               <View style={styles.headerLeft}>
                 <Text style={styles.greeting}>
@@ -350,17 +326,37 @@ export default function HomeScreen() {
                   <Text style={styles.greetingRest}>What do you want to{'\n'}explore right now?</Text>
                 </Text>
               </View>
-              <View style={styles.headerRight}>
-                <Image 
-                  source={require('@/assets/images/memoji.png')}
-                  style={styles.headerEmoji}
-                  resizeMode="contain"
-                />
-              </View>
             </View>
 
             {/* Action Rectangles */}
             <View style={styles.actionsContainer}>
+              <View 
+                ref={decideRef}
+                style={styles.actionRectangleWrapper}
+                collapsable={false}
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/decision/new');
+                  }}
+                  activeOpacity={0.8}
+                  style={styles.actionRectangle}
+                >
+                  <View style={[styles.cardGradient, { backgroundColor: '#fe9d7a', opacity: 0.25 }]} />
+                  <View style={styles.actionIconContainer}>
+                    <CheckCircle size={24} color={Colors.textPrimary} />
+                  </View>
+                  <View style={styles.actionContent}>
+                    <Text style={styles.actionTitle}>Decide</Text>
+                    <Text style={styles.actionSubtitle}>
+                      Get recommendations and compare outcomes
+                    </Text>
+                  </View>
+                  <ChevronRight size={20} color={Colors.textTertiary} />
+                </TouchableOpacity>
+              </View>
+
               <View 
                 ref={simulateRef}
                 style={styles.actionRectangleWrapper}
@@ -391,48 +387,6 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View 
-                ref={decideRef}
-                style={styles.actionRectangleWrapper}
-                collapsable={false}
-              >
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    if (isCooldown) {
-                      Alert.alert(
-                        "Decision Limit Reached",
-                        "Free users can make one decision every 24 hours. Upgrade to mora+ for unlimited decisions.",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          { text: "Upgrade", onPress: () => router.push('/premium') }
-                        ]
-                      );
-                      return;
-                    }
-                    router.push('/decision/new');
-                  }}
-                  activeOpacity={0.8}
-                  style={[styles.actionRectangle, isCooldown && { opacity: 0.8 }]}
-                >
-                  <View style={[styles.cardGradient, { backgroundColor: '#fe9d7a', opacity: 0.25 }]} />
-                  <View style={styles.actionIconContainer}>
-                    {isCooldown ? (
-                      <Clock size={24} color={Colors.textPrimary} />
-                    ) : (
-                      <CheckCircle size={24} color={Colors.textPrimary} />
-                    )}
-                  </View>
-                  <View style={styles.actionContent}>
-                    <Text style={styles.actionTitle}>Decide</Text>
-                    <Text style={styles.actionSubtitle}>
-                      {isCooldown ? `Next decision in ${cooldownTime}` : "Receive an authoritative recommendation for your path"}
-                    </Text>
-                  </View>
-                  {!isCooldown && <ChevronRight size={20} color={Colors.textTertiary} />}
-                </TouchableOpacity>
-              </View>
-
               {/* Train Section */}
               <TouchableOpacity
                 ref={trainRef}
@@ -448,17 +402,14 @@ export default function HomeScreen() {
                   <View style={styles.teachTextContainer}>
                     <View style={styles.teachTitleRow}>
                       <Text style={styles.teachTitle}>Train</Text>
-                      <View style={styles.teachPercentageBadge}>
-                        <Text style={styles.teachPercentage}>{displayedProgress}%</Text>
+                      <View style={styles.teachPercentageContainer}>
+                        <View style={styles.teachPercentageBadge}>
+                          <Text style={styles.teachPercentage}>{displayedProgress}%</Text>
+                        </View>
+                        {!hasTodayJournal && <View style={styles.journalDot} />}
                       </View>
                     </View>
                     <Text style={styles.teachSubtitle}>Train your twin for more accurate answers</Text>
-                    {!hasTodayJournal && (
-                      <View style={styles.journalBadge}>
-                        <Clock size={12} color="#FFFFFF" strokeWidth={2.5} />
-                        <Text style={styles.journalBadgeText}>Complete daily journal</Text>
-                      </View>
-                    )}
                   </View>
                   <View style={styles.teachArrowContainer}>
                     <LinearGradient
@@ -887,6 +838,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.primary.regular,
     color: Colors.textSecondary,
   },
+  teachPercentageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   teachPercentageBadge: {
     backgroundColor: 'rgba(0,0,0,0.05)',
     paddingHorizontal: 10,
@@ -898,6 +854,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: Fonts.secondary.bold,
     color: Colors.textSecondary,
+  },
+  journalDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF6B6B',
   },
   teachSubtitle: {
     fontSize: 12,

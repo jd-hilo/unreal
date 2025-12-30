@@ -630,3 +630,6 @@ await completeOnboarding(userId, {
 6. **Apple Sign-In**: Auto-populates name and may skip name step
 7. **Phone Sign-In**: Checks if profile exists to determine new vs existing user
 
+
+
+

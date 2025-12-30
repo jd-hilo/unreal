@@ -43,7 +43,7 @@ export default function PoliticsScreen() {
         console.error('Failed to save political views:', error);
       }
     }
-    router.push('/premium-onboarding');
+    router.push('/onboarding/local-preferences');
   }
 
   return (

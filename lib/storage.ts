@@ -50,6 +50,9 @@ export async function updateProfileFields(
     current_location?: string;
     net_worth?: string;
     political_views?: string;
+    avatar_variant?: string;
+    avatar_colors?: string[];
+    avatar_reason?: string;
   }
 ) {
   // Get existing profile to preserve core_json and values_json

@@ -899,10 +899,11 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 20,
     fontWeight: '600',
-    lineHeight: 26,
+    lineHeight: 28,
     color: Colors.textPrimary,
     letterSpacing: -0.3,
     fontFamily: Fonts.secondary.bold,
+    flexShrink: 1,
   },
   content: {
     flex: 1,
@@ -1398,10 +1399,10 @@ const styles = StyleSheet.create({
     left: -10000,
     top: 0,
     width: 375,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
   },
   shareBackground: {
-    backgroundColor: '#050505',
+    backgroundColor: Colors.background,
     padding: 20,
     paddingBottom: 16,
     minHeight: 350,
@@ -1411,15 +1412,15 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: Colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     padding: 18,
   },
   shareHeaderLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: 8,
@@ -1428,13 +1429,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     lineHeight: 26,
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     letterSpacing: -0.3,
   },
   sharePredictionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: Colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
@@ -1442,13 +1443,13 @@ const styles = StyleSheet.create({
   sharePredictionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(200, 200, 200, 0.75)',
+    color: Colors.textSecondary,
     marginBottom: 8,
   },
   sharePredictionValue: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   shareConfidence: {
@@ -1457,9 +1458,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   shareSectionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: Colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 20,
     padding: 18,
     marginBottom: 24,
@@ -1467,7 +1468,7 @@ const styles = StyleSheet.create({
   shareSectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 12,
     letterSpacing: 0.2,
   },
@@ -1477,7 +1478,7 @@ const styles = StyleSheet.create({
   shareOptionName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 10,
     letterSpacing: 0.1,
   },
@@ -1490,7 +1491,7 @@ const styles = StyleSheet.create({
   shareProbBarBackground: {
     flex: 1,
     height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -1501,7 +1502,7 @@ const styles = StyleSheet.create({
   shareProbText: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(0, 0, 0, 0.7)',
+    color: Colors.textSecondary,
     minWidth: 40,
   },
   shareWhatIf: {
@@ -1509,13 +1510,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   shareSuggestion: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: Colors.backgroundSecondary,
     borderRadius: 12,
     padding: 16,
   },
   shareSuggestionText: {
     fontSize: 15,
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     fontStyle: 'italic',
   },
   shareFooter: {
@@ -1524,7 +1525,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
     paddingTop: 12,
   },
   shareFooterContent: {
@@ -1532,11 +1533,11 @@ const styles = StyleSheet.create({
   },
   shareGeneratedBy: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: Colors.textTertiary,
   },
   shareLink: {
     fontSize: 11,
-    color: 'rgba(135, 206, 250, 0.8)',
+    color: Colors.textSecondary,
     fontWeight: '600',
   },
   shareAppIcon: {
@@ -1544,7 +1545,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#000',
+    backgroundColor: Colors.backgroundSecondary,
   },
   shareAppIconImage: {
     width: '100%',
@@ -1556,18 +1557,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   shareModalContent: {
-    backgroundColor: '#1a1d26',
+    backgroundColor: Colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
     paddingBottom: 40,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
   },
   shareModalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -1590,24 +1591,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   socialButtonLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.9)',
+    color: Colors.textPrimary,
     textAlign: 'center',
   },
   cancelButton: {
     paddingVertical: 16,
     alignItems: 'center',
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: Colors.backgroundSecondary,
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
   },
   chaosHeaderColumn: {
     marginBottom: 12,
@@ -1629,7 +1630,7 @@ const styles = StyleSheet.create({
   },
   chaosBarBg: {
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 3,
     overflow: 'hidden',
   },

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Share, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Share, Dimensions, Animated, Image } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
@@ -14,6 +14,8 @@ import { buildCorePack } from '@/lib/relevance';
 import type { YearPredictionData } from '@/types/database';
 import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
 const { width } = Dimensions.get('window');
 
@@ -26,8 +28,10 @@ export default function PredictionResultScreen() {
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
+  const [sharing, setSharing] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const shareViewRef = useRef<View>(null);
   
   // Animated values for each card section
   const estimatedCardAnim = useRef(new Animated.Value(0)).current;
@@ -221,58 +225,40 @@ export default function PredictionResultScreen() {
   }
 
   async function handleShare() {
-    if (!prediction) return;
+    if (!prediction || sharing) return;
+    setSharing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     try {
+      // Capture the share view as an image
+      const uri = await captureRef(shareViewRef, {
+        format: 'png',
+        quality: 0.9,
+        result: 'tmpfile',
+      });
+
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        alert('Sharing is not available on this device');
+        return;
+      }
+
+      // Build shareable message
       const data = prediction.prediction_data as YearPredictionData;
-      
-      // Get timeline events for January, March, November
-      const timelineMonths = ['January', 'March', 'November'];
-      const selectedTimelineEvents = data.timeline
-        ?.filter(event => timelineMonths.includes(event.time))
-        .slice(0, 3) || [];
-      
-      // Get key highlights (stats)
-      const keyHighlights = data.stats?.slice(0, 2).map(stat => 
-        `${stat.label}: ${stat.value}`
-      ) || [];
-      
-      // Create one sentence summary from insights or hero
       const summary = data.insights && Array.isArray(data.insights) && data.insights.length > 0
         ? data.insights[0].split('.')[0] + '.'
         : data.hero.keyStat || data.hero.title;
       
-      // Build shareable message
-      let shareMessage = `My 2026 Prediction 🔮\n\n`;
-      
-      // Timeline
-      if (selectedTimelineEvents.length > 0) {
-        shareMessage += `Timeline:\n`;
-        selectedTimelineEvents.forEach(event => {
-          shareMessage += `• ${event.time}: ${event.title}\n`;
-        });
-        shareMessage += `\n`;
-      }
-      
-      // Key Highlights
-      if (keyHighlights.length > 0) {
-        shareMessage += `Key Highlights:\n`;
-        keyHighlights.forEach(highlight => {
-          shareMessage += `• ${highlight}\n`;
-        });
-        shareMessage += `\n`;
-      }
-      
-      // Summary
+      let shareMessage = `See your future before you live it 🔮\n\n`;
       shareMessage += `${summary}\n\n`;
-      
-      // Footer
-      shareMessage += `Powered by Mora\n`;
+      shareMessage += `Get your 2026 prediction with mora\n`;
       shareMessage += `https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842`;
-      
-      await Share.share({
-        message: shareMessage,
+
+      // Share with image
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: 'Share your 2026 prediction',
       });
       
       // Track share
@@ -282,6 +268,26 @@ export default function PredictionResultScreen() {
       });
     } catch (error) {
       console.error('Error sharing:', error);
+      // Fallback to text-only share if image capture fails
+      try {
+        const data = prediction.prediction_data as YearPredictionData;
+        const summary = data.insights && Array.isArray(data.insights) && data.insights.length > 0
+          ? data.insights[0].split('.')[0] + '.'
+          : data.hero.keyStat || data.hero.title;
+        
+        let shareMessage = `See your future before you live it 🔮\n\n`;
+        shareMessage += `${summary}\n\n`;
+        shareMessage += `Get your 2026 prediction with mora\n`;
+        shareMessage += `https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842`;
+        
+        await Share.share({
+          message: shareMessage,
+        });
+      } catch (fallbackError) {
+        console.error('Fallback share error:', fallbackError);
+      }
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -603,11 +609,15 @@ export default function PredictionResultScreen() {
               <Text style={styles.actionLabel}>Regenerate</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionItem} onPress={handleShare}>
+            <TouchableOpacity style={styles.actionItem} onPress={handleShare} disabled={sharing}>
               <View style={styles.actionButtonSecondary}>
-                <ShareIcon size={24} color="#FFFFFF" />
+                {sharing ? (
+                  <RefreshCw size={24} color="#FFFFFF" />
+                ) : (
+                  <ShareIcon size={24} color="#FFFFFF" />
+                )}
               </View>
-              <Text style={styles.actionLabel}>Share</Text>
+              <Text style={styles.actionLabel}>{sharing ? 'Sharing...' : 'Share'}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.actionItem} onPress={handleHome}>
@@ -801,6 +811,29 @@ export default function PredictionResultScreen() {
           <View style={{ height: 40 }} />
         </Animated.ScrollView>
       </SafeAreaView>
+
+      {/* Hidden Share View */}
+      {prediction && (
+        <View 
+          ref={shareViewRef} 
+          style={styles.shareViewContainer}
+          collapsable={false}
+        >
+          <View style={styles.shareViewContent}>
+            {/* Logo */}
+            <Image 
+              source={require('@/assets/images/icon.png')}
+              style={styles.shareLogo}
+              resizeMode="contain"
+            />
+            
+            {/* Hero Text */}
+            <Text style={styles.shareHeroText}>
+              See your future before you live it
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -1214,6 +1247,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  
+  // Share View
+  shareViewContainer: {
+    position: 'absolute',
+    left: -9999,
+    top: -9999,
+    width: 1200,
+    height: 630,
+    backgroundColor: '#000000',
+  },
+  shareViewContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 80,
+  },
+  shareLogo: {
+    width: 120,
+    height: 120,
+    marginBottom: 40,
+  },
+  shareHeroText: {
+    fontSize: 64,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: -2,
+    lineHeight: 76,
   },
 });
 
