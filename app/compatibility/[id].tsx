@@ -179,13 +179,47 @@ export default function CompatibilityResultScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const breakdown = test.breakdown as CompatibilityBreakdown;
-    const shareMessage = `Compatibility Test Results 🔮\n\n` +
-      `Match Score: ${test.compatibility_score}%\n\n` +
-      `Values: ${breakdown.valuesAlignment}%\n` +
-      `Experience: ${breakdown.corePackSimilarity}%\n\n` +
-      `${breakdown.insights.slice(0, 2).join('\n')}\n\n` +
-      `Compare your digital twins with mora\n` +
-      `https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842`;
+    const score = test.compatibility_score;
+    const twin1Name = twin1Profile?.first_name || 'You';
+    const twin2Name = twin2Profile?.first_name || 'Someone';
+    const scoreBadge = score >= 70 ? 'Perfect Match' : score >= 50 ? 'Good Vibes' : 'Needs Work';
+    
+    const sharedValues = (twin1Profile?.values_json || [])
+      .filter((v: string) => (twin2Profile?.values_json || []).some((v2: string) => v2.toLowerCase() === v.toLowerCase()))
+      .slice(0, 6);
+
+    let shareMessage = `Compatibility Test Results 🔮\n\n`;
+    shareMessage += `${twin1Name} & ${twin2Name}\n\n`;
+    shareMessage += `Match Score: ${score}% - ${scoreBadge}\n\n`;
+    shareMessage += `Breakdown:\n`;
+    shareMessage += `• Values: ${breakdown.valuesAlignment}%\n`;
+    shareMessage += `• Experience: ${breakdown.corePackSimilarity}%\n`;
+    
+    if (breakdown.interestsAlignment !== undefined) {
+      shareMessage += `• Interests: ${breakdown.interestsAlignment}%\n`;
+    }
+    
+    if (breakdown.decisionStyleMatch !== undefined) {
+      shareMessage += `• Decision Style: ${breakdown.decisionStyleMatch}%\n`;
+    }
+    
+    if (sharedValues.length > 0) {
+      shareMessage += `\nShared Values: ${sharedValues.join(', ')}\n`;
+    }
+    
+    if (breakdown.insights && breakdown.insights.length > 0) {
+      shareMessage += `\nInsights:\n`;
+      breakdown.insights.slice(0, 3).forEach((insight: string) => {
+        shareMessage += `• ${insight}\n`;
+      });
+    }
+    
+    if (scenarios) {
+      shareMessage += `\nAs Friends: ${scenarios.friends.slice(0, 100)}...\n`;
+    }
+    
+    shareMessage += `\nCompare your digital twins with mora\n`;
+    shareMessage += `https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842`;
 
     try {
       await Share.share({ message: shareMessage });
@@ -332,7 +366,7 @@ export default function CompatibilityResultScreen() {
               }],
             }}
           >
-            <Text style={styles.sectionTitle}>The Matchup 🆚</Text>
+            <Text style={styles.sectionTitle}>The Matchup</Text>
             <View style={styles.twinsContainer}>
               {/* Twin 1 Card */}
               <View style={styles.twinCard}>
@@ -457,7 +491,7 @@ export default function CompatibilityResultScreen() {
                     <Users size={18} color={Colors.gradients.turquoise[0]} />
                   </View>
                   <View style={styles.breakdownContent}>
-                    <Text style={styles.breakdownLabel}>Decisions</Text>
+                    <Text style={styles.breakdownLabel}>Decision Style</Text>
                     <View style={styles.breakdownBarContainer}>
                       <View style={styles.breakdownBarBackground}>
                         <LinearGradient
@@ -686,12 +720,13 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontFamily: Fonts.primary.regular,
     letterSpacing: -0.5,
-    marginBottom: 10,
+    marginBottom: 4,
   },
   presentedByContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 2,
+    marginBottom: 16,
   },
   presentedByText: {
     fontSize: 12,
