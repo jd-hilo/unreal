@@ -395,8 +395,10 @@ export default function AddRelationshipScreen() {
           </>
         )}
       </ScrollView>
+      </SafeAreaView>
 
-      <View style={styles.footer}>
+      <View style={styles.footerContainer}>
+        <SafeAreaView edges={['bottom']} style={styles.footer}>
         {isOnboarding && (
           <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
             <Text style={styles.skipText}>Skip for now</Text>
@@ -500,8 +502,8 @@ export default function AddRelationshipScreen() {
             </LinearGradient>
           </TouchableOpacity>
         )}
+        </SafeAreaView>
       </View>
-      </SafeAreaView>
     </View>
   );
 }
@@ -512,6 +514,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   safeArea: {
+    flex: 1,
     backgroundColor: Colors.background,
   },
   header: {
@@ -603,7 +606,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 24,
-    paddingBottom: 200,
+    paddingBottom: 40,
     gap: 24,
   },
   section: {
@@ -781,17 +784,15 @@ const styles = StyleSheet.create({
   extractedDetailsUnselected: {
     color: Colors.textTertiary,
   },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 36,
+  footerContainer: {
     backgroundColor: Colors.background,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 0,
   },
   footerButtons: {
     flexDirection: 'row',

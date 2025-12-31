@@ -331,15 +331,8 @@ export default function OnboardingStep7() {
       trackEvent(MixpanelEvents.ONBOARDING_COMPLETED);
       setUserProperty('onboarding_complete', true);
       
-      // Check if local preferences have already been completed
-      const hasLocalPreferences = profile?.core_json?.onboarding_responses?.['local-preferences'];
-      if (hasLocalPreferences) {
-        // Already completed, skip to complete page
-        router.replace('/onboarding/complete');
-      } else {
-        // Not completed yet, go to local preferences
-        router.replace('/onboarding/local-preferences');
-      }
+      // Always route to complete page after creating digital twin
+      router.replace('/onboarding/complete');
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
       setIsSummarizing(false);
@@ -355,16 +348,8 @@ export default function OnboardingStep7() {
         setOnboardingComplete(true);
         trackEvent(MixpanelEvents.ONBOARDING_COMPLETED);
         
-        // Check if local preferences have already been completed
-        const updatedProfile = await getProfile(user.id);
-        const hasLocalPreferences = updatedProfile?.core_json?.onboarding_responses?.['local-preferences'];
-        if (hasLocalPreferences) {
-          // Already completed, skip to complete page
-          router.replace('/onboarding/complete');
-        } else {
-          // Not completed yet, go to local preferences
-          router.replace('/onboarding/local-preferences');
-        }
+        // Always route to complete page after creating digital twin
+        router.replace('/onboarding/complete');
       } catch (e) {
         console.error('Failed to complete onboarding after error:', e);
       }

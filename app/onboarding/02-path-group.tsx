@@ -12,6 +12,7 @@ import { Colors } from '@/constants/Theme';
 interface LifeJourneyAnswers {
   hometown: string;
   hometownOther: string;
+  currentLocation: string;
   // College questions
   wentToCollege?: string;
   collegeName?: string;
@@ -32,6 +33,7 @@ export default function LifeJourneyGroupScreen() {
   const [answers, setAnswers] = useState<LifeJourneyAnswers>({
     hometown: '',
     hometownOther: '',
+    currentLocation: '',
     careerStart: '',
     careerStartOther: '',
     turningPoint: '',
@@ -61,9 +63,12 @@ export default function LifeJourneyGroupScreen() {
         }
       }
       
-      // Also check for hometown and university in profile
+      // Also check for hometown, current location, and university in profile
       if (profile?.hometown && !loadedAnswers.hometown) {
         loadedAnswers.hometown = profile.hometown;
+      }
+      if (profile?.current_location && !loadedAnswers.currentLocation) {
+        loadedAnswers.currentLocation = profile.current_location;
       }
       if (profile?.university && !loadedAnswers.collegeName) {
         loadedAnswers.wentToCollege = 'Yes';
@@ -85,6 +90,11 @@ export default function LifeJourneyGroupScreen() {
     if (field === 'hometown' && value.trim() && user) {
       updateProfileFields(user.id, { hometown: value.trim() }).catch(console.error);
     }
+    
+    // Save current location immediately when answered
+    if (field === 'currentLocation' && value.trim() && user) {
+      updateProfileFields(user.id, { current_location: value.trim() }).catch(console.error);
+    }
   }
 
   function needsCollegeFollowUp(): boolean {
@@ -99,7 +109,7 @@ export default function LifeJourneyGroupScreen() {
     }
 
     // Check if current question needs follow-ups
-    if (currentQuestion === 1 && needsCollegeFollowUp()) {
+    if (currentQuestion === 2 && needsCollegeFollowUp()) {
       if (!answers.collegeName) {
         setCurrentSubQuestion('college-name');
         return;
@@ -107,7 +117,7 @@ export default function LifeJourneyGroupScreen() {
     }
 
     // Move to next main question
-    if (currentQuestion < 4) {
+    if (currentQuestion < 5) {
       setCurrentQuestion(currentQuestion + 1);
       setCurrentSubQuestion(null);
     } else {
@@ -124,7 +134,7 @@ export default function LifeJourneyGroupScreen() {
         // Save university immediately
         updateProfileFields(user.id, { university: answers.collegeName.trim() }).catch(console.error);
         setCurrentSubQuestion(null);
-        setCurrentQuestion(2);
+        setCurrentQuestion(3);
       }
       return;
     }
@@ -137,9 +147,12 @@ export default function LifeJourneyGroupScreen() {
         // Save answers temporarily for AI summarization
         await saveOnboardingResponse(user.id, '02-path-group', JSON.stringify(answers));
         
-        // Ensure hometown and university are saved
+        // Ensure hometown, current location, and university are saved
         if (answers.hometown?.trim()) {
           await updateProfileFields(user.id, { hometown: answers.hometown.trim() });
+        }
+        if (answers.currentLocation?.trim()) {
+          await updateProfileFields(user.id, { current_location: answers.currentLocation.trim() });
         }
         if (answers.collegeName?.trim()) {
           await updateProfileFields(user.id, { university: answers.collegeName.trim() });
@@ -166,12 +179,14 @@ export default function LifeJourneyGroupScreen() {
       case 0:
         return !!answers.hometown?.trim();
       case 1:
-        return !!answers.wentToCollege;
+        return !!answers.currentLocation?.trim();
       case 2:
-        return !!answers.careerStart;
+        return !!answers.wentToCollege;
       case 3:
-        return !!answers.turningPoint;
+        return !!answers.careerStart;
       case 4:
+        return !!answers.turningPoint;
+      case 5:
         return !!answers.shapedMost;
       default:
         return false;
@@ -187,6 +202,7 @@ export default function LifeJourneyGroupScreen() {
     // Main question titles
     const titles = [
       'Where did you grow up?',
+      'Where do you currently live?',
       'Did you go to college?',
       'How did you start your career?',
       'What was a key turning point in your life?',
@@ -197,7 +213,7 @@ export default function LifeJourneyGroupScreen() {
 
   function getProgress(): number {
     // Convert to decimal (0-1) instead of percentage (0-100)
-    return 0.45 + (currentQuestion / 5) * 0.05; // 0.45-0.50 range
+    return 0.45 + (currentQuestion / 6) * 0.05; // 0.45-0.50 range (6 questions now)
   }
 
   return (
@@ -224,8 +240,22 @@ export default function LifeJourneyGroupScreen() {
           </View>
         )}
 
-        {/* College Question */}
+        {/* Current Location Question */}
         {currentQuestion === 1 && !currentSubQuestion && (
+          <View style={styles.hometownContainer}>
+            <Input
+              placeholder="City, State/Country (e.g., Austin, TX or London, UK)"
+              value={answers.currentLocation}
+              onChangeText={(value) => updateAnswer('currentLocation', value)}
+              autoFocus={true}
+              containerStyle={styles.hometownInput}
+              placeholderTextColor={Colors.textTertiary}
+            />
+          </View>
+        )}
+
+        {/* College Question */}
+        {currentQuestion === 2 && !currentSubQuestion && (
           <ChoiceQuestion
             question=""
             options={['Yes', 'No']}
@@ -249,7 +279,7 @@ export default function LifeJourneyGroupScreen() {
         )}
 
         {/* Career Start Question */}
-        {currentQuestion === 2 && !currentSubQuestion && (
+        {currentQuestion === 3 && !currentSubQuestion && (
           <ChoiceQuestion
             question=""
             options={['First job', 'Internship', 'Entrepreneurship', 'Freelancing', 'Family business', 'Other']}
@@ -261,7 +291,7 @@ export default function LifeJourneyGroupScreen() {
         )}
 
         {/* Turning Point Question */}
-        {currentQuestion === 3 && !currentSubQuestion && (
+        {currentQuestion === 4 && !currentSubQuestion && (
           <ChoiceQuestion
             question=""
             options={['Graduation', 'Moving cities', 'Job change', 'Relationship', 'Family event', 'Other']}
@@ -273,7 +303,7 @@ export default function LifeJourneyGroupScreen() {
         )}
 
         {/* Shaped Most Question */}
-        {currentQuestion === 4 && !currentSubQuestion && (
+        {currentQuestion === 5 && !currentSubQuestion && (
           <ChoiceQuestion
             question=""
             options={['Family', 'Mentors', 'Experiences', 'Values', 'Education', 'Other']}

@@ -146,6 +146,7 @@ export default function TimelineDetailScreen() {
   const previousNetWorth = useRef<string | null>(null);
   const [currentInventoryIndex, setCurrentInventoryIndex] = useState(0);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(0);
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   // Loading messages to cycle through
   const loadingMessages = [
@@ -656,7 +657,14 @@ export default function TimelineDetailScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <Animated.View 
+      style={[
+        styles.screen,
+        {
+          transform: [{ translateX: slideAnim }],
+        }
+      ]}
+    >
       <View style={styles.backgroundGradient}>
         <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -723,7 +731,17 @@ export default function TimelineDetailScreen() {
         <View style={styles.topBar}>
           <View style={styles.topBarLeft}>
             <TouchableOpacity
-              onPress={() => router.push('/simulate')}
+              onPress={() => {
+                // Animate slide right before navigating
+                Animated.timing(slideAnim, {
+                  toValue: width,
+                  duration: 300,
+                  easing: Easing.out(Easing.ease),
+                  useNativeDriver: true,
+                }).start(() => {
+                  router.push('/simulate');
+                });
+              }}
               style={styles.backButton}
               activeOpacity={0.7}
             >
@@ -1278,7 +1296,7 @@ export default function TimelineDetailScreen() {
         </Modal>
         </SafeAreaView>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

@@ -66,10 +66,10 @@ export default function HomeScreen() {
     setTrainLayout(train);
   };
   
-  // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Animation values - start with slight opacity to avoid white screen
+  const fadeAnim = useRef(new Animated.Value(0.1)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   useEffect(() => {
     if (!user) {
@@ -85,12 +85,26 @@ export default function HomeScreen() {
           router.replace('/onboarding/00-name');
           return;
         }
+        // Start fade animation immediately when we know we're showing content
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]).start();
         loadData();
+        setIsInitialLoad(false);
       })
       .catch((error) => {
         console.warn('Failed to confirm onboarding status:', error);
       });
-  }, [user, router, checkOnboardingStatus]);
+  }, [user, router, checkOnboardingStatus, fadeAnim, slideAnim]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -136,19 +150,26 @@ export default function HomeScreen() {
       }
 
 
-      // Trigger entry animation
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Only trigger animation if it hasn't started yet (for subsequent loads)
+      if (isInitialLoad) {
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]).start();
+        setIsInitialLoad(false);
+      } else {
+        // For subsequent loads, ensure content is visible
+        fadeAnim.setValue(1);
+        slideAnim.setValue(0);
+      }
 
       // Check for store review
       const lastReview = await AsyncStorage.getItem('last_review_request');
@@ -169,8 +190,11 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Ensure content is visible when screen comes into focus
+      fadeAnim.setValue(1);
+      slideAnim.setValue(0);
       loadData();
-    }, [loadData])
+    }, [loadData, fadeAnim, slideAnim])
   );
 
   const handleLongPressEcho = (echo: any) => {

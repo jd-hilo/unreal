@@ -1,11 +1,11 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, Animated, Dimensions, Easing } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getTimelines, deleteTimeline, getProfile, checkSimulationCredits } from '@/lib/storage';
-import { ChevronRight, Plus, Lock, Zap, Play, Trophy, Users, Star, ChevronLeft } from 'lucide-react-native';
+import { ChevronRight, Plus, Lock, Zap, Play, Trophy, Users, Star, Home } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -13,6 +13,8 @@ import { formatDistanceToNow } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { Avatar } from '@/components/Avatar';
+
+const { width } = Dimensions.get('window');
 
 export default function SimulateDashboard() {
   const router = useRouter();
@@ -26,14 +28,18 @@ export default function SimulateDashboard() {
   const [simulationCredits, setSimulationCredits] = useState<number | null>(null);
   const [userName, setUserName] = useState<string>('');
   const [profileData, setProfileData] = useState<any>(null);
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
+  // Reset animation when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      slideAnim.setValue(0);
       if (user) {
         loadData();
       }
-    }, [user])
+    }, [user, slideAnim])
   );
+
 
   async function loadData() {
     if (!user) return;
@@ -120,17 +126,34 @@ export default function SimulateDashboard() {
   }
 
   return (
-    <View style={styles.container}>
+    <Animated.View 
+      style={[
+        styles.container,
+        {
+          transform: [{ translateX: slideAnim }],
+        }
+      ]}
+    >
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         {/* Top Bar */}
         <View style={styles.topBar}>
           <TouchableOpacity 
-            onPress={() => router.back()}
+            onPress={() => {
+              // Animate slide right before navigating
+              Animated.timing(slideAnim, {
+                toValue: width,
+                duration: 300,
+                easing: Easing.out(Easing.ease),
+                useNativeDriver: true,
+              }).start(() => {
+                router.push('/(tabs)/home');
+              });
+            }}
             style={styles.backButton}
             activeOpacity={0.7}
           >
-            <ChevronLeft size={24} color={Colors.textPrimary} />
+            <Home size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
           
           <View style={styles.resourceContainer}>
@@ -349,7 +372,7 @@ export default function SimulateDashboard() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-    </View>
+    </Animated.View>
   );
 }
 
