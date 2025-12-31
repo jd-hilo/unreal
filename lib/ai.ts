@@ -2420,6 +2420,86 @@ export async function generateInterestingWhatIfScenarios(
   }
 }
 
+/**
+ * Generate "Different Lives" scenarios for compatibility (friends, dating, enemies)
+ */
+export async function generateCompatibilityScenarios(
+  corePack1: string,
+  corePack2: string,
+  compatibilityScore: number
+): Promise<{
+  friends: string;
+  dating: string;
+  enemies: string;
+}> {
+  if (DEV_MODE) {
+    return {
+      friends: "You'd be the kind of friends who text each other random memes at 2am and always have each other's back.",
+      dating: "You'd have that comfortable silence where you can just exist together without needing to fill the space.",
+      enemies: "You'd clash over fundamental differences in how you see the world, creating constant friction."
+    };
+  }
+
+  const openai = getOpenAI();
+
+  const systemPrompt = [
+    "You are analyzing compatibility between two people and generating vivid, cinematic scenarios for three relationship types: friends, dating, and enemies.",
+    '',
+    'Requirements:',
+    '- Write vivid, immersive short stories (3-4 lines each) in SECOND PERSON',
+    '- Make them cinematic and sensory - include specific moments, feelings, scenes',
+    '- Show, don\'t tell - paint a picture of what each relationship dynamic would feel like',
+    '- Base scenarios on their compatibility score and profile information',
+    '- For "friends": Show how they\'d support and enjoy each other',
+    '- For "dating": Show romantic/partnership potential and dynamics',
+    '- For "enemies": Show where conflicts would arise and how they\'d clash',
+    '- Use specific, relatable details - avoid generic descriptions',
+    '',
+    'Example format:',
+    '{',
+    '  "friends": "You\'d be the kind of friends who... [vivid description]",',
+    '  "dating": "Your dates would feel like... [vivid description]",',
+    '  "enemies": "You\'d clash because... [vivid description]"',
+    '}',
+  ].join('\n');
+
+  const userPrompt = [
+    'Person 1 Profile:',
+    corePack1.substring(0, 1500),
+    '',
+    'Person 2 Profile:',
+    corePack2.substring(0, 1500),
+    '',
+    `Compatibility Score: ${compatibilityScore}%`,
+    '',
+    'Generate three vivid scenarios showing how these two people would interact as friends, as romantic partners, and as enemies.',
+    'Return JSON with "friends", "dating", and "enemies" keys, each containing a vivid 3-4 line description.',
+  ].join('\n');
+
+  try {
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.8,
+    });
+
+    const parsed = JSON.parse(content);
+    return {
+      friends: parsed.friends || "You'd be good friends who enjoy each other's company.",
+      dating: parsed.dating || "You'd have a meaningful romantic connection.",
+      enemies: parsed.enemies || "You'd have disagreements but could find common ground.",
+    };
+  } catch (error) {
+    console.error('Failed to generate compatibility scenarios:', error);
+    return {
+      friends: "You'd be the kind of friends who text each other random memes at 2am and always have each other's back.",
+      dating: "You'd have that comfortable silence where you can just exist together without needing to fill the space.",
+      enemies: "You'd clash over fundamental differences in how you see the world, creating constant friction."
+    };
+  }
+}
+
 export interface TimelineAdvancementResult {
   newEvents: Array<{
     time: string;

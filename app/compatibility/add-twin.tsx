@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Share, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Share, Modal, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useAuth } from '@/store/useAuth';
@@ -40,41 +40,103 @@ export default function AddTwinScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.title}>Unlock Compatibility</Text>
-          <Text style={styles.subtitle}>Upgrade to compare twins</Text>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.premiumScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.title}>Unlock Compatibility 🔮</Text>
+            <Text style={styles.subtitle}>Compare your twin with another</Text>
 
-          <View style={styles.premiumCard}>
-            <View style={styles.premiumIconContainer}>
-              <LinearGradient
-                colors={['rgba(168, 85, 247, 0.1)', 'rgba(168, 85, 247, 0.05)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.premiumIconGradient}
-              >
-                <Lock size={40} color="#A855F7" strokeWidth={2.5} />
-              </LinearGradient>
+            <View style={styles.mockupContainer}>
+              <View style={styles.iphoneFrame}>
+                <View style={styles.iphoneScreen}>
+                  <View style={styles.iphoneNotch} />
+                  
+                  <ScrollView showsVerticalScrollIndicator={false} style={styles.mockScroll} scrollEnabled={false}>
+                    {/* Mock Header */}
+                    <View style={styles.mockHeader}>
+                      <Text style={styles.mockHeaderTitle}>Compatibility</Text>
+                      <View style={styles.mockHeaderBadge}>
+                        <Text style={styles.mockHeaderBadgeText}>PRO</Text>
+                      </View>
+                    </View>
+
+                    {/* Mock Score Card */}
+                    <View style={styles.mockScoreCard}>
+                      <LinearGradient
+                        colors={['#8B5CF6', '#EC4899']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      <Text style={styles.mockScoreLabel}>Overall Match</Text>
+                      <Text style={styles.mockScoreValue}>94%</Text>
+                      <View style={styles.mockAvatarsRow}>
+                        <Image 
+                          source={require('@/assets/images/manwhite.png')} 
+                          style={styles.mockAvatarImage}
+                          resizeMode="contain"
+                        />
+                        <View style={styles.mockConnector} />
+                        <Image 
+                          source={require('@/assets/images/manwhite.png')} 
+                          style={[styles.mockAvatarImage, styles.mockAvatarImageFlipped]}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    </View>
+
+                    {/* Mock Insight */}
+                    <View style={styles.mockInsightCard}>
+                      <Text style={styles.mockInsightTitle}>Dynamic ⚡️</Text>
+                      <Text style={styles.mockInsightText}>
+                        You and Sarah balance each other out perfectly. Your decisive nature complements her analytical approach.
+                      </Text>
+                    </View>
+
+                    {/* Mock Values */}
+                    <View style={styles.mockValuesRow}>
+                      <View style={styles.mockValueCard}>
+                        <Text style={styles.mockValueLabel}>Values</Text>
+                        <Text style={styles.mockValueScore}>High</Text>
+                      </View>
+                      <View style={styles.mockValueCard}>
+                        <Text style={styles.mockValueLabel}>Goals</Text>
+                        <Text style={styles.mockValueScore}>Med</Text>
+                      </View>
+                    </View>
+                  </ScrollView>
+                </View>
+              </View>
             </View>
-            <Text style={styles.premiumTitle}>mora+ required</Text>
-            <Text style={styles.premiumDescription}>
-              Join mora+ to compare your digital twin with others and unlock deep insights.
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                router.push('/premium');
-              }}
-              activeOpacity={0.9}
-              style={styles.premiumButton}
-            >
-              <LinearGradient
-                colors={Colors.gradients.purple}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <Text style={styles.premiumButtonText}>Upgrade to mora+</Text>
-            </TouchableOpacity>
-          </View>
+
+            <View style={styles.premiumActionContainer}>
+              <View style={styles.lockInfoRow}>
+                <Lock size={16} color="#A855F7" />
+                <Text style={styles.premiumMiniDescription}>
+                  mora+ required for the user running the report (the other twin doesn't need it!)
+                </Text>
+              </View>
+              
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/premium');
+                }}
+                activeOpacity={0.9}
+                style={styles.premiumButton}
+              >
+                <LinearGradient
+                  colors={Colors.gradients.purple}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <Text style={styles.premiumButtonText}>Upgrade to mora+</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </SafeAreaView>
       </View>
     );
@@ -85,7 +147,7 @@ export default function AddTwinScreen() {
     
     try {
       await Share.share({
-        message: 'Check out my digital twin on mora! Join to see our compatibility score 🔮\nhttps://apps.apple.com/us/app/mora-simulate-your-life/id6754901842'
+        message: 'Build your digital twin and see our compatability today! Once signed up, send your mora#.\n\nhttps://apps.apple.com/us/app/mora-simulate-your-life/id6754901842'
       });
       
       setHasShared(true);
@@ -179,17 +241,18 @@ export default function AddTwinScreen() {
             >
               <ArrowLeft size={24} color={Colors.textPrimary} strokeWidth={2} />
             </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => setShowInfoModal(true)}
+              style={styles.infoButtonHeader}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Info size={20} color={Colors.textPrimary} strokeWidth={2} />
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.title}>Add Twin 🔗</Text>
           <View style={styles.subtitleContainer}>
-            <Text style={styles.subtitle}>Enter their 6-digit mora# 📱</Text>
-            <TouchableOpacity 
-              onPress={() => setShowInfoModal(true)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Info size={18} color={Colors.textSecondary} style={{ marginBottom: 24, marginLeft: 6 }} />
-            </TouchableOpacity>
+            <Text style={styles.subtitle}>Enter their 6-digit mora#</Text>
           </View>
 
           <View style={styles.iconContainer}>
@@ -205,23 +268,25 @@ export default function AddTwinScreen() {
 
           {!hasShared ? (
             <View style={styles.shareContainer}>
-              <Text style={styles.shareText}>
-                Share invite to get their code
-              </Text>
               <TouchableOpacity
                 onPress={handleShare}
                 activeOpacity={0.9}
                 style={styles.shareButton}
               >
                 <LinearGradient
-                  colors={Colors.gradients.turquoise}
+                  colors={['#8B5CF6', '#EC4899']}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                  end={{ x: 1, y: 1 }}
                   style={StyleSheet.absoluteFill}
                 />
-                <ShareIcon size={20} color="#FFFFFF" style={styles.shareIcon} />
-                <Text style={styles.shareButtonText}>Share Invite</Text>
+                <View style={styles.shareButtonContent}>
+                  <ShareIcon size={24} color="#FFFFFF" style={styles.shareIcon} />
+                  <Text style={styles.shareButtonText}>Invite a Friend</Text>
+                </View>
               </TouchableOpacity>
+              <Text style={styles.shareText}>
+                Send them a link to join mora and see your compatibility score! 🔮
+              </Text>
             </View>
           ) : (
             <>
@@ -353,8 +418,19 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 10,
     marginBottom: 20,
+    paddingLeft: 16,
+    paddingRight: 16,
+  },
+  infoButtonHeader: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   backButton: {
     width: 40,
@@ -364,6 +440,194 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  premiumScrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  mockupContainer: {
+    marginTop: 24,
+    marginBottom: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  iphoneFrame: {
+    width: 240,
+    height: 420,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 36,
+    padding: 8,
+    borderWidth: 3,
+    borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  iphoneScreen: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 28,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  iphoneNotch: {
+    width: 100,
+    height: 18,
+    backgroundColor: '#1a1a1a',
+    position: 'absolute',
+    top: 0,
+    left: '50%',
+    marginLeft: -50,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    zIndex: 10,
+  },
+  mockScroll: {
+    flex: 1,
+    padding: 16,
+    paddingTop: 32,
+  },
+  mockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  mockHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+  },
+  mockHeaderBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#A855F7',
+    borderRadius: 8,
+  },
+  mockHeaderBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  mockScoreCard: {
+    width: '100%',
+    height: 140,
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  mockScoreLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 4,
+    fontFamily: Fonts.secondary.bold,
+  },
+  mockScoreValue: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 12,
+    fontFamily: Fonts.secondary.bold,
+  },
+  mockAvatarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mockAvatarImage: {
+    width: 32,
+    height: 32,
+  },
+  mockAvatarImageFlipped: {
+    transform: [{ scaleX: -1 }],
+  },
+  mockConnector: {
+    width: 16,
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 1,
+  },
+  mockInsightCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  mockInsightTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 8,
+    fontFamily: Fonts.primary.regular,
+  },
+  mockInsightText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  mockValuesRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  mockValueCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  mockValueLabel: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+    fontFamily: Fonts.secondary.bold,
+  },
+  mockValueScore: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.gradients.turquoise[0],
+    fontFamily: Fonts.primary.regular,
+  },
+  premiumActionContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  lockInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    backgroundColor: 'rgba(168, 85, 247, 0.05)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  premiumMiniDescription: {
+    fontSize: 13,
+    color: '#A855F7',
+    fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
+  },
   title: {
     fontSize: 32,
     fontWeight: '700',
@@ -371,9 +635,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     fontFamily: Fonts.primary.regular,
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitleContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
   },
   subtitle: {
@@ -381,6 +645,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.bold,
     marginBottom: 24,
+    textAlign: 'center',
   },
   iconContainer: {
     width: 80,
@@ -398,36 +663,43 @@ const styles = StyleSheet.create({
   },
   shareContainer: {
     alignItems: 'center',
-    gap: 16,
+    gap: 20,
+    marginTop: 20,
   },
   shareText: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.bold,
     textAlign: 'center',
+    maxWidth: '80%',
+    lineHeight: 22,
   },
   shareButton: {
     width: '100%',
-    height: 56,
-    borderRadius: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 64,
+    borderRadius: 32,
     overflow: 'hidden',
-    shadowColor: Colors.gradients.turquoise[0],
+    shadowColor: '#EC4899',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },
+  shareButtonContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   shareIcon: {
-    marginRight: 8,
+    marginRight: 12,
   },
   shareButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: Fonts.secondary.bold,
+    letterSpacing: 0.5,
   },
   lookupButton: {
     width: '100%',
@@ -539,7 +811,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: 'center',
     fontFamily: Fonts.primary.regular,
   },

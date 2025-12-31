@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields } from '@/lib/storage';
-import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle } from 'lucide-react-native';
+import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Star, Zap } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -316,31 +316,46 @@ export default function HomeScreen() {
             contentContainerStyle={styles.contentContainer}
             showsVerticalScrollIndicator={false}
           >
-            {/* Compatibility Test Banner - Hidden for now */}
-            {/* <TouchableOpacity
+            {/* Compatibility Test Banner */}
+            <TouchableOpacity
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/compatibility/info');
+                router.push('/compatibility/add-twin');
               }}
-              activeOpacity={0.8}
+              activeOpacity={0.9}
               style={styles.compatibilityBanner}
             >
               <LinearGradient
-                colors={['rgba(45, 212, 191, 0.2)', 'rgba(45, 212, 191, 0.05)']}
+                colors={['#A78BFA', '#F472B6']} // Softer Purple to Pink gradient
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.compatibilityBannerGradient}
               />
               <View style={styles.compatibilityBannerContent}>
                 <View style={styles.compatibilityBannerTextContainer}>
+                  <View style={styles.newTag}>
+                    <Text style={styles.newTagText}>NEW</Text>
+                  </View>
                   <Text style={styles.compatibilityBannerTitle}>Check Compatibility</Text>
-                  <Text style={styles.compatibilityBannerSubtitle}>See how your twin aligns with others</Text>
+                  <Text style={styles.compatibilityBannerSubtitle}>See how your twin vibes with others 🔮</Text>
                 </View>
-                <View style={styles.compatibilityBannerIcon}>
-                  <ChevronRight size={20} color={Colors.gradients.turquoise[0]} />
+                <View style={styles.compatibilityAvatars}>
+                  <Image 
+                    source={require('@/assets/images/manwhite.png')} 
+                    style={styles.compatibilityAvatar}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.compatibilityConnector}>
+                    <Zap size={14} color="#FFFFFF" fill="#FFFFFF" />
+                  </View>
+                  <Image 
+                    source={require('@/assets/images/manwhite.png')} 
+                    style={[styles.compatibilityAvatar, styles.compatibilityAvatarFlipped]}
+                    resizeMode="contain"
+                  />
                 </View>
               </View>
-            </TouchableOpacity> */}
+            </TouchableOpacity>
 
             {/* Main Header */}
             <View style={styles.headerContainer}>
@@ -696,11 +711,15 @@ const styles = StyleSheet.create({
   },
   compatibilityBanner: {
     marginTop: 8,
-    marginBottom: 16,
-    borderRadius: 20,
+    marginBottom: 20,
+    borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(45, 212, 191, 0.2)',
+    shadowColor: '#EC4899',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+    minHeight: 100,
   },
   compatibilityBannerGradient: {
     position: 'absolute',
@@ -710,34 +729,61 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   compatibilityBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    zIndex: 1,
+    minHeight: 110,
   },
   compatibilityBannerTextContainer: {
-    flex: 1,
-    gap: 2,
+    maxWidth: '65%',
+    gap: 4,
   },
   compatibilityBannerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.primary.regular,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: Fonts.primary.bold,
+    letterSpacing: -0.5,
+    marginTop: 4,
   },
   compatibilityBannerSubtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
     fontFamily: Fonts.secondary.bold,
+    fontWeight: '600',
   },
-  compatibilityBannerIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(45, 212, 191, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  compatibilityAvatars: {
+    position: 'absolute',
+    bottom: -8,
+    right: -8,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 0,
+  },
+  compatibilityAvatar: {
+    width: 64,
+    height: 64,
+  },
+  compatibilityAvatarFlipped: {
+    transform: [{ scaleX: -1 }],
+  },
+  compatibilityConnector: {
+    marginBottom: 32,
+    marginHorizontal: -4,
+    zIndex: 10,
+  },
+  newTag: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  newTagText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#EC4899',
+    fontFamily: Fonts.secondary.bold,
   },
   headerContainer: {
     flexDirection: 'row',

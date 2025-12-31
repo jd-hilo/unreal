@@ -1,11 +1,12 @@
 import { supabase } from './supabase';
-import { getProfile } from './storage';
+import { getProfile, getUserInterests } from './storage';
 import { buildCorePack } from './relevance';
 import { embedText } from './ai';
 
 export interface CompatibilityBreakdown {
   valuesAlignment: number; // 0-100
   corePackSimilarity: number; // 0-100
+  interestsAlignment?: number; // 0-100 (optional)
   decisionStyleMatch?: number; // 0-100 (optional)
   overallScore: number; // 0-100
   insights: string[];
@@ -25,24 +26,29 @@ export async function calculateCompatibility(
 ): Promise<CompatibilityResult> {
   console.log('[Compatibility] Calculating compatibility between', userId1, 'and', userId2);
 
-  // Get both profiles in parallel
-  const [profile1, profile2] = await Promise.all([
+  // Get both profiles and interests in parallel
+  const [profile1, profile2, interests1, interests2] = await Promise.all([
     getProfile(userId1),
     getProfile(userId2),
+    getUserInterests(userId1).catch(() => []),
+    getUserInterests(userId2).catch(() => []),
   ]);
 
   if (!profile1 || !profile2) {
     throw new Error('One or both profiles not found');
   }
 
-  // Calculate values alignment (40% weight)
+  // Calculate values alignment (30% weight)
   const valuesAlignment = calculateValuesAlignment(
     profile1.values_json || [],
     profile2.values_json || []
   );
 
-  // Calculate core pack similarity (40% weight)
+  // Calculate core pack similarity (30% weight)
   const corePackSimilarity = await calculateCorePackSimilarity(userId1, userId2);
+
+  // Calculate interests alignment (20% weight)
+  const interestsAlignment = calculateInterestsAlignment(interests1, interests2);
 
   // Calculate decision style match (20% weight) - optional
   const decisionStyleMatch = calculateDecisionStyleMatch(
@@ -52,8 +58,9 @@ export async function calculateCompatibility(
 
   // Calculate weighted overall score
   const overallScore = Math.round(
-    valuesAlignment * 0.4 +
-    corePackSimilarity * 0.4 +
+    valuesAlignment * 0.3 +
+    corePackSimilarity * 0.3 +
+    (interestsAlignment || 50) * 0.2 +
     (decisionStyleMatch || 50) * 0.2
   );
 
@@ -61,6 +68,7 @@ export async function calculateCompatibility(
   const insights = generateInsights(
     valuesAlignment,
     corePackSimilarity,
+    interestsAlignment,
     decisionStyleMatch,
     profile1,
     profile2
@@ -69,6 +77,7 @@ export async function calculateCompatibility(
   const breakdown: CompatibilityBreakdown = {
     valuesAlignment,
     corePackSimilarity,
+    interestsAlignment,
     decisionStyleMatch,
     overallScore,
     insights,
@@ -149,6 +158,35 @@ async function calculateCorePackSimilarity(
 }
 
 /**
+ * Calculate interests alignment based on overlap
+ */
+function calculateInterestsAlignment(
+  interests1: Array<{ category: string; item_name: string }>,
+  interests2: Array<{ category: string; item_name: string }>
+): number {
+  if (interests1.length === 0 && interests2.length === 0) {
+    return 50; // Neutral if both have no interests
+  }
+  if (interests1.length === 0 || interests2.length === 0) {
+    return 30; // Lower score if one has no interests
+  }
+
+  // Normalize interests to lowercase for comparison
+  const normalized1 = interests1.map(i => `${i.category}:${i.item_name.toLowerCase().trim()}`);
+  const normalized2 = interests2.map(i => `${i.category}:${i.item_name.toLowerCase().trim()}`);
+
+  // Find intersection
+  const intersection = normalized1.filter(i => normalized2.includes(i));
+  const union = [...new Set([...normalized1, ...normalized2])];
+
+  // Jaccard similarity
+  const jaccard = union.length > 0 ? intersection.length / union.length : 0;
+
+  // Scale to 0-100
+  return Math.round(jaccard * 100);
+}
+
+/**
  * Calculate decision style match
  */
 function calculateDecisionStyleMatch(
@@ -203,6 +241,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 function generateInsights(
   valuesAlignment: number,
   corePackSimilarity: number,
+  interestsAlignment: number | undefined,
   decisionStyleMatch: number | undefined,
   profile1: any,
   profile2: any
@@ -225,6 +264,17 @@ function generateInsights(
     insights.push('You have complementary life experiences that could enrich each other.');
   } else {
     insights.push('Your backgrounds differ, offering unique perspectives to each other.');
+  }
+
+  // Interests insights
+  if (interestsAlignment !== undefined) {
+    if (interestsAlignment >= 70) {
+      insights.push('You share many interests and hobbies, making it easy to find common activities.');
+    } else if (interestsAlignment >= 50) {
+      insights.push('You have some overlapping interests, with opportunities to explore new things together.');
+    } else {
+      insights.push('Your different interests could introduce each other to new experiences.');
+    }
   }
 
   // Decision style insights

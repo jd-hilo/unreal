@@ -88,12 +88,12 @@ export default function CompatibilityInfoScreen() {
               style={styles.continueButton}
             >
               <LinearGradient
-                colors={Colors.gradients.turquoise}
+                colors={['#8B5CF6', '#EC4899']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
-              <Text style={styles.continueButtonText}>Start Test</Text>
+              <Text style={styles.continueButtonText}>Start Test 🚀</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -190,21 +190,22 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     width: '100%',
-    height: 56,
-    borderRadius: 28,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    shadowColor: Colors.gradients.turquoise[0],
+    shadowColor: '#EC4899',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },
   continueButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: Fonts.secondary.bold,
+    letterSpacing: 0.5,
   },
 });

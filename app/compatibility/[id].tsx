@@ -1,30 +1,37 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Share, Image, Dimensions, ActivityIndicator } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
-import { useTwin } from '@/store/useTwin';
 import { ArrowLeft, Share as ShareIcon, Users, Heart, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
-import { getProfile } from '@/lib/storage';
+import { getProfile, getUserInterests } from '@/lib/storage';
 import { getCompatibilityTest } from '@/lib/compatibility';
 import { computeTwinAlignment } from '@/lib/relevance';
+import { buildCorePack } from '@/lib/relevance';
+import { generateCompatibilityScenarios } from '@/lib/ai';
 import { Colors, Fonts } from '@/constants/Theme';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import type { CompatibilityBreakdown } from '@/lib/compatibility';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function CompatibilityResultScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const user = useAuth((state) => state.user);
-  const { twinAccuracy } = useTwin();
   const [test, setTest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [twin1Profile, setTwin1Profile] = useState<any>(null);
   const [twin2Profile, setTwin2Profile] = useState<any>(null);
+  const [twin1Accuracy, setTwin1Accuracy] = useState<number | null>(null);
   const [twin2Accuracy, setTwin2Accuracy] = useState<number | null>(null);
+  const [scenarios, setScenarios] = useState<{ friends: string; dating: string; enemies: string } | null>(null);
+  const [loadingScenarios, setLoadingScenarios] = useState(false);
+  const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
+  const scenariosLoadedRef = useRef(false);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -41,7 +48,13 @@ export default function CompatibilityResultScreen() {
 
   useEffect(() => {
     if (test && twin1Profile && twin2Profile) {
+      loadTwin1Accuracy();
       loadTwin2Accuracy();
+      // Only load scenarios once
+      if (!scenariosLoadedRef.current) {
+        scenariosLoadedRef.current = true;
+        loadScenarios();
+      }
       
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -111,6 +124,17 @@ export default function CompatibilityResultScreen() {
     }
   }
 
+  async function loadTwin1Accuracy() {
+    if (!user) return;
+    try {
+      const accuracy = await computeTwinAlignment(user.id);
+      setTwin1Accuracy(accuracy);
+    } catch (error) {
+      console.error('Failed to compute twin1 accuracy:', error);
+      setTwin1Accuracy(50); 
+    }
+  }
+
   async function loadTwin2Accuracy() {
     if (!test || !user) return;
 
@@ -121,6 +145,31 @@ export default function CompatibilityResultScreen() {
     } catch (error) {
       console.error('Failed to compute twin2 accuracy:', error);
       setTwin2Accuracy(50); 
+    }
+  }
+
+  async function loadScenarios() {
+    if (!user || !twin1Profile || !twin2Profile || !test) return;
+    
+    setLoadingScenarios(true);
+    try {
+      const otherUserId = test.user_id_1 === user.id ? test.user_id_2 : test.user_id_1;
+      const [corePack1, corePack2] = await Promise.all([
+        buildCorePack(user.id),
+        buildCorePack(otherUserId),
+      ]);
+      
+      const compatibilityScenarios = await generateCompatibilityScenarios(
+        corePack1,
+        corePack2,
+        test.compatibility_score || 50
+      );
+      
+      setScenarios(compatibilityScenarios);
+    } catch (error) {
+      console.error('Failed to load scenarios:', error);
+    } finally {
+      setLoadingScenarios(false);
     }
   }
 
@@ -175,6 +224,10 @@ export default function CompatibilityResultScreen() {
 
   const scoreColor = getScoreColor(score);
 
+  const sharedValues = (twin1Profile?.values_json || [])
+    .filter((v: string) => (twin2Profile?.values_json || []).some((v2: string) => v2.toLowerCase() === v.toLowerCase()))
+    .slice(0, 6);
+
   return (
     <View style={styles.screen}>
       <StatusBar style="dark" />
@@ -197,8 +250,17 @@ export default function CompatibilityResultScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.pageTitle}>Compatibility 🔮</Text>
-          <Text style={styles.pageSubtitle}>Results analysis 📊</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.pageTitle}>Compatibility 🔮</Text>
+            <View style={styles.presentedByContainer}>
+              <Text style={styles.presentedByText}>presented by</Text>
+              <Image 
+                source={require('@/assets/images/unreallogo.png')} 
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
 
           {/* Compatibility Score Card */}
           <Animated.View
@@ -212,19 +274,49 @@ export default function CompatibilityResultScreen() {
               }],
             }}
           >
-            <View style={styles.scoreCard}>
+            <View style={styles.scoreCardWrapper}>
+              <LinearGradient
+                colors={score >= 70 ? ['#8B5CF6', '#EC4899'] : score >= 50 ? ['#F59E0B', '#FCD34D'] : ['#EF4444', '#F87171']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.scoreCardGradient}
+              />
               <View style={styles.scoreCardContent}>
-                <Text style={styles.scoreLabel}>Match Score</Text>
-                <Text style={[styles.scoreValue, { color: scoreColor }]}>
-                  {score}%
-                </Text>
-                <View style={[styles.scoreBadge, { backgroundColor: `${scoreColor}15` }]}>
-                  <Heart size={12} color={scoreColor} />
-                  <Text style={[styles.scoreBadgeText, { color: scoreColor }]}>
-                    {score >= 70 ? 'High Match' : score >= 50 ? 'Moderate Match' : 'Low Match'}
+                <Text style={styles.scoreLabel}>Compatibility Score</Text>
+                <Text style={styles.scoreValue}>{score}%</Text>
+                
+                <View style={styles.avatarsContainer}>
+                  <View style={styles.avatarWrapper}>
+                    <Text style={styles.avatarName}>{twin1Name}</Text>
+                    <Image 
+                      source={require('@/assets/images/manwhite.png')} 
+                      style={styles.avatarImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  
+                  <View style={styles.connector} />
+                  
+                  <View style={styles.avatarWrapper}>
+                    <Text style={styles.avatarName}>{twin2Name}</Text>
+                    <Image 
+                      source={require('@/assets/images/manwhite.png')} 
+                      style={[styles.avatarImage, styles.avatarImageFlipped]}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.scoreBadge}>
+                  <Heart size={14} color="#FFFFFF" fill="#FFFFFF" />
+                  <Text style={styles.scoreBadgeText}>
+                    {score >= 70 ? 'Perfect Match' : score >= 50 ? 'Good Vibes' : 'Needs Work'}
                   </Text>
                 </View>
               </View>
+              {/* Decorative Elements */}
+              <View style={[styles.decorativeCircle, { top: -20, right: -20, width: 100, height: 100, opacity: 0.2 }]} />
+              <View style={[styles.decorativeCircle, { bottom: -30, left: -30, width: 140, height: 140, opacity: 0.15 }]} />
             </View>
           </Animated.View>
 
@@ -255,7 +347,9 @@ export default function CompatibilityResultScreen() {
                 </View>
                 <View style={styles.accuracyRow}>
                   <Text style={styles.accuracyLabel}>Accuracy</Text>
-                  <Text style={styles.accuracyValue}>{twinAccuracy}%</Text>
+                  <Text style={styles.accuracyValue}>
+                    {twin1Accuracy !== null ? `${twin1Accuracy}%` : '...'}
+                  </Text>
                 </View>
               </View>
 
@@ -335,6 +429,28 @@ export default function CompatibilityResultScreen() {
                 </View>
               </View>
 
+              {breakdown.interestsAlignment !== undefined && (
+                <View style={styles.breakdownRow}>
+                  <View style={styles.breakdownIcon}>
+                    <Sparkles size={18} color={Colors.gradients.turquoise[0]} />
+                  </View>
+                  <View style={styles.breakdownContent}>
+                    <Text style={styles.breakdownLabel}>Interests</Text>
+                    <View style={styles.breakdownBarContainer}>
+                      <View style={styles.breakdownBarBackground}>
+                        <LinearGradient
+                          colors={Colors.gradients.turquoise}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={[styles.breakdownBar, { width: `${breakdown.interestsAlignment}%` }]}
+                        />
+                      </View>
+                      <Text style={styles.breakdownValue}>{breakdown.interestsAlignment}%</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
               {breakdown.decisionStyleMatch !== undefined && (
                 <View style={styles.breakdownRow}>
                   <View style={styles.breakdownIcon}>
@@ -357,6 +473,105 @@ export default function CompatibilityResultScreen() {
                 </View>
               )}
             </View>
+          </Animated.View>
+
+          {/* Shared Values */}
+          {sharedValues.length > 0 && (
+            <Animated.View
+              style={{
+                opacity: breakdownAnim,
+                transform: [{
+                  translateY: breakdownAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [30, 0],
+                  }),
+                }],
+              }}
+            >
+              <Text style={styles.sectionTitle}>Shared Values 🤝</Text>
+              <View style={styles.sharedValuesContainer}>
+                {sharedValues.map((value: string, index: number) => (
+                  <View key={index} style={styles.valueChip}>
+                    <Text style={styles.valueChipText}>{value}</Text>
+                  </View>
+                ))}
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Different Lives */}
+          <Animated.View
+            style={{
+              opacity: breakdownAnim,
+              transform: [{
+                translateY: breakdownAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [30, 0],
+                }),
+              }],
+            }}
+          >
+            <Text style={styles.sectionTitle}>Different Lives 🌍</Text>
+            {loadingScenarios ? (
+              <View style={styles.loadingScenariosContainer}>
+                <ActivityIndicator size="large" color={Colors.gradients.turquoise[0]} />
+                <Text style={styles.loadingScenariosText}>Generating scenarios...</Text>
+              </View>
+            ) : scenarios ? (
+              <>
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.scenariosScrollContent}
+                  style={styles.scenariosScrollView}
+                  onScroll={(event) => {
+                    const offsetX = event.nativeEvent.contentOffset.x;
+                    const cardWidth = SCREEN_WIDTH - 40;
+                    const index = Math.round(offsetX / cardWidth);
+                    setCurrentScenarioIndex(index);
+                  }}
+                  snapToInterval={SCREEN_WIDTH - 40}
+                  decelerationRate="fast"
+                  scrollEventThrottle={16}
+                >
+                  <View style={styles.scenarioCard}>
+                    <View style={styles.scenarioHeader}>
+                      <Heart size={24} color={Colors.gradients.turquoise[0]} />
+                      <Text style={styles.scenarioTitle}>As Friends</Text>
+                    </View>
+                    <Text style={styles.scenarioText}>{scenarios.friends}</Text>
+                  </View>
+                  
+                  <View style={styles.scenarioCard}>
+                    <View style={styles.scenarioHeader}>
+                      <Sparkles size={24} color={Colors.gradients.turquoise[0]} />
+                      <Text style={styles.scenarioTitle}>Dating</Text>
+                    </View>
+                    <Text style={styles.scenarioText}>{scenarios.dating}</Text>
+                  </View>
+                  
+                  <View style={styles.scenarioCard}>
+                    <View style={styles.scenarioHeader}>
+                      <Users size={24} color="#EF4444" />
+                      <Text style={styles.scenarioTitle}>Enemies</Text>
+                    </View>
+                    <Text style={styles.scenarioText}>{scenarios.enemies}</Text>
+                  </View>
+                </ScrollView>
+                <View style={styles.paginationContainer}>
+                  {[0, 1, 2].map((index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.paginationDot,
+                        currentScenarioIndex === index && styles.paginationDotActive,
+                      ]}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : null}
           </Animated.View>
 
           {/* Insights */}
@@ -402,13 +617,15 @@ export default function CompatibilityResultScreen() {
               style={styles.inviteButton}
             >
               <LinearGradient
-                colors={Colors.gradients.turquoise}
+                colors={['#8B5CF6', '#EC4899']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
-              <ShareIcon size={20} color="#FFFFFF" />
-              <Text style={styles.inviteButtonText}>Share Result 🚀</Text>
+              <View style={styles.inviteButtonContent}>
+                <ShareIcon size={24} color="#FFFFFF" />
+                <Text style={styles.inviteButtonText}>Share Report 🚀</Text>
+              </View>
             </TouchableOpacity>
           </Animated.View>
         </Animated.ScrollView>
@@ -460,13 +677,31 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.bold,
   },
+  titleContainer: {
+    marginBottom: 10,
+  },
   pageTitle: {
     fontSize: 32,
     fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.primary.regular,
     letterSpacing: -0.5,
-    marginBottom: 4,
+    marginBottom: 10,
+  },
+  presentedByContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  presentedByText: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
+    textTransform: 'lowercase',
+  },
+  logoImage: {
+    height: 16,
+    width: 60,
   },
   pageSubtitle: {
     fontSize: 18,
@@ -474,48 +709,104 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
     marginBottom: 24,
   },
-  scoreCard: {
+  scoreCardWrapper: {
     borderRadius: 32,
-    backgroundColor: '#FFFFFF',
-    padding: 32,
+    overflow: 'hidden',
     marginBottom: 32,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: 'rgba(0, 0, 0, 0.05)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+    minHeight: 200,
+    justifyContent: 'center',
+  },
+  scoreCardGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   scoreCardContent: {
     alignItems: 'center',
+    padding: 32,
+    zIndex: 1,
   },
   scoreLabel: {
-    fontSize: 14,
-    color: Colors.textTertiary,
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
     fontFamily: Fonts.secondary.bold,
     marginBottom: 8,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+    fontWeight: '700',
   },
   scoreValue: {
-    fontSize: 72,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontSize: 80,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 24,
+    fontFamily: Fonts.primary.bold,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 8,
+  },
+  avatarsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginBottom: 24,
+    gap: 16,
+  },
+  avatarWrapper: {
+    alignItems: 'center',
+  },
+  avatarName: {
+    fontSize: 16,
+    color: '#FFFFFF',
     fontFamily: Fonts.primary.regular,
+    marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  avatarImage: {
+    width: 64,
+    height: 64,
+  },
+  avatarImageFlipped: {
+    transform: [{ scaleX: -1 }],
+  },
+  connector: {
+    width: 24,
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 1,
+    marginBottom: 32, // Align with center of avatars
   },
   scoreBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   scoreBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
     fontFamily: Fonts.secondary.bold,
+  },
+  decorativeCircle: {
+    position: 'absolute',
+    borderRadius: 100,
+    backgroundColor: '#FFFFFF',
+    zIndex: 0,
   },
   sectionTitle: {
     fontSize: 20,
@@ -588,7 +879,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.gradients.turquoise[0],
-    fontFamily: Fonts.primary.regular,
+    fontFamily: Fonts.secondary.bold,
   },
   breakdownCard: {
     borderRadius: 24,
@@ -684,24 +975,126 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
   },
   inviteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 56,
-    borderRadius: 28,
+    height: 64,
+    borderRadius: 32,
     overflow: 'hidden',
     marginTop: 8,
-    shadowColor: Colors.gradients.turquoise[0],
+    shadowColor: '#EC4899',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },
+  inviteButtonContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
   inviteButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: Fonts.secondary.bold,
+    letterSpacing: 0.5,
+  },
+  sharedValuesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 32,
+  },
+  valueChip: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.03)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  valueChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  scenariosScrollView: {
+    marginHorizontal: -20,
+  },
+  scenariosScrollContent: {
+    paddingHorizontal: 20,
+  },
+  scenarioCard: {
+    width: SCREEN_WIDTH - 40,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.03)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  scenarioHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  scenarioTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+  },
+  scenarioText: {
+    fontSize: 18,
+    color: Colors.textSecondary,
+    lineHeight: 28,
+    fontFamily: Fonts.secondary.regular,
+  },
+  loadingScenariosContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 40,
+    marginBottom: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    minHeight: 200,
+  },
+  loadingScenariosText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    marginTop: 16,
+    fontFamily: Fonts.secondary.bold,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  paginationDotActive: {
+    width: 24,
+    backgroundColor: Colors.gradients.turquoise[0],
   },
 });
