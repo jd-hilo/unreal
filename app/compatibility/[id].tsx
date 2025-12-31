@@ -116,6 +116,11 @@ export default function CompatibilityResultScreen() {
         test_id: id,
         compatibility_score: testData.compatibility_score,
       });
+      trackEvent(MixpanelEvents.COMPATIBILITY_REPORT_RECEIVED, {
+        test_id: id,
+        compatibility_score: testData.compatibility_score,
+        twin_user_id: otherUserId,
+      });
     } catch (error) {
       console.error('Failed to load compatibility test:', error);
       router.back();

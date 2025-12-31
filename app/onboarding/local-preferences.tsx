@@ -180,6 +180,9 @@ export default function LocalPreferencesScreen() {
 
   function handleInitialAnswer(answer: boolean) {
     setWantsLocalRecs(answer);
+    trackEvent(MixpanelEvents.PERSONAL_RECOMMENDATIONS_SELECTED, {
+      selected: answer ? 'yes' : 'no',
+    });
     if (!answer) {
       // User said No - route directly to premium onboarding
       router.replace('/premium-onboarding');

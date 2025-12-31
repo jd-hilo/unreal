@@ -290,12 +290,18 @@ export const MixpanelEvents = {
   ONBOARDING_COMPLETE_EXPLORE_CLICKED: 'Onboarding Complete Explore Clicked',
 
   // Compatibility Tests
+  COMPATIBILITY_ADD_CLICKED: 'Compatibility Add Clicked',
   COMPATIBILITY_INFO_CONTINUED: 'Compatibility Info Continued',
   COMPATIBILITY_TWIN_FOUND: 'Compatibility Twin Found',
+  COMPATIBILITY_TWIN_ADDED: 'Compatibility Twin Added',
   COMPATIBILITY_TEST_STARTED: 'Compatibility Test Started',
   COMPATIBILITY_TEST_COMPLETED: 'Compatibility Test Completed',
   COMPATIBILITY_TEST_VIEWED: 'Compatibility Test Viewed',
   COMPATIBILITY_TEST_SHARED: 'Compatibility Test Shared',
   COMPATIBILITY_INVITE_SENT: 'Compatibility Invite Sent',
+  COMPATIBILITY_REPORT_RECEIVED: 'Compatibility Report Received',
+
+  // Onboarding
+  PERSONAL_RECOMMENDATIONS_SELECTED: 'Personal Recommendations Selected',
 } as const;
 

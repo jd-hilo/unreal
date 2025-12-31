@@ -320,6 +320,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                trackEvent(MixpanelEvents.COMPATIBILITY_ADD_CLICKED);
                 router.push('/compatibility/add-twin');
               }}
               activeOpacity={0.9}

@@ -208,6 +208,11 @@ export default function AddTwinScreen() {
     if (!foundTwin || !user) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    trackEvent(MixpanelEvents.COMPATIBILITY_TWIN_ADDED, {
+      twin_user_id: foundTwin.userId,
+      twin_name: foundTwin.name,
+      twin_code: foundTwin.code,
+    });
     trackEvent(MixpanelEvents.COMPATIBILITY_TEST_STARTED, {
       twin_user_id: foundTwin.userId,
       twin_name: foundTwin.name,
