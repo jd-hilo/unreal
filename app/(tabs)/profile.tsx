@@ -312,6 +312,7 @@ export default function ProfileScreen() {
     { id: 'current_location', title: 'Location', subtitle: currentLocation || 'Not set', route: '/profile/edit-location' as any, completed: !!currentLocation, icon: MapPin },
     { id: 'net_worth', title: 'Net Worth', subtitle: netWorth || 'Not set', route: '/profile/edit-networth' as any, completed: !!netWorth, icon: Banknote },
     { id: 'political_views', title: 'Politics', subtitle: politicalViews || 'Not set', route: '/profile/edit-politics' as any, completed: !!politicalViews, icon: Flag },
+    { id: 'twin_reveal', title: 'Twin Reveal', subtitle: 'View your digital twin', route: '/onboarding/twin-reveal' as any, completed: true, icon: Sparkles },
   ];
 
   // Helper function to truncate text for preview

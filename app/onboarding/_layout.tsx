@@ -19,6 +19,7 @@ export default function OnboardingLayout() {
       <Stack.Screen name="politics" />
       <Stack.Screen name="07-clarifier" />
       <Stack.Screen name="local-preferences" />
+      <Stack.Screen name="twin-reveal" />
     </Stack>
   );
 }

@@ -11,3 +11,5 @@ COMMENT ON COLUMN profiles.core_value IS 'AI-generated paragraph summarizing cor
 
 
 
+
+

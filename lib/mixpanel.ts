@@ -303,5 +303,9 @@ export const MixpanelEvents = {
 
   // Onboarding
   PERSONAL_RECOMMENDATIONS_SELECTED: 'Personal Recommendations Selected',
+
+  // Screen Views
+  SCREEN_VIEWED: 'Screen Viewed',
+  BUTTON_CLICKED: 'Button Clicked',
 } as const;
 
