@@ -12,7 +12,7 @@ import {
 } from '@/lib/mixpanel';
 import { getProfile } from '@/lib/storage';
 import adjustService from '@/adjustService';
-import { Inter_700Bold } from '@expo-google-fonts/inter';
+import { Inter_700Bold, Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { Colors } from '@/constants/Theme';
 
 export default function RootLayout() {
@@ -25,6 +25,8 @@ export default function RootLayout() {
   // Load fonts
   const [fontsLoaded] = useFonts({
     Inter_700Bold,
+    Inter_400Regular,
+    Inter_600SemiBold,
     'Recoleta-Regular': require('@/assets/fonts/Recoleta-RegularDEMO.otf'),
     'Recoleta-Semibold': require('@/assets/fonts/recoleta-semibold.otf'),
   });

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Linking, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Alert, Image, Linking, Animated, Dimensions } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -273,20 +273,30 @@ export default function PremiumOnboardingScreen() {
               { transform: [{ scale: pulseAnim }] }
             ]}
           >
-            <TouchableOpacity
-              style={[styles.purchaseButton, (purchasing || loading) && styles.purchaseButtonDisabled]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.purchaseButton,
+                (purchasing || loading) && styles.purchaseButtonDisabled,
+                !(purchasing || loading) && {
+                  shadowColor: '#8a98ea',
+                  transform: [{ translateY: pressed ? 4 : 0 }],
+                  shadowOffset: { width: 0, height: pressed ? 0 : 4 },
+                  shadowOpacity: 1,
+                  shadowRadius: 0,
+                  elevation: pressed ? 2 : 8,
+                }
+              ]}
               onPress={handlePurchase}
               disabled={purchasing || loading}
-              activeOpacity={0.9}
             >
               <LinearGradient
-                colors={Colors.gradients.purple}
+                colors={['#8a98ea', '#7468ec']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
               <Text style={styles.purchaseButtonText}>Continue</Text>
-            </TouchableOpacity>
+            </Pressable>
           </Animated.View>
 
           {/* Trial Text */}
@@ -324,14 +334,8 @@ export default function PremiumOnboardingScreen() {
               const Icon = feature.icon;
               return (
                 <View key={index} style={styles.featureRow}>
-                  <View style={styles.featureIcon}>
-                    <LinearGradient
-                      colors={Colors.gradients.turquoise}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                    <Icon size={24} color="#FFFFFF" strokeWidth={2} />
+                  <View style={styles.featureIcon3D}>
+                    <Icon size={24} color={Colors.textPrimary} strokeWidth={2} />
                   </View>
                   <View style={styles.featureContent}>
                     <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -565,6 +569,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  featureIcon3D: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   featureContent: {
     flex: 1,

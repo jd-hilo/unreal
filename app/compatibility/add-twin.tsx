@@ -1,84 +1,146 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Share, Modal, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { useAuth } from '@/store/useAuth';
-import { usePremium } from '@/hooks/usePremium';
-import { ArrowLeft, UserPlus, Lock, Share as ShareIcon, Info, X, Copy, ArrowUp } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import * as Haptics from 'expo-haptics';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Animated, Dimensions } from 'react-native';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ArrowLeft, Heart, Sparkles, Users } from 'lucide-react-native';
+import { StatusBar } from 'expo-status-bar';
+import { trackEvent, MixpanelEvents, trackScreenView } from '@/lib/mixpanel';
+import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
-import { FloatingLabelInput } from '@/components/FloatingLabelInput';
-import { getUserByTwinCode } from '@/lib/storage';
-import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+
+const { width } = Dimensions.get('window');
 
 export default function AddTwinScreen() {
   const router = useRouter();
-  const user = useAuth((state) => state.user);
-  const { isPremium } = usePremium();
-  const [twinCode, setTwinCode] = useState('');
-  const [twinCodeError, setTwinCodeError] = useState('');
-  const [lookingUpTwin, setLookingUpTwin] = useState(false);
-  const [foundTwin, setFoundTwin] = useState<{ userId: string; name: string; code: string } | null>(null);
-  const [hasShared, setHasShared] = useState(false);
-  const [showInfoModal, setShowInfoModal] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const mockupFadeAnim = useRef(new Animated.Value(0)).current;
+  const mockupSlideAnim = useRef(new Animated.Value(30)).current;
 
-  // Check premium status
-  if (!isPremium) {
-    return (
-      <View style={styles.screen}>
-        <StatusBar style="dark" />
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-              activeOpacity={0.7}
-            >
-              <ArrowLeft size={24} color={Colors.textPrimary} strokeWidth={2} />
-            </TouchableOpacity>
+  // Track screen view
+  useFocusEffect(
+    useCallback(() => {
+      trackScreenView('Compatibility Add Twin Landing');
+    }, [])
+  );
+
+  // Pulse animation for button
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.02,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+
+  // Mockup fade and slide animation
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(mockupFadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(mockupSlideAnim, {
+        toValue: 0,
+        tension: 40,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  function handleContinue() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    trackEvent(MixpanelEvents.COMPATIBILITY_INFO_CONTINUED);
+    router.push('/compatibility/add-twin-form');
+  }
+
+  return (
+    <View style={styles.container}>
+      <StatusBar style="dark" />
+      
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <ArrowLeft size={24} color={Colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          {/* Hero Section */}
+          <View style={styles.heroSection}>
+            <Text style={styles.heroTitle}>
+              Check Compatibility
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              See how your twin vibes with others
+            </Text>
           </View>
 
-          <ScrollView 
-            style={styles.scrollView}
-            contentContainerStyle={styles.premiumScrollContent}
-            showsVerticalScrollIndicator={false}
+          {/* Interactive Demo Mockup */}
+          <Animated.View
+            style={[
+              styles.mockupContainer,
+              {
+                opacity: mockupFadeAnim,
+                transform: [{ translateY: mockupSlideAnim }],
+              },
+            ]}
           >
-            <Text style={styles.title}>Unlock Compatibility 🔮</Text>
-            <Text style={styles.subtitle}>Compare your twin with another</Text>
-
-            <View style={styles.mockupContainer}>
-              <View style={styles.iphoneFrame}>
-                <View style={styles.iphoneScreen}>
-                  <View style={styles.iphoneNotch} />
-                  
-                  <ScrollView showsVerticalScrollIndicator={false} style={styles.mockScroll} scrollEnabled={false}>
-                    {/* Mock Header */}
-                    <View style={styles.mockHeader}>
-                      <Text style={styles.mockHeaderTitle}>Compatibility</Text>
-                      <View style={styles.mockHeaderBadge}>
-                        <Text style={styles.mockHeaderBadgeText}>PRO</Text>
-                      </View>
+            <TouchableOpacity 
+              style={styles.mockupTouchable}
+              activeOpacity={0.9}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
+            <View style={styles.iphoneFrame}>
+              <View style={styles.iphoneScreen}>
+                <View style={styles.iphoneNotch} />
+                <ScrollView style={styles.mockScroll} contentContainerStyle={styles.mockScrollContent}>
+                  <View style={styles.mockHeader}>
+                    <Text style={styles.mockHeaderTitle}>Compatibility</Text>
+                    <View style={styles.mockHeaderBadge}>
+                      <Text style={styles.mockHeaderBadgeText}>NEW</Text>
                     </View>
-
-                    {/* Mock Score Card */}
-                    <View style={styles.mockScoreCard}>
-                      <LinearGradient
-                        colors={['#8B5CF6', '#EC4899']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFill}
-                      />
-                      <Text style={styles.mockScoreLabel}>Overall Match</Text>
-                      <Text style={styles.mockScoreValue}>94%</Text>
-                      <View style={styles.mockAvatarsRow}>
+                  </View>
+                  
+                  <View style={styles.mockScoreCard}>
+                    <LinearGradient
+                      colors={['#8B5CF6', '#EC4899']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <Text style={styles.mockScoreLabel}>Compatibility Score</Text>
+                    <Text style={styles.mockScoreValue}>87%</Text>
+                    
+                    <View style={styles.mockAvatarsRow}>
+                      <View style={styles.mockAvatarWrapper}>
+                        <Text style={styles.mockAvatarName}>You</Text>
                         <Image 
                           source={require('@/assets/images/manwhite.png')} 
                           style={styles.mockAvatarImage}
                           resizeMode="contain"
                         />
-                        <View style={styles.mockConnector} />
+                      </View>
+                      
+                      <View style={styles.mockConnector} />
+                      
+                      <View style={styles.mockAvatarWrapper}>
+                        <Text style={styles.mockAvatarName}>Friend</Text>
                         <Image 
                           source={require('@/assets/images/manwhite.png')} 
                           style={[styles.mockAvatarImage, styles.mockAvatarImageFlipped]}
@@ -87,375 +149,170 @@ export default function AddTwinScreen() {
                       </View>
                     </View>
 
-                    {/* Mock Insight */}
-                    <View style={styles.mockInsightCard}>
-                      <Text style={styles.mockInsightTitle}>Dynamic ⚡️</Text>
-                      <Text style={styles.mockInsightText}>
-                        You and Sarah balance each other out perfectly. Your decisive nature complements her analytical approach.
-                      </Text>
-                    </View>
-
-                    {/* Mock Values */}
-                    <View style={styles.mockValuesRow}>
-                      <View style={styles.mockValueCard}>
-                        <Text style={styles.mockValueLabel}>Values</Text>
-                        <Text style={styles.mockValueScore}>High</Text>
-                      </View>
-                      <View style={styles.mockValueCard}>
-                        <Text style={styles.mockValueLabel}>Goals</Text>
-                        <Text style={styles.mockValueScore}>Med</Text>
-                      </View>
-                    </View>
-                  </ScrollView>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.premiumActionContainer}>
-              <View style={styles.lockInfoRow}>
-                <Lock size={16} color="#A855F7" />
-                <Text style={styles.premiumMiniDescription}>
-                  mora+ required for the user running the report (the other twin doesn't need it!)
-                </Text>
-              </View>
-              
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/premium');
-                }}
-                activeOpacity={0.9}
-                style={styles.premiumButton}
-              >
-                <LinearGradient
-                  colors={Colors.gradients.purple}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
-                />
-                <Text style={styles.premiumButtonText}>Upgrade to mora+</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </View>
-    );
-  }
-
-  async function handleShare() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    try {
-      await Share.share({
-        message: 'Build your digital twin and see our compatability today! Once signed up, send your mora#.\n\nhttps://apps.apple.com/us/app/mora-simulate-your-life/id6754901842'
-      });
-      
-      setHasShared(true);
-      trackEvent(MixpanelEvents.COMPATIBILITY_INVITE_SENT);
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  }
-
-  async function handleLookupTwin() {
-    if (!twinCode.trim() || twinCode.length !== 6) {
-      setTwinCodeError('Enter a valid 6-digit code');
-      return;
-    }
-
-    if (!user) return;
-
-    setLookingUpTwin(true);
-    setTwinCodeError('');
-    setFoundTwin(null);
-
-    try {
-      const twinProfile = await getUserByTwinCode(twinCode.trim());
-      
-      if (!twinProfile) {
-        setTwinCodeError('Twin code not found');
-        setLookingUpTwin(false);
-        return;
-      }
-
-      if (twinProfile.user_id === user.id) {
-        setTwinCodeError('Cannot compare with yourself');
-        setLookingUpTwin(false);
-        return;
-      }
-
-      const twinName = twinProfile.first_name || 'Someone';
-
-      setFoundTwin({
-        userId: twinProfile.user_id,
-        name: twinName,
-        code: twinProfile.twin_code || twinCode.trim()
-      });
-
-      trackEvent(MixpanelEvents.COMPATIBILITY_TWIN_FOUND, {
-        twin_code: twinCode.trim(),
-        twin_name: twinName,
-      });
-    } catch (error) {
-      console.error('Error looking up twin:', error);
-      setTwinCodeError('Failed to look up code');
-    } finally {
-      setLookingUpTwin(false);
-    }
-  }
-
-  function handleStartTest() {
-    if (!foundTwin || !user) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    trackEvent(MixpanelEvents.COMPATIBILITY_TWIN_ADDED, {
-      twin_user_id: foundTwin.userId,
-      twin_name: foundTwin.name,
-      twin_code: foundTwin.code,
-    });
-    trackEvent(MixpanelEvents.COMPATIBILITY_TEST_STARTED, {
-      twin_user_id: foundTwin.userId,
-      twin_name: foundTwin.name,
-    });
-
-    router.push({
-      pathname: '/compatibility/loading',
-      params: {
-        twinUserId: foundTwin.userId,
-        twinName: foundTwin.name,
-        twinCode: foundTwin.code,
-      },
-    });
-  }
-
-  return (
-    <View style={styles.screen}>
-      <StatusBar style="dark" />
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-              activeOpacity={0.7}
-            >
-              <ArrowLeft size={24} color={Colors.textPrimary} strokeWidth={2} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => setShowInfoModal(true)}
-              style={styles.infoButtonHeader}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Info size={20} color={Colors.textPrimary} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.title}>Add Twin 🔗</Text>
-          <View style={styles.subtitleContainer}>
-            <Text style={styles.subtitle}>Enter their 6-digit mora#</Text>
-          </View>
-
-          <View style={styles.iconContainer}>
-            <LinearGradient
-              colors={['rgba(45, 212, 191, 0.2)', 'rgba(45, 212, 191, 0.05)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.iconGradient}
-            >
-              <UserPlus size={40} color={Colors.gradients.turquoise[0]} strokeWidth={2.5} />
-            </LinearGradient>
-          </View>
-
-          {!hasShared ? (
-            <View style={styles.shareContainer}>
-              <TouchableOpacity
-                onPress={handleShare}
-                activeOpacity={0.9}
-                style={styles.shareButton}
-              >
-                <LinearGradient
-                  colors={['#8B5CF6', '#EC4899']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-                <View style={styles.shareButtonContent}>
-                  <ShareIcon size={24} color="#FFFFFF" style={styles.shareIcon} />
-                  <Text style={styles.shareButtonText}>Invite a Friend</Text>
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.shareText}>
-                Send them a link to join mora and see your compatibility score! 🔮
-              </Text>
-            </View>
-          ) : (
-            <>
-              <FloatingLabelInput
-                label="6-digit code"
-                value={twinCode}
-                onChangeText={(text) => {
-                  setTwinCode(text);
-                  setTwinCodeError('');
-                  setFoundTwin(null);
-                }}
-                maxLength={6}
-                keyboardType="number-pad"
-                error={twinCodeError}
-                returnKeyType="done"
-                onSubmitEditing={handleLookupTwin}
-              />
-
-              {foundTwin && (
-                <View style={styles.foundTwinCard}>
-                  <View style={styles.foundTwinContent}>
-                    <View style={styles.foundTwinIcon}>
-                      <UserPlus size={20} color={Colors.gradients.turquoise[0]} />
-                    </View>
-                    <View style={styles.foundTwinInfo}>
-                      <Text style={styles.foundTwinName}>{foundTwin.name}</Text>
-                      <Text style={styles.foundTwinCode}>#{foundTwin.code}</Text>
+                    <View style={styles.mockScoreBadge}>
+                      <Heart size={14} color="#FFFFFF" fill="#FFFFFF" />
+                      <Text style={styles.mockScoreBadgeText}>Perfect Match</Text>
                     </View>
                   </View>
-                </View>
-              )}
 
-              {!foundTwin && (
-                <TouchableOpacity
-                  onPress={handleLookupTwin}
-                  disabled={lookingUpTwin || twinCode.length !== 6}
-                  style={[
-                    styles.lookupButton,
-                    (lookingUpTwin || twinCode.length !== 6) && styles.lookupButtonDisabled
-                  ]}
-                  activeOpacity={0.9}
-                >
-                  {lookingUpTwin ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.lookupButtonText}>Find Twin</Text>
-                  )}
-                </TouchableOpacity>
-              )}
+                  {/* Analysis Breakdown */}
+                  <View style={styles.mockBreakdownCard}>
+                    <View style={styles.mockBreakdownRow}>
+                      <View style={styles.mockBreakdownIcon}>
+                        <Heart size={12} color={Colors.gradients.turquoise[0]} />
+                      </View>
+                      <View style={styles.mockBreakdownContent}>
+                        <Text style={styles.mockBreakdownLabel}>Values</Text>
+                        <View style={styles.mockBreakdownBarContainer}>
+                          <View style={styles.mockBreakdownBarBackground}>
+                            <LinearGradient
+                              colors={Colors.gradients.turquoise}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={[styles.mockBreakdownBar, { width: '92%' }]}
+                            />
+                          </View>
+                          <Text style={styles.mockBreakdownValue}>92%</Text>
+                        </View>
+                      </View>
+                    </View>
 
-              {/* Start Test Button */}
-              {foundTwin && (
-                <TouchableOpacity
-                  onPress={handleStartTest}
-                  activeOpacity={0.9}
-                  style={styles.startButton}
-                >
-                  <LinearGradient
-                    colors={Colors.gradients.turquoise}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <Text style={styles.startButtonText}>Check Compatibility ⚡️</Text>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
-        </ScrollView>
-      </SafeAreaView>
+                    <View style={styles.mockBreakdownRow}>
+                      <View style={styles.mockBreakdownIcon}>
+                        <Sparkles size={12} color={Colors.gradients.turquoise[0]} />
+                      </View>
+                      <View style={styles.mockBreakdownContent}>
+                        <Text style={styles.mockBreakdownLabel}>Experience</Text>
+                        <View style={styles.mockBreakdownBarContainer}>
+                          <View style={styles.mockBreakdownBarBackground}>
+                            <LinearGradient
+                              colors={Colors.gradients.turquoise}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={[styles.mockBreakdownBar, { width: '85%' }]}
+                            />
+                          </View>
+                          <Text style={styles.mockBreakdownValue}>85%</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
 
-      {/* Info Modal */}
-      <Modal
-        visible={showInfoModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowInfoModal(false)}
-      >
-        <View style={styles.infoModalOverlay}>
-          <View style={styles.infoModalContent}>
-            <TouchableOpacity 
-              onPress={() => setShowInfoModal(false)}
-              style={styles.infoModalCloseButton}
-            >
-              <X size={24} color={Colors.textTertiary} />
-            </TouchableOpacity>
-            
-            <Text style={styles.infoModalTitle}>Where to find it</Text>
-            
-            <View style={styles.mockProfilePreview}>
-              <View style={styles.mockAvatar} />
-              <Text style={styles.mockName}>Friend's Name</Text>
-              <View style={styles.mockCodeContainer}>
-                <Text style={styles.mockCode}>mora#123456</Text>
-                <Copy size={12} color={Colors.textTertiary} />
-              </View>
-              
-              <View style={styles.pointerContainer}>
-                <ArrowUp size={24} color={Colors.gradients.turquoise[0]} />
-                <Text style={styles.pointerText}>It's right here!</Text>
+                  {/* Insights */}
+                  <View style={styles.mockInsightCard}>
+                    <View style={styles.mockInsightHeader}>
+                      <Text style={styles.mockInsightTitle}>Insights</Text>
+                    </View>
+                    <View style={styles.mockInsightRow}>
+                      <View style={styles.mockInsightDot} />
+                      <Text style={styles.mockInsightText}>
+                        You both prioritize growth and authenticity.
+                      </Text>
+                    </View>
+                    <View style={styles.mockInsightRow}>
+                      <View style={styles.mockInsightDot} />
+                      <Text style={styles.mockInsightText}>
+                        Decision styles complement each other well.
+                      </Text>
+                    </View>
+                  </View>
+                </ScrollView>
               </View>
             </View>
+            </TouchableOpacity>
+          </Animated.View>
 
-            <Text style={styles.infoModalText}>
-              Your friend can find their 6-digit code on their twin's page, right under their name.
-            </Text>
-          </View>
-        </View>
-      </Modal>
+          {/* Continue Button */}
+          <Animated.View 
+            style={[
+              styles.continueButtonWrapper,
+              { transform: [{ scale: pulseAnim }] }
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.continueButton}
+              onPress={handleContinue}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={['#8B5CF6', '#EC4899']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Text style={styles.continueButtonText}>Continue</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  container: {
     flex: 1,
     backgroundColor: Colors.background,
   },
   safeArea: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    marginBottom: 20,
-    paddingLeft: 16,
-    paddingRight: 16,
-  },
-  infoButtonHeader: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 8,
+    zIndex: 10,
   },
   backButton: {
     width: 40,
     height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 20,
     backgroundColor: 'rgba(0,0,0,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  premiumScrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    alignItems: 'center',
+  content: {
+    flex: 1,
   },
-  mockupContainer: {
-    marginTop: 24,
+  contentContainer: {
+    padding: 24,
+    paddingTop: 0,
+    paddingBottom: 60,
+  },
+  
+  // Hero
+  heroSection: {
+    alignItems: 'flex-start',
     marginBottom: 32,
+    marginTop: 20,
+  },
+  heroTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
+    textAlign: 'left',
+    lineHeight: 38,
+    marginBottom: 8,
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    fontWeight: '300',
+    fontFamily: Fonts.secondary.regular,
+    color: Colors.textSecondary,
+    textAlign: 'left',
+    lineHeight: 24,
+  },
+
+  // Mockup
+  mockupContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 32,
+  },
+  mockupTouchable: {
     width: '100%',
+    alignItems: 'center',
   },
   iphoneFrame: {
     width: 240,
@@ -492,6 +349,8 @@ const styles = StyleSheet.create({
   },
   mockScroll: {
     flex: 1,
+  },
+  mockScrollContent: {
     padding: 16,
     paddingTop: 32,
   },
@@ -537,16 +396,29 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
   },
   mockScoreValue: {
-    fontSize: 48,
+    fontSize: 40,
     fontWeight: '800',
     color: '#FFFFFF',
     marginBottom: 12,
     fontFamily: Fonts.secondary.bold,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 8,
+    letterSpacing: -2,
   },
   mockAvatarsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  mockAvatarWrapper: {
+    alignItems: 'center',
+  },
+  mockAvatarName: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: 4,
+    fontFamily: Fonts.secondary.bold,
   },
   mockAvatarImage: {
     width: 32,
@@ -561,10 +433,89 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.3)',
     borderRadius: 1,
   },
+  mockScoreBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  mockScoreBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  
+  // Breakdown
+  mockBreakdownCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+    gap: 12,
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  mockBreakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mockBreakdownIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(45, 212, 191, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mockBreakdownContent: {
+    flex: 1,
+  },
+  mockBreakdownLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+    fontFamily: Fonts.secondary.bold,
+  },
+  mockBreakdownBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mockBreakdownBarBackground: {
+    flex: 1,
+    height: 6,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  mockBreakdownBar: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  mockBreakdownValue: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    minWidth: 28,
+    fontFamily: Fonts.secondary.bold,
+    textAlign: 'right',
+  },
+
+  // Insight
   mockInsightCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
     marginBottom: 12,
     shadowColor: 'rgba(0,0,0,0.05)',
     shadowOffset: { width: 0, height: 2 },
@@ -572,117 +523,46 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  mockInsightHeader: {
+    marginBottom: 8,
+  },
   mockInsightTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 8,
     fontFamily: Fonts.primary.regular,
+  },
+  mockInsightRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 4,
+  },
+  mockInsightDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.gradients.turquoise[0],
+    marginTop: 6,
   },
   mockInsightText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
-  },
-  mockValuesRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  mockValueCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-    shadowColor: 'rgba(0,0,0,0.05)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  mockValueLabel: {
     fontSize: 10,
+    lineHeight: 15,
     color: Colors.textSecondary,
-    marginBottom: 4,
     fontFamily: Fonts.secondary.bold,
   },
-  mockValueScore: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.gradients.turquoise[0],
-    fontFamily: Fonts.primary.regular,
-  },
-  premiumActionContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  lockInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+
+  // Button
+  continueButtonWrapper: {
     marginBottom: 16,
-    backgroundColor: 'rgba(168, 85, 247, 0.05)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
   },
-  premiumMiniDescription: {
-    fontSize: 13,
-    color: '#A855F7',
-    fontWeight: '600',
-    fontFamily: Fonts.secondary.bold,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    letterSpacing: -0.5,
-    fontFamily: Fonts.primary.regular,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitleContainer: {
-    alignItems: 'center',
-  },
-  subtitle: {
-    fontSize: 18,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 32,
-    overflow: 'hidden',
-    alignSelf: 'center',
-  },
-  iconGradient: {
+  continueButton: {
     width: '100%',
-    height: '100%',
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  shareContainer: {
-    alignItems: 'center',
-    gap: 20,
-    marginTop: 20,
-  },
-  shareText: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
-    textAlign: 'center',
-    maxWidth: '80%',
-    lineHeight: 22,
-  },
-  shareButton: {
-    width: '100%',
-    height: 64,
-    borderRadius: 32,
     overflow: 'hidden',
     shadowColor: '#EC4899',
     shadowOffset: { width: 0, height: 8 },
@@ -690,254 +570,10 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
   },
-  shareButtonContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareIcon: {
-    marginRight: 12,
-  },
-  shareButtonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    fontFamily: Fonts.secondary.bold,
-    letterSpacing: 0.5,
-  },
-  lookupButton: {
-    width: '100%',
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.gradients.turquoise[0],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-    shadowColor: Colors.gradients.turquoise[0],
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  lookupButtonDisabled: {
-    opacity: 0.5,
-    shadowOpacity: 0,
-  },
-  lookupButtonText: {
+  continueButtonText: {
     fontSize: 17,
     fontWeight: '600',
     color: '#FFFFFF',
-    fontFamily: Fonts.secondary.bold,
-  },
-  foundTwinCard: {
-    backgroundColor: 'rgba(45, 212, 191, 0.08)',
-    borderRadius: 20,
-    padding: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(45, 212, 191, 0.2)',
-  },
-  foundTwinContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  foundTwinIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(45, 212, 191, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  foundTwinInfo: {
-    flex: 1,
-  },
-  foundTwinName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 2,
-    fontFamily: Fonts.secondary.bold,
-  },
-  foundTwinCode: {
-    fontSize: 14,
-    color: Colors.gradients.turquoise[0],
-    fontFamily: Fonts.secondary.bold,
-  },
-  startButton: {
-    width: '100%',
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    marginTop: 8,
-    shadowColor: Colors.gradients.turquoise[0],
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  startButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    fontFamily: Fonts.secondary.bold,
-  },
-  premiumCard: {
-    borderRadius: 32,
-    backgroundColor: '#FFFFFF',
-    padding: 32,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: 'rgba(0, 0, 0, 0.05)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  premiumIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 24,
-    overflow: 'hidden',
-  },
-  premiumIconGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  premiumTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 16,
-    textAlign: 'center',
-    fontFamily: Fonts.primary.regular,
-  },
-  premiumDescription: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    lineHeight: 24,
-    textAlign: 'center',
-    marginBottom: 32,
-    fontFamily: Fonts.secondary.bold,
-  },
-  premiumButton: {
-    width: '100%',
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    shadowColor: Colors.gradients.purple[0],
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  premiumButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    fontFamily: Fonts.secondary.bold,
-  },
-  infoModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  infoModalContent: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-    alignItems: 'center',
-  },
-  infoModalCloseButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    padding: 4,
-    zIndex: 1,
-  },
-  infoModalTitle: {
-    fontSize: 18,
-    fontFamily: Fonts.primary.semibold,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 24,
-    marginTop: 8,
-  },
-  infoModalText: {
-    fontSize: 15,
-    fontFamily: Fonts.fallback.secondary,
-    fontWeight: '400',
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginTop: 20,
-  },
-  mockProfilePreview: {
-    width: '100%',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    backgroundColor: Colors.backgroundSecondary,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
-  mockAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#E5E7EB',
-    marginBottom: 12,
-  },
-  mockName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 4,
-    fontFamily: Fonts.primary.regular,
-  },
-  mockCodeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  mockCode: {
-    fontSize: 13,
-    fontFamily: Fonts.secondary.bold,
-    color: Colors.textSecondary,
-  },
-  pointerContainer: {
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  pointerText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.gradients.turquoise[0],
-    marginTop: 4,
     fontFamily: Fonts.secondary.bold,
   },
 });

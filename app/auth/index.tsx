@@ -6,6 +6,7 @@ import {
   Platform,
   Animated,
   TouchableOpacity,
+  Pressable,
   Linking,
   Image,
   ActivityIndicator,
@@ -198,11 +199,11 @@ export default function AuthScreen() {
           setIsSigningUp(false);
           setLoading(false);
           
-          // Check if it's because user already exists
+          // Check if it's because user already exists - this means password was wrong
           if (signUpError.message?.includes('already registered') || signUpError.message?.includes('already exists')) {
-            setError('This email is already registered. Please check your password.');
+            setError('Incorrect password. Please check your password and try again.');
           } else if (signInError.message?.includes('Invalid login credentials')) {
-            setError('Invalid email or password. Please try again.');
+            setError('Incorrect password. Please check your password and try again.');
           } else {
             setError(signUpError.message || signInError.message || 'Authentication failed');
           }
@@ -280,20 +281,27 @@ export default function AuthScreen() {
 
           {/* Floating Action Button */}
           <View style={styles.floatingButtonContainer}>
-            <TouchableOpacity
+            <Pressable
               onPress={handleContinue}
               disabled={loading || !email}
-              activeOpacity={0.9}
-              style={[
+              style={({ pressed }) => [
                 styles.floatingButtonWrapper,
+                {
+                  shadowColor: (email && !loading) ? '#25729f' : 'rgba(0, 0, 0, 0.1)',
+                  transform: [{ translateY: pressed ? 2 : 0 }],
+                  shadowOffset: { width: 0, height: pressed ? 2 : 8 },
+                  shadowOpacity: pressed ? 0.3 : 0.5,
+                  shadowRadius: pressed ? 8 : 20,
+                  elevation: pressed ? 4 : 12,
+                },
                 (loading || !email) && styles.floatingButtonDisabled
               ]}
             >
               {email && !loading ? (
                 <LinearGradient
-                  colors={Colors.gradients.turquoise}
+                  colors={['#25729f', '#62edb9']}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                  end={{ x: 0, y: 1 }}
                   style={styles.floatingButton}
                 >
                   <Text style={styles.floatingButtonText}>Continue</Text>
@@ -311,7 +319,7 @@ export default function AuthScreen() {
                   )}
                 </View>
               )}
-            </TouchableOpacity>
+            </Pressable>
 
             <TouchableOpacity
               onPress={appleSignIn}
@@ -410,6 +418,8 @@ export default function AuthScreen() {
               .
             </Text>
 
+            {error && <Text style={styles.error}>{error}</Text>}
+
             <TouchableOpacity
               onPress={handleForgotPassword}
               style={styles.forgotPasswordButton}
@@ -418,27 +428,32 @@ export default function AuthScreen() {
             >
               <Text style={styles.forgotPasswordText}>Forgot password?</Text>
             </TouchableOpacity>
-
-            {error && <Text style={styles.error}>{error}</Text>}
           </View>
         </ScrollView>
 
         {/* Floating Action Button */}
           <View style={styles.floatingButtonContainer}>
-            <TouchableOpacity
+            <Pressable
               onPress={handleAuth}
               disabled={loading || !password}
-              activeOpacity={0.9}
-              style={[
+              style={({ pressed }) => [
                 styles.floatingButtonWrapper,
+                {
+                  shadowColor: (password && !loading) ? '#25729f' : 'rgba(0, 0, 0, 0.1)',
+                  transform: [{ translateY: pressed ? 2 : 0 }],
+                  shadowOffset: { width: 0, height: pressed ? 2 : 8 },
+                  shadowOpacity: pressed ? 0.3 : 0.5,
+                  shadowRadius: pressed ? 8 : 20,
+                  elevation: pressed ? 4 : 12,
+                },
                 (loading || !password) && styles.floatingButtonDisabled
               ]}
             >
               {password && !loading ? (
                 <LinearGradient
-                  colors={Colors.gradients.turquoise}
+                  colors={['#25729f', '#62edb9']}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                  end={{ x: 0, y: 1 }}
                   style={styles.floatingButton}
                 >
                   <Text style={styles.floatingButtonText}>Continue</Text>
@@ -456,7 +471,7 @@ export default function AuthScreen() {
                   )}
                 </View>
               )}
-            </TouchableOpacity>
+            </Pressable>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -543,12 +558,7 @@ const styles = StyleSheet.create({
   },
   floatingButtonWrapper: {
     borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 5,
+    overflow: 'visible',
   },
   floatingButton: {
     flexDirection: 'row',

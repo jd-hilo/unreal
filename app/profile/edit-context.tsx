@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, MapPin, DollarSign, Users, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { getProfile, updateProfileFields } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
@@ -66,7 +66,6 @@ export default function EditContextScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Context Info</Text>
         </View>
       </View>
     );
@@ -96,7 +95,6 @@ export default function EditContextScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Context Info</Text>
       </View>
 
       <ScrollView
@@ -105,50 +103,41 @@ export default function EditContextScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.description}>
-          Help your AI twin understand you better by sharing key context about your life.
+        <Text style={styles.questionFirst}>
+          Where do you currently live?
         </Text>
 
-        {/* Current Location */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MapPin size={20} color={Colors.textPrimary} />
-            <Text style={styles.sectionTitle}>Current Location</Text>
-          </View>
+        <View style={styles.inputWrapper}>
           <Input
             placeholder="e.g., Austin, Texas"
             value={currentLocation}
             onChangeText={setCurrentLocation}
             containerStyle={styles.inputContainer}
+            style={styles.input}
+            placeholderTextColor={Colors.textTertiary}
           />
-          <Text style={styles.helperText}>
-            Where do you currently live?
-          </Text>
         </View>
 
-        {/* Net Worth */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <DollarSign size={20} color={Colors.textPrimary} />
-            <Text style={styles.sectionTitle}>Net Worth</Text>
-          </View>
+        <Text style={styles.question}>
+          What's your approximate net worth?
+        </Text>
+
+        <View style={styles.inputWrapper}>
           <Input
             placeholder="e.g., $45k, $250k, $2.5M"
             value={netWorth}
             onChangeText={setNetWorth}
             containerStyle={styles.inputContainer}
+            style={styles.input}
+            placeholderTextColor={Colors.textTertiary}
           />
-          <Text style={styles.helperText}>
-            Your approximate net worth (assets minus debts)
-          </Text>
         </View>
 
-        {/* Political Views */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Users size={20} color={Colors.textPrimary} />
-            <Text style={styles.sectionTitle}>Political Views</Text>
-          </View>
+        <Text style={styles.question}>
+          How would you describe your political views?
+        </Text>
+
+        <View style={styles.inputWrapper}>
           <Input
             placeholder="e.g., Liberal, Conservative, Independent, Moderate"
             value={politicalViews}
@@ -156,16 +145,9 @@ export default function EditContextScreen() {
             multiline
             numberOfLines={3}
             containerStyle={styles.inputContainer}
+            style={styles.inputMultiline}
+            placeholderTextColor={Colors.textTertiary}
           />
-          <Text style={styles.helperText}>
-            Your political perspective or affiliation (optional)
-          </Text>
-        </View>
-
-        <View style={styles.note}>
-          <Text style={styles.noteText}>
-            💡 This information helps your twin make more personalized predictions and understand your context better.
-          </Text>
         </View>
       </ScrollView>
 
@@ -174,30 +156,42 @@ export default function EditContextScreen() {
         <Pressable
           onPress={handleSave}
           disabled={loading}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={({ pressed }) => [
             styles.saveButtonWrapper,
-            pressed && { opacity: 0.9 }
+            loading && styles.saveButtonDisabled,
+            !loading && {
+              transform: [{ translateY: pressed ? 4 : 0 }],
+              shadowOffset: { width: 0, height: pressed ? 0 : 4 },
+              shadowOpacity: 1,
+              shadowRadius: 0,
+              elevation: pressed ? 2 : 8,
+            }
           ]}
         >
           <View style={[
             styles.saveButton,
+            !loading && styles.saveButtonActive,
             loading && styles.saveButtonDisabled
           ]}>
-            {!loading && (
+            {!loading ? (
               <LinearGradient
-                colors={Colors.gradients.turquoise}
+                colors={['#25729f', '#62edb9']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
-            )}
+            ) : null}
             <Text style={[
               styles.saveButtonText,
               loading && styles.saveButtonTextDisabled
             ]}>
               {loading ? 'Saving...' : 'Save Changes'}
             </Text>
-            {!loading && <ChevronRight size={20} color="#FFFFFF" />}
+            <ChevronRight 
+              size={20} 
+              color={loading ? Colors.textTertiary : "#FFFFFF"} 
+            />
           </View>
         </Pressable>
       </View>
@@ -228,65 +222,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-    flex: 1,
-  },
   content: {
     flex: 1,
   },
   contentContainer: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 32,
     paddingBottom: 120,
   },
-  description: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
-    marginBottom: 32,
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+  question: {
+    fontSize: 24,
+    fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
+    lineHeight: 28,
+    marginBottom: 24,
   },
-  inputContainer: {
-    marginBottom: 8,
-  },
-  helperText: {
-    fontSize: 13,
-    color: Colors.textTertiary,
+  questionFirst: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
-    marginTop: 4,
+    lineHeight: 28,
+    marginBottom: 24,
+    marginTop: 0,
   },
-  note: {
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
-    borderRadius: 12,
-    padding: 16,
+  inputWrapper: {
     marginTop: 8,
   },
-  noteText: {
-    fontSize: 14,
+  inputContainer: {
+    marginBottom: 0,
+    padding: 0,
+  },
+  input: {
+    fontSize: 24,
+    fontWeight: '500',
+    letterSpacing: -0.3,
+    color: Colors.textPrimary,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+  },
+  inputMultiline: {
+    fontSize: 18,
+    fontWeight: '500',
+    letterSpacing: -0.2,
     lineHeight: 20,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    minHeight: 80,
   },
   footer: {
     paddingHorizontal: 24,
@@ -313,8 +297,19 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
   },
+  saveButtonActive: {
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
+  },
   saveButtonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   saveButtonText: {
     fontSize: 17,

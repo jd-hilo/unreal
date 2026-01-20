@@ -655,22 +655,20 @@ export default function DecisionResultScreen() {
               </View>
             )}
 
-            <View style={styles.simulateButtonWrapper}>
-              <TouchableOpacity
-                style={styles.simulateButtonPremium}
-                onPress={isPremium ? handleSimulate : () => router.push('/premium' as any)}
-                activeOpacity={0.8}
+            <TouchableOpacity
+              style={styles.simulateButtonPremium}
+              onPress={isPremium ? handleSimulate : () => router.push('/premium' as any)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={Colors.gradients.turquoise}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.simulateButtonGradient}
               >
-                <LinearGradient
-                  colors={Colors.gradients.turquoise}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.simulateButtonGradient}
-                >
-                  <Text style={styles.simulateButtonTextActive}>Simulate Each Choice</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
+                <Text style={styles.simulateButtonTextActive}>Simulate Each Choice</Text>
+              </LinearGradient>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.askAnotherButton}
@@ -1040,7 +1038,16 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   simulateButtonPremium: {
+    marginTop: 24,
+    marginBottom: 8,
+    borderRadius: 20,
+    overflow: 'hidden',
     backgroundColor: 'transparent',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   simulateButtonGradient: {
     paddingVertical: 18,
@@ -1382,11 +1389,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 12,
     overflow: 'hidden',
-  },
-  shareButton: {
-    padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
   },
   shareIconContainer: {
     width: 24,

@@ -4,8 +4,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getTimelines, deleteTimeline, getProfile, checkSimulationCredits } from '@/lib/storage';
-import { ChevronRight, Plus, Lock, Zap, Play, Trophy, Users, Star, Home } from 'lucide-react-native';
+import { getTimelines, deleteTimeline, getProfile, checkSimulationCredits, getRelationships } from '@/lib/storage';
+import { ChevronRight, ChevronLeft, Plus, Lock, Zap, Play, Users, Home } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -21,36 +21,21 @@ export default function SimulateDashboard() {
   const user = useAuth((state) => state.user);
   const { isPremium } = useTwin();
   const [timelines, setTimelines] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [userAge, setUserAge] = useState<number | null>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [timelineToDelete, setTimelineToDelete] = useState<string | null>(null);
   const [simulationCredits, setSimulationCredits] = useState<number | null>(null);
   const [userName, setUserName] = useState<string>('');
   const [profileData, setProfileData] = useState<any>(null);
+  const [checkingFields, setCheckingFields] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  // Reset animation when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      slideAnim.setValue(0);
-      if (user) {
-        loadData();
-      }
-    }, [user, slideAnim])
-  );
-
-
-  async function loadData() {
+  // Load profile data immediately (fast)
+  const loadProfileData = useCallback(async () => {
     if (!user) return;
 
     try {
-      const [timelinesData, profile] = await Promise.all([
-        getTimelines(user.id),
-        getProfile(user.id),
-      ]);
-
-      setTimelines(timelinesData || []);
+      const profile = await getProfile(user.id);
       setSimulationCredits(profile?.simulation_credits ?? 5);
       setUserName(profile?.first_name || user?.email || 'Friend');
       setProfileData(profile);
@@ -65,13 +50,36 @@ export default function SimulateDashboard() {
         }
       }
     } catch (error) {
-      console.error('Failed to load timelines:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to load profile:', error);
     }
-  }
+  }, [user]);
 
-  function handleCreatePress() {
+  // Load timelines immediately
+  const loadTimelines = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const timelinesData = await getTimelines(user.id);
+      setTimelines(timelinesData || []);
+    } catch (error) {
+      console.error('Failed to load timelines:', error);
+    }
+  }, [user]);
+
+  // Reset animation when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      slideAnim.setValue(0);
+      if (user) {
+        loadProfileData();
+        loadTimelines();
+      }
+    }, [user, slideAnim, loadProfileData, loadTimelines])
+  );
+
+  async function handleCreatePress() {
+    if (!user || checkingFields) return;
+
     // Check limits
     const timelineCount = timelines.length;
     const maxTimelines = isPremium ? Infinity : 1;
@@ -86,7 +94,33 @@ export default function SimulateDashboard() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/simulate/new');
+    setCheckingFields(true);
+
+    // Always fetch fresh data to check required fields
+    try {
+      // Fetch fresh profile and relationships data each time
+      const [profile, relationships] = await Promise.all([
+        getProfile(user.id),
+        getRelationships(user.id),
+      ]);
+
+      // Check what's missing and route to setup if needed
+      if (!profile?.net_worth || !profile?.current_location || !relationships || relationships.length === 0) {
+        setCheckingFields(false);
+        router.push('/simulate/setup');
+        return;
+      }
+
+      // All required fields are present, proceed to new simulation
+      setCheckingFields(false);
+      router.push('/simulate/new');
+    } catch (error) {
+      console.error('Failed to check required fields:', error);
+      setCheckingFields(false);
+      // On error, route to setup to ensure user completes required fields
+      alert('Please complete your profile setup before creating a simulation.');
+      router.push('/simulate/setup');
+    }
   }
 
   function handleLongPressTimeline(timelineId: string) {
@@ -102,7 +136,7 @@ export default function SimulateDashboard() {
 
     try {
       await deleteTimeline(timelineToDelete);
-      await loadData();
+      await loadTimelines();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setDeleteModalVisible(false);
       setTimelineToDelete(null);
@@ -112,18 +146,6 @@ export default function SimulateDashboard() {
     }
   }
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <StatusBar style="dark" />
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.textPrimary} />
-          </View>
-        </SafeAreaView>
-      </View>
-    );
-  }
 
   return (
     <Animated.View 
@@ -140,20 +162,19 @@ export default function SimulateDashboard() {
         <View style={styles.topBar}>
           <TouchableOpacity 
             onPress={() => {
-              // Animate slide right before navigating
-              Animated.timing(slideAnim, {
-                toValue: width,
-                duration: 300,
-                easing: Easing.out(Easing.ease),
-                useNativeDriver: true,
-              }).start(() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              // Navigate back to home - router.back() will give proper back animation
+              // If there's no back history, push to home
+              if (router.canGoBack()) {
+                router.back();
+              } else {
                 router.push('/(tabs)/home');
-              });
+              }
             }}
             style={styles.backButton}
             activeOpacity={0.7}
           >
-            <Home size={24} color={Colors.textPrimary} />
+            <ChevronLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
           
           <View style={styles.resourceContainer}>
@@ -165,20 +186,9 @@ export default function SimulateDashboard() {
             >
               <Zap size={14} color="#FCD34D" fill="#FCD34D" />
               <Text style={styles.resourceText}>
-                {isPremium ? '∞' : `${simulationCredits ?? 5}/5`}
+                {isPremium ? '1/1' : `${timelines.length}/1`}
               </Text>
-              <TouchableOpacity 
-                style={styles.plusButton}
-                onPress={() => router.push('/premium')}
-              >
-                <Plus size={10} color="#FFF" strokeWidth={4} />
-              </TouchableOpacity>
             </LinearGradient>
-            
-            <View style={styles.resourceBadgeSimple}>
-              <Trophy size={14} color="#FCD34D" />
-              <Text style={styles.resourceTextSimple}>{timelines.length}</Text>
-            </View>
           </View>
 
           <TouchableOpacity 
@@ -206,8 +216,14 @@ export default function SimulateDashboard() {
           {/* Featured Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>My Simulations</Text>
-            <TouchableOpacity onPress={() => router.push('/simulate/new')}>
-              <Text style={styles.headerLink}>New +</Text>
+            <TouchableOpacity 
+              onPress={handleCreatePress}
+              disabled={checkingFields}
+              style={{ opacity: checkingFields ? 0.5 : 1 }}
+            >
+              <Text style={styles.headerLink}>
+                {checkingFields ? 'Checking...' : 'New +'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -215,7 +231,8 @@ export default function SimulateDashboard() {
           <TouchableOpacity
             onPress={handleCreatePress}
             activeOpacity={0.9}
-            style={styles.newGameCard}
+            disabled={checkingFields}
+            style={[styles.newGameCard, { opacity: checkingFields ? 0.7 : 1 }]}
           >
             <LinearGradient
               colors={Colors.gradients.purple}
@@ -227,11 +244,14 @@ export default function SimulateDashboard() {
                 <Text style={styles.newGameTitle}>New Life Simulation</Text>
                 <Text style={styles.newGameSubtitle}>Create a new timeline and see where life takes you.</Text>
                 <View style={styles.playButton}>
-                  <Text style={styles.playButtonText}>Start</Text>
-                  <View style={styles.costTag}>
-                    <Zap size={10} color="#000" fill="#000" />
-                    <Text style={styles.costText}>5</Text>
-                  </View>
+                  {checkingFields ? (
+                    <>
+                      <ActivityIndicator size="small" color="#000" />
+                      <Text style={styles.playButtonText}>Checking...</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.playButtonText}>Start</Text>
+                  )}
                 </View>
               </View>
               <Image 
@@ -287,10 +307,6 @@ export default function SimulateDashboard() {
                       }}
                     >
                        <Play size={16} color="#FFF" fill="#FFF" />
-                       <View style={styles.playActionCost}>
-                         <Zap size={10} color="#FCD34D" fill="#FCD34D" />
-                         <Text style={styles.playActionText}>5</Text>
-                       </View>
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
@@ -303,21 +319,16 @@ export default function SimulateDashboard() {
             <TouchableOpacity 
               style={styles.premiumBanner}
               onPress={() => router.push('/premium')}
+              activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['rgba(251, 191, 36, 0.2)', 'rgba(245, 158, 11, 0.1)']}
+                colors={['rgba(0, 188, 166, 0.06)', 'rgba(144, 140, 241, 0.06)']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={styles.premiumGradient}
               >
-                <View style={styles.premiumIcon}>
-                  <Star size={20} color="#FBBF24" fill="#FBBF24" />
-                </View>
-                <View style={styles.premiumContent}>
-                   <Text style={styles.premiumTitle}>Unlock Unlimited Sims</Text>
-                   <Text style={styles.premiumSubtitle}>Get Premium for infinite simulations</Text>
-            </View>
-                <ChevronRight size={20} color={Colors.textTertiary} />
+                <Text style={styles.premiumText}>Get mora+ for unlimited sims</Text>
+                <ChevronRight size={16} color={Colors.textSecondary} />
               </LinearGradient>
             </TouchableOpacity>
           )}
@@ -384,11 +395,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -409,41 +415,15 @@ const styles = StyleSheet.create({
   resourceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: 10,
-    paddingRight: 4,
-    paddingVertical: 4,
-    borderRadius: 20,
-    gap: 6,
-  },
-  resourceBadgeSimple: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
     gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
   },
   resourceText: {
     color: '#FFF',
     fontSize: 13,
     fontWeight: '700',
-  },
-  resourceTextSimple: {
-    color: Colors.textPrimary,
-    fontSize: 13,
-    fontWeight: '700',
-    fontFamily: Fonts.secondary.bold,
-  },
-  plusButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   profileBadge: {
     width: 40,
@@ -536,16 +516,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
     fontFamily: Fonts.secondary.bold,
-  },
-  costTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  costText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#000',
   },
   newGameImage: {
     width: 90,
@@ -655,22 +625,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
     flexShrink: 0,
     marginLeft: 'auto',
-  },
-  playActionCost: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    borderLeftWidth: 1,
-    borderLeftColor: 'rgba(255,255,255,0.2)',
-    paddingLeft: 6,
-  },
-  playActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFF',
   },
   emptyState: {
     padding: 20,
@@ -686,46 +643,25 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
   },
   premiumBanner: {
-    borderRadius: 20,
+    borderRadius: 12,
     overflow: 'hidden',
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: 'rgba(0,0,0,0.05)',
     backgroundColor: '#FFFFFF',
-    shadowColor: 'rgba(0, 0, 0, 0.06)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 5,
   },
   premiumGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    gap: 12,
-    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
   },
-  premiumIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(251, 191, 36, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  premiumContent: {
-    flex: 1,
-  },
-  premiumTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+  premiumText: {
+    fontSize: 13,
+    fontWeight: '500',
     fontFamily: Fonts.secondary.bold,
     color: Colors.textPrimary,
-    marginBottom: 2,
-  },
-  premiumSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
   },
   modalOverlay: {
     flex: 1,

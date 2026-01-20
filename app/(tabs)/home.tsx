@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Platform, Modal, Easing, Dimensions } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Image, Animated, Platform, Modal, Easing, Dimensions, Linking } from 'react-native';
+import Svg, { Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
+import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
@@ -18,11 +19,13 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { setHasSeenDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { Colors, Fonts } from '@/constants/Theme';
+import { useTypewriter } from '@/hooks/useTypewriter';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const user = useAuth((state) => state.user);
   const { checkOnboardingStatus, isPremium } = useTwin();
   const [userName, setUserName] = useState('');
@@ -35,6 +38,82 @@ export default function HomeScreen() {
   const [hasTodayJournal, setHasTodayJournal] = useState(false);
   const [showDecisionGuide, setShowDecisionGuide] = useState(false);
   const [showAccuracyInfo, setShowAccuracyInfo] = useState(false);
+  const [showDiscordModal, setShowDiscordModal] = useState(false);
+  const [showContent, setShowContent] = useState(false);
+  
+  // Animation refs for fade transitions
+  const invitationOpacity = useRef(new Animated.Value(1)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  // Disable swipe-to-go-back gesture
+  useFocusEffect(
+    useCallback(() => {
+      navigation.setOptions({
+        gestureEnabled: false,
+        fullScreenGestureEnabled: false,
+      });
+
+      // Also disable on parent navigator if it exists
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setOptions({
+          gestureEnabled: false,
+          fullScreenGestureEnabled: false,
+        });
+      }
+
+      return () => {
+        // Re-enable on cleanup
+        navigation.setOptions({
+          gestureEnabled: true,
+          fullScreenGestureEnabled: true,
+        });
+        if (parent) {
+          parent.setOptions({
+            gestureEnabled: true,
+            fullScreenGestureEnabled: true,
+          });
+        }
+      };
+    }, [navigation])
+  );
+
+  // Typewriter for invitation text
+  const { displayedLines: invitationLines } = useTypewriter(
+    showDiscordModal ? ["You've been invited"] : [],
+    {
+      speed: 50,
+      onAllComplete: () => {
+        // After typewriter completes, wait 1.5s then fade out invitation and fade in content
+        setTimeout(() => {
+          Animated.parallel([
+            Animated.timing(invitationOpacity, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(contentOpacity, {
+              toValue: 1,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+          ]).start();
+          setShowContent(true);
+        }, 1500);
+      },
+    }
+  );
+
+  // Reset when modal opens/closes
+  useEffect(() => {
+    if (showDiscordModal) {
+      setShowContent(false);
+      invitationOpacity.setValue(1);
+      contentOpacity.setValue(0);
+    } else {
+      setShowContent(false);
+    }
+  }, [showDiscordModal]);
   
   // Layout refs for ProductGuide
   const simulateRef = useRef<View>(null);
@@ -183,6 +262,17 @@ export default function HomeScreen() {
           }
         }
       }
+
+      // Check for Discord modal (Twin Society) - Show only once for new users
+      const hasSeenDiscordModal = await AsyncStorage.getItem('has_seen_discord_modal');
+      if (!hasSeenDiscordModal) {
+        // Delay slightly to let animations finish or feel more natural
+        setTimeout(() => {
+          setShowDiscordModal(true);
+          trackEvent(MixpanelEvents.TWIN_SOCIETY_MODAL_VIEWED, { source: 'auto' });
+          AsyncStorage.setItem('has_seen_discord_modal', 'true');
+        }, 1500);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -275,14 +365,36 @@ export default function HomeScreen() {
                 disabled={isPremium}
               >
                 <LinearGradient
-                  colors={Colors.gradients.purple}
+                  colors={['rgba(0, 188, 166, 0.06)', 'rgba(144, 140, 241, 0.06)']}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                  end={{ x: 1, y: 1 }}
                   style={styles.moraTagGradient}
-                />
-                <View style={styles.moraTagInner}>
-                  <Text style={styles.moraTagText}>{isPremium ? 'mora+' : 'unlock mora+'}</Text>
-                </View>
+                >
+                  {isPremium ? (
+                    <View style={styles.moraTagTextContainer}>
+                      <Svg height="16" width="55">
+                        <Defs>
+                          <SvgLinearGradient id="moraGradHome" x1="0" y1="0" x2="1" y2="0">
+                            <Stop offset="0" stopColor="#00BCA6" stopOpacity="1" />
+                            <Stop offset="1" stopColor="#908CF1" stopOpacity="1" />
+                          </SvgLinearGradient>
+                        </Defs>
+                        <SvgText
+                          fill="url(#moraGradHome)"
+                          fontSize="12"
+                          fontWeight="500"
+                          fontFamily={Fonts.secondary.bold}
+                          x="0"
+                          y="12"
+                        >
+                          mora+
+                        </SvgText>
+                      </Svg>
+                    </View>
+                  ) : (
+                    <Text style={styles.moraTagText}>unlock mora+</Text>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.iconButton}
@@ -375,15 +487,29 @@ export default function HomeScreen() {
                 style={styles.actionRectangleWrapper}
                 collapsable={false}
               >
-                <TouchableOpacity
+                <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     router.push('/decision/new');
                   }}
-                  activeOpacity={0.8}
-                  style={styles.actionRectangle}
+                  style={({ pressed }) => [
+                    styles.actionRectangle,
+                    {
+                      shadowColor: '#fe8c9c',
+                      transform: [{ translateY: pressed ? 4 : 0 }],
+                      shadowOffset: { width: 0, height: pressed ? 0 : 4 },
+                      shadowOpacity: 1,
+                      shadowRadius: 0,
+                      elevation: pressed ? 2 : 8,
+                    }
+                  ]}
                 >
-                  <View style={[styles.cardGradient, { backgroundColor: '#fe9d7a', opacity: 0.25 }]} />
+                  <LinearGradient
+                    colors={['#fe8c9c', '#fdcca7']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[styles.cardGradient, { opacity: 0.5 }]}
+                  />
                   <View style={styles.actionIconContainer}>
                     <CheckCircle size={24} color={Colors.textPrimary} />
                   </View>
@@ -394,7 +520,7 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                   <ChevronRight size={20} color={Colors.textTertiary} />
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               <View 
@@ -402,19 +528,28 @@ export default function HomeScreen() {
                 style={styles.actionRectangleWrapper}
                 collapsable={false}
               >
-                <TouchableOpacity
+                <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     router.push('/simulate');
                   }}
-                  activeOpacity={0.8}
-                  style={styles.actionRectangle}
+                  style={({ pressed }) => [
+                    styles.actionRectangle,
+                    {
+                      shadowColor: Colors.gradients.purple[0],
+                      transform: [{ translateY: pressed ? 4 : 0 }],
+                      shadowOffset: { width: 0, height: pressed ? 0 : 4 },
+                      shadowOpacity: 1,
+                      shadowRadius: 0,
+                      elevation: pressed ? 2 : 8,
+                    }
+                  ]}
                 >
                   <LinearGradient
                     colors={Colors.gradients.purple}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={[styles.cardGradient, { opacity: 0.25 }]}
+                    style={[styles.cardGradient, { opacity: 0.5 }]}
                   />
                   <View style={styles.actionIconContainer}>
                     <Compass size={24} color={Colors.textPrimary} />
@@ -424,7 +559,7 @@ export default function HomeScreen() {
                     <Text style={styles.actionSubtitle}>Experience emotional narratives and possible futures</Text>
                   </View>
                   <ChevronRight size={20} color={Colors.textTertiary} />
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               {/* Train Section */}
@@ -453,9 +588,9 @@ export default function HomeScreen() {
                   </View>
                   <View style={styles.teachArrowContainer}>
                     <LinearGradient
-                      colors={Colors.gradients.turquoise}
+                      colors={['#25729f', '#62edb9']}
                       start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
+                      end={{ x: 0, y: 1 }}
                       style={styles.teachArrowGradient}
                     >
                       <ArrowUpRight size={16} color="#FFFFFF" />
@@ -467,7 +602,7 @@ export default function HomeScreen() {
                     progress={displayedProgress / 100} 
                     showLabel={false} 
                     height={6}
-                    gradientColors={Colors.gradients.turquoise}
+                    gradientColors={['#25729f', '#62edb9']}
                     trackColor="rgba(0,0,0,0.05)"
                   />
                 </View>
@@ -544,6 +679,102 @@ export default function HomeScreen() {
           trainLayout={trainLayout}
         />
       )}
+
+      {/* Twin Society Modal */}
+      <Modal
+        visible={showDiscordModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDiscordModal(false)}
+      >
+        <View style={styles.discordModalOverlay}>
+          <View style={styles.discordModalContent}>
+            {/* Invitation Text - Typewriter Effect */}
+            <Animated.View 
+              style={{ 
+                opacity: invitationOpacity,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 10,
+                padding: 24,
+              }}
+              pointerEvents={showContent ? 'none' : 'auto'}
+            >
+              <Text style={styles.invitationText}>
+                {invitationLines[0] || ''}
+              </Text>
+            </Animated.View>
+
+            {/* Content - Fades in after invitation */}
+            {showContent && (
+              <Animated.View style={[styles.discordContentContainer, { opacity: contentOpacity }]}>
+                <View style={styles.discordAvatarsContainer}>
+                  {[0, 1, 2, 3].map((index) => (
+                    <Image 
+                      key={index}
+                      source={require('@/assets/images/manwhite.png')} 
+                      style={[
+                        styles.discordAvatarImage,
+                        index > 0 && { marginLeft: -20 }
+                      ]}
+                      resizeMode="contain"
+                    />
+                  ))}
+                </View>
+
+                <Text style={styles.discordTitle}>Twin Society</Text>
+                <Text style={styles.discordSubtitle}>
+                  A discord community of other people looking to better their lives with better decisions
+                </Text>
+
+                <Pressable
+                  onPress={() => {
+                    trackEvent(MixpanelEvents.TWIN_SOCIETY_JOIN_CLICKED);
+                    Linking.openURL('https://discord.gg/yYKYZNfQ');
+                    setShowDiscordModal(false);
+                  }}
+                  style={({ pressed }) => [
+                    styles.discordButton,
+                    {
+                      shadowColor: '#25729f',
+                      transform: [{ translateY: pressed ? 2 : 0 }],
+                      shadowOffset: { width: 0, height: pressed ? 2 : 8 },
+                      shadowOpacity: pressed ? 0.3 : 0.5,
+                      shadowRadius: pressed ? 8 : 20,
+                      elevation: pressed ? 4 : 12,
+                    }
+                  ]}
+                >
+                  <LinearGradient
+                    colors={['#25729f', '#62edb9']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={styles.discordButtonGradient}
+                  >
+                    <Text style={styles.discordButtonText}>Join Now</Text>
+                    <ArrowUpRight size={20} color="#FFFFFF" />
+                  </LinearGradient>
+                </Pressable>
+
+                <TouchableOpacity 
+                  onPress={() => {
+                    trackEvent(MixpanelEvents.TWIN_SOCIETY_MODAL_CLOSED);
+                    setShowDiscordModal(false);
+                  }}
+                  style={styles.discordCloseButton}
+                >
+                  <Text style={styles.discordCloseButtonText}>Close</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Accuracy Info Modal */}
       <Modal
@@ -673,30 +904,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   moraTag: {
-    borderRadius: 12,
-    padding: 1.5,
+    borderRadius: 56,
     overflow: 'hidden',
   },
   moraTagGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 12,
-  },
-  moraTagInner: {
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10.5,
+    paddingVertical: 6,
+    borderRadius: 56,
+    borderWidth: 0.5,
+    borderColor: '#DFDFDF',
+  },
+  moraTagTextContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+    width: '100%',
   },
   moraTagText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
     fontFamily: Fonts.secondary.bold,
-    letterSpacing: 0.5,
+    fontWeight: '500',
+    fontSize: 12,
+    lineHeight: 15,
+    color: '#696969',
   },
   iconButton: {
     padding: 8,
@@ -743,7 +975,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#FFFFFF',
-    fontFamily: Fonts.primary.bold,
+    fontFamily: Fonts.primary.semibold,
     letterSpacing: -0.5,
     marginTop: 4,
   },
@@ -809,7 +1041,7 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 22,
-    lineHeight: 28,
+    lineHeight: 24,
     fontFamily: Fonts.primary.regular,
     letterSpacing: -0.5,
   },
@@ -828,11 +1060,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   actionRectangleWrapper: {
-    shadowColor: 'rgba(0, 0, 0, 0.06)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 5,
+    // Shadow moved to button itself for 3D effect
   },
   actionRectangle: {
     flexDirection: 'row',
@@ -1167,6 +1395,107 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  discordModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 12,
+  },
+  discordModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    paddingHorizontal: 24,
+    paddingVertical: 56,
+    width: '100%',
+    maxWidth: 500,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 400,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  invitationText: {
+    fontSize: 32,
+    color: Colors.textPrimary,
+    fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'serif',
+    fontStyle: 'italic',
+    fontWeight: 'normal',
+    textAlign: 'center',
+  },
+  discordContentContainer: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  discordAvatarsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    marginTop: 8,
+  },
+  discordAvatarImage: {
+    width: 56,
+    height: 56,
+  },
+  discordTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  discordSubtitle: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  discordButton: {
+    width: '100%',
+    borderRadius: 24,
+    overflow: 'visible',
+  },
+  discordButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    gap: 8,
+    borderRadius: 24,
+  },
+  discordButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  discordCloseButton: {
+    marginTop: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  discordCloseButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
   },
 });

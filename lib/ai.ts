@@ -2948,3 +2948,234 @@ export async function advanceTimeline({
     throw error;
   }
 }
+
+export interface OneYearSimulationVariant {
+  variant: number;
+  description: string;
+  probability: number;
+}
+
+export async function generateOneYearSimulationVariants(profileData: any): Promise<OneYearSimulationVariant[]> {
+  try {
+    const onboardingResponses = profileData?.core_json?.onboarding_responses || {};
+    const firstName = profileData?.first_name || 'User';
+    const lifeSituation = profileData?.life_situation ?? onboardingResponses['02-now'] ?? onboardingResponses['01-now'] ?? '';
+    const lifeJourney = profileData?.life_journey ?? onboardingResponses['02-path'] ?? '';
+    const coreValues = profileData?.core_value ?? onboardingResponses['01-values'] ?? onboardingResponses['03-values'] ?? '';
+    const decisionStyle = onboardingResponses['04-style'] || '';
+    const relationships = profileData?.relationships || [];
+
+    const systemPrompt = `You are a life trajectory simulator. Generate 3 distinct, realistic 1-year simulation variants based on the user's profile. Each variant should be a short paragraph (3-4 sentences) describing a possible path their life could take in the next year. CRITICAL: Write ALL descriptions in SECOND PERSON (you/your) - the user is living this simulation. Include a realistic probability percentage (must sum to approximately 100% across all 3 variants).`;
+
+    const userPrompt = `Profile:
+- Name: ${firstName}
+- Life Situation: ${lifeSituation ? lifeSituation.substring(0, 300) : 'Not specified'}
+- Life Journey: ${lifeJourney ? lifeJourney.substring(0, 300) : 'Not specified'}
+- Core Values: ${coreValues || 'Not specified'}
+- Decision Style: ${decisionStyle || 'Not specified'}
+- Relationships: ${relationships.length} relationships
+
+Generate 3 distinct 1-year simulation variants. Each should:
+1. Be a short paragraph (3-4 sentences) describing a realistic path
+2. Be written in SECOND PERSON (you/your) - address the user directly
+3. Be specific and grounded in their profile
+4. Include concrete details (numbers, activities, outcomes)
+5. Have a probability percentage (should sum to ~100%)
+
+CRITICAL: Use "you" and "your" throughout. Example: "You'll likely see progress..." not "The user will see progress..."
+
+Return JSON array:
+[
+  {
+    "variant": 1,
+    "description": "Short paragraph describing Variant 1...",
+    "probability": 45
+  },
+  {
+    "variant": 2,
+    "description": "Short paragraph describing Variant 2...",
+    "probability": 35
+  },
+  {
+    "variant": 3,
+    "description": "Short paragraph describing Variant 3...",
+    "probability": 20
+  }
+]`;
+
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.8,
+      maxTokens: 800,
+    });
+
+    // Parse the response - it might be wrapped in a JSON object
+    let parsed = JSON.parse(content);
+    
+    // Handle if response is wrapped in an object
+    if (parsed.variants) {
+      parsed = parsed.variants;
+    } else if (Array.isArray(parsed)) {
+      // Already an array
+    } else {
+      // Try to extract variants from object
+      const variants = Object.values(parsed).filter(v => typeof v === 'object' && v !== null) as any[];
+      if (variants.length >= 3) {
+        parsed = variants.slice(0, 3);
+      }
+    }
+
+    // Ensure we have exactly 3 variants
+    const variants = Array.isArray(parsed) ? parsed.slice(0, 3) : [];
+    
+    // Fill in missing variants with fallbacks
+    while (variants.length < 3) {
+      variants.push({
+        variant: variants.length + 1,
+        description: `Based on your current trajectory, this year could bring significant growth in your personal and professional life. You'll likely see progress in areas aligned with your core values, with opportunities for meaningful connections and experiences.`,
+        probability: Math.floor(100 / 3)
+      });
+    }
+
+    // Normalize probabilities to sum to 100
+    const totalProb = variants.reduce((sum, v) => sum + (v.probability || 0), 0);
+    if (totalProb > 0) {
+      variants.forEach(v => {
+        v.probability = Math.round((v.probability / totalProb) * 100);
+      });
+    }
+
+    return variants.map((v, i) => ({
+      variant: i + 1,
+      description: v.description || `Variant ${i + 1} description`,
+      probability: v.probability || Math.floor(100 / 3)
+    })) as OneYearSimulationVariant[];
+  } catch (error) {
+    console.error('Simulation variants generation error:', error);
+    // Fallback variants (already in second person)
+    return [
+      {
+        variant: 1,
+        description: `Based on your current trajectory, this year could bring significant growth in your personal and professional life. You'll likely see progress in areas aligned with your core values, with opportunities for meaningful connections and experiences.`,
+        probability: 40
+      },
+      {
+        variant: 2,
+        description: `This year might involve some challenges that push you to grow in unexpected ways. You'll navigate changes in your relationships and career, finding new strengths and perspectives along the way.`,
+        probability: 35
+      },
+      {
+        variant: 3,
+        description: `A more stable year where you consolidate your current path and deepen existing connections. You'll focus on refining what's already working and building a stronger foundation for future growth.`,
+        probability: 25
+      }
+    ];
+  }
+}
+
+export async function generateUniquenessDescription(profileData: any, uniquePercentage: number): Promise<string> {
+  try {
+    const onboardingResponses = profileData?.core_json?.onboarding_responses || {};
+    const coreValues = profileData?.core_value ?? onboardingResponses['01-values'] ?? onboardingResponses['03-values'] ?? '';
+    const decisionStyle = onboardingResponses['04-style'] || '';
+    const stressResponse = onboardingResponses['06-stress'] || '';
+    const lifeSituation = profileData?.life_situation ?? onboardingResponses['02-now'] ?? onboardingResponses['01-now'] ?? '';
+    const lifeJourney = profileData?.life_journey ?? onboardingResponses['02-path'] ?? '';
+    const typicalDay = onboardingResponses['05-day'] || '';
+    const firstName = profileData?.first_name || 'User';
+    const age = profileData?.birth_year ? new Date().getFullYear() - profileData.birth_year : null;
+    const location = profileData?.hometown || profileData?.current_location || '';
+
+    const systemPrompt = `You are an expert at analyzing personality profiles and identifying what makes individuals unique and similar to others. Generate concise, hyper-relevant descriptions (2-3 sentences max) that highlight both uniqueness and commonalities.`;
+
+    const userPrompt = `Analyze this person's profile and generate a short description (2-3 sentences) about what makes them ${uniquePercentage}% unique compared to others, while also noting what makes them similar to others.
+
+Profile:
+- Name: ${firstName}${age ? `, Age: ${age}` : ''}${location ? `, Location: ${location}` : ''}
+- Core Values: ${coreValues || 'Not specified'}
+- Decision Style: ${decisionStyle || 'Not specified'}
+- Stress Response: ${stressResponse || 'Not specified'}
+- Life Situation: ${lifeSituation ? lifeSituation.substring(0, 200) : 'Not specified'}
+- Life Journey: ${lifeJourney ? lifeJourney.substring(0, 200) : 'Not specified'}
+- Typical Day: ${typicalDay ? typicalDay.substring(0, 200) : 'Not specified'}
+
+Generate a concise, engaging description that:
+1. Highlights what makes them uniquely ${uniquePercentage}% different from others
+2. Notes what makes them similar to others
+3. Is hyper-relevant to their specific profile
+4. Is 2-3 sentences maximum
+5. Uses natural, conversational language
+
+Description:`;
+
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      temperature: 0.8,
+      maxTokens: 200,
+    });
+
+    return content.trim();
+  } catch (error) {
+    console.error('Uniqueness description generation error:', error);
+    // Fallback description
+    return `Your unique combination of values, decision-making style, and life experiences sets you apart while connecting you to others who share similar perspectives.`;
+  }
+}
+
+export interface TwinArchetypeResult {
+  title: string;
+  description: string;
+  traits: {
+    logic: number;
+    intuition: number;
+    emotion: number;
+  };
+}
+
+export async function generateTwinArchetype(profileData: any): Promise<TwinArchetypeResult> {
+  try {
+    const onboardingResponses = profileData?.core_json?.onboarding_responses || {};
+    const coreValues = profileData?.core_value ?? onboardingResponses['01-values'] ?? onboardingResponses['03-values'] ?? '';
+    const decisionStyle = onboardingResponses['04-style'] || 'Balanced';
+    const lifeJourney = profileData?.life_journey ?? onboardingResponses['02-path'] ?? '';
+    
+    const systemPrompt = `You are an expert personality profiler. Analyze the user's data and assign them a "Twin Archetype" - a compelling 2-word title (Adjective + Noun) that captures their essence. Also estimate their "Cognitive Stack" (Logic, Intuition, Emotion) percentages based on their decision style and values. The percentages MUST sum to 100. Return ONLY JSON.`;
+
+    const userPrompt = `Profile:
+- Core Values: ${coreValues}
+- Decision Style: ${decisionStyle}
+- Life Journey Snippet: ${lifeJourney ? lifeJourney.substring(0, 300) : 'Not specified'}
+
+Generate:
+1. "title": A cool, insightful 2-word archetype (e.g., "Strategic Empath", "Grounded Visionary", "Restless Creator").
+2. "description": A 1-sentence explanation of why this fits.
+3. "traits": Estimate the split between logic, intuition, and emotion (integers, sum to 100) based on their Decision Style ("${decisionStyle}").
+
+Example JSON:
+{
+  "title": "Strategic Empath",
+  "description": "You navigate the world with a plan but always lead with your heart.",
+  "traits": { "logic": 40, "intuition": 30, "emotion": 30 }
+}`;
+
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.7,
+    });
+
+    return JSON.parse(content) as TwinArchetypeResult;
+  } catch (error) {
+    console.error('Archetype generation error:', error);
+    // Fallback
+    return {
+      title: "Balanced Explorer",
+      description: "You weigh all options carefully while staying open to new possibilities.",
+      traits: { logic: 34, intuition: 33, emotion: 33 }
+    };
+  }
+}

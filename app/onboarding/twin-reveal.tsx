@@ -1,9 +1,10 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Animated, Image, Dimensions, Clipboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { getProfile, getRelationships, getUserInterests, ensureTwinCode } from '@/lib/storage';
+import { generateUniquenessDescription, generateTwinArchetype, TwinArchetypeResult, generateOneYearSimulationVariants, OneYearSimulationVariant } from '@/lib/ai';
 import {
   Brain,
   Heart,
@@ -17,16 +18,51 @@ import {
   Briefcase,
   User,
   Flag,
-  Activity
+  Activity,
+  Clock,
+  CheckCircle2,
+  Circle as CircleIcon,
+  Copy
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Fonts } from '@/constants/Theme';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import * as Haptics from 'expo-haptics';
-import { useTypewriter } from '@/hooks/useTypewriter';
+import Svg, { Path } from 'react-native-svg';
+import { LigatureFreeText } from '@/components/LigatureFreeText';
 
 const { width } = Dimensions.get('window');
+const RELATIONSHIP_GRAPH_HEIGHT = 220;
+const GRAPH_CONTENT_WIDTH = 600;
+const SATELLITE_SIZE = 50;
+
+// Helper function to truncate text
+function truncateText(text: string | undefined, maxLength: number = 60): string {
+  if (!text) return 'Not set';
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength).trim() + '...';
+}
+
+// Helper function to get relationship emoji
+function getRelationshipEmoji(relationshipType: string): string {
+  const type = relationshipType?.toLowerCase() || '';
+  if (type.includes('partner') || type.includes('spouse')) return '❤️';
+  if (type.includes('family') || type.includes('parent') || type.includes('sibling') || type.includes('child')) return '👨‍👩‍👧‍👦';
+  if (type.includes('coworker') || type.includes('boss') || type.includes('colleague') || type.includes('business')) return '💼';
+  if (type.includes('mentor')) return '🎓';
+  if (type.includes('friend')) return '👤';
+  return '👤';
+}
+
+const satellitePositions = [
+  { x: -110, y: -25 },
+  { x: -75, y: -55 },
+  { x: -30, y: -75 },
+  { x: 30, y: -75 },
+  { x: 75, y: -55 },
+  { x: 110, y: -25 },
+];
 
 export default function TwinRevealScreen() {
   const router = useRouter();
@@ -36,12 +72,18 @@ export default function TwinRevealScreen() {
   const [interests, setInterests] = useState<any[]>([]);
   const [twinCode, setTwinCode] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [uniquenessDescription, setUniquenessDescription] = useState<string>('');
+  const [loadingDescription, setLoadingDescription] = useState(false);
+  const [archetype, setArchetype] = useState<TwinArchetypeResult | null>(null);
+  const [simulationVariants, setSimulationVariants] = useState<OneYearSimulationVariant[]>([]);
+  const [loadingSimulations, setLoadingSimulations] = useState(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const imageFadeAnim = useRef(new Animated.Value(0)).current;
   const imageSlideAnim = useRef(new Animated.Value(20)).current;
+  const arrowAnim = useRef(new Animated.Value(0)).current;
 
   // Generate unique percentage once
   const uniquePercentage = useMemo(() => {
@@ -49,41 +91,60 @@ export default function TwinRevealScreen() {
   }, []);
 
   useEffect(() => {
+    if (!user) {
+      router.replace('/auth');
+      return;
+    }
     loadData();
   }, [user]);
 
   useEffect(() => {
-    if (!loading && profile) {
-      // Trigger animations
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.spring(slideAnim, {
-            toValue: 0,
-            tension: 40,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(imageFadeAnim, {
+    // Start animations immediately, even if still loading
+    // This ensures content is visible
+    Animated.parallel([
+      // Content animations
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 40,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      // Image animations (sync with content)
+      Animated.timing(imageFadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.spring(imageSlideAnim, {
+        toValue: 0,
+        tension: 40,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Start arrow animation after initial animations complete
+      const arrowAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(arrowAnim, {
             toValue: 1,
             duration: 1000,
             useNativeDriver: true,
           }),
-          Animated.timing(imageSlideAnim, {
+          Animated.timing(arrowAnim, {
             toValue: 0,
             duration: 1000,
             useNativeDriver: true,
           }),
         ])
-      ]).start();
-    }
-  }, [loading, profile]);
+      );
+      arrowAnimation.start();
+    });
+  }, []); // Run once on mount
 
   async function loadData() {
     if (!user) return;
@@ -106,6 +167,26 @@ export default function TwinRevealScreen() {
         screen_name: 'Twin Reveal',
         has_profile: !!profileData,
       });
+
+      // Generate archetype and simulation variants
+      if (profileData) {
+        setLoadingDescription(true);
+        setLoadingSimulations(true);
+        try {
+          const [archetypeResult, variants] = await Promise.all([
+            generateTwinArchetype(profileData),
+            generateOneYearSimulationVariants(profileData)
+          ]);
+          setArchetype(archetypeResult);
+          setSimulationVariants(variants);
+        } catch (error) {
+          console.error('Failed to generate archetype or simulations:', error);
+          // Fallback will be handled by initial state or UI check
+        } finally {
+          setLoadingDescription(false);
+          setLoadingSimulations(false);
+        }
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -116,7 +197,7 @@ export default function TwinRevealScreen() {
   function handleContinue() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     trackEvent(MixpanelEvents.BUTTON_CLICKED, {
-      button_name: 'Explore Your Life',
+      button_name: 'Continue',
       screen: 'Twin Reveal',
     });
 
@@ -124,35 +205,124 @@ export default function TwinRevealScreen() {
     router.replace('/(tabs)/home');
   }
 
-  if (loading || !profile) {
-    return (
-      <View style={styles.container}>
-        <StatusBar style="dark" />
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Creating your digital twin...</Text>
-          </View>
-        </SafeAreaView>
-      </View>
-    );
+  function handleCopyTwinCode() {
+    if (!twinCode) return;
+    try {
+      Clipboard.setString(twinCode);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
   }
 
-  // Extract data from profile
+  function handleCardPress(card: { route?: any }) {
+    if (card.route) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      router.push(card.route);
+    }
+  }
+
+  // Extract data from profile (with fallbacks for when data is still loading)
   const onboardingResponses = profile?.core_json?.onboarding_responses || {};
+  const coreJson = profile?.core_json || {};
   const firstName = profile?.first_name || 'Friend';
   const hometown = profile?.hometown || profile?.current_location || 'Unknown';
-  const birthYear = profile?.birth_year;
-  const currentYear = new Date().getFullYear();
-  const age = birthYear ? currentYear - birthYear : null;
-
-  const coreValues = onboardingResponses['01-values'] || onboardingResponses['03-values'] || '';
-  const decisionStyle = onboardingResponses['04-style'] || 'Balanced';
-  const stressResponse = onboardingResponses['06-stress'];
   
-  // Format interests for display
-  const topInterests = interests.slice(0, 5).map(i => i.item_name).join(', ');
+  // Try multiple possible locations and keys for birth year
+  let birthYearStr = onboardingResponses['birth-year'] || 
+                     onboardingResponses['birth_year'] || 
+                     onboardingResponses['birthYear'] ||
+                     coreJson['birth-year'] ||
+                     coreJson['birth_year'] ||
+                     coreJson['birthYear'] ||
+                     // @ts-ignore - Check top level just in case
+                     profile?.birth_year ||
+                     null;
 
-  // Determine status (simple logic for now)
+  // Clean the string to ensure we get a valid year
+  if (birthYearStr) {
+    birthYearStr = String(birthYearStr).replace(/[^0-9]/g, '');
+  }
+
+  const birthYear = birthYearStr ? parseInt(birthYearStr, 10) : null;
+  const currentYear = new Date().getFullYear();
+  const age = birthYear && !isNaN(birthYear) && birthYear > 1900 && birthYear <= currentYear 
+    ? currentYear - birthYear 
+    : null;
+  
+  // Debug logging
+  if (__DEV__) {
+    console.log('Age calculation:', {
+      birthYearStr,
+      birthYear,
+      currentYear,
+      age,
+      onboardingResponseKeys: Object.keys(onboardingResponses),
+      coreJsonKeys: Object.keys(coreJson),
+      fullOnboardingResponses: onboardingResponses,
+      profileKeys: Object.keys(profile || {})
+    });
+  }
+
+  const lifeSituationResp = profile?.life_situation ?? onboardingResponses['02-now'] ?? onboardingResponses['01-now'];
+  const lifeJourneyResp = profile?.life_journey ?? onboardingResponses['02-path'];
+  const coreValuesResp = profile?.core_value ?? onboardingResponses['01-values'] ?? onboardingResponses['03-values'];
+  
+  // Build mindset cards exactly like profile page
+  const mindsetCards = [
+    { 
+      id: '02-now', 
+      title: 'Life Situation', 
+      subtitle: lifeSituationResp ? truncateText(lifeSituationResp, 80) : 'Where are you now?', 
+      route: '/profile/edit-lifesituation' as any,
+      completed: !!lifeSituationResp, 
+      icon: User 
+    },
+    { 
+      id: '02-path', 
+      title: 'Life Journey', 
+      subtitle: lifeJourneyResp ? truncateText(lifeJourneyResp, 80) : 'How did you get here?', 
+      route: '/profile/edit-lifejourney' as any,
+      completed: !!lifeJourneyResp, 
+      icon: Briefcase 
+    },
+    { 
+      id: '01-values', 
+      title: 'Core Values', 
+      subtitle: coreValuesResp ? truncateText(coreValuesResp, 80) : 'What matters most?', 
+      route: '/profile/edit-values' as any,
+      completed: !!coreValuesResp, 
+      icon: Heart 
+    },
+    { 
+      id: '04-style', 
+      title: 'Decision Style', 
+      subtitle: onboardingResponses['04-style'] ? truncateText(onboardingResponses['04-style'], 80) : 'How do you decide?', 
+      route: '/profile/edit-decisionstyle' as any,
+      completed: !!onboardingResponses['04-style'], 
+      icon: Brain 
+    },
+    { 
+      id: '05-day', 
+      title: 'Typical Day', 
+      subtitle: onboardingResponses['05-day'] ? truncateText(onboardingResponses['05-day'], 80) : 'Walk through a day', 
+      route: '/profile/edit-typicalday' as any,
+      completed: !!onboardingResponses['05-day'], 
+      icon: Clock 
+    },
+    { 
+      id: '06-stress', 
+      title: 'Stress Response', 
+      subtitle: onboardingResponses['06-stress'] ? truncateText(onboardingResponses['06-stress'], 80) : 'Reaction to stress', 
+      route: '/profile/edit-stress' as any,
+      completed: !!onboardingResponses['06-stress'], 
+      icon: Zap 
+    },
+  ];
+
+  const visibleRelationships = relationships.slice(0, 6);
+
+  // Determine status
   const status = relationships.length > 0 ? 'Connected' : 'Single';
 
   return (
@@ -165,46 +335,57 @@ export default function TwinRevealScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header Section (Now inside ScrollView) */}
+          {/* Header Section */}
           <View style={styles.headerContainer}>
             <View style={styles.headerLeft}>
               {/* Name */}
               <View style={styles.nameRow}>
-                <Text style={styles.headerName}>{firstName}.</Text>
+                <Text style={styles.headerName}>{firstName}</Text>
               </View>
               
-              {/* Location */}
-              <Text style={styles.headerLocation}>{hometown}</Text>
+              {/* Location with Age and Icon */}
+              <View style={styles.locationRow}>
+                <MapPin size={14} color={Colors.textSecondary} />
+                <Text style={styles.headerLocation}>{hometown}</Text>
+                {age && (
+                  <Text style={styles.headerAge}> • Age {age}</Text>
+                )}
+              </View>
               
               {/* Statistics Tags Row */}
               <View style={styles.tagsRow}>
-                {age && (
+                <HeaderTag 
+                  icon={<Heart size={10} color="#696969" />}
+                  text={status}
+                />
+                {age !== null && age !== undefined && (
                   <HeaderTag 
                     icon={<User size={10} color="#696969" />}
                     text={`Age ${age}`}
                   />
                 )}
-                <HeaderTag 
-                  icon={<Heart size={10} color="#696969" />}
-                  text={status}
-                />
-                <HeaderTag 
-                  icon={<Activity size={10} color="#696969" />}
-                  text={`Top ${uniquePercentage}%`}
-                />
               </View>
             </View>
 
             {/* Right Side - Mannequin and Code */}
             <View style={styles.headerRight}>
-              <Text style={styles.twinCodeText}>mora#: {twinCode}</Text>
+              <View style={styles.twinCodeContainer}>
+                <Text style={styles.twinCodeText}>mora#: {twinCode}</Text>
+                <TouchableOpacity 
+                  onPress={handleCopyTwinCode}
+                  activeOpacity={0.7}
+                  style={styles.copyButton}
+                >
+                  <Copy size={14} color="rgba(0,0,0,0.15)" />
+                </TouchableOpacity>
+              </View>
               <Animated.View 
                 style={[
                   styles.headerImageContainer,
                   {
                     opacity: imageFadeAnim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [0, 0.4], // Max opacity 0.4
+                      outputRange: [0, 0.4],
                     }),
                     transform: [{ translateY: imageSlideAnim }]
                   }
@@ -212,116 +393,155 @@ export default function TwinRevealScreen() {
               >
                 <Image 
                   source={require('@/assets/images/manwhite.png')} 
-                  style={[styles.headerImage, { transform: [{ scaleX: -1 }] }]} // Flipped image
+                  style={[styles.headerImage, { transform: [{ scaleX: -1 }] }]}
                   resizeMode="contain"
                 />
               </Animated.View>
             </View>
           </View>
 
-          {/* Cards Section */}
-          <View style={styles.cardsContainer}>
-            {/* Mindset Card (Replaces Journey) */}
+          {/* Content Sections */}
+          <View style={styles.sectionsContainer}>
+            {/* Archetype Section */}
             <Animated.View
               style={{
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }],
               }}
             >
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIcon, { backgroundColor: Colors.gradients.turquoise[0] + '20' }]}>
-                    <Brain size={22} color={Colors.gradients.turquoise[0]} strokeWidth={2} />
-                  </View>
-                  <Text style={styles.cardTitle}>Mindset</Text>
-                </View>
-                
-                <View style={styles.section}>
-                  <Text style={styles.label}>Decision Style</Text>
-                  <Text style={styles.text}>{decisionStyle}</Text>
-                </View>
+              <View style={styles.section}>
+                <View style={styles.uniqueCard}>
+                  {loadingDescription ? (
+                    <View style={{ padding: 20, alignItems: 'center' }}>
+                      <Activity size={24} color={Colors.gradients.turquoise[0]} />
+                      <LigatureFreeText 
+                        text="Analyzing your unique profile..." 
+                        style={[styles.uniqueText, { marginTop: 12, textAlign: 'center', letterSpacing: 1 }]} 
+                      />
+                    </View>
+                  ) : archetype ? (
+                    <>
+                      <View style={styles.archetypeHeader}>
+                        <View style={styles.archetypeIconContainer}>
+                          <Image
+                            source={require('@/assets/images/icon.png')}
+                            style={styles.archetypeIconImage}
+                            resizeMode="contain"
+                          />
+                        </View>
+                        <Text style={styles.archetypeLabel}>TWIN ARCHETYPE</Text>
+                      </View>
+                      
+                      <LigatureFreeText text={archetype.title} style={styles.archetypeTitle} />
+                      <LigatureFreeText text={archetype.description} style={styles.archetypeDescription} />
 
-                {stressResponse && (
-                  <View style={styles.section}>
-                    <Text style={styles.label}>Under Stress</Text>
-                    <Text style={styles.text}>{stressResponse}</Text>
-                  </View>
-                )}
+                      <View style={styles.decisionDnaContainer}>
+                        <Text style={styles.dnaLabel}>Decision DNA</Text>
+                        
+                        {/* Logic Bar */}
+                        <View style={styles.dnaRow}>
+                          <Text style={styles.dnaRowLabel}>Logic</Text>
+                          <View style={styles.dnaBarContainer}>
+                            <View style={[styles.dnaBar, { width: `${archetype.traits.logic}%`, backgroundColor: '#8EC5FC' }]} />
+                          </View>
+                          <Text style={styles.dnaValue}>{archetype.traits.logic}%</Text>
+                        </View>
+
+                        {/* Intuition Bar */}
+                        <View style={styles.dnaRow}>
+                          <Text style={styles.dnaRowLabel}>Intuition</Text>
+                          <View style={styles.dnaBarContainer}>
+                            <View style={[styles.dnaBar, { width: `${archetype.traits.intuition}%`, backgroundColor: '#6BCA9A' }]} />
+                          </View>
+                          <Text style={styles.dnaValue}>{archetype.traits.intuition}%</Text>
+                        </View>
+
+                        {/* Emotion Bar */}
+                        <View style={styles.dnaRow}>
+                          <Text style={styles.dnaRowLabel}>Emotion</Text>
+                          <View style={styles.dnaBarContainer}>
+                            <View style={[styles.dnaBar, { width: `${archetype.traits.emotion}%`, backgroundColor: '#E87A7F' }]} />
+                          </View>
+                          <Text style={styles.dnaValue}>{archetype.traits.emotion}%</Text>
+                        </View>
+                      </View>
+                    </>
+                  ) : null}
+                </View>
               </View>
             </Animated.View>
 
-            {/* Core Values Card */}
+            {/* Mindset Section - Grid Layout */}
             <Animated.View
               style={{
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }],
               }}
             >
-              <CoreValuesCard values={coreValues} />
-            </Animated.View>
-
-            {/* Interests Card */}
-            <Animated.View
-              style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              }}
-            >
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIcon, { backgroundColor: Colors.gradients.purple[0] + '20' }]}>
-                    <Sparkles size={22} color={Colors.gradients.purple[0]} strokeWidth={2} />
-                  </View>
-                  <Text style={styles.cardTitle}>Interests</Text>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Mindset</Text>
+                <View style={styles.gridContainer}>
+                  {mindsetCards.map((card) => (
+                    <TouchableOpacity 
+                      key={card.id} 
+                      style={styles.gridCard}
+                      onPress={() => handleCardPress(card)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.gridIcon}>
+                        {card.icon && <card.icon size={24} color={card.completed ? '#4ADE80' : Colors.textTertiary} />}
+                      </View>
+                      <Text style={styles.gridTitle}>{card.title}</Text>
+                      {card.subtitle && (
+                        <Text style={styles.gridSubtitle} numberOfLines={2}>{card.subtitle}</Text>
+                      )}
+                      <View style={styles.gridStatus}>
+                        {card.completed ? <CheckCircle2 size={16} color="#4ADE80" /> : <CircleIcon size={16} color={Colors.textTertiary} />}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-                {topInterests ? (
-                  <Text style={styles.text}>{topInterests}</Text>
-                ) : (
-                  <Text style={[styles.text, { color: Colors.textTertiary, fontStyle: 'italic' }]}>
-                    No interests added yet
-                  </Text>
-                )}
               </View>
             </Animated.View>
 
-            {/* Relationships Card */}
+            {/* 1-Year Simulations Section */}
             <Animated.View
               style={{
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }],
               }}
             >
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIcon, { backgroundColor: Colors.gradients.peach[0] + '20' }]}>
-                    <Users size={22} color={Colors.gradients.peach[0]} strokeWidth={2} />
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Potential 1-Year Simulations</Text>
+                {loadingSimulations ? (
+                  <View style={styles.simulationLoadingContainer}>
+                    <Activity size={24} color={Colors.gradients.turquoise[0]} />
+                    <Text style={styles.simulationLoadingText}>Generating simulations...</Text>
                   </View>
-                  <Text style={styles.cardTitle}>Relationships</Text>
-                </View>
-                {relationships.length > 0 ? (
-                  <View style={styles.tagsContainer}>
-                    {relationships.slice(0, 5).map((rel, idx) => (
-                      <View key={idx} style={styles.tag}>
-                        <Text style={styles.tagText}>{rel.name}</Text>
+                ) : simulationVariants.length > 0 ? (
+                  <View style={styles.simulationsContainer}>
+                    {simulationVariants.map((variant) => (
+                      <View key={variant.variant} style={styles.simulationCard}>
+                        <View style={styles.simulationHeader}>
+                          <Text style={styles.simulationVariantLabel}>Variant {variant.variant}</Text>
+                          <View style={styles.probabilityBadge}>
+                            <Text style={styles.probabilityText}>{variant.probability}%</Text>
+                          </View>
+                        </View>
+                        <LigatureFreeText 
+                          text={variant.description} 
+                          style={styles.simulationDescription} 
+                        />
                       </View>
                     ))}
-                    {relationships.length > 5 && (
-                      <View style={styles.tag}>
-                        <Text style={styles.tagText}>+{relationships.length - 5} more</Text>
-                      </View>
-                    )}
                   </View>
-                ) : (
-                  <Text style={[styles.text, { color: Colors.textTertiary, fontStyle: 'italic' }]}>
-                    Add relationships to explore social dynamics
-                  </Text>
-                )}
+                ) : null}
               </View>
             </Animated.View>
-          </View>
 
-          {/* Bottom spacing */}
-          <View style={{ height: 100 }} />
+            {/* Bottom spacing */}
+            <View style={{ height: 100 }} />
+          </View>
         </ScrollView>
 
         {/* CTA Button */}
@@ -333,28 +553,30 @@ export default function TwinRevealScreen() {
             }
           ]}
         >
-          <TouchableOpacity
+          <Pressable
             onPress={handleContinue}
-            activeOpacity={0.9}
-            style={styles.ctaButton}
+            style={({ pressed }) => [
+              styles.ctaButtonWrapper,
+              {
+                shadowColor: '#25729f',
+                transform: [{ translateY: pressed ? 2 : 0 }],
+                shadowOffset: { width: 0, height: pressed ? 2 : 8 },
+                shadowOpacity: pressed ? 0.3 : 0.5,
+                shadowRadius: pressed ? 8 : 20,
+                elevation: pressed ? 4 : 12,
+              }
+            ]}
           >
             <LinearGradient
-              colors={Colors.gradients.turquoise}
+              colors={['#25729f', '#62edb9']}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.ctaGradient}
+              end={{ x: 0, y: 1 }}
+              style={styles.ctaButtonGradient}
             >
-              <Text style={styles.ctaText}>Explore Your Life</Text>
-              <View style={styles.sliderThumb}>
-                <LinearGradient 
-                  colors={['#FFFFFF', 'rgba(255,255,255,0.8)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={styles.thumbGradient}
-                />
-              </View>
+              <Text style={styles.ctaText}>Continue</Text>
+              <ChevronRight size={20} color="#FFFFFF" />
             </LinearGradient>
-          </TouchableOpacity>
+          </Pressable>
         </Animated.View>
       </SafeAreaView>
     </View>
@@ -377,32 +599,6 @@ function HeaderTag({ icon, text }: { icon: any, text: string }) {
   );
 }
 
-function CoreValuesCard({ values }: { values: string }) {
-  const valuesList = values
-    .split(/[,\n]/)
-    .map(v => v.trim())
-    .filter(v => v.length > 0)
-    .slice(0, 6);
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={[styles.cardIcon, { backgroundColor: Colors.gradients.peach[0] + '20' }]}>
-          <Heart size={22} color={Colors.gradients.peach[0]} strokeWidth={2} />
-        </View>
-        <Text style={styles.cardTitle}>Core Values</Text>
-      </View>
-      <View style={styles.tagsContainer}>
-        {valuesList.map((value, index) => (
-          <View key={index} style={styles.valuePill}>
-            <Text style={styles.valuePillText}>{value}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -420,6 +616,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
     fontSize: 16,
     color: Colors.textSecondary,
+    letterSpacing: 1,
   },
   scrollView: {
     flex: 1,
@@ -436,30 +633,44 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     marginBottom: 32,
     height: 200,
+    position: 'relative',
   },
   headerLeft: {
     flex: 1,
     justifyContent: 'flex-start',
     paddingTop: 16,
+    zIndex: 1,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     marginBottom: 8,
+    zIndex: 2,
   },
   headerName: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: '800',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
     letterSpacing: -0.5,
+    zIndex: 2,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
   },
   headerLocation: {
     fontSize: 16,
     color: Colors.textSecondary,
     fontFamily: Fonts.primary.regular,
-    marginBottom: 12,
+  },
+  headerAge: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.primary.regular,
   },
   tagsRow: {
     flexDirection: 'row',
@@ -479,135 +690,354 @@ const styles = StyleSheet.create({
     borderColor: '#DFDFDF',
   },
   headerTagText: {
-    fontFamily: Fonts.secondary.bold, // Using theme font for consistency
+    fontFamily: Fonts.secondary.bold,
     fontWeight: '500',
     fontSize: 12,
     lineHeight: 15,
     color: '#696969',
   },
   headerRight: {
-    width: 280, // 2x bigger width
-    height: '140%', // Allow it to overflow or be taller
+    width: 280,
+    height: '140%',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    position: 'absolute', // Position absolutely to overlay/allow size
-    right: -40, // Shift right to keep it in corner
-    bottom: -60, // Lower position
-    zIndex: -1, // Ensure text stays on top if needed, but here text is in headerRight
+    position: 'absolute',
+    right: -40,
+    bottom: -60,
+    zIndex: 0,
   },
   headerImageContainer: {
     width: '100%',
     height: '100%',
     justifyContent: 'flex-end',
-    // Opacity is handled by animated value
   },
   headerImage: {
     width: '100%',
     height: '100%',
   },
-  twinCodeText: {
+  twinCodeContainer: {
     position: 'absolute',
-    top: 60, // Position over forehead area
-    alignSelf: 'center', // Center horizontally in the container
+    top: 30,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 10,
+  },
+  twinCodeText: {
     fontSize: 14,
-    color: 'rgba(0,0,0,0.3)', // Light gray
+    color: 'rgba(0,0,0,0.15)',
     fontWeight: '700',
     fontFamily: Fonts.secondary.bold,
-    zIndex: 10,
     letterSpacing: 1,
+  },
+  copyButton: {
+    padding: 4,
   },
 
-  // Cards
-  cardsContainer: {
+  // Sections Container
+  sectionsContainer: {
     paddingHorizontal: 24,
   },
-  card: {
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.primary.regular,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 12,
+  },
+
+  // Unique Card (Now Archetype Card)
+  uniqueCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 32,
-    padding: 32,
-    marginBottom: 20,
+    padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.03)',
-    shadowColor: '#000',
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    shadowColor: 'rgba(0,0,0,0.05)',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 1,
     shadowRadius: 20,
-    elevation: 2,
+    elevation: 4,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 20,
-  },
-  cardIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textTertiary,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    fontFamily: Fonts.secondary.bold,
+  uniqueText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.primary.regular,
     letterSpacing: 1,
   },
-  text: {
-    fontSize: 17,
-    color: Colors.textPrimary,
-    lineHeight: 26,
-    fontFamily: Fonts.primary.regular,
+  archetypeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
   },
-  tagsContainer: {
+  archetypeIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  archetypeIconImage: {
+    width: 20,
+    height: 20,
+  },
+  archetypeLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  archetypeTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular, // Recoleta for the big title
+    marginBottom: 12,
+    lineHeight: 38,
+  },
+  archetypeDescription: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.primary.regular,
+    lineHeight: 24,
+    marginBottom: 24,
+    letterSpacing: 1.5,
+  },
+  decisionDnaContainer: {
+    backgroundColor: '#FAFAFA',
+    borderRadius: 20,
+    padding: 16,
+  },
+  dnaLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 16,
+  },
+  dnaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  dnaRowLabel: {
+    width: 70,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+    flexShrink: 0,
+  },
+  dnaBarContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  dnaBar: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  dnaValue: {
+    width: 40,
+    textAlign: 'right',
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    flexShrink: 0,
+  },
+
+  // Mindset Grid
+  gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
   },
-  tag: {
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  gridCard: {
+    width: (width - 48 - 12) / 2,
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
+    padding: 16,
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.03)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    justifyContent: 'space-between',
+    minHeight: 100,
   },
-  tagText: {
+  gridIcon: {
+    marginBottom: 12,
+  },
+  gridTitle: {
     fontSize: 15,
+    fontFamily: Fonts.secondary.bold,
+    fontWeight: '600',
     color: Colors.textPrimary,
-    fontFamily: Fonts.primary.regular,
+    marginBottom: 4,
   },
-  valuePill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  gridSubtitle: {
+    fontSize: 12,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
+    color: Colors.textTertiary,
+    lineHeight: 16,
+    marginBottom: 8,
+    flex: 1,
+  },
+  gridStatus: {
+    alignSelf: 'flex-end',
+  },
+
+  // Relationships Graph
+  relationshipCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)',
+    borderColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+  },
+  graphContainer: {
+    height: RELATIONSHIP_GRAPH_HEIGHT,
+    width: '100%',
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centralNode: {
+    position: 'absolute',
+    bottom: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centralNodeInner: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  satellite: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: SATELLITE_SIZE,
+  },
+  satelliteIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     shadowColor: 'rgba(0,0,0,0.05)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 4,
-    elevation: 1,
+    elevation: 3,
+    marginBottom: 4,
   },
-  valuePillText: {
-    fontSize: 15,
+  satelliteEmoji: {
+    fontSize: 18,
+  },
+  satelliteName: {
+    fontSize: 10,
     fontWeight: '600',
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    width: 70,
+  },
+
+  // Simulation Variants
+  simulationLoadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  simulationLoadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.primary.regular,
+  },
+  simulationsContainer: {
+    gap: 16,
+  },
+  simulationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  simulationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  simulationVariantLabel: {
+    fontSize: 14,
+    fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
+  probabilityBadge: {
+    backgroundColor: Colors.gradients.turquoise[0] + '15',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.gradients.turquoise[0] + '30',
+  },
+  probabilityText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.gradients.turquoise[0],
+    fontFamily: Fonts.secondary.bold,
+  },
+  simulationDescription: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    fontFamily: Fonts.primary.regular,
+  },
+
+  // CTA Button
   ctaContainer: {
     position: 'absolute',
     bottom: 0,
@@ -616,41 +1046,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 40,
-    backgroundColor: 'rgba(255,255,255,0.9)',
   },
-  ctaButton: {
-    height: 72,
-    borderRadius: 36,
-    overflow: 'hidden',
-    shadowColor: Colors.gradients.turquoise[0],
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
+  ctaButtonWrapper: {
+    borderRadius: 28,
+    overflow: 'visible',
   },
-  ctaGradient: {
-    flex: 1,
+  ctaButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 32,
-    paddingRight: 8,
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+    borderRadius: 28,
   },
   ctaText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: Fonts.secondary.bold,
-    letterSpacing: 0.5,
-  },
-  sliderThumb: {
-    width: 80,
-    height: 56,
-    borderRadius: 28,
-    overflow: 'hidden',
-  },
-  thumbGradient: {
-    flex: 1,
-    opacity: 0.9,
   },
 });

@@ -43,7 +43,7 @@ export default function ChallengesScreen() {
         console.error('Failed to save challenges:', error);
       }
     }
-    router.push('/onboarding/04-style');
+    router.push('/onboarding/motivate-unique');
   }
 
   return (
@@ -52,8 +52,6 @@ export default function ChallengesScreen() {
       progress={0.55}
       onNext={handleNext}
       canContinue={challenges.trim().length > 0}
-      buttonGradient={Colors.gradients.turquoise}
-      progressBarGradient={Colors.gradients.turquoise}
     >
       <View style={styles.inputWrapper}>
         <Input

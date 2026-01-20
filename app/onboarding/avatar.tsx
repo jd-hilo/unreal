@@ -87,8 +87,6 @@ export default function AvatarGenerationScreen() {
       progress={0.95}
       onNext={handleContinue}
       nextLabel="Continue"
-      buttonGradient={Colors.gradients.purple}
-      progressBarGradient={Colors.gradients.purple}
     >
       <View style={styles.container}>
         <Animated.View 

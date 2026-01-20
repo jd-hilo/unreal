@@ -52,8 +52,6 @@ export default function PoliticsScreen() {
       progress={0.8125}
       onNext={handleNext}
       canContinue={selectedValue.length > 0}
-      buttonGradient={Colors.gradients.turquoise}
-      progressBarGradient={Colors.gradients.turquoise}
     >
       <View style={styles.container}>
         <ChoiceQuestion

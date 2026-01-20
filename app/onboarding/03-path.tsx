@@ -50,8 +50,6 @@ export default function OnboardingStep3() {
       progress={0.75}
       onNext={handleNext}
       canContinue={text.trim().length > 0}
-      buttonGradient={Colors.gradients.turquoise}
-      progressBarGradient={Colors.gradients.turquoise}
     >
       <View style={styles.inputWrapper}>
         <Input

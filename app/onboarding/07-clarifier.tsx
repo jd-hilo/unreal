@@ -331,8 +331,8 @@ export default function OnboardingStep7() {
       trackEvent(MixpanelEvents.ONBOARDING_COMPLETED);
       setUserProperty('onboarding_complete', true);
       
-      // Always route to complete page after creating digital twin
-      router.replace('/onboarding/complete');
+      // Always route to twin reveal page after creating digital twin
+      router.replace('/onboarding/twin-reveal');
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
       setIsSummarizing(false);

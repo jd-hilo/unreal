@@ -6,6 +6,7 @@ import {
   Platform,
   Animated,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
@@ -170,20 +171,27 @@ export default function ResetPasswordScreen() {
           </ScrollView>
 
           <View style={styles.floatingButtonContainer}>
-            <TouchableOpacity
+            <Pressable
               onPress={handleVerifyToken}
               disabled={loading || !token || token.length !== 6}
-              activeOpacity={0.9}
-              style={[
+              style={({ pressed }) => [
                 styles.floatingButtonWrapper,
+                {
+                  shadowColor: (token && token.length === 6 && !loading) ? '#25729f' : 'rgba(0, 0, 0, 0.1)',
+                  transform: [{ translateY: pressed ? 2 : 0 }],
+                  shadowOffset: { width: 0, height: pressed ? 2 : 8 },
+                  shadowOpacity: pressed ? 0.3 : 0.5,
+                  shadowRadius: pressed ? 8 : 20,
+                  elevation: pressed ? 4 : 12,
+                },
                 (loading || !token || token.length !== 6) && styles.floatingButtonDisabled
               ]}
             >
               {token && token.length === 6 && !loading ? (
                 <LinearGradient
-                  colors={Colors.gradients.turquoise}
+                  colors={['#25729f', '#62edb9']}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                  end={{ x: 0, y: 1 }}
                   style={styles.floatingButton}
                 >
                   <Text style={styles.floatingButtonText}>Verify</Text>
@@ -201,7 +209,7 @@ export default function ResetPasswordScreen() {
                   )}
                 </View>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </KeyboardAvoidingView>
       </View>
@@ -287,20 +295,27 @@ export default function ResetPasswordScreen() {
 
         {!success && (
           <View style={styles.floatingButtonContainer}>
-            <TouchableOpacity
+            <Pressable
               onPress={handleUpdatePassword}
               disabled={loading || !newPassword || !confirmPassword}
-              activeOpacity={0.9}
-              style={[
+              style={({ pressed }) => [
                 styles.floatingButtonWrapper,
+                {
+                  shadowColor: (newPassword && confirmPassword && !loading) ? '#25729f' : 'rgba(0, 0, 0, 0.1)',
+                  transform: [{ translateY: pressed ? 2 : 0 }],
+                  shadowOffset: { width: 0, height: pressed ? 2 : 8 },
+                  shadowOpacity: pressed ? 0.3 : 0.5,
+                  shadowRadius: pressed ? 8 : 20,
+                  elevation: pressed ? 4 : 12,
+                },
                 (loading || !newPassword || !confirmPassword) && styles.floatingButtonDisabled
               ]}
             >
               {newPassword && confirmPassword && !loading ? (
                 <LinearGradient
-                  colors={Colors.gradients.turquoise}
+                  colors={['#25729f', '#62edb9']}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                  end={{ x: 0, y: 1 }}
                   style={styles.floatingButton}
                 >
                   <Text style={styles.floatingButtonText}>Update Password</Text>
@@ -318,7 +333,7 @@ export default function ResetPasswordScreen() {
                   )}
                 </View>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
       </KeyboardAvoidingView>
@@ -418,12 +433,7 @@ const styles = StyleSheet.create({
   },
   floatingButtonWrapper: {
     borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 5,
+    overflow: 'visible',
   },
   floatingButton: {
     flexDirection: 'row',

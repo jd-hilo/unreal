@@ -371,8 +371,6 @@ export default function LocalPreferencesScreen() {
         }}
         nextLabel="Continue"
         canContinue={canContinue}
-        buttonGradient={Colors.gradients.peach}
-        progressBarGradient={Colors.gradients.peach}
       >
         <View style={styles.container}>
           <View style={styles.optionsContainer}>
@@ -467,8 +465,6 @@ export default function LocalPreferencesScreen() {
         progress={0.95}
         loading={true}
         canContinue={false}
-        buttonGradient={Colors.gradients.peach}
-        progressBarGradient={Colors.gradients.peach}
       >
         <View style={styles.container}>
           <Text style={styles.loadingText}>
@@ -487,7 +483,6 @@ export default function LocalPreferencesScreen() {
       nextLabel="Continue"
       canContinue={canContinue}
       buttonGradient={Colors.gradients.peach}
-      progressBarGradient={Colors.gradients.peach}
     >
       <View style={styles.container}>
         <Text style={styles.progressText}>

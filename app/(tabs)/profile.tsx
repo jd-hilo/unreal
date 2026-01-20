@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, Clipboard, Linking, Modal, Animated, Dimensions, Easing } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Image, Alert, Platform, Clipboard, Linking, Modal, Animated, Dimensions, Easing } from 'react-native';
 import Svg, { Circle, Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -7,10 +7,10 @@ import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { CheckCircle2, Circle as CircleIcon, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut, Sparkles, Trash2, User, MapPin, GraduationCap, Briefcase, Heart, Brain, Zap, Clock, Shield, Flag, Banknote, Home, Users } from 'lucide-react-native';
+import { CheckCircle2, Circle as CircleIcon, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut, Sparkles, Trash2, User, MapPin, GraduationCap, Briefcase, Heart, Brain, Zap, Clock, Shield, Flag, Banknote, Home, Users, ArrowUpRight } from 'lucide-react-native';
 import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode, getInterestProgressNew, updateProfileFields, calculateOverallProgress } from '@/lib/storage';
 import { resetDecisionGuide } from '@/lib/guideStorage';
-import { trackEvent } from '@/lib/mixpanel';
+import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +18,7 @@ import { useTextScramble } from '@/hooks/useTextScramble';
 import * as Haptics from 'expo-haptics';
 import { Avatar } from '@/components/Avatar';
 import { Colors, Fonts } from '@/constants/Theme';
+import { useTypewriter } from '@/hooks/useTypewriter';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -98,6 +99,49 @@ export default function ProfileScreen() {
   const animatedTwinCode = useTextScramble(twinCode, 1500);
   const [animatedProgress, setAnimatedProgress] = useState(0);
   const progressAnimRef = useRef<Animated.Value | null>(null);
+  const [showDiscordModal, setShowDiscordModal] = useState(false);
+  const [showContent, setShowContent] = useState(false);
+  
+  // Animation refs for fade transitions
+  const invitationOpacity = useRef(new Animated.Value(1)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  // Typewriter for invitation text
+  const { displayedLines: invitationLines } = useTypewriter(
+    showDiscordModal ? ["You've been invited"] : [],
+    {
+      speed: 50,
+      onAllComplete: () => {
+        // After typewriter completes, wait 1.5s then fade out invitation and fade in content
+        setTimeout(() => {
+          Animated.parallel([
+            Animated.timing(invitationOpacity, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(contentOpacity, {
+              toValue: 1,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+          ]).start();
+          setShowContent(true);
+        }, 1500);
+      },
+    }
+  );
+
+  // Reset when modal opens/closes
+  useEffect(() => {
+    if (showDiscordModal) {
+      setShowContent(false);
+      invitationOpacity.setValue(1);
+      contentOpacity.setValue(0);
+    } else {
+      setShowContent(false);
+    }
+  }, [showDiscordModal]);
 
   useFocusEffect(
     useCallback(() => {
@@ -291,8 +335,19 @@ export default function ProfileScreen() {
   }
 
   function handleCardPress(card: ProfileCard) {
-    if (card.onboardingStep) router.push(card.onboardingStep as any);
-    else if (card.route) router.push(card.route as any);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    if (card.id === 'twin_society') {
+      setShowDiscordModal(true);
+      trackEvent(MixpanelEvents.TWIN_SOCIETY_MODAL_VIEWED, { source: 'profile' });
+    } else if (card.id === 'twin_reveal') {
+      // Explicitly navigate to twin reveal page
+      router.push('/onboarding/twin-reveal' as any);
+    } else if (card.onboardingStep) {
+      router.push(card.onboardingStep as any);
+    } else if (card.route) {
+      router.push(card.route as any);
+    }
   }
 
   const onboardingResponses = profileData?.core_json?.onboarding_responses || {};
@@ -305,14 +360,17 @@ export default function ProfileScreen() {
   const currentLocation = profileData?.current_location;
   const netWorth = profileData?.net_worth;
   const politicalViews = profileData?.political_views;
+  const job = (profileData?.core_json as any)?.primary_role;
 
   const identityCards: ProfileCard[] = [
     { id: 'university', title: 'Education', subtitle: university || 'Not set', route: '/profile/edit-university' as any, completed: !!university, icon: GraduationCap },
+    { id: 'job', title: 'Job', subtitle: job || 'Not set', route: '/profile/edit-job' as any, completed: !!job, icon: Briefcase },
     { id: 'hometown', title: 'Hometown', subtitle: hometown || 'Not set', route: '/profile/edit-hometown' as any, completed: !!hometown, icon: Home },
     { id: 'current_location', title: 'Location', subtitle: currentLocation || 'Not set', route: '/profile/edit-location' as any, completed: !!currentLocation, icon: MapPin },
     { id: 'net_worth', title: 'Net Worth', subtitle: netWorth || 'Not set', route: '/profile/edit-networth' as any, completed: !!netWorth, icon: Banknote },
     { id: 'political_views', title: 'Politics', subtitle: politicalViews || 'Not set', route: '/profile/edit-politics' as any, completed: !!politicalViews, icon: Flag },
     { id: 'twin_reveal', title: 'Twin Reveal', subtitle: 'View your digital twin', route: '/onboarding/twin-reveal' as any, completed: true, icon: Sparkles },
+    { id: 'twin_society', title: 'Twin Society', subtitle: 'Join our Discord community', route: null as any, completed: true, icon: Users },
   ];
 
   // Helper function to truncate text for preview
@@ -399,7 +457,7 @@ export default function ProfileScreen() {
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.replace(previousRoute as any)} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Mora</Text>
@@ -582,6 +640,102 @@ export default function ProfileScreen() {
       <Modal visible={infoModalVisible} transparent animationType="fade" onRequestClose={() => setInfoModalVisible(false)}>
         <View style={styles.infoModalOverlay}><View style={styles.infoModalContent}><TouchableOpacity onPress={() => setInfoModalVisible(false)} style={styles.infoModalCloseButton}><X size={24} color={Colors.textTertiary} /></TouchableOpacity><View style={styles.infoModalHeader}><Text style={styles.infoModalTitle}>Your mora#</Text><Text style={styles.infoModalCode}>{twinCode}</Text></View><Text style={styles.infoModalText}>This is your unique twin identifier. Share it with friends to let them include your twin in their decisions.</Text></View></View>
       </Modal>
+
+      {/* Twin Society Modal */}
+      <Modal
+        visible={showDiscordModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDiscordModal(false)}
+      >
+        <View style={styles.discordModalOverlay}>
+          <View style={styles.discordModalContent}>
+            {/* Invitation Text - Typewriter Effect */}
+            <Animated.View 
+              style={{ 
+                opacity: invitationOpacity,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 10,
+                padding: 24,
+              }}
+              pointerEvents={showContent ? 'none' : 'auto'}
+            >
+              <Text style={styles.invitationText}>
+                {invitationLines[0] || ''}
+              </Text>
+            </Animated.View>
+
+            {/* Content - Fades in after invitation */}
+            {showContent && (
+              <Animated.View style={[styles.discordContentContainer, { opacity: contentOpacity }]}>
+                <View style={styles.discordAvatarsContainer}>
+                  {[0, 1, 2, 3].map((index) => (
+                    <Image 
+                      key={index}
+                      source={require('@/assets/images/manwhite.png')} 
+                      style={[
+                        styles.discordAvatarImage,
+                        index > 0 && { marginLeft: -20 }
+                      ]}
+                      resizeMode="contain"
+                    />
+                  ))}
+                </View>
+
+                <Text style={styles.discordTitle}>Twin Society</Text>
+                <Text style={styles.discordSubtitle}>
+                  A discord community of other people looking to better their lives with better decisions
+                </Text>
+
+                <Pressable
+                  onPress={() => {
+                    trackEvent(MixpanelEvents.TWIN_SOCIETY_JOIN_CLICKED);
+                    Linking.openURL('https://discord.gg/yYKYZNfQ');
+                    setShowDiscordModal(false);
+                  }}
+                  style={({ pressed }) => [
+                    styles.discordButton,
+                    {
+                      shadowColor: '#25729f',
+                      transform: [{ translateY: pressed ? 2 : 0 }],
+                      shadowOffset: { width: 0, height: pressed ? 2 : 8 },
+                      shadowOpacity: pressed ? 0.3 : 0.5,
+                      shadowRadius: pressed ? 8 : 20,
+                      elevation: pressed ? 4 : 12,
+                    }
+                  ]}
+                >
+                  <LinearGradient
+                    colors={['#25729f', '#62edb9']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={styles.discordButtonGradient}
+                  >
+                    <Text style={styles.discordButtonText}>Join Now</Text>
+                    <ArrowUpRight size={20} color="#FFFFFF" />
+                  </LinearGradient>
+                </Pressable>
+
+                <TouchableOpacity 
+                  onPress={() => {
+                    trackEvent(MixpanelEvents.TWIN_SOCIETY_MODAL_CLOSED);
+                    setShowDiscordModal(false);
+                  }}
+                  style={styles.discordCloseButton}
+                >
+                  <Text style={styles.discordCloseButtonText}>Close</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -628,12 +782,12 @@ const styles = StyleSheet.create({
   rowIcon: { width: 32, alignItems: 'center', marginRight: 12 },
   rowContent: { flex: 1 },
   rowTitle: { fontSize: 16, fontFamily: Fonts.secondary.bold, fontWeight: '600', color: Colors.textPrimary },
-  rowSubtitle: { fontSize: 13, fontFamily: Fonts.secondary.bold, color: Colors.textTertiary, marginTop: 2 },
+  rowSubtitle: { fontSize: 13, fontFamily: Fonts.secondary.regular, fontWeight: '300', color: Colors.textTertiary, marginTop: 2 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   gridCard: { width: (width - 40 - 12) / 2, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 3, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', justifyContent: 'space-between', minHeight: 100 },
   gridIcon: { marginBottom: 12 },
   gridTitle: { fontSize: 15, fontFamily: Fonts.secondary.bold, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4 },
-  gridSubtitle: { fontSize: 12, fontFamily: Fonts.secondary.regular, color: Colors.textSecondary, lineHeight: 16, marginBottom: 8, flex: 1 },
+  gridSubtitle: { fontSize: 12, fontFamily: Fonts.secondary.regular, fontWeight: '300', color: Colors.textTertiary, lineHeight: 16, marginBottom: 8, flex: 1 },
   gridStatus: { alignSelf: 'flex-end' },
   singleCard: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#FFFFFF', borderRadius: 24, shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', overflow: 'hidden' },
   singleCardContent: { flex: 1 },
@@ -665,4 +819,105 @@ const styles = StyleSheet.create({
   infoModalTitle: { fontSize: 14, fontFamily: Fonts.secondary.bold, color: Colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
   infoModalCode: { fontSize: 32, fontFamily: Fonts.primary.regular, fontWeight: '700', color: Colors.textPrimary },
   infoModalText: { fontSize: 15, fontFamily: Fonts.secondary.bold, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  discordModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 12,
+  },
+  discordModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    paddingHorizontal: 24,
+    paddingVertical: 56,
+    width: '100%',
+    maxWidth: 500,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 400,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  invitationText: {
+    fontSize: 32,
+    color: Colors.textPrimary,
+    fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'serif',
+    fontStyle: 'italic',
+    fontWeight: 'normal',
+    textAlign: 'center',
+  },
+  discordContentContainer: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  discordAvatarsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    marginTop: 8,
+  },
+  discordAvatarImage: {
+    width: 56,
+    height: 56,
+  },
+  discordTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  discordSubtitle: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  discordButton: {
+    width: '100%',
+    borderRadius: 24,
+    overflow: 'visible',
+  },
+  discordButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    gap: 8,
+    borderRadius: 24,
+  },
+  discordButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  discordCloseButton: {
+    marginTop: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  discordCloseButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
 });

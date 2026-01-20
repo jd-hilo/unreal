@@ -109,8 +109,6 @@ export default function ValuesMultiselectScreen() {
       progress={0.35}
       onNext={handleNext}
       canContinue={selectedValues.length > 0}
-      buttonGradient={Colors.gradients.turquoise}
-      progressBarGradient={Colors.gradients.turquoise}
     >
       <View style={styles.container}>
         <MultiSelectValues

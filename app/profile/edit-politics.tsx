@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, Users, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { getProfile, updateProfileFields } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
@@ -60,7 +60,6 @@ export default function EditPoliticsScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Political Views</Text>
         </View>
       </View>
     );
@@ -90,7 +89,6 @@ export default function EditPoliticsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Political Views</Text>
       </View>
 
       <ScrollView
@@ -99,40 +97,24 @@ export default function EditPoliticsScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.iconContainer}>
-          <Users size={48} color={Colors.textPrimary} strokeWidth={1.5} />
-        </View>
-
-        <Text style={styles.description}>
-          How would you describe your political views or affiliation? This is optional but helps your twin understand your perspective.
+        <Text style={styles.question}>
+          How would you describe your political views?
         </Text>
 
-        <Input
-          placeholder="e.g., Liberal, Conservative, Independent, Moderate"
-          value={politicalViews}
-          onChangeText={setPoliticalViews}
-          multiline
-          numberOfLines={3}
-          returnKeyType="done"
-          blurOnSubmit={true}
-          containerStyle={styles.inputContainer}
-          autoFocus
-        />
-
-        <View style={styles.exampleBox}>
-          <Text style={styles.exampleTitle}>Examples:</Text>
-          <Text style={styles.exampleText}>• Liberal / Progressive</Text>
-          <Text style={styles.exampleText}>• Conservative</Text>
-          <Text style={styles.exampleText}>• Independent / Centrist</Text>
-          <Text style={styles.exampleText}>• Moderate</Text>
-          <Text style={styles.exampleText}>• Libertarian</Text>
-          <Text style={styles.exampleText}>• Not politically active</Text>
-        </View>
-
-        <View style={styles.note}>
-          <Text style={styles.noteText}>
-            💡 This information is private and only used to help your twin make more personalized predictions.
-          </Text>
+        <View style={styles.inputWrapper}>
+          <Input
+            placeholder="e.g., Liberal, Conservative, Independent, Moderate"
+            value={politicalViews}
+            onChangeText={setPoliticalViews}
+            multiline
+            numberOfLines={3}
+            returnKeyType="done"
+            blurOnSubmit={true}
+            containerStyle={styles.inputContainer}
+            style={styles.input}
+            autoFocus
+            placeholderTextColor={Colors.textTertiary}
+          />
         </View>
       </ScrollView>
 
@@ -141,30 +123,42 @@ export default function EditPoliticsScreen() {
         <Pressable
           onPress={handleSave}
           disabled={loading}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={({ pressed }) => [
             styles.saveButtonWrapper,
-            pressed && { opacity: 0.9 }
+            loading && styles.saveButtonDisabled,
+            !loading && {
+              transform: [{ translateY: pressed ? 4 : 0 }],
+              shadowOffset: { width: 0, height: pressed ? 0 : 4 },
+              shadowOpacity: 1,
+              shadowRadius: 0,
+              elevation: pressed ? 2 : 8,
+            }
           ]}
         >
           <View style={[
             styles.saveButton,
+            !loading && styles.saveButtonActive,
             loading && styles.saveButtonDisabled
           ]}>
-            {!loading && (
+            {!loading ? (
               <LinearGradient
-                colors={Colors.gradients.turquoise}
+                colors={['#25729f', '#62edb9']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
-            )}
+            ) : null}
             <Text style={[
               styles.saveButtonText,
               loading && styles.saveButtonTextDisabled
             ]}>
               {loading ? 'Saving...' : 'Save'}
             </Text>
-            {!loading && <ChevronRight size={20} color="#FFFFFF" />}
+            <ChevronRight 
+              size={20} 
+              color={loading ? Colors.textTertiary : "#FFFFFF"} 
+            />
           </View>
         </Pressable>
       </View>
@@ -195,13 +189,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-    flex: 1,
-  },
   content: {
     flex: 1,
   },
@@ -210,54 +197,30 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingBottom: 120,
   },
-  iconContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  description: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
-    marginBottom: 32,
-    textAlign: 'center',
-  },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  exampleBox: {
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  exampleTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+  question: {
+    fontSize: 24,
+    fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
-    marginBottom: 12,
+    lineHeight: 28,
+    marginBottom: 24,
   },
-  exampleText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
-    marginBottom: 6,
+  inputWrapper: {
+    marginTop: 8,
   },
-  note: {
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
-    borderRadius: 12,
-    padding: 16,
+  inputContainer: {
+    marginBottom: 0,
+    padding: 0,
   },
-  noteText: {
-    fontSize: 14,
+  input: {
+    fontSize: 18,
+    fontWeight: '500',
+    letterSpacing: -0.2,
     lineHeight: 20,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    minHeight: 80,
   },
   footer: {
     paddingHorizontal: 24,
@@ -284,8 +247,19 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
   },
+  saveButtonActive: {
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
+  },
   saveButtonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   saveButtonText: {
     fontSize: 17,

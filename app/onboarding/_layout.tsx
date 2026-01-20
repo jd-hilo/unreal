@@ -6,6 +6,9 @@ export default function OnboardingLayout() {
       <Stack.Screen name="choose-method" />
       <Stack.Screen name="00-name" />
       <Stack.Screen name="00-birth-year" />
+      <Stack.Screen name="motivate-reviews" />
+      <Stack.Screen name="motivate-stats" />
+      <Stack.Screen name="motivate-unique" />
       <Stack.Screen name="01-values-multiselect" />
       <Stack.Screen name="01-now-group" />
       <Stack.Screen name="02-path-group" />

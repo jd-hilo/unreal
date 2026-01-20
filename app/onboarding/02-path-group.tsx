@@ -222,8 +222,6 @@ export default function LifeJourneyGroupScreen() {
       progress={getProgress()}
       onNext={handleNext}
       canContinue={canContinue()}
-      buttonGradient={Colors.gradients.turquoise}
-      progressBarGradient={Colors.gradients.turquoise}
     >
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Hometown Question */}

@@ -1,15 +1,16 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { createTimeline, getProfile, getRelationships } from '@/lib/storage';
-import { ChevronRight, ChevronLeft, User, Briefcase, Heart, Sparkles, Zap, Brain, Globe } from 'lucide-react-native';
+import { ChevronRight, ChevronLeft, Sparkles } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
+import { Input } from '@/components/Input';
 
 const { width } = Dimensions.get('window');
 
@@ -19,16 +20,8 @@ export default function NewSimulationScreen() {
   const user = useAuth((state) => state.user);
   const { isPremium } = useTwin();
   const [loading, setLoading] = useState(false);
-  const [name, setName] = useState('My Simulation');
-  const [focus, setFocus] = useState('balanced');
+  const [name, setName] = useState('');
   const [difficulty, setDifficulty] = useState('normal');
-
-  const focusOptions = [
-    { id: 'balanced', label: 'Balanced', icon: Brain, color: Colors.gradients.turquoise[1], desc: 'Equal focus on all aspects' },
-    { id: 'wealth', label: 'Wealth', icon: Briefcase, color: '#10B981', desc: 'Focus on career and money' },
-    { id: 'love', label: 'Relationships', icon: Heart, color: '#EC4899', desc: 'Focus on social and love' },
-    { id: 'adventure', label: 'Adventure', icon: Globe, color: '#F59E0B', desc: 'Focus on travel and experiences' },
-  ];
 
   const difficultyOptions = [
     { id: 'easy', label: 'Dreamy', desc: 'Optimistic outcomes', color: '#60A5FA' },
@@ -44,6 +37,7 @@ export default function NewSimulationScreen() {
       }, 500);
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.auto]);
 
   async function handleCreate() {
@@ -102,16 +96,15 @@ export default function NewSimulationScreen() {
       // Initialize timeline with user's current life state
       const initialProfile = {
         location: profile?.current_location || profile?.hometown || 'Unknown',
-        job: profile?.career_entrypoint || 'Not specified',
+        job: profile?.core_json?.primary_role || profile?.career_entrypoint || 'Not specified',
         netWorth: profile?.net_worth || '$0',
         relationshipStatus: relationships.length > 0 ? 'In relationships' : 'Single',
       };
 
       // Create timeline with custom settings and current life state
-      // Note: We might want to store these settings (focus, difficulty) in the timeline metadata later
       const newTimeline = await createTimeline(
         user.id,
-        name || `Timeline started at ${age}`,
+        name.trim() || `My Simulation`,
         age,
         undefined, // Use default stats
         initialProfile,
@@ -119,7 +112,7 @@ export default function NewSimulationScreen() {
         isPremium
       );
 
-      // In a real implementation, we would pass focus/difficulty to the backend/AI
+      // In a real implementation, we would pass difficulty to the backend/AI
       // For now, we just create the timeline and redirect
       
       router.replace(`/simulate/${newTimeline.id}`);
@@ -143,6 +136,7 @@ export default function NewSimulationScreen() {
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.container}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           {/* Header */}
           <View style={styles.header}>
@@ -158,52 +152,25 @@ export default function NewSimulationScreen() {
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            {/* Basic Info Section */}
+            {/* Name Section */}
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <User size={18} color={Colors.gradients.purple[1]} />
-                <Text style={styles.sectionTitle}>Basic Info</Text>
-              </View>
-              <View style={styles.card}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Name</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Name your timeline"
-                    placeholderTextColor={Colors.textTertiary}
-                  />
-                </View>
+              <View style={styles.inputWrapper}>
+                <Input
+                  placeholder="Name your simulation"
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  autoFocus={true}
+                  returnKeyType="done"
+                  style={styles.input}
+                  containerStyle={styles.inputContainer}
+                  placeholderTextColor={Colors.textTertiary}
+                />
               </View>
             </View>
 
-            {/* Focus Section */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Brain size={18} color={Colors.gradients.purple[1]} />
-                <Text style={styles.sectionTitle}>Life Focus</Text>
-              </View>
-              <View style={styles.grid}>
-                {focusOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.id}
-                    style={[
-                      styles.gridItem,
-                      focus === option.id && styles.gridItemSelected
-                    ]}
-                    onPress={() => setFocus(option.id)}
-                  >
-                    <View style={[styles.gridIcon, { backgroundColor: `${option.color}15` }]}>
-                      <option.icon size={20} color={option.color} />
-                    </View>
-                    <Text style={styles.gridLabel}>{option.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Difficulty/Vibe Section */}
+            {/* Simulation Mode Section */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Sparkles size={18} color={Colors.gradients.purple[1]} />
@@ -243,10 +210,10 @@ export default function NewSimulationScreen() {
             <TouchableOpacity 
               style={styles.createButton}
               onPress={handleCreate}
-              disabled={loading}
+              disabled={loading || !name.trim()}
             >
               <LinearGradient
-                colors={Colors.gradients.purple}
+                colors={loading || !name.trim() ? ['#999', '#AAA'] : Colors.gradients.purple}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.createGradient}
@@ -322,7 +289,22 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 32,
+  },
+  inputWrapper: {
+    marginTop: 8,
+  },
+  inputContainer: {
+    marginBottom: 0,
+    padding: 0,
+  },
+  input: {
+    fontSize: 24,
+    fontWeight: '500',
+    letterSpacing: -0.3,
+    color: Colors.textPrimary,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -335,71 +317,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: Fonts.primary.regular,
     color: Colors.textPrimary,
-  },
-  card: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: 'rgba(0, 0, 0, 0.12)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  inputGroup: {
-    padding: 16,
-  },
-  inputLabel: {
-    fontSize: 12,
-    color: Colors.textTertiary,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    fontFamily: Fonts.secondary.bold,
-  },
-  input: {
-    fontSize: 18,
-    color: Colors.textPrimary,
-    fontWeight: '500',
-    fontFamily: Fonts.secondary.bold,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  gridItem: {
-    width: (width - 52) / 2,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    alignItems: 'center',
-    gap: 12,
-    shadowColor: 'rgba(0, 0, 0, 0.06)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 5,
-  },
-  gridItemSelected: {
-    borderWidth: 2,
-    borderColor: Colors.gradients.purple[1],
-  },
-  gridIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridLabel: {
-    color: Colors.textPrimary,
-    fontWeight: '600',
-    fontSize: 14,
-    fontFamily: Fonts.secondary.bold,
   },
   horizontalScroll: {
     marginHorizontal: -20,
@@ -454,9 +371,8 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-    backgroundColor: Colors.background,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 30,
+    backgroundColor: 'transparent',
   },
   createButton: {
     borderRadius: 28,

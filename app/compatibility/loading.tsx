@@ -1,13 +1,13 @@
 import { View, Text, StyleSheet, Image, Animated, Easing } from 'react-native';
-import { useEffect, useRef, useState } from 'react';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Fonts } from '@/constants/Theme';
 import { calculateCompatibility, saveCompatibilityTest } from '@/lib/compatibility';
 import { useAuth } from '@/store/useAuth';
-import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { trackEvent, MixpanelEvents, trackScreenView } from '@/lib/mixpanel';
 
 const LOADING_STEPS = [
   "Finding twin... 🔍",
@@ -25,6 +25,13 @@ export default function CompatibilityLoadingScreen() {
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  // Track screen view
+  useFocusEffect(
+    useCallback(() => {
+      trackScreenView('Compatibility Loading');
+    }, [])
+  );
 
   useEffect(() => {
     // Pulse animation

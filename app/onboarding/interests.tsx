@@ -141,6 +141,8 @@ export default function InterestsScreen() {
         console.error('Failed to save interests:', error);
       }
     }
+    // Small delay to show "Continuing" state and prevent double-clicks
+    await new Promise(resolve => setTimeout(resolve, 100));
     router.push('/onboarding/06-stress');
   }
 
@@ -150,8 +152,6 @@ export default function InterestsScreen() {
       progress={0.65}
       onNext={handleNext}
       canContinue={selectedInterests.length > 0}
-      buttonGradient={Colors.gradients.turquoise}
-      progressBarGradient={Colors.gradients.turquoise}
     >
       <View style={styles.scrollContainer}>
         <ScrollView 

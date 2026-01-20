@@ -24,6 +24,8 @@ interface OnboardingScreenProps {
   progressBarGradient?: readonly [string, string, ...string[]];
   buttonShadowColor?: string;
   animatedButton?: boolean;
+  is3DButton?: boolean;
+  subtitleStyle?: object;
 }
 
 export function OnboardingScreen({
@@ -37,10 +39,12 @@ export function OnboardingScreen({
   loading = false,
   canContinue = true,
   backgroundGradient = [Colors.background, Colors.background, Colors.background, Colors.background],
-  buttonGradient = Colors.gradients.turquoise,
-  progressBarGradient = Colors.gradients.turquoise,
-  buttonShadowColor = 'rgba(0, 0, 0, 0.1)',
+  buttonGradient = ['#25729f', '#62edb9'],
+  progressBarGradient = ['#25729f', '#62edb9'],
+  buttonShadowColor = '#25729f',
   animatedButton = false,
+  is3DButton = false,
+  subtitleStyle,
 }: OnboardingScreenProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const isProcessingRef = useRef(false);
@@ -165,7 +169,7 @@ export function OnboardingScreen({
           ) : (
             <View style={styles.title}>{title}</View>
           )}
-          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+          {subtitle && <Text style={[styles.subtitle, subtitleStyle]}>{subtitle}</Text>}
         </View>
 
         {/* Content */}
@@ -190,12 +194,18 @@ export function OnboardingScreen({
         <Pressable
           onPress={handleNext}
           disabled={!canContinue || loading || isProcessing}
-          delayPressIn={0}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={({ pressed }) => [
             styles.floatingButtonWrapper,
+            { shadowColor: buttonShadowColor },
             (!canContinue || loading || isProcessing) && styles.floatingButtonDisabled,
-            pressed && !(!canContinue || loading || isProcessing) && { opacity: 0.9 }
+            canContinue && !loading && !isProcessing && {
+              transform: [{ translateY: pressed ? 4 : 0 }],
+              shadowOffset: { width: 0, height: pressed ? 0 : 4 },
+              shadowOpacity: 1,
+              shadowRadius: 0, // Solid shadow for 3D effect
+              elevation: pressed ? 2 : 8,
+            }
           ]}
         >
           <View
@@ -209,7 +219,7 @@ export function OnboardingScreen({
               <LinearGradient
                 colors={buttonGradient}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
             ) : null}

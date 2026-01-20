@@ -67,7 +67,6 @@ export default function EditLifeJourneyScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Life Journey</Text>
         </View>
       </View>
     );
@@ -96,7 +95,6 @@ export default function EditLifeJourneyScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Life Journey</Text>
       </View>
 
       <ScrollView
@@ -105,53 +103,67 @@ export default function EditLifeJourneyScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.aiNote}>
-          <Text style={styles.aiNoteText}>
-            AI generated this response, please add context to it to improve accuracy
-          </Text>
-        </View>
+        <Text style={styles.question}>
+          How did you get here?
+        </Text>
 
-        <Input
-          placeholder="e.g., Grew up in a small town, went to college for engineering, started my career in SF, made a big move to Austin for better quality of life..."
-          value={response}
-          onChangeText={setResponse}
-          multiline
-          numberOfLines={6}
-          returnKeyType="done"
-          blurOnSubmit={true}
-          containerStyle={styles.inputContainer}
-          autoFocus
-        />
+        <View style={styles.inputWrapper}>
+          <Input
+            placeholder="e.g., Grew up in a small town, went to college for engineering, started my career in SF, made a big move to Austin for better quality of life..."
+            value={response}
+            onChangeText={setResponse}
+            multiline
+            numberOfLines={6}
+            returnKeyType="done"
+            blurOnSubmit={true}
+            containerStyle={styles.inputContainer}
+            style={styles.input}
+            autoFocus
+            placeholderTextColor={Colors.textTertiary}
+          />
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <Pressable
           onPress={handleSave}
           disabled={loading}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={({ pressed }) => [
             styles.saveButtonWrapper,
-            pressed && { opacity: 0.9 }
+            loading && styles.saveButtonDisabled,
+            !loading && {
+              transform: [{ translateY: pressed ? 4 : 0 }],
+              shadowOffset: { width: 0, height: pressed ? 0 : 4 },
+              shadowOpacity: 1,
+              shadowRadius: 0,
+              elevation: pressed ? 2 : 8,
+            }
           ]}
         >
           <View style={[
             styles.saveButton,
+            !loading && styles.saveButtonActive,
             loading && styles.saveButtonDisabled
           ]}>
-            {!loading && (
+            {!loading ? (
               <LinearGradient
-                colors={Colors.gradients.turquoise}
+                colors={['#25729f', '#62edb9']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
-            )}
+            ) : null}
             <Text style={[
               styles.saveButtonText,
               loading && styles.saveButtonTextDisabled
             ]}>
               {loading ? 'Saving...' : 'Save'}
             </Text>
-            {!loading && <ChevronRight size={20} color="#FFFFFF" />}
+            <ChevronRight 
+              size={20} 
+              color={loading ? Colors.textTertiary : "#FFFFFF"} 
+            />
           </View>
         </Pressable>
       </View>
@@ -182,13 +194,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-    flex: 1,
-  },
   content: {
     flex: 1,
   },
@@ -197,31 +202,30 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingBottom: 120,
   },
-  description: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: Colors.textSecondary,
+  question: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
-    marginBottom: 16,
-  },
-  aiNote: {
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.gradients.turquoise[1],
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
+    lineHeight: 28,
     marginBottom: 24,
   },
-  aiNoteText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
-    fontStyle: 'italic',
+  inputWrapper: {
+    marginTop: 8,
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: 0,
+    padding: 0,
+  },
+  input: {
+    fontSize: 18,
+    fontWeight: '500',
+    letterSpacing: -0.2,
+    lineHeight: 20,
+    color: Colors.textPrimary,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    minHeight: 120,
   },
   footer: {
     paddingHorizontal: 24,
@@ -248,8 +252,19 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
   },
+  saveButtonActive: {
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
+  },
   saveButtonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   saveButtonText: {
     fontSize: 17,

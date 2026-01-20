@@ -26,7 +26,7 @@ export function MultiSelectSearch({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  const [debounceTimer, setDebounceTimer] = useState<number | null>(null);
 
   // Load default options on mount
   useEffect(() => {
@@ -235,7 +235,7 @@ export function MultiSelectSearch({
           )}
           {searchResults.map((item) => {
             const selected = isSelected(item);
-            const isMaxReached = maxSelections && selectedItems.length >= maxSelections && !selected;
+            const isMaxReached = !!(maxSelections && selectedItems.length >= maxSelections && !selected);
             
             return (
               <TouchableOpacity
@@ -243,7 +243,7 @@ export function MultiSelectSearch({
                 style={[
                   styles.resultItem,
                   selected && styles.resultItemSelected,
-                  isMaxReached && styles.resultItemDisabled,
+                  isMaxReached ? styles.resultItemDisabled : undefined,
                 ]}
                 onPress={() => handleToggleItem(item)}
                 disabled={isMaxReached}

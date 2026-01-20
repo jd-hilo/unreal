@@ -69,7 +69,6 @@ export default function EditValuesScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Core Values</Text>
         </View>
       </View>
     );
@@ -98,7 +97,6 @@ export default function EditValuesScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Core Values</Text>
       </View>
 
       <ScrollView
@@ -107,51 +105,67 @@ export default function EditValuesScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.description}>
-          What matters most to you? Share your core values - the principles and priorities that guide your decisions.
+        <Text style={styles.question}>
+          What matters most to you?
         </Text>
 
-        <Input
-          placeholder="e.g., Freedom to work on what I want, financial security, time with family, personal growth, making an impact..."
-          value={response}
-          onChangeText={setResponse}
-          multiline
-          numberOfLines={6}
-          returnKeyType="done"
-          blurOnSubmit={true}
-          containerStyle={styles.inputContainer}
-          autoFocus
-        />
+        <View style={styles.inputWrapper}>
+          <Input
+            placeholder="e.g., Freedom to work on what I want, financial security, time with family, personal growth, making an impact..."
+            value={response}
+            onChangeText={setResponse}
+            multiline
+            numberOfLines={6}
+            returnKeyType="done"
+            blurOnSubmit={true}
+            containerStyle={styles.inputContainer}
+            style={styles.input}
+            autoFocus
+            placeholderTextColor={Colors.textTertiary}
+          />
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <Pressable
           onPress={handleSave}
           disabled={loading}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={({ pressed }) => [
             styles.saveButtonWrapper,
-            pressed && { opacity: 0.9 }
+            loading && styles.saveButtonDisabled,
+            !loading && {
+              transform: [{ translateY: pressed ? 4 : 0 }],
+              shadowOffset: { width: 0, height: pressed ? 0 : 4 },
+              shadowOpacity: 1,
+              shadowRadius: 0,
+              elevation: pressed ? 2 : 8,
+            }
           ]}
         >
           <View style={[
             styles.saveButton,
+            !loading && styles.saveButtonActive,
             loading && styles.saveButtonDisabled
           ]}>
-            {!loading && (
+            {!loading ? (
               <LinearGradient
-                colors={Colors.gradients.turquoise}
+                colors={['#25729f', '#62edb9']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
-            )}
+            ) : null}
             <Text style={[
               styles.saveButtonText,
               loading && styles.saveButtonTextDisabled
             ]}>
               {loading ? 'Saving...' : 'Save'}
             </Text>
-            {!loading && <ChevronRight size={20} color="#FFFFFF" />}
+            <ChevronRight 
+              size={20} 
+              color={loading ? Colors.textTertiary : "#FFFFFF"} 
+            />
           </View>
         </Pressable>
       </View>
@@ -182,13 +196,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-    flex: 1,
-  },
   content: {
     flex: 1,
   },
@@ -197,15 +204,30 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingBottom: 120,
   },
-  description: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: Colors.textSecondary,
+  question: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
+    lineHeight: 28,
     marginBottom: 24,
   },
+  inputWrapper: {
+    marginTop: 8,
+  },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: 0,
+    padding: 0,
+  },
+  input: {
+    fontSize: 18,
+    fontWeight: '500',
+    letterSpacing: -0.2,
+    lineHeight: 20,
+    color: Colors.textPrimary,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    minHeight: 120,
   },
   footer: {
     paddingHorizontal: 24,
@@ -232,8 +254,19 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
   },
+  saveButtonActive: {
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 5,
+  },
   saveButtonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   saveButtonText: {
     fontSize: 17,

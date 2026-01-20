@@ -64,8 +64,6 @@ export default function OnboardingStep4() {
       progress={0.60}
       onNext={handleNext}
       canContinue={selectedValue.length > 0 && (selectedValue !== 'Other' || otherValue.trim().length > 0)}
-      buttonGradient={Colors.gradients.turquoise}
-      progressBarGradient={Colors.gradients.turquoise}
     >
       <View style={styles.container}>
         <ChoiceQuestion

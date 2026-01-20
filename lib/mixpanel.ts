@@ -301,6 +301,11 @@ export const MixpanelEvents = {
   COMPATIBILITY_INVITE_SENT: 'Compatibility Invite Sent',
   COMPATIBILITY_REPORT_RECEIVED: 'Compatibility Report Received',
 
+  // Twin Society
+  TWIN_SOCIETY_MODAL_VIEWED: 'Twin Society Modal Viewed',
+  TWIN_SOCIETY_JOIN_CLICKED: 'Twin Society Join Clicked',
+  TWIN_SOCIETY_MODAL_CLOSED: 'Twin Society Modal Closed',
+
   // Onboarding
   PERSONAL_RECOMMENDATIONS_SELECTED: 'Personal Recommendations Selected',
 

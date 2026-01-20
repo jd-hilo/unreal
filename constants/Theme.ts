@@ -32,8 +32,10 @@ export const Fonts = {
     semibold: 'Recoleta-Semibold',
   },
   
-  // Secondary font - Inter Bold (700)
+  // Secondary font - Inter
   secondary: {
+    regular: 'Inter_400Regular',
+    semibold: 'Inter_600SemiBold',
     bold: 'Inter_700Bold',
   },
   

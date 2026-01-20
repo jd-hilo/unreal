@@ -1,15 +1,23 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useEffect, useCallback } from 'react';
 import { ArrowLeft, Heart, Users, Sparkles } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Fonts } from '@/constants/Theme';
-import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { trackEvent, MixpanelEvents, trackScreenView } from '@/lib/mixpanel';
 
 export default function CompatibilityInfoScreen() {
   const router = useRouter();
+
+  // Track screen view
+  useFocusEffect(
+    useCallback(() => {
+      trackScreenView('Compatibility Info');
+    }, [])
+  );
 
   function handleContinue() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

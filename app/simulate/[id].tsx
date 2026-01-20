@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Modal, TextInput, Dimensions, Animated, Image, Easing } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Modal, TextInput, Dimensions, Animated, Image, Easing, KeyboardAvoidingView } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,15 +7,20 @@ import { useTwin } from '@/store/useTwin';
 import { getTimeline, updateTimeline, getProfile } from '@/lib/storage';
 import { advanceTimeline } from '@/lib/ai';
 import { Avatar } from '@/components/Avatar';
-import { ChevronLeft, Plus, User, Lock, DollarSign, Heart, Zap, TrendingUp, TrendingDown, Users, X, ChevronDown, ChevronUp, MapPin, Sparkles, Brain, Briefcase, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, Plus, User, Lock, DollarSign, Heart, Zap, TrendingUp, TrendingDown, Users, X, ChevronDown, ChevronUp, MapPin, Sparkles, Briefcase, ChevronRight, MoreHorizontal } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { formatDistanceToNow } from 'date-fns';
 import { Colors, Fonts } from '@/constants/Theme';
+import { ProgressBar } from '@/components/ProgressBar';
+import Svg, { Circle, Path, Line, Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const ITEM_WIDTH = 80; // Reduced from 120
+const RELATIONSHIP_GRAPH_HEIGHT = 220;
+const RELATIONSHIP_GRAPH_CONTENT_WIDTH = 600;
 
 // Helper function to parse net worth string to number
 function parseNetWorth(str: string): number | null {
@@ -25,6 +30,31 @@ function parseNetWorth(str: string): number | null {
   return isNaN(num) ? null : num;
 }
 
+// Helper function to determine currency based on country
+function getCurrencyInfo(country?: string | null): { symbol: string; code: string } {
+  // Always default to USD unless explicitly UK
+  if (!country) return { symbol: '$', code: 'USD' };
+  
+  const countryUpper = country.toUpperCase();
+  // Only return GBP for UK/United Kingdom
+  if (countryUpper === 'UK' || countryUpper === 'UNITED KINGDOM' || countryUpper === 'GB' || countryUpper === 'GBR' || countryUpper.includes('UNITED KINGDOM')) {
+    return { symbol: '£', code: 'GBP' };
+  }
+  
+  // Everything else defaults to USD (including USA, Europe, etc.)
+  return { symbol: '$', code: 'USD' };
+}
+
+// Format currency value
+function formatCurrency(value: number, currencyInfo: { symbol: string; code: string }): string {
+  if (value >= 1000000) {
+    return `${currencyInfo.symbol}${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `${currencyInfo.symbol}${(value / 1000).toFixed(1)}k`;
+  }
+  return `${currencyInfo.symbol}${Math.round(value).toLocaleString()}`;
+}
 
 // Animated Net Worth Component
 function AnimatedNetWorth({ value, previousValue, deltaString }: { value: string; previousValue?: string; deltaString?: string }) {
@@ -34,16 +64,13 @@ function AnimatedNetWorth({ value, previousValue, deltaString }: { value: string
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Use deltaString if provided (from AI), otherwise calculate from previousValue
     if (deltaString) {
-      // Parse deltaString like "+$15,000" or "-$5,000"
       const cleaned = deltaString.replace(/[^0-9.-]/g, '');
       const num = parseFloat(cleaned);
       if (!isNaN(num)) {
         setDelta(num);
       }
     } else if (previousValue && previousValue !== value) {
-      // Extract numeric values (simplified - assumes format like "$50,000" or "$100K")
       const prevNum = parseNetWorth(previousValue);
       const currNum = parseNetWorth(value);
       
@@ -51,7 +78,6 @@ function AnimatedNetWorth({ value, previousValue, deltaString }: { value: string
         const change = currNum - prevNum;
         setDelta(change);
 
-        // Pulse animation
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1.1,
@@ -67,7 +93,6 @@ function AnimatedNetWorth({ value, previousValue, deltaString }: { value: string
           }),
         ]).start();
 
-        // Show delta indicator
         deltaOpacity.setValue(1);
         deltaAnim.setValue(0);
         Animated.parallel([
@@ -92,11 +117,6 @@ function AnimatedNetWorth({ value, previousValue, deltaString }: { value: string
     }
   }, [value, previousValue, deltaString]);
 
-  const translateY = deltaAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -30],
-  });
-
   function formatDelta(delta: number): string {
     if (Math.abs(delta) >= 1000) {
       return `${delta > 0 ? '+' : ''}$${(delta / 1000).toFixed(1)}K`;
@@ -107,22 +127,11 @@ function AnimatedNetWorth({ value, previousValue, deltaString }: { value: string
   return (
     <View style={styles.netWorthContainer}>
       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-        <Text style={styles.secondaryStatValue}>{value}</Text>
+        <Text style={styles.statCardValueLarge} numberOfLines={1}>{value}</Text>
       </Animated.View>
-      {delta !== null && delta !== 0 && (
-        <Text
-          style={[
-            styles.netWorthDeltaBelow,
-            { color: delta > 0 ? '#10B981' : '#EF4444' },
-          ]}
-        >
-          {formatDelta(delta)}
-        </Text>
-      )}
     </View>
   );
 }
-
 
 export default function TimelineDetailScreen() {
   const router = useRouter();
@@ -132,23 +141,38 @@ export default function TimelineDetailScreen() {
   const { isPremium } = useTwin();
   const [timeline, setTimeline] = useState<any>(null);
   const [profileData, setProfileData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [addingScenario, setAddingScenario] = useState(false);
   const [scenarioModalVisible, setScenarioModalVisible] = useState(false);
   const [relationshipModalVisible, setRelationshipModalVisible] = useState(false);
   const [scenarioText, setScenarioText] = useState('');
   const [assetNotifications, setAssetNotifications] = useState<Array<{ id: string; asset: any }>>([]);
-  const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set());
   const notificationAnimations = useRef<Map<string, Animated.Value>>(new Map());
+  const [networthModalVisible, setNetworthModalVisible] = useState(false);
+  const [selectedGraphYear, setSelectedGraphYear] = useState<number | null>(null);
 
   // Track previous values for animations
   const previousStats = useRef<any>(null);
   const previousNetWorth = useRef<string | null>(null);
-  const [currentInventoryIndex, setCurrentInventoryIndex] = useState(0);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(0);
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const contentSlideAnim = useRef(new Animated.Value(height)).current;
+  const [variantsCount, setVariantsCount] = useState(0);
+  const [percentageCount, setPercentageCount] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [startTime, setStartTime] = useState<number | null>(null);
 
-  // Loading messages to cycle through
+  // Year Selection
+  const [selectedYear, setSelectedYear] = useState<number>(0);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const scrollRef = useRef<ScrollView>(null);
+  const mainScrollRef = useRef<ScrollView>(null);
+  const lifeLogRef = useRef<View>(null);
+
+  // Life Log Expansion
+  const [isLifeLogExpanded, setIsLifeLogExpanded] = useState(false);
+
+  // Loading messages
   const loadingMessages = [
     'Simulating your decision...',
     'Building your alternate timeline...',
@@ -161,13 +185,6 @@ export default function TimelineDetailScreen() {
     'Crafting your story...',
     'Predicting future events...',
   ];
-  const inventoryScrollAnim = useRef(new Animated.Value(0)).current;
-
-  // Slide-up animations for UI sections
-  const statsBoardAnim = useRef(new Animated.Value(50)).current;
-  const actionButtonAnim = useRef(new Animated.Value(50)).current;
-  const lifeLogAnim = useRef(new Animated.Value(50)).current;
-  const inventoryAnim = useRef(new Animated.Value(50)).current;
 
   // Loading screen animations
   const loadingPulseAnim = useRef(new Animated.Value(1)).current;
@@ -176,9 +193,11 @@ export default function TimelineDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       if (timelineId && user) {
+        // Reset animation
+        contentSlideAnim.setValue(height);
         loadTimeline();
       }
-    }, [timelineId, user])
+    }, [timelineId, user, contentSlideAnim])
   );
 
   async function loadTimeline() {
@@ -190,50 +209,103 @@ export default function TimelineDetailScreen() {
         user ? getProfile(user.id) : Promise.resolve(null)
       ]);
       
-      // Store previous values before updating
       if (timeline) {
         previousStats.current = timeline.stats;
         previousNetWorth.current = timeline.twin_profile?.netWorth || null;
       }
       
+      console.log('Loaded timeline events count:', timelineData?.events?.length || 0);
+      console.log('Loaded timeline events:', timelineData?.events);
       setTimeline(timelineData);
       setProfileData(profile);
+
+      // Initialize years
+      const startYear = new Date().getFullYear(); // Start at current year
+      const currentSimYear = timelineData.current_year || 1;
+      const years = Array.from({ length: currentSimYear }, (_, i) => startYear + i);
+      setAvailableYears(years);
+      
+      // Select latest year (active year) and center it
+      const activeYear = startYear + currentSimYear - 1;
+      setSelectedYear(activeYear);
+      
+      // Center the active year after a delay to ensure layout is ready
+      setTimeout(() => {
+        if (scrollRef.current && years.length > 0) {
+          const index = years.indexOf(activeYear);
+          if (index !== -1) {
+            const x = (index * ITEM_WIDTH) + (ITEM_WIDTH / 2) - (width / 2);
+            scrollRef.current?.scrollTo({ x: x, animated: false });
+          }
+        }
+      }, 200);
+      
+      // Try again with animation after longer delay
+      setTimeout(() => {
+        if (scrollRef.current && years.length > 0) {
+          const index = years.indexOf(activeYear);
+          if (index !== -1) {
+            const x = (index * ITEM_WIDTH) + (ITEM_WIDTH / 2) - (width / 2);
+            scrollRef.current?.scrollTo({ x: x, animated: true });
+          }
+        }
+      }, 500);
+
+      // Animate content sliding up
+      Animated.spring(contentSlideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 8,
+      }).start();
       
     } catch (error) {
       console.error('Failed to load timeline:', error);
       alert('Failed to load timeline');
-    } finally {
-      setLoading(false);
     }
   }
 
-  // Auto-rotate inventory items
+  // Handle year selection
   useEffect(() => {
-    if (timeline?.assets && timeline.assets.length > 1) {
-      const interval = setInterval(() => {
-        const newIndex = (currentInventoryIndex + 1) % timeline.assets.length;
-        setCurrentInventoryIndex(newIndex);
-        Animated.timing(inventoryScrollAnim, {
-          toValue: newIndex,
-          duration: 500,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }).start();
-      }, 4000); // Change every 4 seconds
-      return () => clearInterval(interval);
+    if (availableYears.length > 0 && selectedYear === 0) {
+      setSelectedYear(availableYears[availableYears.length - 1]);
     }
-  }, [timeline?.assets, currentInventoryIndex]);
+  }, [availableYears]);
 
-  // Initialize inventory scroll animation
+  // Center the selected year
   useEffect(() => {
-    if (timeline?.assets && timeline.assets.length > 0) {
-      inventoryScrollAnim.setValue(currentInventoryIndex);
+    if (scrollRef.current && availableYears.length > 0 && selectedYear > 0) {
+      const index = availableYears.indexOf(selectedYear);
+      if (index !== -1) {
+        // Calculate position to center the item
+        // item center = index * ITEM_WIDTH + ITEM_WIDTH / 2
+        // screen center = width / 2
+        // scroll position = item center - screen center
+        const x = (index * ITEM_WIDTH) + (ITEM_WIDTH / 2) - (width / 2);
+
+        // Use multiple timeouts to ensure layout is ready, especially on initial load
+        setTimeout(() => {
+          scrollRef.current?.scrollTo({ x: x, animated: true });
+        }, 100);
+        
+        // Also try after a longer delay to handle initial render
+        setTimeout(() => {
+          scrollRef.current?.scrollTo({ x: x, animated: true });
+        }, 300);
+      }
     }
-  }, [timeline?.assets?.length]);
+  }, [selectedYear, availableYears]);
 
   // Loading screen animations
   useEffect(() => {
     if (addingScenario) {
+      // Set start time
+      const start = performance.now();
+      setStartTime(start);
+      setElapsedTime(0);
+      setVariantsCount(0);
+      setPercentageCount(0);
+
       // Start pulse animation
       Animated.loop(
         Animated.sequence([
@@ -262,67 +334,56 @@ export default function TimelineDetailScreen() {
         })
       ).start();
 
-      // Cycle through loading messages every 2.5 seconds
+      // Update loading messages
       setCurrentLoadingMessage(0);
       const messageInterval = setInterval(() => {
         setCurrentLoadingMessage((prev) => (prev + 1) % loadingMessages.length);
       }, 2500);
 
-      return () => clearInterval(messageInterval);
+      // Update elapsed time
+      const timeInterval = setInterval(() => {
+        if (start) {
+          setElapsedTime(Math.floor((performance.now() - start) / 1000));
+        }
+      }, 1000);
+
+      // Animate variants count - continuous growth
+      const variantsInterval = setInterval(() => {
+        setVariantsCount(prev => {
+          const baseIncrement = Math.max(50, 500 - Math.floor(prev / 100));
+          const randomIncrement = Math.floor(Math.random() * 300);
+          return prev + baseIncrement + randomIncrement;
+        });
+      }, 50);
+
+      // Animate percentage counter - increments by 1% up to 99%
+      const percentageInterval = setInterval(() => {
+        setPercentageCount(prev => {
+          if (prev >= 99) return 99;
+          return prev + 1;
+        });
+      }, 300);
+
+      return () => {
+        clearInterval(messageInterval);
+        clearInterval(timeInterval);
+        clearInterval(variantsInterval);
+        clearInterval(percentageInterval);
+      };
     } else {
       loadingPulseAnim.setValue(1);
       loadingRotateAnim.setValue(0);
       setCurrentLoadingMessage(0);
+      setVariantsCount(0);
+      setPercentageCount(0);
+      setElapsedTime(0);
+      setStartTime(null);
     }
   }, [addingScenario]);
-
-  // Slide-up animations on timeline load
-  useEffect(() => {
-    if (timeline && !loading) {
-      // Reset all animations
-      statsBoardAnim.setValue(50);
-      actionButtonAnim.setValue(50);
-      lifeLogAnim.setValue(50);
-      inventoryAnim.setValue(50);
-
-      // Animate sections with staggered delays
-      Animated.parallel([
-        Animated.timing(statsBoardAnim, {
-          toValue: 0,
-          duration: 600,
-          delay: 100,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(actionButtonAnim, {
-          toValue: 0,
-          duration: 600,
-          delay: 200,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(lifeLogAnim, {
-          toValue: 0,
-          duration: 600,
-          delay: 300,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(inventoryAnim, {
-          toValue: 0,
-          duration: 600,
-          delay: 400,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [timeline, loading]);
 
   async function handleAddScenario() {
     if (!scenarioText.trim() || !timeline || !user) return;
 
-    // Check year limit for free users (max 3 years)
     if (!isPremium) {
       const currentYear = timeline.current_year || 1;
       if (currentYear >= 3) {
@@ -331,16 +392,12 @@ export default function TimelineDetailScreen() {
       }
     }
 
-    // Close modal immediately and show loading screen
     setScenarioModalVisible(false);
     setAddingScenario(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // Get user profile for context
       const profile = await getProfile(user.id);
-
-      // Advance timeline
       const currentYear = timeline.current_year || 1;
       const advancement = await advanceTimeline({
         currentProfile: profile,
@@ -352,7 +409,6 @@ export default function TimelineDetailScreen() {
         existingRelationships: timeline.relationships || [],
       });
 
-      // Update timeline
       const newStats = {
         money: Math.max(0, Math.min(10, timeline.stats.money + advancement.statDeltas.money)),
         happiness: Math.max(0, Math.min(10, timeline.stats.happiness + advancement.statDeltas.happiness)),
@@ -361,11 +417,25 @@ export default function TimelineDetailScreen() {
         relationships: Math.max(0, Math.min(10, timeline.stats.relationships + advancement.statDeltas.relationships)),
       };
 
-      // Store previous values for animation and display
       previousStats.current = timeline.stats;
       previousNetWorth.current = timeline.twin_profile?.netWorth || null;
       
-      // Store previous year's snapshot for delta calculations
+      // Store snapshot for current year before advancing
+      const calendarStartYear = new Date().getFullYear();
+      const currentCalendarYear = calendarStartYear + currentYear - 1;
+      const yearSnapshots = timeline.twin_profile?.year_snapshots || {};
+      
+      // Save current state as snapshot for the current year
+      yearSnapshots[currentCalendarYear] = {
+        netWorth: timeline.twin_profile?.netWorth || null,
+        location: timeline.twin_profile?.location || null,
+        job: timeline.twin_profile?.job || null,
+        relationships_count: timeline.relationships?.length || 0,
+        relationships: [...(timeline.relationships || [])],
+        stats: { ...timeline.stats },
+        assets: [...(timeline.assets || [])],
+      };
+      
       const previousYearSnapshot = {
         netWorth: timeline.twin_profile?.netWorth || null,
         location: timeline.twin_profile?.location || null,
@@ -374,11 +444,61 @@ export default function TimelineDetailScreen() {
         stats: { ...timeline.stats },
       };
 
-      // Merge new events with existing events
-      const existingEvents = timeline.events || [];
-      const updatedEvents = [...existingEvents, ...(advancement.newEvents || [])];
-
-      // Merge new assets with existing assets and remove specified assets
+      // Debug: Check if events were generated
+      console.log('=== EVENT GENERATION DEBUG ===');
+      console.log('Advancement result:', {
+        newEventsCount: advancement.newEvents?.length || 0,
+        newEvents: advancement.newEvents,
+        hasNewEvents: !!advancement.newEvents && advancement.newEvents.length > 0
+      });
+      
+      // CRITICAL: Verify events are being generated
+      if (!advancement.newEvents || advancement.newEvents.length === 0) {
+        console.error('⚠️ WARNING: No events generated by AI!');
+        console.log('Advancement object:', advancement);
+      }
+      
+      // Ensure all new events have the year field set
+      // Calculate the actual calendar year for the new simulation year
+      const newSimYear = currentYear + 1; // The year we're advancing to
+      const actualCalendarYear = calendarStartYear + newSimYear - 1; // Convert simulation year to calendar year
+      
+      // Ensure we have events - if AI didn't generate any, create a fallback
+      let eventsToAdd = advancement.newEvents || [];
+      if (eventsToAdd.length === 0) {
+        console.warn('No events generated by AI, creating fallback event');
+        eventsToAdd = [{
+          time: `Year ${newSimYear}, Month 6`,
+          title: 'Life Progress',
+          description: scenarioText || 'Your life continues to evolve.',
+          type: 'milestone',
+          year: actualCalendarYear,
+          month: 6,
+        }];
+      }
+      
+      const newEventsWithYear = eventsToAdd.map((event: any) => {
+        // ALWAYS set the year to the NEW calendar year we're advancing to
+        // The AI generates events for the NEXT year, so they should all have the new year
+        event.year = actualCalendarYear;
+        
+        console.log(`Setting event year to ${actualCalendarYear} (sim year ${newSimYear}):`, event.title);
+        
+        return event;
+      });
+      
+      const updatedEvents = [...(timeline.events || []), ...newEventsWithYear];
+      
+      // Debug: Log events to ensure they're being generated
+      console.log('=== EVENT YEAR ASSIGNMENT ===');
+      console.log('Current sim year:', currentYear);
+      console.log('New sim year:', newSimYear);
+      console.log('Calendar start year:', calendarStartYear);
+      console.log('Actual calendar year for new events:', actualCalendarYear);
+      console.log('New events generated:', newEventsWithYear.length);
+      console.log('Total events after update:', updatedEvents.length);
+      console.log('All new events with years:', newEventsWithYear.map(e => ({ title: e.title, year: e.year })));
+      
       const existingAssets = timeline.assets || [];
       const removedAssetTypes = (advancement as any).removedAssets || [];
       const filteredAssets = existingAssets.filter((asset: any) => 
@@ -386,21 +506,47 @@ export default function TimelineDetailScreen() {
       );
       const updatedAssets = [...filteredAssets, ...(advancement.newAssets || [])];
 
+      // Ensure events array is properly formatted for database (jsonb[])
+      const eventsForDB = updatedEvents.map((event: any) => ({
+        time: event.time || '',
+        title: event.title || '',
+        description: event.description || '',
+        type: event.type || 'milestone',
+        year: event.year || null,
+        month: event.month || null,
+        people: event.people || [],
+      }));
+
       const updatedTimeline = await updateTimeline(timelineId, {
         current_age: advancement.newAge,
-        current_year: currentYear + 1, // Increment simulation year
+        current_year: currentYear + 1,
         stats: newStats,
-        events: updatedEvents,
+        events: eventsForDB,
         assets: updatedAssets,
         twin_profile: {
           ...advancement.profileUpdates,
           profileDeltas: advancement.profileDeltas,
-          previous_year_snapshot: previousYearSnapshot, // Store previous year's values
+          previous_year_snapshot: previousYearSnapshot,
+          year_snapshots: yearSnapshots, // Store all year snapshots
         },
         relationships: advancement.relationships || timeline.relationships || [],
       });
+      
+      console.log('=== NETWORTH DEBUG ===');
+      console.log('AI generated networth:', advancement.profileUpdates?.netWorth);
+      console.log('AI generated networth delta:', advancement.profileDeltas?.netWorth);
+      console.log('Updated timeline networth:', updatedTimeline?.twin_profile?.netWorth);
+      
+      console.log('=== DATABASE SAVE DEBUG ===');
+      console.log('Events formatted for DB:', eventsForDB.length);
+      console.log('Events being saved:', eventsForDB);
+      console.log('Updated timeline events count:', updatedTimeline?.events?.length || 0);
+      
+      // CRITICAL: Verify events were saved
+      if (!updatedTimeline?.events || updatedTimeline.events.length === 0) {
+        console.error('⚠️ WARNING: No events in updated timeline from DB!');
+      }
 
-      // Show notifications for new assets
       if (advancement.newAssets && advancement.newAssets.length > 0) {
         const newNotifications = advancement.newAssets.map((asset, index) => ({
           id: `${Date.now()}-${index}`,
@@ -408,7 +554,6 @@ export default function TimelineDetailScreen() {
         }));
         setAssetNotifications(newNotifications);
         
-        // Animate in notifications
         newNotifications.forEach((notif) => {
           const animValue = new Animated.Value(0);
           notificationAnimations.current.set(notif.id, animValue);
@@ -420,7 +565,6 @@ export default function TimelineDetailScreen() {
           }).start();
         });
 
-        // Auto-dismiss after 5 seconds
         setTimeout(() => {
           newNotifications.forEach((notif) => {
             dismissNotification(notif.id);
@@ -428,16 +572,18 @@ export default function TimelineDetailScreen() {
         }, 5000);
       }
 
-      setTimeline(updatedTimeline);
+      // Reload timeline to ensure we have the latest data including events
+      const reloadedTimeline = await getTimeline(timelineId);
+      console.log('Reloaded timeline events:', reloadedTimeline?.events?.length || 0);
+      setTimeline(reloadedTimeline || updatedTimeline);
       setScenarioText('');
       
-      // Automatically expand the most recent year that was simulated
-      const newCurrentYear = updatedTimeline.current_year || 1;
-      setExpandedYears((prev) => {
-        const newSet = new Set(prev);
-        newSet.add(newCurrentYear);
-        return newSet;
-      });
+      // Update years
+      const startYear = new Date().getFullYear();
+      const newMaxYear = currentYear + 1;
+      const years = Array.from({ length: newMaxYear }, (_, i) => startYear + i);
+      setAvailableYears(years);
+      setSelectedYear(startYear + newMaxYear - 1);
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
@@ -448,7 +594,6 @@ export default function TimelineDetailScreen() {
       setAddingScenario(false);
     }
   }
-
 
   function getAssetEmoji(assetType: string): string {
     switch (assetType) {
@@ -476,61 +621,124 @@ export default function TimelineDetailScreen() {
     }
   }
 
-  function groupEventsByYear(events: any[]) {
-    const grouped: { [year: number]: { month1: any[]; month6: any[]; month12: any[]; summary?: string } } = {};
-    let currentYear = 1;
-    let currentMonth = 1;
-    
-    events.forEach((event) => {
-      const yearMatch = event.time?.match(/Year\s+(\d+)/i);
-      const monthMatch = event.time?.match(/Month\s+(\d+)/i);
-      
-      let year = event.year || (yearMatch ? parseInt(yearMatch[1]) : null);
-      let month = event.month || (monthMatch ? parseInt(monthMatch[1]) : null);
-      
-      if (!year) year = currentYear;
-      if (!month) {
-          month = currentMonth;
-          currentMonth = currentMonth === 1 ? 6 : currentMonth === 6 ? 12 : 1;
-          if (currentMonth === 1) currentYear++;
-      }
-      
-      if (year) {
-        if (!grouped[year]) {
-          grouped[year] = { month1: [], month6: [], month12: [] };
-        }
-        
-        if (month <= 3) grouped[year].month1.push(event);
-        else if (month <= 9) grouped[year].month6.push(event);
-        else grouped[year].month12.push(event);
-      }
-    });
-    
-    return grouped;
-  }
-
-  function toggleYear(year: number) {
-    setExpandedYears((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(year)) {
-        newSet.delete(year);
-      } else {
-        newSet.add(year);
-      }
-      return newSet;
-    });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }
-
-  function getRelationshipColor(type: string) {
-    switch (type?.toLowerCase()) {
-      case 'partner': return '#EC4899'; // Pink
-      case 'family': return '#0EA5E9'; // Sky Blue
-      case 'friend': return '#10B981'; // Green
-      default: return '#9CA3AF'; // Gray
+  function getEventsForYear(year: number) {
+    if (!timeline?.events || timeline.events.length === 0) {
+      console.log('No events found in timeline');
+      return [];
     }
+    
+    // Events are now stored with actual calendar years (2025, 2026, etc.)
+    // So we can directly compare with the selected year
+    const filtered = timeline.events.filter((e: any) => {
+      // First try to use the year field directly (should be calendar year now)
+      if (e.year !== undefined && e.year !== null) {
+        return e.year === year;
+      }
+      
+      // Fallback: Try to parse Year X from time string and convert to calendar year
+      if (e.time) {
+        const yearMatch = e.time.match(/Year\s+(\d+)/i);
+        if (yearMatch) {
+          const simYear = parseInt(yearMatch[1]);
+          const calendarStartYear = new Date().getFullYear();
+          const eventCalendarYear = calendarStartYear + simYear - 1;
+          return eventCalendarYear === year;
+        }
+      }
+      
+      return false;
+    });
+    
+    console.log(`Events for year ${year}:`, filtered.length, 'out of', timeline.events.length, 'total events');
+    return filtered;
   }
 
+  // Get snapshot data for a specific year
+  function getSnapshotForYear(year: number) {
+    if (!timeline) return null;
+    
+    const yearSnapshots = timeline.twin_profile?.year_snapshots || {};
+    const snapshot = yearSnapshots[year];
+    
+    // If snapshot exists, return it
+    if (snapshot) {
+      return snapshot;
+    }
+    
+    // If no snapshot, check if this is the current year
+    const calendarStartYear = new Date().getFullYear();
+    const currentSimYear = timeline.current_year || 1;
+    const currentCalendarYear = calendarStartYear + currentSimYear - 1;
+    
+    if (year === currentCalendarYear) {
+      // Return current state for current year
+      return {
+        netWorth: timeline.twin_profile?.netWorth || null,
+        location: timeline.twin_profile?.location || null,
+        job: timeline.twin_profile?.job || null,
+        relationships_count: timeline.relationships?.length || 0,
+        relationships: timeline.relationships || [],
+        stats: timeline.stats || {},
+        assets: timeline.assets || [],
+      };
+    }
+    
+    // For previous years without snapshots, try to reconstruct from previous_year_snapshot
+    if (year === currentCalendarYear - 1 && timeline.twin_profile?.previous_year_snapshot) {
+      const prevSnapshot = timeline.twin_profile.previous_year_snapshot;
+      return {
+        netWorth: prevSnapshot.netWorth || null,
+        location: prevSnapshot.location || null,
+        job: prevSnapshot.job || null,
+        relationships_count: prevSnapshot.relationships_count || 0,
+        relationships: [], // We don't have full relationship list in previous snapshot
+        stats: prevSnapshot.stats || {},
+        assets: [], // We don't have assets in previous snapshot
+      };
+    }
+    
+    return null;
+  }
+
+  // Get display data for selected year
+  function getDisplayDataForYear(year: number) {
+    const snapshot = getSnapshotForYear(year);
+    const currentYear = new Date().getFullYear();
+    const isFirstYear = year === currentYear; // First year is 2026 (current year)
+    
+    if (snapshot) {
+      // For first year (2026), prefer job from profile's core_json.primary_role
+      const job = isFirstYear && profileData?.core_json?.primary_role 
+        ? profileData.core_json.primary_role 
+        : snapshot.job;
+      
+      return {
+        netWorth: snapshot.netWorth,
+        location: snapshot.location,
+        job: job,
+        relationships: snapshot.relationships || [],
+        relationships_count: snapshot.relationships_count || snapshot.relationships?.length || 0,
+        stats: snapshot.stats,
+        assets: snapshot.assets || [],
+      };
+    }
+    
+    // Fallback to current timeline data, but prefer profile job for first year
+    const job = isFirstYear && profileData?.core_json?.primary_role 
+      ? profileData.core_json.primary_role 
+      : timeline?.twin_profile?.job || null;
+    
+    return {
+      netWorth: timeline?.twin_profile?.netWorth || null,
+      location: timeline?.twin_profile?.location || null,
+      job: job,
+      relationships: timeline?.relationships || [],
+      relationships_count: timeline?.relationships?.length || 0,
+      stats: timeline?.stats || {},
+      assets: timeline?.assets || [],
+    };
+  }
+  
   function getStatusColor(status: string) {
     switch (status?.toLowerCase()) {
       case 'good': return '#10B981';
@@ -539,21 +747,125 @@ export default function TimelineDetailScreen() {
       default: return '#9CA3AF';
     }
   }
-
-  if (loading) {
-    return (
-      <View style={styles.screen}>
-        <View style={styles.backgroundGradient}>
-          <StatusBar style="dark" />
-          <SafeAreaView style={styles.safeArea}>
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={Colors.textPrimary} />
-            </View>
-          </SafeAreaView>
-        </View>
-      </View>
-    );
+  
+  function getRelationshipColor(type: string) {
+    switch (type?.toLowerCase()) {
+      case 'partner': return '#EC4899';
+      case 'family': return '#0EA5E9';
+      case 'friend': return '#10B981';
+      default: return '#9CA3AF';
+    }
   }
+
+  function getRelationshipEmoji(type: string): string {
+    const relType = type?.toLowerCase() || '';
+    if (relType.includes('partner') || relType.includes('spouse')) return '❤️';
+    if (relType.includes('family') || relType.includes('parent') || relType.includes('sibling') || relType.includes('child')) return '👨‍👩‍👧‍👦';
+    if (relType.includes('coworker') || relType.includes('boss') || relType.includes('colleague') || relType.includes('business')) return '💼';
+    if (relType.includes('mentor')) return '🎓';
+    if (relType.includes('friend')) return '👤';
+    return '👤';
+  }
+
+  // Parse networth string to number
+  function parseNetWorthValue(netWorthStr: string): number {
+    if (!netWorthStr || netWorthStr === 'Not set' || netWorthStr === '$0' || netWorthStr === '£0' || netWorthStr === '€0') return 0;
+    // Remove all currency symbols including $, £, €, and any other non-numeric characters except decimal point
+    const cleaned = netWorthStr.replace(/[^0-9.]/g, '');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+  }
+
+  // Get networth history from timeline
+  function getNetworthHistory() {
+    if (!timeline) return [];
+    const currentYear = new Date().getFullYear();
+    const history: Array<{ year: number; networth: number; delta?: number }> = [];
+    
+    // Build history from all available years
+    const startYear = currentYear;
+    const currentSimYear = timeline.current_year || 1;
+    
+    // Add previous year snapshot if available
+    if (timeline.twin_profile?.previous_year_snapshot?.netWorth) {
+      const prevNetworth = parseNetWorthValue(timeline.twin_profile.previous_year_snapshot.netWorth);
+      const prevYear = startYear + currentSimYear - 2;
+      history.push({ year: prevYear, networth: prevNetworth });
+    }
+    
+    // Add current year
+    const currentNetworth = parseNetWorthValue(timeline.twin_profile?.netWorth || '£0');
+    const currentYearValue = startYear + currentSimYear - 1;
+    const prevNetworth = history.length > 0 ? history[history.length - 1].networth : 0;
+    const delta = currentNetworth - prevNetworth;
+    history.push({ year: currentYearValue, networth: currentNetworth, delta });
+    
+    // Sort by year ascending
+    return history.sort((a, b) => a.year - b.year);
+  }
+
+  // Get networth breakdown sources for selected year
+  function getNetworthBreakdown() {
+    if (!timeline) return [];
+    const displayData = getDisplayDataForYear(selectedYear);
+    const currencyInfo = getCurrencyInfo(profileData?.core_json?.country || profileData?.current_location);
+    const breakdown: Array<{ source: string; value: string; valueNum: number; description?: string }> = [];
+    
+    // Assets - show individual assets from snapshot
+    if (displayData.assets && displayData.assets.length > 0) {
+      displayData.assets.forEach((asset: any) => {
+        const value = parseNetWorthValue(asset.value || '£0');
+        if (value > 0) {
+          breakdown.push({
+            source: asset.name || asset.type || 'Asset',
+            value: `${currencyInfo.symbol}${value.toLocaleString()}`,
+            valueNum: value,
+            description: asset.type || 'Asset'
+          });
+        }
+      });
+    }
+    
+    // Job/Income (estimated from job title)
+    if (displayData.job && displayData.job !== 'Unemployed') {
+      breakdown.push({
+        source: 'Career',
+        value: 'Ongoing',
+        valueNum: 0,
+        description: displayData.job
+      });
+    }
+    
+    // If no breakdown, show total
+    if (breakdown.length === 0) {
+      const totalNetworth = parseNetWorthValue(displayData.netWorth || '£0');
+      if (totalNetworth > 0) {
+        breakdown.push({
+          source: 'Total Networth',
+          value: `${currencyInfo.symbol}${totalNetworth.toLocaleString()}`,
+          valueNum: totalNetworth,
+          description: 'Current value'
+        });
+      }
+    }
+    
+    return breakdown;
+  }
+
+  // Get biggest mover (item that added most to networth)
+  function getBiggestMover() {
+    const breakdown = getNetworthBreakdown();
+    if (breakdown.length === 0) return null;
+    
+    // Filter out "Ongoing" items and find the one with highest numeric value
+    const numericItems = breakdown.filter(item => item.valueNum > 0);
+    if (numericItems.length === 0) return null;
+    
+    // Sort by value descending and return the first one
+    const sorted = [...numericItems].sort((a, b) => b.valueNum - a.valueNum);
+    return sorted[0];
+  }
+
 
   if (addingScenario) {
     const rotateInterpolate = loadingRotateAnim.interpolate({
@@ -567,7 +879,6 @@ export default function TimelineDetailScreen() {
           <StatusBar style="dark" />
           <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
             <View style={styles.loadingContent}>
-              {/* Animated Orb */}
               <View style={styles.orbContainer}>
                 <Animated.View
                   style={[
@@ -588,15 +899,15 @@ export default function TimelineDetailScreen() {
                   />
                 </Animated.View>
                 <View style={styles.orbInner}>
-                  <Image 
-                    source={require('@/assets/images/cube.png')}
-                    style={styles.loadingCubeIcon}
-                    resizeMode="contain"
-                  />
+                  <View style={styles.cubeShadowWrapper}>
+                    <Image 
+                      source={require('@/assets/images/cube.png')}
+                      style={styles.loadingCubeIcon}
+                      resizeMode="contain"
+                    />
+                  </View>
                 </View>
               </View>
-
-              {/* Loading Text */}
               <View style={styles.textContainer}>
                 <Text style={styles.loadingText}>Simulating the next year...</Text>
                 <View style={styles.statusContainer}>
@@ -608,6 +919,22 @@ export default function TimelineDetailScreen() {
                 </View>
               </View>
 
+              {/* Statistics */}
+              <View style={styles.statsContainer}>
+                <View style={[styles.statCard, styles.variantsCard]}>
+                  <Text style={styles.statValue} numberOfLines={1}>{variantsCount.toLocaleString()}</Text>
+                  <Text style={styles.statLabel}>Variants</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{percentageCount}%</Text>
+                  <Text style={styles.statLabel}>Complete</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{elapsedTime}s</Text>
+                  <Text style={styles.statLabel}>Elapsed</Text>
+                </View>
+              </View>
+
               {/* Loading Dots */}
               <View style={styles.dotsContainer}>
                 {[0, 1, 2].map((index) => (
@@ -616,7 +943,7 @@ export default function TimelineDetailScreen() {
                     style={[
                       styles.dot,
                       {
-                        backgroundColor: Colors.gradients.turquoise[1],
+                        backgroundColor: Colors.textSecondary,
                         transform: [
                           {
                             scale: loadingPulseAnim.interpolate({
@@ -641,575 +968,435 @@ export default function TimelineDetailScreen() {
     );
   }
 
-  if (!timeline) {
-    return (
-      <View style={styles.screen}>
-        <View style={styles.backgroundGradient}>
-          <StatusBar style="dark" />
-          <SafeAreaView style={styles.safeArea}>
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>Timeline not found</Text>
-            </View>
-          </SafeAreaView>
-        </View>
-      </View>
-    );
-  }
-
   return (
-    <Animated.View 
-      style={[
-        styles.screen,
-        {
-          transform: [{ translateX: slideAnim }],
-        }
-      ]}
-    >
+    <View style={styles.screen}>
+      <StatusBar style="dark" />
       <View style={styles.backgroundGradient}>
-        <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        {/* Asset Notifications */}
-        {assetNotifications.length > 0 && (
-          <View style={styles.notificationsContainer} pointerEvents="box-none">
-            {assetNotifications.map((notif) => {
-              let animValue = notificationAnimations.current.get(notif.id);
-              if (!animValue) {
-                animValue = new Animated.Value(0);
-                notificationAnimations.current.set(notif.id, animValue);
-                Animated.spring(animValue, {
-                  toValue: 1,
-                  useNativeDriver: true,
-                  tension: 50,
-                  friction: 7,
-                }).start();
-              }
-              
-              const translateY = animValue.interpolate({
-                inputRange: [0, 1],
-                outputRange: [-100, 0],
-              });
-              const opacity = animValue.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 1],
-              });
-
-              return (
-                <Animated.View
-                  key={notif.id}
-                  style={[
-                    styles.notification,
-                    {
-                      transform: [{ translateY }],
-                      opacity,
-                    },
-                  ]}
-                >
-                  <View style={styles.notificationContent}>
-                    <View style={styles.notificationEmojiContainer}>
-                      <Text style={styles.notificationEmoji}>
-                        {getAssetEmoji(notif.asset.type || 'other')}
-                      </Text>
-                    </View>
-                    <View style={styles.notificationText}>
-                      <Text style={styles.notificationTitle}>New Asset Acquired!</Text>
-                      <Text style={styles.notificationSubtitle}>{notif.asset.name}</Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => dismissNotification(notif.id)}
-                      style={styles.notificationClose}
-                    >
-                      <X size={18} color="#000000" />
-                    </TouchableOpacity>
-                  </View>
-                </Animated.View>
-              );
-            })}
-          </View>
-        )}
-
-        {/* Top Bar */}
-        <View style={styles.topBar}>
-          <View style={styles.topBarLeft}>
-            <TouchableOpacity
-              onPress={() => {
-                // Animate slide right before navigating
-                Animated.timing(slideAnim, {
-                  toValue: width,
-                  duration: 300,
-                  easing: Easing.out(Easing.ease),
-                  useNativeDriver: true,
-                }).start(() => {
-                  router.push('/simulate');
-                });
-              }}
-              style={styles.backButton}
-              activeOpacity={0.7}
-            >
-              <ChevronLeft size={24} color={Colors.textPrimary} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.topBarCenter}>
-            <Text style={styles.topBarTitle} numberOfLines={1}>{timeline.title}</Text>
-          </View>
-          <View style={styles.topBarRight}>
-            <View style={styles.turnCounter}>
-              <Zap size={14} color="#FCD34D" fill="#FCD34D" />
-              <Text style={styles.turnText}>
-                {isPremium ? '∞' : `${timeline.current_year || 1}/3`}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Character HUD / Stats Board */}
+          
+          {timeline && (
           <Animated.View 
             style={[
-              styles.statsBoard,
+              styles.contentContainer,
               {
-                transform: [{ translateY: statsBoardAnim }],
-                opacity: statsBoardAnim.interpolate({
-                  inputRange: [0, 50],
-                  outputRange: [1, 0],
-                }),
+                transform: [{ translateY: contentSlideAnim }],
               },
             ]}
           >
-            {/* Top Row: Avatar & Age */}
-            <View style={styles.profileHeader}>
-              <View style={styles.avatarContainer}>
-                <View style={styles.avatarIconContainer}>
-                  <Avatar 
-                    name={timeline?.twin_profile?.name || user?.email || 'Friend'} 
-                    size={64} 
-                    variant={(profileData?.avatar_variant as any) || 'beam'} 
-                    colors={profileData?.avatar_colors || undefined}
-                  />
-                </View>
-                <View style={styles.ageContainer}>
-                  <Text style={styles.ageValue}>{timeline.current_age}</Text>
-                  <Text style={styles.ageLabel}>YEARS OLD</Text>
-                </View>
-              </View>
+          {/* Header & Year Selector */}
+          <View style={styles.headerContainer}>
+            <View style={styles.topNav}>
+               <TouchableOpacity onPress={() => router.back()} style={styles.navButton}>
+                 <ChevronLeft size={24} color={Colors.textPrimary} />
+               </TouchableOpacity>
+               <Text style={styles.headerTitle}>This is you in</Text>
+               <View style={styles.navButton} />
             </View>
 
-            {/* Stats Grid */}
-            <View style={styles.statsGrid}>
-              {/* Job - HERO STAT */}
-              <View style={[styles.statCard, styles.heroStatCard]}>
-                 <View style={styles.statHeader}>
-                    <Briefcase size={20} color="#8B5CF6" />
-                    <Text style={[styles.statLabel, { color: '#8B5CF6' }]}>JOB</Text>
-                 </View>
-                 <Text style={styles.secondaryStatValue}>
-                   {timeline.twin_profile?.job || 'Unemployed'}
-                 </Text>
-                 {timeline.twin_profile?.previous_year_snapshot?.job && 
-                  timeline.twin_profile?.previous_year_snapshot?.job !== timeline.twin_profile?.job && (
-                   <Text style={styles.previousValueText}>
-                     Was: {timeline.twin_profile.previous_year_snapshot.job}
-                   </Text>
-                 )}
-                 <Text style={styles.statSubtext}>Current Role</Text>
-              </View>
-
-              {/* Location - HERO STAT */}
-              <View style={[styles.statCard, styles.heroStatCard]}>
-                 <View style={styles.statHeader}>
-                    <MapPin size={20} color="#3B82F6" />
-                    <Text style={[styles.statLabel, { color: '#3B82F6' }]}>LOCATION</Text>
-                 </View>
-                 <Text style={styles.secondaryStatValue}>
-                   {timeline.twin_profile?.location || 'Unknown'}
-                 </Text>
-                 {timeline.twin_profile?.previous_year_snapshot?.location && 
-                  timeline.twin_profile?.previous_year_snapshot?.location !== timeline.twin_profile?.location && (
-                   <Text style={styles.previousValueText}>
-                     Was: {timeline.twin_profile.previous_year_snapshot.location}
-                   </Text>
-                 )}
-                 <Text style={styles.statSubtext}>Current City</Text>
-              </View>
-
-              {/* Net Worth */}
-              <View style={styles.statCard}>
-                 <View style={styles.statHeader}>
-                    <DollarSign size={18} color="#10B981" />
-                    <Text style={[styles.statLabel, { color: '#10B981' }]}>NET WORTH</Text>
-                 </View>
-                 <AnimatedNetWorth 
-                   value={timeline.twin_profile?.netWorth || '$0'} 
-                   previousValue={previousNetWorth.current || undefined}
-                   deltaString={timeline.twin_profile?.profileDeltas?.netWorth}
-                 />
-              </View>
-
-              {/* Relationships */}
-              <TouchableOpacity 
-                style={styles.statCard}
-                onPress={() => setRelationshipModalVisible(true)}
-                activeOpacity={0.7}
+            <View style={styles.yearSelectorContainer}>
+              <ScrollView 
+                ref={scrollRef}
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.yearSelectorContent}
+                decelerationRate="fast"
               >
-                 <View style={styles.statHeader}>
-                    <Users size={18} color="#EF4444" />
-                    <Text style={[styles.statLabel, { color: '#EF4444' }]}>RELATIONSHIPS</Text>
-                 </View>
-                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                    <Text style={styles.secondaryStatValue}>{timeline.relationships?.length || 0}</Text>
-                    <Text style={styles.secondaryStatUnit}>Connections</Text>
-                    {(() => {
-                      const prevSnapshot = timeline.twin_profile?.previous_year_snapshot;
-                      if (prevSnapshot?.relationships_count !== undefined) {
-                        const delta = (timeline.relationships?.length || 0) - prevSnapshot.relationships_count;
-                        if (delta !== 0) {
-                          return (
-                            <Text style={[styles.relationshipDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
-                              {delta > 0 ? '+' : ''}{delta}
-                            </Text>
-                          );
-                        }
+                {/* Spacer for centering */}
+                <View style={{ width: width / 2 - (ITEM_WIDTH / 2) }} />
+                
+                {availableYears.map((year, index) => {
+                  const isSelected = selectedYear === year;
+                  
+                  return (
+                    <View key={year} style={styles.yearItemWrapper}>
+                      {index > 0 && (
+                        <View style={styles.connectorContainer}>
+                          <View style={styles.connectorLine} />
+                          <View style={styles.connectorDot} />
+                          <View style={styles.connectorLine} />
+                        </View>
+                      )}
+                      
+                      <TouchableOpacity 
+                        onPress={async () => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setSelectedYear(year);
+                          // Reload timeline to ensure we have latest snapshot data
+                          if (timelineId) {
+                            try {
+                              const timelineData = await getTimeline(timelineId);
+                              setTimeline(timelineData);
+                            } catch (error) {
+                              console.error('Failed to reload timeline:', error);
+                            }
+                          }
+                        }}
+                        activeOpacity={0.9}
+                      >
+                        {isSelected ? (
+                          <LinearGradient
+                            colors={['#2563EB', '#0EA5E9']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.yearPillSelected}
+                          >
+                            <Text style={styles.yearTextSelected}>{year}</Text>
+                          </LinearGradient>
+                        ) : (
+                          <View style={styles.yearPill}>
+                            <Text style={styles.yearText}>{year}</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+                
+                {/* Visual Add Button at the end */}
+                <View style={styles.yearItemWrapper}>
+                  <View style={styles.connectorContainer}>
+                    <View style={styles.connectorLine} />
+                    <View style={styles.connectorDot} />
+                    <View style={styles.connectorLine} />
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.yearPill}
+                    onPress={() => {
+                      if (!isPremium && timeline.current_year >= 3) {
+                        router.push('/premium');
+                        return;
                       }
-                      return null;
-                    })()}
-                 </View>
-                 <View style={styles.viewMoreRow}>
-                   <Text style={styles.viewMoreText}>View All</Text>
-                   <ChevronRight size={12} color="#666" />
-                 </View>
-              </TouchableOpacity>
-            </View>
+                      setScenarioModalVisible(true);
+                    }}
+                  >
+                    <Text style={[styles.yearText, { fontWeight: '700' }]}>Add</Text>
+                  </TouchableOpacity>
+                </View>
 
-            {/* Secondary Metrics (Happiness, Freedom) */}
-            <View style={styles.secondaryMetrics}>
-               <View style={styles.miniMetric}>
-                  <Text style={styles.miniMetricLabel}>Happiness</Text>
-                  <View style={styles.miniMetricValueRow}>
-                     <Heart size={14} color="#EC4899" />
-                     <Text style={styles.miniMetricValue}>{Math.round(timeline.stats?.happiness || 5)}/10</Text>
-                     {(() => {
-                       const prevHappiness = previousStats.current?.happiness ?? timeline.twin_profile?.previous_year_snapshot?.stats?.happiness;
-                       const currHappiness = timeline.stats?.happiness || 5;
-                       if (prevHappiness !== undefined && prevHappiness !== currHappiness) {
-                         const delta = currHappiness - prevHappiness;
-                         return (
-                           <Text style={[styles.miniMetricDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
-                             {delta > 0 ? '+' : ''}{delta.toFixed(1)}
-                           </Text>
-                         );
-                       }
-                       return null;
-                     })()}
-                  </View>
-               </View>
-               <View style={styles.miniMetricDivider} />
-               <View style={styles.miniMetric}>
-                  <Text style={styles.miniMetricLabel}>Freedom</Text>
-                  <View style={styles.miniMetricValueRow}>
-                     <Zap size={14} color="#F59E0B" />
-                     <Text style={styles.miniMetricValue}>{Math.round(timeline.stats?.freedom || 5)}/10</Text>
-                     {(() => {
-                       const prevFreedom = previousStats.current?.freedom ?? timeline.twin_profile?.previous_year_snapshot?.stats?.freedom;
-                       const currFreedom = timeline.stats?.freedom || 5;
-                       if (prevFreedom !== undefined && prevFreedom !== currFreedom) {
-                         const delta = currFreedom - prevFreedom;
-                         return (
-                           <Text style={[styles.miniMetricDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
-                             {delta > 0 ? '+' : ''}{delta.toFixed(1)}
-                           </Text>
-                         );
-                       }
-                       return null;
-                     })()}
-                  </View>
-               </View>
-            </View>
-
-          </Animated.View>
-
-          {/* Action Button (Floating Look) */}
-          <Animated.View
-            style={{
-              transform: [{ translateY: actionButtonAnim }],
-              opacity: actionButtonAnim.interpolate({
-                inputRange: [0, 50],
-                outputRange: [1, 0],
-              }),
-            }}
-          >
-          <TouchableOpacity
-            onPress={() => {
-              // Check year limit for free users (max 3 years)
-              if (!isPremium) {
-                const currentYear = timeline.current_year || 1;
-                if (currentYear >= 3) {
-                  router.push('/premium');
-                  return;
-                }
-              }
-              setScenarioModalVisible(true);
-            }}
-            activeOpacity={0.8}
-            style={styles.actionButtonContainer}
-          >
-                  <LinearGradient
-                colors={['#2563EB', '#0EA5E9', '#14B8A6']}
-                    start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.actionButton}
-             >
-                <View style={styles.actionButtonContent}>
-                   <Text style={styles.actionButtonTitle}>Simulate the Next Year</Text>
-                   <Text style={styles.actionButtonSubtitle}>Choose your next move</Text>
-                  </View>
-                <View style={styles.actionButtonIcon}>
-                   <Plus size={24} color="#FFF" />
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
-          </Animated.View>
-
-          {/* Timeline Events (Quest Log Style) */}
-          <Animated.View
-            style={{
-              transform: [{ translateY: lifeLogAnim }],
-              opacity: lifeLogAnim.interpolate({
-                inputRange: [0, 50],
-                outputRange: [1, 0],
-              }),
-            }}
-          >
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Life Log</Text>
-            <View style={styles.sectionBadge}>
-               <Text style={styles.sectionBadgeText}>{timeline.events?.length || 0} Events</Text>
+                {/* Spacer for centering */}
+                <View style={{ width: width / 2 - (ITEM_WIDTH / 2) }} />
+              </ScrollView>
             </View>
           </View>
 
-            {timeline.events && timeline.events.length > 0 ? (
-              <View style={styles.eventsList}>
+          {/* Main Scroll Content */}
+          <ScrollView 
+            ref={mainScrollRef}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.mainScrollContent}
+            style={styles.mainScrollView}
+          >
+            {/* Identity Card */}
+            <View style={styles.identityCard}>
+              {(() => {
+                const displayData = getDisplayDataForYear(selectedYear);
+                return (
+                  <>
+                    <View style={styles.locationRow}>
+                      <MapPin size={14} color="#2563EB" fill="#2563EB" />
+                      <Text style={styles.locationText}>{displayData.location || 'Unknown Location'}</Text>
+                    </View>
+
+                    <View style={styles.avatarSection}>
+                       <View style={styles.avatarWrapper}>
+                          <Image 
+                            source={require('@/assets/images/manwhite.png')} 
+                            style={{ width: 80, height: 80, borderRadius: 40 }}
+                            resizeMode="cover"
+                          />
+                          <View style={styles.ageBadge}>
+                            <LinearGradient
+                              colors={['#FFFFFF', '#FAFAFA']}
+                              style={styles.ageBadgeGradient}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                            >
+                              <Text style={styles.ageBadgeValue}>{timeline.current_age}</Text>
+                              <Text style={styles.ageBadgeLabel}>Years</Text>
+                            </LinearGradient>
+                          </View>
+                       </View>
+                    </View>
+
+                    <View style={styles.roleSection}>
+                       <View style={styles.roleRow}>
+                         <Briefcase size={18} color="#7C3AED" fill="#7C3AED" />
+                         <Text style={styles.roleTitle}>{displayData.job || 'Unemployed'}</Text>
+                       </View>
+                    </View>
+                  </>
+                );
+              })()}
+
+              {/* Progress Stats */}
+              <View style={styles.progressStatsContainer}>
                 {(() => {
-                  const groupedEvents = groupEventsByYear(timeline.events);
-                const years = Object.keys(groupedEvents).map(Number).sort((a, b) => b - a); // Newest first for game feel? or oldest? Sticking to Chronological for timeline usually makes sense, but games often show newest quest first. Let's keep chronological for "Life Story".
-                  
-                  return years.map((year) => {
-                    const yearData = groupedEvents[year];
-                    const isExpanded = expandedYears.has(year);
-                    const hasEvents = (yearData.month1?.length || 0) + (yearData.month6?.length || 0) + (yearData.month12?.length || 0) > 0;
-                    
-                    if (!hasEvents) return null;
-                    
-                    return (
-                    <View key={year} style={styles.questCard}>
-                          <TouchableOpacity
-                            onPress={() => toggleYear(year)}
-                            activeOpacity={0.7}
-                          style={styles.questHeader}
-                       >
-                          <View style={styles.questHeaderLeft}>
-                             <View style={styles.questLevelBadge}>
-                                <Text style={styles.questLevelText}>AGE {timeline.current_age - (timeline.current_year || 1) + year}</Text>
-                                </View>
-                              </View>
-                          {isExpanded ? <ChevronUp size={20} color="#888" /> : <ChevronDown size={20} color="#888" />}
-                          </TouchableOpacity>
-                        
-                        {isExpanded && (
-                        <View style={styles.questContent}>
-                            {/* Month 1 */}
-                          {yearData.month1?.map((event: any, idx: number) => (
-                             <View key={`m1-${idx}`} style={styles.questItem}>
-                                <View style={styles.questLine} />
-                                <View style={styles.questDot} />
-                                <Text style={styles.questItemTitle}>{event.title}</Text>
-                                <Text style={styles.questItemDesc}>{event.description}</Text>
-                                  </View>
-                                ))}
-                            
-                            {/* Month 6 */}
-                          {yearData.month6?.map((event: any, idx: number) => (
-                             <View key={`m6-${idx}`} style={styles.questItem}>
-                                <View style={styles.questLine} />
-                                <View style={styles.questDot} />
-                                <Text style={styles.questItemTitle}>{event.title}</Text>
-                                <Text style={styles.questItemDesc}>{event.description}</Text>
-                                  </View>
-                                ))}
-                            
-                            {/* Month 12 */}
-                          {yearData.month12?.map((event: any, idx: number) => (
-                             <View key={`m12-${idx}`} style={styles.questItem}>
-                                <View style={styles.questLine} />
-                                <View style={styles.questDot} />
-                                <Text style={styles.questItemTitle}>{event.title}</Text>
-                                <Text style={styles.questItemDesc}>{event.description}</Text>
-                                  </View>
-                                ))}
-                              </View>
-                            )}
+                  const displayData = getDisplayDataForYear(selectedYear);
+                  const stats = displayData.stats || {};
+                  return (
+                    <>
+                      {/* Happiness */}
+                      <View style={styles.biometricColumn}>
+                         <View style={styles.biometricHeader}>
+                            <Text style={styles.biometricLabel}>Happiness</Text>
+                            {(() => {
+                              const happinessDelta = (stats.happiness || 5) - 5;
+                              const deltaColor = happinessDelta >= 0 ? '#10B981' : '#EF4444';
+                              return (
+                                <Text style={[styles.biometricDelta, { color: deltaColor }]}>
+                                  {happinessDelta >= 0 ? '+' : ''}{happinessDelta.toFixed(1)}
+                                </Text>
+                              );
+                            })()}
+                         </View>
+                         <View style={styles.biometricBarRow}>
+                            <View style={styles.biometricBarTrack}>
+                               <View style={[
+                                 styles.biometricBarFill, 
+                                 { width: `${(stats.happiness || 5) * 10}%`, backgroundColor: '#4ADE80' }
+                               ]} />
+                            </View>
+                            <Text style={styles.biometricValueText}>{Math.round(stats.happiness || 5)}/10</Text>
+                         </View>
                       </View>
-                    );
-                  });
+
+                      {/* Freedom */}
+                      <View style={styles.biometricColumn}>
+                         <View style={styles.biometricHeader}>
+                            <Text style={styles.biometricLabel}>Freedom</Text>
+                            {(() => {
+                              const freedomDelta = (stats.freedom || 5) - 5;
+                              const deltaColor = freedomDelta >= 0 ? '#10B981' : '#EF4444';
+                              return (
+                                <Text style={[styles.biometricDelta, { color: deltaColor }]}>
+                                  {freedomDelta >= 0 ? '+' : ''}{freedomDelta.toFixed(1)}
+                                </Text>
+                              );
+                            })()}
+                         </View>
+                         <View style={styles.biometricBarRow}>
+                            <View style={styles.biometricBarTrack}>
+                               <View style={[
+                                 styles.biometricBarFill, 
+                                 { width: `${(stats.freedom || 5) * 10}%`, backgroundColor: '#4ADE80' }
+                               ]} />
+                            </View>
+                            <Text style={styles.biometricValueText}>{Math.round(stats.freedom || 5)}/10</Text>
+                         </View>
+                      </View>
+                    </>
+                  );
                 })()}
               </View>
-            ) : (
-              <View style={styles.emptyEvents}>
-                <Text style={styles.emptyEventsText}>
-                No history yet. Make a decision to start your story.
-                </Text>
+
+              {/* Stat Cards */}
+              <View style={styles.statCardsRow}>
+                {(() => {
+                  const displayData = getDisplayDataForYear(selectedYear);
+                  const calendarStartYear = new Date().getFullYear();
+                  const currentSimYear = timeline.current_year || 1;
+                  const currentCalendarYear = calendarStartYear + currentSimYear - 1;
+                  
+                  // Get previous year snapshot for delta calculation
+                  const prevYearSnapshot = getSnapshotForYear(selectedYear - 1);
+                  const prevNetWorth = prevYearSnapshot?.netWorth || null;
+                  const prevRelationshipsCount = prevYearSnapshot?.relationships_count || 0;
+                  
+                  return (
+                    <>
+                      <TouchableOpacity 
+                        style={[styles.statCardLarge, { backgroundColor: '#F0FDF4' }]}
+                        onPress={() => setNetworthModalVisible(true)}
+                        activeOpacity={0.7}
+                      >
+                         <View style={styles.statCardChevron}>
+                           <ChevronRight size={16} color="#15803D" />
+                         </View>
+                         <View style={styles.statCardHeaderCentered}>
+                            <DollarSign size={14} color="#15803D" fill="#15803D" />
+                            <Text style={[styles.statCardTitle, { color: '#15803D' }]}>Networth</Text>
+                         </View>
+                         <View style={styles.statCardValueColumn}>
+                            <AnimatedNetWorth 
+                              value={displayData.netWorth || '£0'} 
+                              previousValue={prevNetWorth || undefined}
+                              deltaString={selectedYear === currentCalendarYear ? timeline.twin_profile?.profileDeltas?.netWorth : undefined}
+                            />
+                            {(() => {
+                              // Calculate delta from previous year
+                              const currentNetWorth = parseNetWorthValue(displayData.netWorth || '£0');
+                              const prevNetWorthValue = parseNetWorthValue(prevNetWorth || '£0');
+                              const netWorthDelta = currentNetWorth - prevNetWorthValue;
+                              const currencyInfo = getCurrencyInfo(profileData?.core_json?.country || profileData?.current_location);
+                              const deltaString = netWorthDelta >= 0 
+                                ? `+${currencyInfo.symbol}${Math.abs(netWorthDelta / 1000).toFixed(0)}k`
+                                : `-${currencyInfo.symbol}${Math.abs(netWorthDelta / 1000).toFixed(0)}k`;
+                              const deltaColor = netWorthDelta >= 0 ? '#10B981' : '#EF4444';
+                              return (
+                                <Text style={[styles.statDeltaSmall, { color: deltaColor }]}>
+                                  {deltaString}
+                                </Text>
+                              );
+                            })()}
+                         </View>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                         style={[styles.statCardLarge, { backgroundColor: '#FEFCE8' }]} 
+                         onPress={() => setRelationshipModalVisible(true)}
+                      >
+                         <View style={styles.statCardChevron}>
+                           <ChevronRight size={16} color="#854D0E" />
+                         </View>
+                         <View style={styles.statCardHeaderCentered}>
+                            <Users size={14} color="#854D0E" fill="#854D0E" />
+                            <Text style={[styles.statCardTitle, { color: '#854D0E' }]}>Connections</Text>
+                         </View>
+                         <View style={styles.statCardValueRow}>
+                           <Text style={styles.statCardValueLarge}>{displayData.relationships_count}</Text>
+                           {(() => {
+                             const connectionsDelta = displayData.relationships_count - prevRelationshipsCount;
+                             const deltaColor = connectionsDelta >= 0 ? '#10B981' : '#EF4444';
+                             return (
+                               <Text style={[styles.statDeltaSmall, { color: deltaColor }]}>
+                                 {connectionsDelta >= 0 ? '+' : ''}{connectionsDelta}
+                               </Text>
+                             );
+                           })()}
+                         </View>
+                      </TouchableOpacity>
+                    </>
+                  );
+                })()}
+              </View>
+            </View>
+
+            {/* Life Log Expandable Section - Hide for first year */}
+            {timeline.current_year > 1 && (
+              <View ref={lifeLogRef} style={styles.lifeLogSection}>
+                <TouchableOpacity 
+                  style={styles.lifeLogButton}
+                  onPress={() => {
+                    const newExpanded = !isLifeLogExpanded;
+                    setIsLifeLogExpanded(newExpanded);
+                    if (newExpanded && lifeLogRef.current && mainScrollRef.current) {
+                      // Scroll to the Life Log section when expanded
+                      setTimeout(() => {
+                        lifeLogRef.current?.measureLayout(
+                          mainScrollRef.current as any,
+                          (x, y) => {
+                            mainScrollRef.current?.scrollTo({ y: y - 20, animated: true });
+                          },
+                          () => {}
+                        );
+                      }, 100);
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.lifeLogButtonContent}>
+                    <Text style={styles.lifeLogButtonTitle}>Life Log</Text>
+                    <Text style={styles.lifeLogButtonSubtitle}>
+                      {getEventsForYear(selectedYear).length} events in {selectedYear}
+                    </Text>
+                  </View>
+                  {isLifeLogExpanded ? (
+                    <ChevronUp size={20} color={Colors.textSecondary} />
+                  ) : (
+                    <ChevronDown size={20} color={Colors.textSecondary} />
+                  )}
+                </TouchableOpacity>
+
+                {isLifeLogExpanded && (
+                  <View style={styles.lifeLogContent}>
+                    {getEventsForYear(selectedYear).length > 0 ? (
+                      getEventsForYear(selectedYear).map((event: any, idx: number) => (
+                        <View key={idx} style={styles.questCard}>
+                          <View style={styles.questHeader}>
+                            <Text style={styles.questTitle}>{event.title}</Text>
+                            {event.time && (
+                              <Text style={styles.questTime}>{event.time}</Text>
+                            )}
+                          </View>
+                          <Text style={styles.questDesc}>{event.description}</Text>
+                          {event.people && event.people.length > 0 && (
+                            <View style={styles.peopleTags}>
+                              {event.people.map((person: string, pIndex: number) => (
+                                <View key={pIndex} style={styles.personTag}>
+                                  <Text style={styles.personTagText}>{person}</Text>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                          <View style={styles.timelinePoint} />
+                        </View>
+                      ))
+                    ) : (
+                      <View style={styles.emptyEvents}>
+                        <Text style={styles.emptyEventsText}>No events recorded for {selectedYear}.</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             )}
-          </Animated.View>
+            
+            {/* Spacer for fixed button */}
+            <View style={{ height: 100 }} />
+          </ScrollView>
 
-          {/* Inventory / Assets - Single Banner */}
-          {timeline?.assets && timeline.assets.length > 0 && (
-            <Animated.View
-              style={{
-                transform: [{ translateY: inventoryAnim }],
-                opacity: inventoryAnim.interpolate({
-                  inputRange: [0, 50],
-                  outputRange: [1, 0],
-                }),
+          {/* Fixed Simulate Button */}
+          <View style={styles.bottomActionContainer}>
+            <TouchableOpacity
+              onPress={() => {
+                if (!isPremium) {
+                  const currentYear = timeline.current_year || 1;
+                  if (currentYear >= 3) {
+                    router.push('/premium');
+                    return;
+                  }
+                }
+                setScenarioModalVisible(true);
               }}
+              activeOpacity={0.9}
             >
-            <View style={styles.inventorySection}>
-               <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Inventory</Text>
-                  <View style={styles.sectionBadge}>
-                     <Text style={styles.sectionBadgeText}>{timeline.assets.length} Items</Text>
-                  </View>
+              <LinearGradient
+                colors={['#2563EB', '#0EA5E9']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.simulateButton}
+              >
+                <Text style={styles.simulateButtonText}>Simulate year {selectedYear + 1}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
-
-               <View style={styles.inventoryBannerContainer}>
-                 <Animated.View
-                   style={[
-                     {
-                       flexDirection: 'row',
-                       width: (width - 40) * (timeline.assets?.length || 1),
-                     },
-                     timeline.assets.length > 1 ?                      {
-                       transform: [
-                         {
-                           translateX: inventoryScrollAnim.interpolate({
-                             inputRange: timeline.assets.map((_: any, i: number) => i),
-                             outputRange: timeline.assets.map((_: any, i: number) => -(i * (width - 40))),
-                           }),
-                         },
-                       ],
-                     } : {},
-                   ]}
-                 >
-                {timeline.assets.map((asset: any, index: number) => (
-                     <View key={index} style={styles.inventoryBannerItem}>
-                    <LinearGradient
-                         colors={['rgba(14, 165, 233, 0.2)', 'rgba(14, 165, 233, 0.05)', 'rgba(255, 255, 255, 0.02)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                         style={styles.inventoryBanner}
-                    >
-                         <View style={styles.inventoryBannerContent}>
-                           <View style={styles.inventoryBannerIcon}>
-                             <Text style={styles.inventoryBannerEmoji}>{getAssetEmoji(asset.type)}</Text>
-                      </View>
-                           <View style={styles.inventoryBannerText}>
-                             <Text style={styles.inventoryBannerName}>{asset.name}</Text>
-                      {asset.value && (
-                               <Text style={styles.inventoryBannerValue}>{asset.value}</Text>
-                      )}
-                      {asset.description && (
-                               <Text style={styles.inventoryBannerDesc} numberOfLines={2}>{asset.description}</Text>
-                      )}
-                  </View>
-                         </View>
-                         <View style={styles.inventoryBannerIndicator}>
-                           {timeline.assets.map((_: any, idx: number) => (
-                             <View
-                               key={idx}
-                               style={[
-                                 styles.inventoryDot,
-                                 idx === currentInventoryIndex && styles.inventoryDotActive,
-                               ]}
-                             />
-                ))}
-              </View>
-                       </LinearGradient>
-            </View>
-                   ))}
-                 </Animated.View>
-               </View>
-
-               {/* Manual navigation buttons */}
-               {timeline.assets.length > 1 && (
-                 <View style={styles.inventoryNav}>
-          <TouchableOpacity
-            onPress={() => {
-                       const newIndex = currentInventoryIndex === 0 ? timeline.assets.length - 1 : currentInventoryIndex - 1;
-                       setCurrentInventoryIndex(newIndex);
-                       Animated.timing(inventoryScrollAnim, {
-                         toValue: newIndex,
-                         duration: 300,
-                         easing: Easing.out(Easing.quad),
-                         useNativeDriver: true,
-                       }).start();
-            }}
-                     style={styles.inventoryNavButton}
-                   >
-                     <ChevronLeft size={20} color="#FFF" />
-                   </TouchableOpacity>
-                   <Text style={styles.inventoryNavText}>
-                     {currentInventoryIndex + 1} / {timeline.assets.length}
-                   </Text>
-                   <TouchableOpacity
-                     onPress={() => {
-                       const newIndex = (currentInventoryIndex + 1) % timeline.assets.length;
-                       setCurrentInventoryIndex(newIndex);
-                       Animated.timing(inventoryScrollAnim, {
-                         toValue: newIndex,
-                         duration: 300,
-                         easing: Easing.out(Easing.quad),
-                         useNativeDriver: true,
-                       }).start();
-                     }}
-                     style={styles.inventoryNavButton}
-                   >
-                     <ChevronRight size={20} color="#FFF" />
-                   </TouchableOpacity>
-                </View>
-              )}
-        </View>
-            </Animated.View>
+          </Animated.View>
           )}
-        </ScrollView>
+        </SafeAreaView>
 
-        {/* Scenario Input Modal */}
+        {/* Modals */}
         <Modal
           visible={scenarioModalVisible}
           transparent={true}
           animationType="fade"
           onRequestClose={() => setScenarioModalVisible(false)}
         >
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView 
+            style={styles.modalOverlay} 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
+          >
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
-                  <Sparkles size={20} color="#0EA5E9" />
-                  <Text style={styles.modalTitle}>What did you do?</Text>
+                  <Text style={styles.modalTitle}>Anything you want to test?</Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    setScenarioModalVisible(false);
-                    setScenarioText('');
-                  }}
-                  style={styles.modalClose}
-                >
-                  <X size={20} color="#FFFFFF" />
+                <TouchableOpacity onPress={() => setScenarioModalVisible(false)} style={styles.modalClose}>
+                  <X size={20} color={Colors.textTertiary} />
                 </TouchableOpacity>
               </View>
               <Text style={styles.modalSubtitle}>
-                Describe some major life events or decisions you made at age {timeline ? timeline.current_age - (timeline.current_year || 1) + 1 : ''}.
+                Any life events you want to include to effect the simulation?
               </Text>
               <TextInput
                 style={styles.scenarioInput}
@@ -1223,108 +1410,392 @@ export default function TimelineDetailScreen() {
               <TouchableOpacity
                 onPress={handleAddScenario}
                 disabled={!scenarioText.trim() || addingScenario}
-                style={[
-                  styles.modalButton,
-                  (!scenarioText.trim() || addingScenario) && styles.modalButtonDisabled,
-                ]}
+                style={[styles.modalButton, (!scenarioText.trim() || addingScenario) && styles.modalButtonDisabled]}
               >
                 <LinearGradient
-                  colors={
-                    (!scenarioText.trim() || addingScenario)
-                      ? ['rgba(100, 100, 100, 0.3)', 'rgba(80, 80, 80, 0.3)']
-                      : ['#2563EB', '#0EA5E9', '#14B8A6']
-                  }
+                  colors={(!scenarioText.trim() || addingScenario) ? ['#999', '#AAA'] : ['#2563EB', '#0EA5E9']}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+                  end={{ x: 1, y: 0 }}
                   style={styles.modalButtonGradient}
                 >
-                  {addingScenario ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.modalButtonText}>Simulate Next Year</Text>
-                  )}
+                  {addingScenario ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalButtonText}>Simulate Next Year</Text>}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
-        {/* Relationships Modal */}
         <Modal
           visible={relationshipModalVisible}
           transparent={true}
           animationType="fade"
           onRequestClose={() => setRelationshipModalVisible(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { maxHeight: '70%' }]}>
+          <View style={styles.relationshipModalOverlay}>
+            <View style={[styles.modalContent, styles.relationshipModalContent]}>
               <View style={styles.modalHeader}>
-                <View style={styles.modalTitleContainer}>
-                  <Users size={20} color="#EF4444" />
-                  <Text style={styles.modalTitle}>Relationships</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setRelationshipModalVisible(false)}
-                  style={styles.modalClose}
-                >
-                  <X size={20} color={Colors.textPrimary} />
+                <Text style={styles.modalTitle}>Connections</Text>
+                <TouchableOpacity onPress={() => setRelationshipModalVisible(false)}>
+                  <X size={24} color={Colors.textPrimary} />
                 </TouchableOpacity>
               </View>
-              
               <ScrollView style={styles.relationshipsList} showsVerticalScrollIndicator={false}>
-                {timeline?.relationships && timeline.relationships.length > 0 ? (
-                  timeline.relationships.map((rel: any, index: number) => (
-                    <View key={index} style={styles.relationshipCard}>
-                      <View style={styles.relationshipHeader}>
-                        <Text style={styles.relationshipName}>{rel.name}</Text>
-                        <View style={[styles.relationshipTypeTag, { backgroundColor: getRelationshipColor(rel.type) + '20' }]}>
-                          <Text style={[styles.relationshipTypeText, { color: getRelationshipColor(rel.type) }]}>{rel.type}</Text>
+                {(() => {
+                  const displayData = getDisplayDataForYear(selectedYear);
+                  const relationships = displayData.relationships || [];
+                  return relationships.length > 0 ? (
+                    relationships.map((rel: any, index: number) => (
+                      <View key={index} style={styles.relationshipCard}>
+                        <View style={styles.relationshipHeader}>
+                          <Text style={styles.relationshipName}>{rel.name}</Text>
+                          <View style={[styles.relationshipTypeTag, { backgroundColor: getRelationshipColor(rel.type) + '20' }]}>
+                            <Text style={[styles.relationshipTypeText, { color: getRelationshipColor(rel.type) }]}>{rel.type}</Text>
+                          </View>
                         </View>
+                        <Text style={styles.relationshipStatus}>Status: <Text style={{color: getStatusColor(rel.status), fontWeight: '700'}}>{rel.status}</Text></Text>
+                        <Text style={styles.relationshipDesc}>{rel.description}</Text>
                       </View>
-                      <Text style={styles.relationshipStatus}>Status: <Text style={{color: getStatusColor(rel.status), fontWeight: '700', fontFamily: Fonts.secondary.bold}}>{rel.status}</Text></Text>
-                      <Text style={styles.relationshipDesc}>{rel.description}</Text>
+                    ))
+                  ) : (
+                    <View style={styles.emptyEvents}>
+                      <Text style={styles.emptyEventsText}>No relationships yet.</Text>
                     </View>
-                  ))
-                ) : (
-                  <View style={styles.emptyEvents}>
-                    <Text style={styles.emptyEventsText}>No relationships yet. Simulate to meet people!</Text>
-                  </View>
-                )}
+                  );
+                })()}
               </ScrollView>
             </View>
           </View>
         </Modal>
-        </SafeAreaView>
+
+        {/* Networth Modal */}
+        <Modal
+          visible={networthModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setNetworthModalVisible(false)}
+        >
+          <View style={styles.relationshipModalOverlay}>
+            <View style={[styles.modalContent, styles.networthModalContent]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Networth</Text>
+                <TouchableOpacity onPress={() => setNetworthModalVisible(false)}>
+                  <X size={24} color={Colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={{ flex: 1 }}>
+                <ScrollView 
+                  style={styles.networthModalScroll} 
+                  contentContainerStyle={styles.networthModalScrollContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                {/* Current Networth */}
+                <View style={styles.networthCurrentSection}>
+                  <Text style={styles.networthCurrentLabel}>Networth for {selectedYear}</Text>
+                  <Text style={styles.networthCurrentValue} numberOfLines={1}>
+                    {(() => {
+                      const displayData = getDisplayDataForYear(selectedYear);
+                      const currencyInfo = getCurrencyInfo(profileData?.core_json?.country || profileData?.current_location);
+                      const networthStr = displayData.netWorth || '0';
+                      const networthValue = parseNetWorthValue(networthStr);
+                      return `${currencyInfo.symbol}${Math.round(networthValue).toLocaleString()}`;
+                    })()}
+                  </Text>
+                </View>
+
+                {/* Breakdown */}
+                {getNetworthBreakdown().length > 0 ? (
+                  <View style={styles.networthBreakdownSection}>
+                    <Text style={styles.networthSectionTitle}>Breakdown</Text>
+                    
+                    {/* Biggest Mover Explanation */}
+                    {(() => {
+                      const biggestMover = getBiggestMover();
+                      if (biggestMover) {
+                        return (
+                          <View style={styles.biggestMoverExplanation}>
+                            <Text style={styles.biggestMoverText}>
+                              <Text style={styles.biggestMoverLabel}>Biggest Mover: </Text>
+                              {biggestMover.source} contributed {biggestMover.value} to your networth
+                              {biggestMover.description && biggestMover.description !== biggestMover.source && (
+                                <Text style={styles.biggestMoverDetail}> ({biggestMover.description})</Text>
+                              )}
+                            </Text>
+                          </View>
+                        );
+                      }
+                      return null;
+                    })()}
+                    
+                    {getNetworthBreakdown().map((item, index) => {
+                      const currencyInfo = getCurrencyInfo(profileData?.core_json?.country || profileData?.current_location);
+                      // Convert item.value to use correct currency
+                      const valueStr = item.value.replace(/[£$€]/g, '');
+                      const valueNum = parseFloat(valueStr.replace(/[^0-9.]/g, '')) || 0;
+                      const formattedValue = valueNum > 0 ? `${currencyInfo.symbol}${Math.round(valueNum).toLocaleString()}` : item.value;
+                      
+                      return (
+                        <View key={index} style={styles.breakdownItem}>
+                          <View style={styles.breakdownItemContent}>
+                            <Text style={styles.breakdownSource}>{item.source}</Text>
+                            {item.description && (
+                              <Text style={styles.breakdownDescription}>{item.description}</Text>
+                            )}
+                          </View>
+                          <Text style={styles.breakdownValue}>{formattedValue}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <View style={styles.networthBreakdownSection}>
+                    <Text style={styles.networthSectionTitle}>Breakdown</Text>
+                    <Text style={styles.emptyBreakdownText}>No breakdown available</Text>
+                  </View>
+                )}
+
+                {/* Graph */}
+                {getNetworthHistory().length > 0 ? (() => {
+                  const history = getNetworthHistory();
+                  const currencyInfo = getCurrencyInfo(profileData?.core_json?.country || profileData?.current_location);
+                  
+                  // Chart dimensions
+                  const chartWidth = Math.max(400, (history.length - 1) * 80);
+                  const chartHeight = 220;
+                  const paddingTop = 20;
+                  const paddingBottom = 60;
+                  const paddingLeft = 50;
+                  const paddingRight = 20;
+                  const graphWidth = chartWidth - paddingLeft - paddingRight;
+                  const graphHeight = chartHeight - paddingTop - paddingBottom;
+                  
+                  // Calculate min/max for scaling
+                  const values = history.map(p => p.networth);
+                  const maxValue = Math.max(...values, 1);
+                  const minValue = Math.min(...values, 0);
+                  const range = maxValue - minValue || 1;
+                  
+                  // Generate Y-axis labels
+                  const yAxisSteps = 4;
+                  const yAxisLabels: number[] = [];
+                  for (let i = 0; i <= yAxisSteps; i++) {
+                    yAxisLabels.push(minValue + (range / yAxisSteps) * i);
+                  }
+                  
+                  // Convert data points to SVG coordinates
+                  const points = history.map((point, index) => {
+                    const x = paddingLeft + (index / (history.length - 1 || 1)) * graphWidth;
+                    const y = paddingTop + graphHeight - ((point.networth - minValue) / range) * graphHeight;
+                    return { x, y, ...point };
+                  });
+                  
+                  // Create smooth path for line
+                  const createSmoothPath = (points: Array<{ x: number; y: number }>) => {
+                    if (points.length === 0) return '';
+                    if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+                    
+                    let path = `M ${points[0].x} ${points[0].y}`;
+                    for (let i = 1; i < points.length; i++) {
+                      const prev = points[i - 1];
+                      const curr = points[i];
+                      const next = points[i + 1];
+                      
+                      if (i === 1) {
+                        // First curve
+                        const cp1x = prev.x + (curr.x - prev.x) / 3;
+                        const cp1y = prev.y;
+                        const cp2x = curr.x - (next ? (next.x - prev.x) / 6 : (curr.x - prev.x) / 3);
+                        const cp2y = curr.y;
+                        path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`;
+                      } else if (i === points.length - 1) {
+                        // Last curve
+                        const cp1x = prev.x + (curr.x - prev.x) / 3;
+                        const cp1y = prev.y;
+                        const cp2x = curr.x - (curr.x - prev.x) / 3;
+                        const cp2y = curr.y;
+                        path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`;
+                      } else {
+                        // Middle curves
+                        const cp1x = prev.x + (curr.x - prev.x) / 3;
+                        const cp1y = prev.y;
+                        const cp2x = curr.x - (next.x - prev.x) / 6;
+                        const cp2y = curr.y;
+                        path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`;
+                      }
+                    }
+                    return path;
+                  };
+                  
+                  // Create area path (line + bottom fill)
+                  const areaPath = createSmoothPath(points) + 
+                    ` L ${points[points.length - 1].x} ${paddingTop + graphHeight}` +
+                    ` L ${points[0].x} ${paddingTop + graphHeight} Z`;
+                  
+                  return (
+                    <View style={styles.networthGraphSection}>
+                      <Text style={styles.networthSectionTitle}>Progress Over Time</Text>
+                      <View style={styles.networthLineChartContainer}>
+                        <ScrollView 
+                          horizontal 
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ width: chartWidth }}
+                        >
+                          <Svg width={chartWidth} height={chartHeight} style={styles.networthLineChartSvg}>
+                            <Defs>
+                              <SvgLinearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <Stop offset="0%" stopColor="#10B981" stopOpacity="0.3" />
+                                <Stop offset="100%" stopColor="#10B981" stopOpacity="0.05" />
+                              </SvgLinearGradient>
+                            </Defs>
+                            
+                            {/* Grid lines */}
+                            {yAxisLabels.map((value, index) => {
+                              const y = paddingTop + graphHeight - ((value - minValue) / range) * graphHeight;
+                              return (
+                                <Line
+                                  key={`grid-${index}`}
+                                  x1={paddingLeft}
+                                  y1={y}
+                                  x2={paddingLeft + graphWidth}
+                                  y2={y}
+                                  stroke="#E5E7EB"
+                                  strokeWidth="1"
+                                  strokeDasharray="2,2"
+                                  opacity={0.5}
+                                />
+                              );
+                            })}
+                            
+                            {/* Area fill */}
+                            <Path
+                              d={areaPath}
+                              fill="url(#areaGradient)"
+                            />
+                            
+                            {/* Line */}
+                            <Path
+                              d={createSmoothPath(points)}
+                              stroke="#10B981"
+                              strokeWidth="3"
+                              fill="none"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                            
+                            {/* Data points */}
+                            {points.map((point, index) => {
+                              const isSelected = selectedGraphYear === point.year;
+                              return (
+                                <Circle
+                                  key={`point-${index}`}
+                                  cx={point.x}
+                                  cy={point.y}
+                                  r={isSelected ? 6 : 4}
+                                  fill={isSelected ? "#10B981" : "#FFFFFF"}
+                                  stroke="#10B981"
+                                  strokeWidth={isSelected ? 3 : 2}
+                                  onPress={() => setSelectedGraphYear(isSelected ? null : point.year)}
+                                />
+                              );
+                            })}
+                            
+                            {/* Y-axis labels */}
+                            {yAxisLabels.map((value, index) => {
+                              const y = paddingTop + graphHeight - ((value - minValue) / range) * graphHeight;
+                              return (
+                                <SvgText
+                                  key={`y-label-${index}`}
+                                  x={paddingLeft - 10}
+                                  y={y + 4}
+                                  fontSize="11"
+                                  fill="#6B7280"
+                                  textAnchor="end"
+                                >
+                                  {formatCurrency(value, currencyInfo)}
+                                </SvgText>
+                              );
+                            })}
+                            
+                            {/* X-axis labels (years) */}
+                            {points.map((point, index) => {
+                              return (
+                                <SvgText
+                                  key={`x-label-${index}`}
+                                  x={point.x}
+                                  y={chartHeight - paddingBottom + 20}
+                                  fontSize="11"
+                                  fill="#6B7280"
+                                  textAnchor="middle"
+                                >
+                                  {point.year}
+                                </SvgText>
+                              );
+                            })}
+                          </Svg>
+                        </ScrollView>
+                      </View>
+                      {selectedGraphYear && (() => {
+                        const selectedPoint = history.find(p => p.year === selectedGraphYear);
+                        if (!selectedPoint) return null;
+                        return (
+                          <View style={styles.networthGraphInfo}>
+                            <Text style={styles.networthGraphInfoText}>
+                              {selectedGraphYear}: {currencyInfo.symbol}{Math.round(selectedPoint.networth).toLocaleString()}
+                              {selectedPoint.delta !== undefined && selectedPoint.delta !== 0 && (
+                                <Text style={{ color: selectedPoint.delta >= 0 ? '#10B981' : '#EF4444' }}>
+                                  {' '}{selectedPoint.delta >= 0 ? '+' : ''}{currencyInfo.symbol}{Math.abs(selectedPoint.delta).toLocaleString()}
+                                </Text>
+                              )}
+                            </Text>
+                          </View>
+                        );
+                      })()}
+                    </View>
+                  );
+                })() : (
+                  <View style={styles.networthGraphSection}>
+                    <Text style={styles.networthSectionTitle}>Progress Over Time</Text>
+                    <Text style={styles.emptyBreakdownText}>No history available yet</Text>
+                  </View>
+                )}
+                </ScrollView>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#FAFAFA',
   },
   backgroundGradient: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#FAFAFA',
   },
   safeArea: {
     flex: 1,
   },
+  contentContainer: {
+    flex: 1,
+  },
   loadingScreen: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
   },
   loadingGradientContainer: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#FFFFFF',
   },
   loadingSafeArea: {
     flex: 1,
@@ -1340,7 +1811,6 @@ const styles = StyleSheet.create({
     height: 120,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
     marginBottom: 32,
   },
   orbOuter: {
@@ -1363,11 +1833,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: 'rgba(0, 0, 0, 0.05)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
     elevation: 6,
+  },
+  cubeShadowWrapper: {
+    shadowColor: 'rgba(0, 0, 0, 0.5)',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.8,
+    shadowRadius: 30,
+    elevation: 20,
   },
   loadingCubeIcon: {
     width: 60,
@@ -1383,9 +1856,9 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
     textAlign: 'center',
     letterSpacing: -0.5,
+    fontFamily: Fonts.secondary.bold,
   },
   statusContainer: {
     marginTop: 8,
@@ -1411,6 +1884,64 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontFamily: Fonts.secondary.bold,
   },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 32,
+    marginBottom: 16,
+    justifyContent: 'center',
+  },
+  statCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    minWidth: 90,
+    width: 90,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  statCardLarge: {
+    flex: 1,
+    borderRadius: 24,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  statCardChevron: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+  },
+  variantsCard: {
+    minWidth: 130, // Wider to fit large numbers with commas (e.g., 1,234,567)
+    width: 130,
+    paddingHorizontal: 16,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  statLabel: {
+    fontSize: 10,
+    color: Colors.textTertiary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    fontFamily: Fonts.secondary.bold,
+    textAlign: 'center',
+  },
   dotsContainer: {
     flexDirection: 'row',
     gap: 12,
@@ -1421,60 +1952,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 10,
-    position: 'relative',
-  },
-  topBarLeft: {
-    width: 80,
-    alignItems: 'flex-start',
-  },
-  backButton: {
-    padding: 8,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 20,
-  },
-  topBarCenter: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 80,
-  },
-  topBarTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.primary.regular,
-    textAlign: 'center',
-  },
-  topBarRight: {
-    width: 80,
-    alignItems: 'flex-end',
-  },
-  turnCounter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
-  turnText: {
-    color: '#FCD34D',
-    fontSize: 12,
-    fontWeight: '700',
-    fontFamily: Fonts.secondary.bold,
+    backgroundColor: Colors.textTertiary,
   },
   errorContainer: {
     flex: 1,
@@ -1484,545 +1962,481 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
   },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
-  statsBoard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    marginBottom: 24,
-    marginTop: 10,
-    overflow: 'hidden',
-    shadowColor: 'rgba(0, 0, 0, 0.06)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 5,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  avatarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  avatarIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    borderColor: Colors.gradients.turquoise[1],
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  ageContainer: {
-    justifyContent: 'center',
-  },
-  ageValue: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#000000',
-    fontFamily: Fonts.primary.regular,
-    lineHeight: 36,
-    letterSpacing: -0.5,
-  },
-  ageLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: 'rgba(0, 0, 0, 0.7)',
-    fontFamily: Fonts.secondary.bold,
-    letterSpacing: 1.5,
-    marginTop: 2,
-  },
-  contextInfo: {
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  contextRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  contextText: {
-    fontSize: 12,
-    color: '#CCC',
-    maxWidth: 120,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-  },
-  statCard: {
-    width: '48%', // roughly half width with gap
-    backgroundColor: 'rgba(0,0,0,0.02)',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
-  heroStatCard: {
-    width: '100%', // Full width for rectangles instead of squares
-    backgroundColor: 'rgba(0,0,0,0.02)',
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
-  statHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  statValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-    marginBottom: 4,
-  },
-  heroStatValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.primary.regular,
-  },
-  heroStatMax: {
-    fontSize: 14,
-    color: Colors.textTertiary,
-    fontWeight: '600',
-    fontFamily: Fonts.secondary.bold,
-  },
-  statSubtext: {
-    fontSize: 12,
-    color: Colors.textTertiary,
-    fontFamily: Fonts.secondary.bold,
-    marginTop: 6,
-  },
-  secondaryStatValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-  },
-  secondaryStatUnit: {
-    fontSize: 12,
-    color: Colors.textTertiary,
-    fontFamily: Fonts.secondary.bold,
-  },
-  viewMoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 8,
-  },
-  viewMoreText: {
-    fontSize: 11,
-    color: Colors.textTertiary,
-    fontWeight: '600',
-    fontFamily: Fonts.secondary.bold,
-  },
-  secondaryMetrics: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.02)',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-  },
-  miniMetric: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-  },
-  miniMetricLabel: {
-    fontSize: 12,
-    color: Colors.textTertiary,
-    fontWeight: '600',
-    fontFamily: Fonts.secondary.bold,
-  },
-  miniMetricValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  miniMetricValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-  },
-  miniMetricDelta: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  miniMetricDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-  },
-  previousValueText: {
-    fontSize: 11,
-    color: Colors.textTertiary,
-    fontStyle: 'italic',
-    fontFamily: Fonts.secondary.bold,
-    marginTop: 4,
-  },
-  
-  // Existing styles to preserve
-  netWorthContainer: {
-    position: 'relative',
-  },
-  netWorthDelta: {
-    position: 'absolute',
-    top: -24,
-    right: 0,
+
+  // Header & Year Selector
+  headerContainer: {
+    paddingBottom: 8,
+    backgroundColor: '#FAFAFA',
     zIndex: 10,
   },
-  netWorthDeltaBelow: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  netWorthDeltaGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  netWorthDeltaText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  relationshipDelta: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  smallDeltaText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  
-  // Action Button & Other Sections
-  actionButtonContainer: {
-    marginBottom: 32,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  actionButton: {
-    borderRadius: 20,
-    padding: 20,
+  topNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
-  actionButtonContent: {
-    flex: 1,
-  },
-  actionButtonTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    fontFamily: Fonts.secondary.bold,
-    marginBottom: 4,
-  },
-  actionButtonSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    fontFamily: Fonts.secondary.bold,
-  },
-  actionButtonIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  navButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
+  headerTitle: {
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
-    fontFamily: Fonts.primary.regular,
-  },
-  sectionBadge: {
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
-  sectionBadgeText: {
-    color: Colors.textTertiary,
-    fontSize: 12,
-    fontWeight: '600',
     fontFamily: Fonts.secondary.bold,
   },
-  eventsList: {
-    gap: 12,
-    marginBottom: 32,
+  yearSelectorContainer: {
+    height: 60,
+    marginTop: 8,
   },
-  questCard: {
+  yearSelectorContent: {
+    alignItems: 'center',
+    paddingHorizontal: 0,
+  },
+  yearItemWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  connectorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 40,
+    justifyContent: 'center',
+  },
+  connectorLine: {
+    height: 2,
+    backgroundColor: '#E5E7EB',
+    flex: 1,
+  },
+  connectorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    zIndex: 2,
+  },
+  yearPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
-    overflow: 'hidden',
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  yearPillSelected: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 22,
+    minWidth: 70,
+    alignItems: 'center',
+    shadowColor: '#2DD4BF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  yearText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569',
+    fontFamily: Fonts.secondary.bold,
+  },
+  yearTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 16,
+    fontFamily: Fonts.secondary.bold,
+  },
+
+  // Main Content
+  mainScrollView: {
+    flex: 1,
+  },
+  mainScrollContent: {
+    paddingBottom: 120,
+  },
+  identityCard: {
+    backgroundColor: '#FFFFFF',
+    margin: 20,
+    marginTop: 10,
+    borderRadius: 32,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.03)',
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 20,
+  },
+  locationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+    fontFamily: Fonts.secondary.bold,
+  },
+  avatarSection: {
+    marginBottom: 16,
+    position: 'relative',
+  },
+  avatarWrapper: {
+    position: 'relative',
+  },
+  ageBadge: {
+    position: 'absolute',
+    right: -20,
+    bottom: 0,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: 'rgba(0, 0, 0, 0.05)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
   },
-  questHeader: {
-    flexDirection: 'row',
+  ageBadgeGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  questHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  questLevelBadge: {
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  questLevelText: {
-    color: '#000000',
-    fontSize: 14,
-    fontWeight: '800',
-    fontFamily: Fonts.secondary.bold,
-    letterSpacing: 0.5,
-  },
-  questTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-  },
-  questContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-  },
-  questItem: {
-    flexDirection: 'row',
-    paddingLeft: 16,
-    paddingVertical: 12,
-    position: 'relative',
-    flexWrap: 'wrap',
-  },
-  questLine: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-  },
-  questDot: {
-    position: 'absolute',
-    left: -4,
-    top: 18,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
     borderWidth: 2,
-    borderColor: Colors.gradients.turquoise[1],
+    borderColor: '#FFFFFF',
   },
-  questItemTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.textPrimary,
+  ageBadgeValue: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 18,
     fontFamily: Fonts.secondary.bold,
-    marginBottom: 4,
-    width: '100%',
-    paddingLeft: 12,
   },
-  questItemDesc: {
-    fontSize: 15,
-    fontWeight: '400',
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.regular,
-    width: '100%',
-    paddingLeft: 12,
-    lineHeight: 22,
+  ageBadgeLabel: {
+    color: '#696969',
+    fontSize: 8,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: Fonts.secondary.bold,
   },
-  emptyEvents: {
-    padding: 32,
+  roleSection: {
+    marginBottom: 24,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginBottom: 32,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
   },
-  emptyEventsText: {
-    color: Colors.textTertiary,
-    fontSize: 14,
+  roleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  roleTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000000',
     textAlign: 'center',
     fontFamily: Fonts.secondary.bold,
   },
-  inventorySection: {
-    marginBottom: 32,
-  },
-  inventoryBannerContainer: {
-    width: width - 40,
-    height: 140,
-    overflow: 'hidden',
-    borderRadius: 20,
-    marginBottom: 12,
-  },
-  inventoryBannerItem: {
-    width: width - 40,
-    height: 140,
-  },
-  inventoryBanner: {
-    flex: 1,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    padding: 16,
+  progressStatsContainer: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    width: '100%',
+    paddingHorizontal: 10,
+    marginBottom: 24,
+    gap: 20,
   },
-  inventoryBannerContent: {
+  biometricColumn: {
+    flex: 1,
+    gap: 8,
+  },
+  biometricHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    flex: 1,
-  },
-  inventoryBannerIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+    marginBottom: 4,
   },
-  inventoryBannerEmoji: {
-    fontSize: 36,
+  biometricLabel: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
   },
-  inventoryBannerText: {
+  biometricDelta: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  biometricBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  biometricBarTrack: {
     flex: 1,
+    height: 6,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  biometricBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  biometricValueText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#000000',
+    minWidth: 36,
+    textAlign: 'right',
+  },
+  statCardsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 16,
+  },
+  statCardHeaderCentered: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  statCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
+  },
+  statCardValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statCardValueColumn: {
+    flexDirection: 'column',
+    alignItems: 'center',
     gap: 4,
   },
-  inventoryBannerName: {
+  statCardValueLarge: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#000000',
+    fontFamily: Fonts.secondary.bold,
+  },
+  statDeltaSmall: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  netWorthContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    flexWrap: 'wrap',
+  },
+  
+  // Life Log Expandable Section
+  lifeLogSection: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  lifeLogButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  lifeLogButtonContent: {
+    flex: 1,
+  },
+  lifeLogButtonTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: '#000000',
     fontFamily: Fonts.secondary.bold,
+    marginBottom: 4,
   },
-  inventoryBannerValue: {
+  lifeLogButtonSubtitle: {
     fontSize: 14,
-    color: '#10B981',
-    fontWeight: '600',
-  },
-  inventoryBannerDesc: {
-    fontSize: 12,
-    color: Colors.textSecondary,
+    color: '#64748B',
     fontFamily: Fonts.secondary.bold,
-    lineHeight: 16,
   },
-  inventoryBannerIndicator: {
+  lifeLogContent: {
+    marginTop: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingTop: 20,
+    paddingRight: 20,
+    paddingBottom: 20,
+    paddingLeft: 36,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  questCard: {
+    borderLeftWidth: 2,
+    borderLeftColor: '#E2E8F0',
+    paddingLeft: 24,
+    paddingBottom: 32,
+    position: 'relative',
+    marginBottom: 8,
+  },
+  questHeader: {
+    marginBottom: 8,
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  questTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: Fonts.secondary.bold,
+    lineHeight: 22,
+    flex: 1,
+  },
+  questTime: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94A3B8',
+    fontFamily: Fonts.secondary.bold,
+    marginLeft: 12,
+  },
+  questDesc: {
+    fontSize: 14,
+    color: '#64748B',
+    lineHeight: 22,
+    fontFamily: Fonts.secondary.bold,
+    marginBottom: 8,
+  },
+  questDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginTop: 16,
+    width: '100%',
+  },
+  timelinePoint: {
+    position: 'absolute',
+    left: -6,
+    top: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#3B82F6',
+  },
+  emptyLogText: {
+    color: Colors.textTertiary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  peopleTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     marginTop: 8,
   },
-  inventoryDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+  personTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
   },
-  inventoryDotActive: {
-    backgroundColor: Colors.gradients.turquoise[1],
-    width: 20,
-  },
-  inventoryNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  inventoryNavButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  inventoryNavText: {
-    color: Colors.textTertiary,
-    fontSize: 14,
+  personTagText: {
+    fontSize: 12,
     fontWeight: '600',
+    color: '#3B82F6',
     fontFamily: Fonts.secondary.bold,
   },
+  
+  // Bottom Action
+  bottomActionContainer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 20,
+    right: 20,
+    zIndex: 100,
+  },
+  simulateButton: {
+    borderRadius: 24,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  simulateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: Fonts.secondary.bold,
+  },
+
+  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     padding: 20,
   },
+  relationshipModalOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  relationshipModalContent: {
+    maxHeight: '80%',
+    width: '90%',
+    maxWidth: 500,
+    minHeight: 300,
+  },
+  networthModalContent: {
+    maxHeight: '90%',
+    width: '90%',
+    maxWidth: 500,
+    minHeight: 500,
+  },
   modalContent: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    backgroundColor: '#FFFFFF',
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 10,
+    minHeight: 300,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -2033,12 +2447,12 @@ const styles = StyleSheet.create({
   modalTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: '#000000',
     fontFamily: Fonts.secondary.bold,
   },
   modalClose: {
@@ -2046,105 +2460,49 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     color: Colors.textSecondary,
-    fontSize: 14,
+    marginBottom: 16,
     fontFamily: Fonts.secondary.bold,
-    marginBottom: 20,
+  },
+  lifeLogModalSubtitle: {
+    fontSize: 14,
+    color: Colors.textTertiary,
+    marginTop: 4,
+    fontFamily: Fonts.secondary.bold,
   },
   scenarioInput: {
-    backgroundColor: 'rgba(0,0,0,0.02)',
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
     padding: 16,
-    color: Colors.textPrimary,
     fontSize: 16,
-    fontFamily: Fonts.secondary.bold,
+    color: '#000000',
     minHeight: 120,
     textAlignVertical: 'top',
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
   },
   modalButton: {
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   modalButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.7,
   },
   modalButtonGradient: {
     paddingVertical: 16,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   modalButtonText: {
-    color: '#FFF',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
-  },
-  notificationsContainer: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 40,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  notification: {
-    marginBottom: 8,
-  },
-  notificationContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 20,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  notificationEmojiContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  notificationEmoji: {
-    fontSize: 28,
-  },
-  notificationText: {
-    flex: 1,
-  },
-  notificationTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#000000',
-    marginBottom: 2,
-  },
-  notificationSubtitle: {
-    fontSize: 12,
-    color: 'rgba(0, 0, 0, 0.7)',
-  },
-  notificationClose: {
-    padding: 4,
-    marginLeft: 8,
   },
   relationshipsList: {
     marginTop: 8,
   },
   relationshipCard: {
-    backgroundColor: 'rgba(0,0,0,0.02)',
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
   },
   relationshipHeader: {
     flexDirection: 'row',
@@ -2155,8 +2513,7 @@ const styles = StyleSheet.create({
   relationshipName: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
+    color: '#000000',
   },
   relationshipTypeTag: {
     paddingHorizontal: 8,
@@ -2171,16 +2528,167 @@ const styles = StyleSheet.create({
   relationshipStatus: {
     fontSize: 12,
     color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
     marginBottom: 4,
   },
   relationshipDesc: {
     fontSize: 13,
     color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
     lineHeight: 18,
   },
+  emptyEvents: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyEventsText: {
+    color: Colors.textTertiary,
+  },
+  
+  // Networth Modal Styles
+  networthModalScroll: {
+    flex: 1,
+  },
+  networthModalScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
+  emptyBreakdownText: {
+    fontSize: 14,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  networthCurrentSection: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    marginBottom: 20,
+  },
+  networthCurrentLabel: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    fontFamily: Fonts.secondary.bold,
+  },
+  networthCurrentValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    maxWidth: '100%',
+  },
+  networthBreakdownSection: {
+    marginBottom: 24,
+  },
+  biggestMoverExplanation: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#10B981',
+  },
+  biggestMoverText: {
+    fontSize: 14,
+    color: Colors.textPrimary,
+    lineHeight: 20,
+    fontFamily: Fonts.secondary.bold,
+  },
+  biggestMoverLabel: {
+    fontWeight: '700',
+    fontFamily: Fonts.secondary.bold,
+  },
+  biggestMoverDetail: {
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  networthSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 12,
+    fontFamily: Fonts.secondary.bold,
+  },
+  breakdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  breakdownItemContent: {
+    flex: 1,
+  },
+  breakdownSource: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+    fontFamily: Fonts.secondary.bold,
+  },
+  breakdownDescription: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  breakdownValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  networthGraphSection: {
+    marginBottom: 20,
+  },
+  networthLineChartContainer: {
+    height: 260,
+    marginTop: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  networthLineChartSvg: {
+    backgroundColor: 'transparent',
+  },
+  networthGraphInfo: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  networthGraphInfoText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  networthGraphYear: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginBottom: 4,
+    fontFamily: Fonts.secondary.bold,
+  },
+  networthGraphValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 2,
+    fontFamily: Fonts.secondary.bold,
+  },
+  networthGraphDelta: {
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: Fonts.secondary.bold,
+  },
 });
-
-
 

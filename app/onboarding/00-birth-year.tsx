@@ -44,7 +44,7 @@ export default function BirthYearScreen() {
         console.error('Failed to save birth year:', error);
       }
     }
-    router.push('/onboarding/01-values-multiselect');
+    router.push('/onboarding/motivate-reviews');
   }
 
   // Generate year options from 2012 down to 1950
@@ -59,8 +59,6 @@ export default function BirthYearScreen() {
       progress={0.30}
       onNext={handleNext}
       canContinue={selectedYear.length > 0}
-      buttonGradient={Colors.gradients.turquoise}
-      progressBarGradient={Colors.gradients.turquoise}
     >
       <View style={styles.container}>
         <ChoiceQuestion

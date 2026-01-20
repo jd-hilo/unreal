@@ -1,10 +1,10 @@
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Image, Modal, ActivityIndicator, Animated, Easing } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Image, Modal, ActivityIndicator, Animated, Easing, Share } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { SwipeableOptionCard } from '@/components/SwipeableOptionCard';
-import { ArrowLeft, ChevronRight, X, UserPlus, Clock, Sparkles, Check, Plus } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, X, UserPlus, Clock, Sparkles, Check, Plus, Share as ShareIcon, Info, Copy, ArrowUp } from 'lucide-react-native';
 import { insertDecision, updateDecisionPrediction, getUserByTwinCode, addDecisionParticipant, getProfile } from '@/lib/storage';
 import { predictDecision, generateInterestingDecisionQuestions } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
@@ -59,10 +59,12 @@ export default function NewDecisionScreen() {
   ];
   
   // Twin management
-  const [showTwinModal, setShowTwinModal] = useState(false);
+  const [hasShared, setHasShared] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [twinCode, setTwinCode] = useState('');
   const [twinCodeError, setTwinCodeError] = useState('');
   const [lookingUpTwin, setLookingUpTwin] = useState(false);
+  const [foundTwin, setFoundTwin] = useState<{ userId: string; name: string; code: string } | null>(null);
   const [addedTwins, setAddedTwins] = useState<Array<{ userId: string; name: string; code: string }>>([]);
   const [recentTwins, setRecentTwins] = useState<Array<{ userId: string; name: string; code: string }>>([]);
   const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(null);
@@ -73,7 +75,7 @@ export default function NewDecisionScreen() {
   useEffect(() => {
     loadRecentTwins();
     
-    // Keyboard listeners for modal positioning
+    // Keyboard listeners for button positioning
     const keyboardWillShow = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
@@ -449,20 +451,17 @@ export default function NewDecisionScreen() {
     }
   }
 
-  async function handleAddTwin() {
+  async function handleLookupTwin() {
     if (!twinCode.trim() || twinCode.length !== 6) {
-      setTwinCodeError('Please enter a valid 6-digit code');
+      setTwinCodeError('Enter a valid 6-digit code');
       return;
     }
 
-    if (addedTwins.length >= 1) {
-      setTwinCodeError('You can only add one other twin per decision');
-      setLookingUpTwin(false);
-      return;
-    }
+    if (!user) return;
 
     setLookingUpTwin(true);
     setTwinCodeError('');
+    setFoundTwin(null);
 
     try {
       const twinProfile = await getUserByTwinCode(twinCode.trim());
@@ -473,27 +472,20 @@ export default function NewDecisionScreen() {
         return;
       }
 
-      if (twinProfile.user_id === user?.id) {
-        setTwinCodeError('You cannot add your own twin');
+      if (twinProfile.user_id === user.id) {
+        setTwinCodeError('Cannot compare with yourself');
         setLookingUpTwin(false);
         return;
       }
 
       const twinName = twinProfile.first_name || 'Someone';
 
-      const newTwin = {
+      setFoundTwin({
         userId: twinProfile.user_id,
         name: twinName,
         code: twinProfile.twin_code || twinCode.trim()
-      };
+      });
 
-      setAddedTwins([newTwin]);
-      await saveRecentTwin(newTwin);
-      setShowTwinModal(false);
-      setTwinCode('');
-      setTwinCodeError('');
-      
-      // Track twin added event
       trackEvent(MixpanelEvents.DECISION_TWIN_ADDED, {
         twin_code: twinCode.trim(),
         twin_name: twinName,
@@ -501,9 +493,45 @@ export default function NewDecisionScreen() {
       });
     } catch (error) {
       console.error('Error looking up twin:', error);
-      setTwinCodeError('Failed to look up twin code');
+      setTwinCodeError('Failed to look up code');
     } finally {
       setLookingUpTwin(false);
+    }
+  }
+
+  function handleAddFoundTwin() {
+    if (!foundTwin) return;
+
+    const newTwin = {
+      userId: foundTwin.userId,
+      name: foundTwin.name,
+      code: foundTwin.code
+    };
+
+    setAddedTwins([newTwin]);
+    saveRecentTwin(newTwin);
+    setTwinCode('');
+    setTwinCodeError('');
+    setFoundTwin(null);
+    setHasShared(false);
+  }
+
+  async function handleShare() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    try {
+      const result = await Share.share({
+        message: 'Join me in making this decision! Build your digital twin and collaborate with me. Once signed up, send your mora#.\n\nhttps://apps.apple.com/us/app/mora-simulate-your-life/id6754901842'
+      });
+      
+      // Track share event
+      if (result.action === Share.sharedAction) {
+        trackEvent(MixpanelEvents.DECISION_SHARED);
+      }
+      
+      setHasShared(true);
+    } catch (error) {
+      console.error('Error sharing:', error);
     }
   }
 
@@ -518,9 +546,10 @@ export default function NewDecisionScreen() {
     }
 
     setAddedTwins([twin]);
-    setShowTwinModal(false);
     setTwinCode('');
     setTwinCodeError('');
+    setFoundTwin(null);
+    setHasShared(false);
     
     // Track twin added event
     trackEvent(MixpanelEvents.DECISION_TWIN_ADDED, {
@@ -722,22 +751,100 @@ export default function NewDecisionScreen() {
             </View>
           </View>
         ) : (
-          <View style={styles.collaboratorSection}>
-            <TouchableOpacity
-              onPress={() => setShowTwinModal(true)}
-              style={styles.airbudsCard}
-              activeOpacity={0.8}
-            >
-              <View style={styles.airbudsGradient}>
-                <View style={styles.airbudsInner}>
-                  <View style={styles.airbudsIconCircle}>
-                    <Plus size={32} color={Colors.textPrimary} strokeWidth={2.5} />
+          <>
+            {!hasShared ? (
+              <View style={styles.collaboratorSection}>
+                <TouchableOpacity
+                  onPress={handleShare}
+                  style={styles.airbudsCard}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.airbudsGradient}>
+                    <View style={styles.airbudsInner}>
+                      <View style={styles.airbudsIconCircle}>
+                        <Plus size={32} color={Colors.textPrimary} strokeWidth={2.5} />
+                      </View>
+                      <Text style={styles.airbudsText}>Tap to invite</Text>
+                    </View>
                   </View>
-                  <Text style={styles.airbudsText}>Tap to invite</Text>
-                </View>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-          </View>
+            ) : (
+              <>
+                <View style={styles.codeLabelRow}>
+                  <TouchableOpacity 
+                    onPress={() => setShowInfoModal(true)}
+                    style={styles.infoButton}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Info size={18} color={Colors.textTertiary} strokeWidth={2} />
+                  </TouchableOpacity>
+                </View>
+                <FloatingLabelInput
+                  label="6 digit mora#"
+                  value={twinCode}
+                  onChangeText={(text) => {
+                    setTwinCode(text);
+                    setTwinCodeError('');
+                    setFoundTwin(null);
+                  }}
+                  maxLength={6}
+                  keyboardType="number-pad"
+                  error={twinCodeError}
+                  returnKeyType="done"
+                  onSubmitEditing={handleLookupTwin}
+                />
+
+                {foundTwin && (
+                  <View style={styles.foundTwinCard}>
+                    <View style={styles.foundTwinContent}>
+                      <View style={styles.foundTwinIcon}>
+                        <UserPlus size={20} color={Colors.gradients.turquoise[0]} />
+                      </View>
+                      <View style={styles.foundTwinInfo}>
+                        <Text style={styles.foundTwinName}>{foundTwin.name}</Text>
+                        <Text style={styles.foundTwinCode}>#{foundTwin.code}</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {!foundTwin && (
+                  <TouchableOpacity
+                    onPress={handleLookupTwin}
+                    disabled={lookingUpTwin || twinCode.length !== 6}
+                    style={[
+                      styles.lookupButton,
+                      (lookingUpTwin || twinCode.length !== 6) && styles.lookupButtonDisabled
+                    ]}
+                    activeOpacity={0.9}
+                  >
+                    {lookingUpTwin ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.lookupButtonText}>Find Twin</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+
+                {foundTwin && (
+                  <TouchableOpacity
+                    onPress={handleAddFoundTwin}
+                    activeOpacity={0.9}
+                    style={styles.addTwinButton}
+                  >
+                    <LinearGradient
+                      colors={Colors.gradients.turquoise}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <Text style={styles.addTwinButtonText}>Add Twin</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </>
         )}
       </View>
     );
@@ -1071,93 +1178,6 @@ export default function NewDecisionScreen() {
         </View>
       </View>
 
-      {/* Twin Code Modal */}
-      <Modal
-        visible={showTwinModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowTwinModal(false)}
-      >
-        <View style={[styles.modalOverlay, keyboardVisible && styles.modalOverlayKeyboard]}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalBlur}>
-              <View style={styles.modalInner}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Add Another Twin</Text>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      setShowTwinModal(false);
-                      setTwinCode('');
-                      setTwinCodeError('');
-                    }}
-                    style={styles.modalCloseButton}
-                  >
-                    <X size={24} color={Colors.textPrimary} />
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={styles.modalDescription}>
-                  Enter someone's mora# — it is listed on their profile page. They will be included in the decision.
-                </Text>
-
-                {recentTwins.length > 0 && (
-                  <View style={styles.recentTwinsSection}>
-                    <View style={styles.recentTwinsHeader}>
-                      <Clock size={14} color={Colors.textTertiary} />
-                      <Text style={styles.recentTwinsLabel}>Recently added</Text>
-                    </View>
-                    <View style={styles.recentTwinsList}>
-                      {recentTwins.map((twin) => (
-                        <TouchableOpacity
-                          key={twin.userId}
-                          onPress={() => handleSelectRecentTwin(twin)}
-                          style={styles.recentTwinChip}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.recentTwinName}>{twin.name}</Text>
-                          <Text style={styles.recentTwinCode}>#{twin.code}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                <FloatingLabelInput
-                  label="Enter 6-digit code"
-                  value={twinCode}
-                  onChangeText={(text) => {
-                    setTwinCode(text);
-                    setTwinCodeError('');
-                  }}
-                  maxLength={6}
-                  keyboardType="number-pad"
-                  error={twinCodeError}
-                  returnKeyType="done"
-                />
-
-                <TouchableOpacity
-                  onPress={handleAddTwin}
-                  disabled={lookingUpTwin || twinCode.length !== 6}
-                  style={[
-                    styles.modalButtonWrapper,
-                    (lookingUpTwin || twinCode.length !== 6) && styles.modalButtonDisabled
-                  ]}
-                  activeOpacity={0.9}
-                >
-                  <View style={styles.modalButton}>
-                    {lookingUpTwin ? (
-                      <ActivityIndicator size="small" color={Colors.textPrimary} />
-                    ) : (
-                      <Text style={styles.modalButtonText}>Add Twin</Text>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Edit Option Modal */}
       <Modal
         visible={editingOptionIndex !== null}
@@ -1207,6 +1227,45 @@ export default function NewDecisionScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Info Modal */}
+      <Modal
+        visible={showInfoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInfoModal(false)}
+      >
+        <View style={styles.infoModalOverlay}>
+          <View style={styles.infoModalContent}>
+            <TouchableOpacity 
+              onPress={() => setShowInfoModal(false)}
+              style={styles.infoModalCloseButton}
+            >
+              <X size={24} color={Colors.textTertiary} />
+            </TouchableOpacity>
+            
+            <Text style={styles.infoModalTitle}>Where to find it</Text>
+            
+            <View style={styles.mockProfilePreview}>
+              <View style={styles.mockAvatar} />
+              <Text style={styles.mockName}>Friend's Name</Text>
+              <View style={styles.mockCodeContainer}>
+                <Text style={styles.mockCode}>mora#123456</Text>
+                <Copy size={12} color={Colors.textTertiary} />
+              </View>
+              
+              <View style={styles.pointerContainer}>
+                <ArrowUp size={24} color={Colors.gradients.turquoise[0]} />
+                <Text style={styles.pointerText}>It's right here!</Text>
+              </View>
+            </View>
+
+            <Text style={styles.infoModalText}>
+              Your friend can find their 6-digit code on their twin's page, right under their name.
+            </Text>
           </View>
         </View>
       </Modal>
@@ -1508,7 +1567,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Airbuds style card
   airbudsCard: {
     width: 200,
     height: 200,
@@ -1548,6 +1606,140 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  addTwinIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 32,
+    overflow: 'hidden',
+    alignSelf: 'center',
+  },
+  addTwinIconGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareContainer: {
+    alignItems: 'center',
+    gap: 20,
+    marginTop: 20,
+  },
+  shareText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+    textAlign: 'center',
+    maxWidth: '80%',
+    lineHeight: 22,
+  },
+  shareButton: {
+    width: '100%',
+    height: 64,
+    borderRadius: 32,
+    overflow: 'hidden',
+    shadowColor: '#EC4899',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  shareButtonContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareIcon: {
+    marginRight: 12,
+  },
+  shareButtonText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 0.5,
+  },
+  lookupButton: {
+    width: '100%',
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.gradients.turquoise[0],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    shadowColor: Colors.gradients.turquoise[0],
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  lookupButtonDisabled: {
+    opacity: 0.5,
+    shadowOpacity: 0,
+  },
+  lookupButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  foundTwinCard: {
+    backgroundColor: 'rgba(45, 212, 191, 0.08)',
+    borderRadius: 20,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(45, 212, 191, 0.2)',
+  },
+  foundTwinContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  foundTwinIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(45, 212, 191, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  foundTwinInfo: {
+    flex: 1,
+  },
+  foundTwinName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 2,
+    fontFamily: Fonts.secondary.bold,
+  },
+  foundTwinCode: {
+    fontSize: 14,
+    color: Colors.gradients.turquoise[0],
+    fontFamily: Fonts.secondary.bold,
+  },
+  addTwinButton: {
+    width: '100%',
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginTop: 8,
+    shadowColor: Colors.gradients.turquoise[0],
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  addTwinButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
     fontFamily: Fonts.secondary.bold,
   },
   twinAddedIconContainer: {
@@ -1861,5 +2053,118 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: Colors.textTertiary,
+  },
+  codeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
+  },
+  codeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  infoButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  infoModalContent: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+    alignItems: 'center',
+  },
+  infoModalCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 4,
+    zIndex: 1,
+  },
+  infoModalTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.primary.semibold,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 24,
+    marginTop: 8,
+  },
+  infoModalText: {
+    fontSize: 15,
+    fontFamily: Fonts.fallback.secondary,
+    fontWeight: '400',
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginTop: 20,
+  },
+  mockProfilePreview: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  mockAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E5E7EB',
+    marginBottom: 12,
+  },
+  mockName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+    fontFamily: Fonts.primary.regular,
+  },
+  mockCodeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  mockCode: {
+    fontSize: 13,
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textSecondary,
+  },
+  pointerContainer: {
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  pointerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.gradients.turquoise[0],
+    marginTop: 4,
+    fontFamily: Fonts.secondary.bold,
   },
 });

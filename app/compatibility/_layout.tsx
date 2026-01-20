@@ -10,6 +10,7 @@ export default function CompatibilityLayout() {
     >
       <Stack.Screen name="info" />
       <Stack.Screen name="add-twin" />
+      <Stack.Screen name="add-twin-form" />
       <Stack.Screen name="loading" />
       <Stack.Screen name="[id]" />
     </Stack>

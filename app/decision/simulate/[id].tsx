@@ -1,22 +1,19 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Image, Animated, Easing } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { getDecision, getDecisionParticipants } from '@/lib/storage';
 import { generateTimelineSimulation } from '@/lib/ai';
 import { buildCorePack } from '@/lib/relevance';
-import { ArrowLeft, Sparkles, Zap, Brain, Home } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Zap, Brain } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { TimelineSimulation } from '@/types/database';
-import Animated, {
+import {
   useSharedValue,
-  useAnimatedStyle,
   withTiming,
-  withRepeat,
-  withSequence,
-  Easing,
 } from 'react-native-reanimated';
 
 export default function SimulationScreen() {
@@ -25,6 +22,7 @@ export default function SimulationScreen() {
   const user = useAuth((state) => state.user);
   const [decision, setDecision] = useState<any>(null);
   const [timeline, setTimeline] = useState<TimelineSimulation | null>(null);
+  const [simulations, setSimulations] = useState<Record<string, TimelineSimulation>>({});
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string>('');
@@ -34,46 +32,106 @@ export default function SimulationScreen() {
   const [participants, setParticipants] = useState<any[]>([]);
   const [progressStatus, setProgressStatus] = useState('Initializing simulation...');
   const [progressPercent, setProgressPercent] = useState(0);
+  const [generatingOptions, setGeneratingOptions] = useState<Set<string>>(new Set());
+  const [completedSimulations, setCompletedSimulations] = useState(0);
+  const [totalSimulations, setTotalSimulations] = useState(0);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [variantsCount, setVariantsCount] = useState(0);
+  const [percentageCount, setPercentageCount] = useState(0);
   const progressAnim = useSharedValue(0);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const loadingStepIndex = useRef(0);
 
-  // Matrix background columns - simplified for performance
-  const numColumns = 12;
-  const matrixColumns = useRef(
-    Array.from({ length: numColumns }, (_, i) => ({
-      id: i,
-      y: useSharedValue(Math.random() * -1500),
-      speed: 3000 + Math.random() * 2000, // Duration in ms (3-5 seconds)
-    }))
-  ).current;
+  const LOADING_STEPS = [
+    "Analyzing your profile...",
+    "Building context...",
+    "Simulating life trajectories...",
+    "Calculating probabilities...",
+    "Finalizing simulations..."
+  ];
 
-  // Animate matrix columns
+  // Loading animation and steps
   useEffect(() => {
-    if (!loading && !generating) return;
-
-    matrixColumns.forEach((col) => {
-      // Start smooth continuous looping animation
-      col.y.value = withRepeat(
-        withSequence(
-          withTiming(1200, {
-            duration: col.speed,
-            easing: Easing.linear,
+    if (generating && Object.keys(simulations).length === 0) {
+      // Start pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
           }),
-          withTiming(-1500, {
-            duration: 0,
-            easing: Easing.linear,
-          })
-        ),
-        -1,
-        false
-      );
-    });
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
 
-    return () => {
-      matrixColumns.forEach((col) => {
-        col.y.value = -1500;
-      });
-    };
-  }, [loading, generating]);
+      // Start rotation animation
+      Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+
+      // Update loading steps
+      const stepInterval = setInterval(() => {
+        loadingStepIndex.current = (loadingStepIndex.current + 1) % LOADING_STEPS.length;
+        setProgressStatus(LOADING_STEPS[loadingStepIndex.current]);
+      }, 2000);
+
+      // Update elapsed time
+      const timeInterval = setInterval(() => {
+        if (startTime) {
+          setElapsedTime(Math.floor((performance.now() - startTime) / 1000));
+        }
+      }, 1000);
+
+      // Animate variants count quickly - keep increasing continuously
+      setVariantsCount(0);
+      const variantsInterval = setInterval(() => {
+        setVariantsCount(prev => {
+          // Continuous growth that starts fast and gradually slows but never stops
+          // Base increment decreases over time but always adds something
+          const baseIncrement = Math.max(50, 500 - Math.floor(prev / 100));
+          const randomIncrement = Math.floor(Math.random() * 300);
+          return prev + baseIncrement + randomIncrement;
+        });
+      }, 50); // Update every 50ms for smooth animation
+
+      // Animate percentage counter - starts at 0 and increments by 1%
+      setPercentageCount(0);
+      const percentageInterval = setInterval(() => {
+        setPercentageCount(prev => {
+          // Increment by 1% up to 99% (never show 100%)
+          if (prev >= 99) return 99;
+          return prev + 1;
+        });
+      }, 800); // Update every 800ms to slow down the counter
+      
+      return () => {
+        clearInterval(stepInterval);
+        clearInterval(timeInterval);
+        clearInterval(variantsInterval);
+        clearInterval(percentageInterval);
+        pulseAnim.setValue(1);
+        rotateAnim.setValue(0);
+      };
+    } else {
+      // Reset variants and percentage when not generating
+      setVariantsCount(0);
+      setPercentageCount(0);
+    }
+  }, [generating, simulations, startTime]);
 
   useEffect(() => {
     if (user && id) {
@@ -98,23 +156,133 @@ export default function SimulationScreen() {
       
       setDecision(decisionData);
       setParticipants(participantsData || []);
-      setLoading(false); // Show UI immediately after data loads
       
       const uiLoadTime = performance.now();
       console.log(`[Simulation] UI loaded in ${(uiLoadTime - startTime).toFixed(2)}ms`);
       
       // Set initial selected option to the predicted choice
-      const initialOption = decisionData.prediction?.prediction || '';
+      const options = Array.isArray(decisionData.options) 
+        ? decisionData.options 
+        : JSON.parse(decisionData.options || '[]');
+      const initialOption = decisionData.prediction?.prediction || options[0] || '';
       setSelectedOption(initialOption);
       
-      // Generate timeline for predicted choice in background
-      if (initialOption) {
-        console.log(`[Simulation] Starting background simulation for option: "${initialOption}"`);
-        generateSimulationForOption(decisionData, initialOption);
+      // Generate simulations for ALL options simultaneously
+      if (options.length > 0) {
+        console.log(`[Simulation] Starting simultaneous simulations for all ${options.length} options`);
+        generateAllSimulations(decisionData, options, participantsData || []);
+      } else {
+        setLoading(false);
       }
     } catch (error) {
       console.error('[Simulation] Failed to load data:', error);
       setLoading(false);
+    }
+  }
+
+  async function generateAllSimulations(decisionData: any, options: string[], participantsList: any[] = []) {
+    if (!user || !decisionData || options.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    setGenerating(true);
+    setLoading(true);
+    setProgressPercent(100);
+    setProgressStatus('Initializing simulations...');
+    setTotalSimulations(options.length);
+    setCompletedSimulations(0);
+    setStartTime(performance.now());
+    setVariantsCount(0);
+    setPercentageCount(0);
+    progressAnim.value = 100;
+
+    // Mark all options as generating
+    setGeneratingOptions(new Set(options));
+
+    try {
+      // Step 1: Building core pack (shared for all options)
+      setProgressStatus('Analyzing your profile...');
+      setProgressPercent(80);
+      progressAnim.value = withTiming(80, { duration: 500 });
+      
+      const allUserIds = [user.id, ...participantsList.map(p => p.participant_user_id)];
+      console.log('[Simulation] Building core pack for', allUserIds.length, 'user(s)');
+      
+      const corePackStartTime = performance.now();
+      const corePack = await buildCorePack(user.id, allUserIds);
+      const corePackEndTime = performance.now();
+      console.log(`[Simulation] Core pack built in ${(corePackEndTime - corePackStartTime).toFixed(2)}ms`);
+
+      // Step 2: Generate all simulations simultaneously
+      setProgressStatus('Simulating all life trajectories...');
+      setProgressPercent(70);
+      progressAnim.value = withTiming(70, { duration: 500 });
+
+      console.log('[Simulation] Starting simultaneous AI timeline generation for all options...');
+      
+      // Start all simulations in parallel with progress tracking
+      const simulationPromises = options.map(async (option) => {
+        try {
+          const simulationStartTime = performance.now();
+          console.log(`[Simulation] Starting simulation for option: "${option}"`);
+          
+          const timelineData = await generateTimelineSimulation(
+            corePack,
+            decisionData.question,
+            option,
+            allUserIds.length
+          );
+          
+          const simulationEndTime = performance.now();
+          console.log(`[Simulation] Completed simulation for "${option}" in ${((simulationEndTime - simulationStartTime) / 1000).toFixed(2)}s`);
+          
+          // Update completed count
+          setCompletedSimulations(prev => prev + 1);
+          
+          return { option, timelineData };
+        } catch (error) {
+          console.error(`[Simulation] Error generating simulation for "${option}":`, error);
+          setCompletedSimulations(prev => prev + 1);
+          return { option, timelineData: null, error };
+        }
+      });
+
+      // Wait for all simulations to complete
+      const results = await Promise.all(simulationPromises);
+      
+      // Store all simulations
+      const newSimulations: Record<string, TimelineSimulation> = {};
+      results.forEach(({ option, timelineData }) => {
+        if (timelineData) {
+          newSimulations[option] = timelineData;
+        }
+      });
+      
+      setSimulations(newSimulations);
+      
+      // Set timeline for the selected option
+      const initialOption = decisionData.prediction?.prediction || options[0] || '';
+      if (newSimulations[initialOption]) {
+        setTimeline(newSimulations[initialOption]);
+      }
+
+      // Update progress
+      setProgressStatus('Complete!');
+      setProgressPercent(0);
+      progressAnim.value = withTiming(0, { duration: 300 });
+      
+      console.log(`[Simulation] All ${results.length} simulations completed`);
+    } catch (error) {
+      console.error('[Simulation] Error generating simulations:', error);
+      setProgressStatus('Error generating simulations');
+      setProgressPercent(100);
+      progressAnim.value = 100;
+      alert('Failed to generate timeline simulations');
+    } finally {
+      setGenerating(false);
+      setLoading(false);
+      setGeneratingOptions(new Set());
     }
   }
 
@@ -227,60 +395,121 @@ export default function SimulationScreen() {
     if (option === selectedOption || !decision) return;
     
     setSelectedOption(option);
-    setTimeline(null); // Clear current timeline
-    await generateSimulationForOption(decision, option);
+    
+    // Check if simulation already exists for this option
+    if (simulations[option]) {
+      // Just toggle to the existing simulation
+      setTimeline(simulations[option]);
+      console.log(`[Simulation] Toggling to existing simulation for "${option}"`);
+    } else {
+      // If simulation doesn't exist (shouldn't happen, but handle gracefully)
+      console.warn(`[Simulation] No existing simulation found for "${option}", generating now...`);
+      setTimeline(null);
+      await generateSimulationForOption(decision, option);
+    }
   }
 
-  // Create matrix number styles - simplified for performance
-  const numbersPerColumn = 20;
-  const matrixNumberStyles = matrixColumns.map((column, colIdx) =>
-    Array.from({ length: numbersPerColumn }, (_, idx) =>
-      useAnimatedStyle(() => {
-        const opacity = idx < 3 ? idx * 0.3 : Math.max(0.2, 1 - (idx - 3) * 0.1);
-        return {
-          opacity,
-          transform: [{ translateY: column.y.value + idx * 40 }],
-        };
-      })
-    )
-  );
 
-  if (loading || generating) {
+  if (loading || (generating && Object.keys(simulations).length === 0)) {
+    const rotateInterpolate = rotateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+
     return (
-      <View style={[styles.container, { backgroundColor: Colors.background }]}>
-        <StatusBar style="dark" />
-        {/* Matrix Background - Updated for Light Theme */}
-        <View style={styles.matrixContainer} pointerEvents="none">
-          {matrixColumns.map((column, colIdx) => {
-            const numbers = Array.from({ length: numbersPerColumn }, () => Math.floor(Math.random() * 10).toString());
-            
-            return (
-              <Animated.View
-                key={column.id}
-                style={[
-                  styles.matrixColumn,
-                  { left: `${(column.id / numColumns) * 100}%` },
-                ]}
-              >
-                {numbers.map((num, idx) => (
-                  <Animated.Text
-                    key={idx}
-                    style={[
-                      styles.matrixNumber, 
-                      matrixNumberStyles[colIdx][idx],
-                      { color: 'rgba(0, 0, 0, 0.05)' }
-                    ]}
-                  >
-                    {num}
-                  </Animated.Text>
-                ))}
-              </Animated.View>
-            );
-          })}
-        </View>
-
+      <View style={styles.loadingScreen}>
         <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: Colors.textPrimary }]}>running different lifelines...</Text>
+          <StatusBar style="dark" />
+          <SafeAreaView style={styles.loadingSafeArea} edges={['top', 'left', 'right']}>
+            <View style={styles.loadingContent}>
+              {/* Animated Orb */}
+              <View style={styles.orbContainer}>
+                <Animated.View
+                  style={[
+                    styles.orbOuter,
+                    {
+                      transform: [
+                        { scale: pulseAnim },
+                        { rotate: rotateInterpolate },
+                      ],
+                    },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={Colors.gradients.turquoise}
+                    style={styles.orbGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                </Animated.View>
+                <View style={styles.orbInner}>
+                  <View style={styles.cubeShadowWrapper}>
+                    <Image 
+                      source={require('@/assets/images/cube.png')}
+                      style={styles.loadingCubeIcon}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Loading Text */}
+              <View style={styles.textContainer}>
+                <Text style={styles.loadingText}>Running different lifelines...</Text>
+                <View style={styles.statusContainer}>
+                  <View style={styles.statusBlur}>
+                    <Text style={styles.statusText}>
+                      {progressStatus || LOADING_STEPS[0]}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Statistics */}
+              <View style={styles.statsContainer}>
+                <View style={[styles.statCard, styles.variantsCard]}>
+                  <Text style={styles.statValue}>{variantsCount.toLocaleString()}</Text>
+                  <Text style={styles.statLabel}>Variants</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{percentageCount}%</Text>
+                  <Text style={styles.statLabel}>Complete</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{elapsedTime}s</Text>
+                  <Text style={styles.statLabel}>Elapsed</Text>
+                </View>
+              </View>
+
+              {/* Loading Dots */}
+              <View style={styles.dotsContainer}>
+                {[0, 1, 2].map((index) => (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.dot,
+                      {
+                        backgroundColor: Colors.textSecondary,
+                        transform: [
+                          {
+                            scale: pulseAnim.interpolate({
+                              inputRange: [1, 1.1],
+                              outputRange: [1, 1.2],
+                            }),
+                          },
+                        ],
+                        opacity: pulseAnim.interpolate({
+                          inputRange: [1, 1.1],
+                          outputRange: [0.5, 1],
+                        }),
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+          </SafeAreaView>
         </View>
       </View>
     );
@@ -322,9 +551,6 @@ export default function SimulationScreen() {
           <ArrowLeft size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Life Trajectory</Text>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
-          <Home size={24} color={Colors.textPrimary} />
-        </TouchableOpacity>
       </SafeAreaView>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
@@ -347,11 +573,12 @@ export default function SimulationScreen() {
                     style={[
                       styles.optionButton,
                       selectedOption === option && styles.optionButtonSelected,
-                      generating && styles.optionButtonDisabled,
+                      generating && Object.keys(simulations).length === 0 && styles.optionButtonDisabled,
+                      !simulations[option] && generating && styles.optionButtonGenerating,
                     ]}
                     onPress={() => handleOptionSelect(option)}
                     activeOpacity={0.7}
-                    disabled={generating}
+                    disabled={generating && Object.keys(simulations).length === 0}
                   >
                     <Text style={[
                       styles.optionButtonText,
@@ -359,6 +586,9 @@ export default function SimulationScreen() {
                     ]}>
                       {option}
                     </Text>
+                    {generating && !simulations[option] && (
+                      <ActivityIndicator size="small" color={Colors.textSecondary} style={{ marginLeft: 8 }} />
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -366,13 +596,13 @@ export default function SimulationScreen() {
           </View>
         </View>
 
-        {/* Loading State for Regeneration */}
-        {generating && (
+        {/* Loading State for Initial Generation */}
+        {generating && Object.keys(simulations).length === 0 && (
           <View style={styles.section}>
             <View style={styles.sectionCard}>
               <View style={styles.regeneratingContainer}>
                 <ActivityIndicator size="small" color={Colors.textSecondary} />
-                <Text style={styles.regeneratingText}>Generating timeline for "{selectedOption}"...</Text>
+                <Text style={styles.regeneratingText}>Generating simulations for all options...</Text>
               </View>
             </View>
           </View>
@@ -420,7 +650,7 @@ export default function SimulationScreen() {
         {/* Generation Note */}
         {timeline && (
           <View style={styles.section}>
-            <View style={styles.sectionCard}>
+            <View style={[styles.sectionCard, styles.generationNoteCard]}>
               <Text style={styles.generationNote}>
                 This trajectory is generated through simulations based on your unique profile. Use it as a thought experiment, not a prediction.
               </Text>
@@ -437,30 +667,159 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  matrixContainer: {
+  // Loading screen styles
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  loadingSafeArea: {
+    flex: 1,
+  },
+  loadingContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  orbContainer: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 32,
+  },
+  orbOuter: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: 'row',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     overflow: 'hidden',
   },
-  matrixColumn: {
-    position: 'absolute',
-    top: 0,
-    width: '5%',
-    alignItems: 'center',
+  orbGradient: {
+    width: '100%',
+    height: '100%',
   },
-  matrixNumber: {
-    fontSize: 12,
-    color: 'rgba(0, 0, 0, 0.05)',
-    fontFamily: Platform.select({
-      ios: 'Courier',
-      android: 'monospace',
-      default: 'monospace',
-    }),
-    lineHeight: 18,
+  orbInner: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  cubeShadowWrapper: {
+    shadowColor: 'rgba(0, 0, 0, 0.5)',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.8,
+    shadowRadius: 30,
+    elevation: 20,
+  },
+  loadingCubeIcon: {
+    width: 60,
+    height: 60,
+    opacity: 0.9,
+  },
+  textContainer: {
+    alignItems: 'center',
+    gap: 16,
+    width: '100%',
+  },
+  loadingText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+    fontFamily: Fonts.secondary.bold,
+  },
+  statusContainer: {
+    marginTop: 8,
+  },
+  statusBlur: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  statusText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 32,
+    marginBottom: 16,
+    justifyContent: 'center',
+  },
+  statCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    width: 90,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  variantsCard: {
+    width: 110, // Wider to fit 6 figures (e.g., 123,456)
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: Colors.textTertiary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    fontFamily: Fonts.secondary.bold,
+    textAlign: 'center',
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.textTertiary,
   },
   header: {
     flexDirection: 'row',
@@ -524,21 +883,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     fontFamily: Fonts.secondary.bold,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  loadingText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    letterSpacing: -0.8,
-    textAlign: 'center',
-    opacity: 1,
-    fontFamily: Fonts.primary.regular,
-  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -581,6 +925,9 @@ const styles = StyleSheet.create({
   },
   optionButtonDisabled: {
     opacity: 0.5,
+  },
+  optionButtonGenerating: {
+    opacity: 0.7,
   },
   optionButtonText: {
     fontSize: 15,
@@ -680,6 +1027,10 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     fontStyle: 'italic',
     fontFamily: Fonts.secondary.bold,
+  },
+  generationNoteCard: {
+    backgroundColor: 'rgba(255, 235, 59, 0.08)', // Subtle yellow highlight
+    borderColor: 'rgba(255, 235, 59, 0.15)',
   },
 });
 

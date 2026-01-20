@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -156,16 +156,25 @@ export default function ChooseOnboardingMethod() {
 
       {showButton && (
         <Animated.View style={[styles.footer, buttonAnimatedStyle]}>
-          <TouchableOpacity
+          <Pressable
             onPress={handleContinue}
             disabled={isContinuing}
-            activeOpacity={0.9}
-            style={styles.buttonWrapper}
+            style={({ pressed }) => [
+              styles.buttonWrapper,
+              {
+                shadowColor: '#25729f',
+                transform: [{ translateY: pressed ? 4 : 0 }],
+                shadowOffset: { width: 0, height: pressed ? 0 : 4 },
+                shadowOpacity: 1,
+                shadowRadius: 0,
+                elevation: pressed ? 2 : 8,
+              }
+            ]}
           >
             <LinearGradient
-              colors={Colors.gradients.turquoise}
+              colors={['#25729f', '#62edb9']}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              end={{ x: 0, y: 1 }}
               style={styles.buttonGradient}
             >
               <Text style={styles.buttonText}>
@@ -173,7 +182,7 @@ export default function ChooseOnboardingMethod() {
               </Text>
               <ChevronRight size={20} color="#FFFFFF" />
             </LinearGradient>
-          </TouchableOpacity>
+          </Pressable>
         </Animated.View>
       )}
     </View>
@@ -209,11 +218,6 @@ const styles = StyleSheet.create({
   buttonWrapper: {
     borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 5,
   },
   buttonGradient: {
     flexDirection: 'row',

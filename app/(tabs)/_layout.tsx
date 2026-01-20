@@ -89,6 +89,7 @@ export default function TabLayout() {
         name="home"
         options={{
           title: 'Home',
+          gestureEnabled: false,
           tabBarIcon: ({ focused, size }) => 
             focused ? (
               <HomeGradientIcon size={size} />

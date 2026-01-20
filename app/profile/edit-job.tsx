@@ -5,15 +5,17 @@ import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
-import { getProfile, updateProfileFields } from '@/lib/storage';
+import { getProfile } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
+import { CoreJsonData } from '@/types/database';
 
-export default function EditLocationScreen() {
+export default function EditJobScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ next?: string }>();
   const user = useAuth((state) => state.user);
-  const [currentLocation, setCurrentLocation] = useState('');
+  const [job, setJob] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -26,8 +28,9 @@ export default function EditLocationScreen() {
     
     try {
       const profile = await getProfile(user.id);
-      if (profile) {
-        setCurrentLocation(profile.current_location || '');
+      if (profile?.core_json) {
+        const coreJson = profile.core_json as CoreJsonData;
+        setJob(coreJson.primary_role || '');
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -41,9 +44,24 @@ export default function EditLocationScreen() {
 
     setLoading(true);
     try {
-      await updateProfileFields(user.id, {
-        current_location: currentLocation.trim() || undefined,
-      });
+      // Get existing profile to preserve core_json
+      const existingProfile = await getProfile(user.id);
+      const currentCoreJson = (existingProfile?.core_json as CoreJsonData) || {};
+      
+      const updatedCoreJson: CoreJsonData = {
+        ...currentCoreJson,
+        primary_role: job.trim() || undefined,
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          core_json: updatedCoreJson as any,
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
       if (params.next) {
         router.push(params.next as any);
       } else {
@@ -103,14 +121,14 @@ export default function EditLocationScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.question}>
-          Where do you currently live?
+          What is your current job or role?
         </Text>
 
         <View style={styles.inputWrapper}>
           <Input
-            placeholder="e.g., Austin, Texas"
-            value={currentLocation}
-            onChangeText={setCurrentLocation}
+            placeholder="e.g., Software Engineer, Product Manager, Designer"
+            value={job}
+            onChangeText={setJob}
             returnKeyType="done"
             onSubmitEditing={handleSave}
             containerStyle={styles.inputContainer}

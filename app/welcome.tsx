@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
@@ -198,23 +198,30 @@ export default function WelcomeScreen() {
       {/* Button at the bottom */}
       {buttonVisible && (
         <Animated.View style={[styles.buttonContainer, buttonAnimatedStyle]}>
-          <View style={styles.buttonWrapper}>
-            <TouchableOpacity
-              onPress={handleGetStarted}
-              activeOpacity={0.9}
-              style={styles.buttonInner}
-            >
+          <Pressable
+            onPress={handleGetStarted}
+            style={({ pressed }) => [
+              styles.buttonWrapper,
+              {
+                shadowColor: '#25729f',
+                transform: [{ translateY: pressed ? 4 : 0 }],
+                shadowOffset: { width: 0, height: pressed ? 0 : 4 },
+                shadowOpacity: 1,
+                shadowRadius: 0,
+                elevation: pressed ? 2 : 8,
+              }
+            ]}
+          >
               <LinearGradient
-                colors={Colors.gradients.peach}
+                colors={['#25729f', '#62edb9']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                end={{ x: 0, y: 1 }}
                 style={styles.buttonGradient}
               >
-                <Text style={styles.buttonText}>Get Started</Text>
-                <ChevronRight size={20} color={Colors.textPrimary} />
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
+              <Text style={styles.buttonText}>Get Started</Text>
+              <ChevronRight size={20} color="#FFFFFF" />
+            </LinearGradient>
+          </Pressable>
         </Animated.View>
       )}
     </View>
@@ -268,15 +275,6 @@ const styles = StyleSheet.create({
   buttonWrapper: {
     borderRadius: 28,
     overflow: 'hidden',
-    shadowColor: 'rgba(255, 154, 158, 0.4)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  buttonInner: {
-    borderRadius: 28,
-    overflow: 'hidden',
   },
   buttonGradient: {
     flexDirection: 'row',
@@ -291,7 +289,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     fontFamily: Fonts.secondary.bold,
-    color: Colors.textPrimary,
+    color: '#FFFFFF',
   },
 });
 

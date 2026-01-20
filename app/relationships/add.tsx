@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -136,7 +136,12 @@ export default function AddRelationshipScreen() {
         setOnboardingComplete(true);
         router.replace('/onboarding/complete');
       } else if (params.next) {
-        router.push(params.next as any);
+        // If coming from simulation setup, route to simulation home instead of creating automatically
+        if (params.next.includes('/simulate')) {
+          router.replace('/simulate');
+        } else {
+          router.push(params.next as any);
+        }
       } else {
         router.back();
       }
@@ -188,7 +193,12 @@ export default function AddRelationshipScreen() {
         setOnboardingComplete(true);
         router.replace('/onboarding/complete');
       } else if (params.next) {
-        router.push(params.next as any);
+        // If coming from simulation setup, route to simulation home instead of creating automatically
+        if (params.next.includes('/simulate')) {
+          router.replace('/simulate');
+        } else {
+          router.push(params.next as any);
+        }
       } else {
         router.back();
       }
@@ -406,20 +416,26 @@ export default function AddRelationshipScreen() {
         )}
         {mode === 'ai' ? (
           extracted.length === 0 ? (
-            <TouchableOpacity
+            <Pressable
               onPress={handleExtract}
               disabled={extracting}
-              activeOpacity={0.9}
-              style={[
+              style={({ pressed }) => [
                 styles.button,
-                { shadowColor: !extracting ? 'rgba(135, 206, 250, 0.5)' : 'rgba(100, 100, 100, 0.3)' },
+                {
+                  shadowColor: !extracting ? '#25729f' : 'rgba(100, 100, 100, 0.3)',
+                  transform: [{ translateY: pressed ? 2 : 0 }],
+                  shadowOffset: { width: 0, height: pressed ? 2 : 8 },
+                  shadowOpacity: pressed ? 0.3 : 0.5,
+                  shadowRadius: pressed ? 8 : 20,
+                  elevation: pressed ? 4 : 12,
+                },
                 extracting && styles.buttonDisabled
               ]}
             >
               <LinearGradient
-                colors={!extracting ? ['rgba(135, 206, 250, 0.9)', 'rgba(100, 181, 246, 0.8)', 'rgba(135, 206, 250, 0.7)'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
+                colors={!extracting ? ['#25729f', '#62edb9'] : ['rgba(100, 100, 100, 0.5)', 'rgba(80, 80, 80, 0.5)']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
                 style={styles.buttonGradient}
               >
                 {extracting ? (
@@ -432,7 +448,7 @@ export default function AddRelationshipScreen() {
                   </>
                 )}
               </LinearGradient>
-            </TouchableOpacity>
+            </Pressable>
           ) : (
             <View style={styles.footerButtons}>
               <TouchableOpacity

@@ -152,6 +152,14 @@ export default function LifeSituationGroupScreen() {
           // If not JSON, ignore
         }
       }
+      
+      // Also load job from primary_role if it exists and currentJob is not set
+      if (profile?.core_json && !answers.currentJob) {
+        const coreJson = profile.core_json as any;
+        if (coreJson.primary_role) {
+          setAnswers((prev) => ({ ...prev, currentJob: coreJson.primary_role }));
+        }
+      }
     } catch (error) {
       console.error('Failed to load existing data:', error);
     }
@@ -304,9 +312,36 @@ export default function LifeSituationGroupScreen() {
   async function handleComplete() {
     if (user) {
       try {
-        const { saveOnboardingResponse } = await import('@/lib/storage');
+        const { saveOnboardingResponse, getProfile } = await import('@/lib/storage');
+        const { supabase } = await import('@/lib/supabase');
+        
         // Save answers temporarily for AI summarization
         await saveOnboardingResponse(user.id, '01-now-group', JSON.stringify(answers));
+        
+        // Save job to core_json.primary_role if it exists
+        if (answers.currentJob?.trim()) {
+          const existingProfile = await getProfile(user.id);
+          const currentCoreJson = (existingProfile?.core_json as any) || {};
+          
+          const updatedCoreJson = {
+            ...currentCoreJson,
+            primary_role: answers.currentJob.trim(),
+          };
+          
+          const { error } = await supabase
+            .from('profiles')
+            .update({
+              core_json: updatedCoreJson as any,
+            })
+            .eq('user_id', user.id);
+          
+          if (error) {
+            console.error('Failed to save primary_role:', error);
+          } else {
+            console.log('✅ Saved primary_role to core_json:', answers.currentJob.trim());
+          }
+        }
+        
         trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
           step: '01-now-group',
           step_name: 'Life Situation'
@@ -432,8 +467,6 @@ export default function LifeSituationGroupScreen() {
       progress={getProgress()}
       onNext={handleNext}
       canContinue={canContinue()}
-      buttonGradient={Colors.gradients.turquoise}
-      progressBarGradient={Colors.gradients.turquoise}
     >
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Work Status Question */}
