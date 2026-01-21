@@ -80,7 +80,7 @@ export default function HomeScreen() {
 
   // Typewriter for invitation text
   const { displayedLines: invitationLines } = useTypewriter(
-    showDiscordModal ? ["You've been invited"] : [],
+    showDiscordModal ? ["You've", "been", "invited"] : [],
     {
       speed: 50,
       onAllComplete: () => {
@@ -371,26 +371,7 @@ export default function HomeScreen() {
                   style={styles.moraTagGradient}
                 >
                   {isPremium ? (
-                    <View style={styles.moraTagTextContainer}>
-                      <Svg height="16" width="55">
-                        <Defs>
-                          <SvgLinearGradient id="moraGradHome" x1="0" y1="0" x2="1" y2="0">
-                            <Stop offset="0" stopColor="#00BCA6" stopOpacity="1" />
-                            <Stop offset="1" stopColor="#908CF1" stopOpacity="1" />
-                          </SvgLinearGradient>
-                        </Defs>
-                        <SvgText
-                          fill="url(#moraGradHome)"
-                          fontSize="12"
-                          fontWeight="500"
-                          fontFamily={Fonts.secondary.bold}
-                          x="0"
-                          y="12"
-                        >
-                          mora+
-                        </SvgText>
-                      </Svg>
-                    </View>
+                    <Text style={styles.moraTagTextPremium}>mora+</Text>
                   ) : (
                     <Text style={styles.moraTagText}>unlock mora+</Text>
                   )}
@@ -428,48 +409,6 @@ export default function HomeScreen() {
             contentContainerStyle={styles.contentContainer}
             showsVerticalScrollIndicator={false}
           >
-            {/* Compatibility Test Banner */}
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                trackEvent(MixpanelEvents.COMPATIBILITY_ADD_CLICKED);
-                router.push('/compatibility/add-twin');
-              }}
-              activeOpacity={0.9}
-              style={styles.compatibilityBanner}
-            >
-              <LinearGradient
-                colors={['#A78BFA', '#F472B6']} // Softer Purple to Pink gradient
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.compatibilityBannerGradient}
-              />
-              <View style={styles.compatibilityBannerContent}>
-                <View style={styles.compatibilityBannerTextContainer}>
-                  <View style={styles.newTag}>
-                    <Text style={styles.newTagText}>NEW</Text>
-                  </View>
-                  <Text style={styles.compatibilityBannerTitle}>Check Compatibility</Text>
-                  <Text style={styles.compatibilityBannerSubtitle}>See how your twin vibes with others 🔮</Text>
-                </View>
-                <View style={styles.compatibilityAvatars}>
-                  <Image 
-                    source={require('@/assets/images/manwhite.png')} 
-                    style={styles.compatibilityAvatar}
-                    resizeMode="contain"
-                  />
-                  <View style={styles.compatibilityConnector}>
-                    <Zap size={14} color="#FFFFFF" fill="#FFFFFF" />
-                  </View>
-                  <Image 
-                    source={require('@/assets/images/manwhite.png')} 
-                    style={[styles.compatibilityAvatar, styles.compatibilityAvatarFlipped]}
-                    resizeMode="contain"
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-
             {/* Main Header */}
             <View style={styles.headerContainer}>
               <View style={styles.headerLeft}>
@@ -561,6 +500,50 @@ export default function HomeScreen() {
                   <ChevronRight size={20} color={Colors.textTertiary} />
                 </Pressable>
               </View>
+
+              {/* Compatibility Test Banner */}
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  trackEvent(MixpanelEvents.COMPATIBILITY_ADD_CLICKED);
+                  router.push('/compatibility/add-twin');
+                }}
+                activeOpacity={0.8}
+                style={styles.compatibilityBanner}
+              >
+                <LinearGradient
+                  colors={['rgba(167, 139, 250, 0.06)', 'rgba(244, 114, 182, 0.06)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.compatibilityBannerGradient}
+                />
+                <View style={styles.compatibilityBannerContent}>
+                  <View style={styles.compatibilityBannerLeft}>
+                    <View style={styles.compatibilityBannerHeader}>
+                    <View style={styles.newTag}>
+                      <Text style={styles.newTagText}>Limited Time</Text>
+                    </View>
+                      <Text style={styles.compatibilityBannerTitle}>Check Compatibility</Text>
+                    </View>
+                    <Text style={styles.compatibilityBannerSubtitle}>See how your twin vibes with others</Text>
+                  </View>
+                  <View style={styles.compatibilityAvatars}>
+                    <Image 
+                      source={require('@/assets/images/manwhite.png')} 
+                      style={styles.compatibilityAvatar}
+                      resizeMode="contain"
+                    />
+                    <View style={styles.compatibilityConnector}>
+                      <Zap size={12} color="#A78BFA" fill="#A78BFA" />
+                    </View>
+                    <Image 
+                      source={require('@/assets/images/manwhite.png')} 
+                      style={[styles.compatibilityAvatar, styles.compatibilityAvatarFlipped]}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
 
               {/* Train Section */}
               <TouchableOpacity
@@ -705,9 +688,13 @@ export default function HomeScreen() {
               }}
               pointerEvents={showContent ? 'none' : 'auto'}
             >
-              <Text style={styles.invitationText}>
-                {invitationLines[0] || ''}
-              </Text>
+              <View style={styles.invitationTextContainer}>
+                {invitationLines.map((line, index) => (
+                  <Text key={index} style={styles.invitationText}>
+                    {line || ''}
+                  </Text>
+                ))}
+              </View>
             </Animated.View>
 
             {/* Content - Fades in after invitation */}
@@ -911,24 +898,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 56,
     borderWidth: 0.5,
     borderColor: '#DFDFDF',
   },
-  moraTagTextContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100%',
-    width: '100%',
-  },
   moraTagText: {
     fontFamily: Fonts.secondary.bold,
     fontWeight: '500',
-    fontSize: 12,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 13,
     color: '#696969',
+  },
+  moraTagTextPremium: {
+    fontFamily: Fonts.secondary.bold,
+    fontWeight: '600',
+    fontSize: 11,
+    lineHeight: 13,
+    color: '#00BCA6',
   },
   iconButton: {
     padding: 8,
@@ -944,15 +932,12 @@ const styles = StyleSheet.create({
   },
   compatibilityBanner: {
     marginTop: 8,
-    marginBottom: 20,
-    borderRadius: 24,
+    marginBottom: 16,
+    borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#EC4899',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
-    minHeight: 100,
+    borderWidth: 0.5,
+    borderColor: 'rgba(167, 139, 250, 0.2)',
+    backgroundColor: '#FFFFFF',
   },
   compatibilityBannerGradient: {
     position: 'absolute',
@@ -962,60 +947,61 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   compatibilityBannerContent: {
-    paddingVertical: 20,
-    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     zIndex: 1,
-    minHeight: 110,
   },
-  compatibilityBannerTextContainer: {
-    maxWidth: '65%',
+  compatibilityBannerLeft: {
+    flex: 1,
     gap: 4,
   },
+  compatibilityBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
   compatibilityBannerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    fontFamily: Fonts.primary.semibold,
-    letterSpacing: -0.5,
-    marginTop: 4,
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
   compatibilityBannerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontFamily: Fonts.secondary.bold,
-    fontWeight: '600',
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
   },
   compatibilityAvatars: {
-    position: 'absolute',
-    bottom: -8,
-    right: -8,
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 0,
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 12,
   },
   compatibilityAvatar: {
-    width: 64,
-    height: 64,
+    width: 40,
+    height: 40,
   },
   compatibilityAvatarFlipped: {
     transform: [{ scaleX: -1 }],
   },
   compatibilityConnector: {
-    marginBottom: 32,
-    marginHorizontal: -4,
-    zIndex: 10,
+    marginHorizontal: 2,
   },
   newTag: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
+    backgroundColor: '#A78BFA',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   newTagText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
-    color: '#EC4899',
+    color: '#FFFFFF',
     fontFamily: Fonts.secondary.bold,
   },
   headerContainer: {
@@ -1419,6 +1405,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 10,
+  },
+  invitationTextContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   invitationText: {
     fontSize: 32,

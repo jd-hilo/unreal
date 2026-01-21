@@ -250,7 +250,7 @@ export default function SimulateDashboard() {
                       <Text style={styles.playButtonText}>Checking...</Text>
                     </>
                   ) : (
-                    <Text style={styles.playButtonText}>Start</Text>
+                      <Text style={styles.playButtonText}>Start</Text>
                   )}
                 </View>
               </View>

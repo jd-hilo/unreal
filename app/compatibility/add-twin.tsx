@@ -72,11 +72,11 @@ export default function AddTwinScreen() {
       <StatusBar style="dark" />
       
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.header}>
+          <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ArrowLeft size={24} color={Colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
+            </TouchableOpacity>
+          </View>
 
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
           {/* Hero Section */}
@@ -115,15 +115,15 @@ export default function AddTwinScreen() {
                     <View style={styles.mockHeaderBadge}>
                       <Text style={styles.mockHeaderBadgeText}>NEW</Text>
                     </View>
-                  </View>
-                  
+          </View>
+
                   <View style={styles.mockScoreCard}>
-                    <LinearGradient
-                      colors={['#8B5CF6', '#EC4899']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFill}
-                    />
+                <LinearGradient
+                  colors={['#8B5CF6', '#EC4899']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
                     <Text style={styles.mockScoreLabel}>Compatibility Score</Text>
                     <Text style={styles.mockScoreValue}>87%</Text>
                     
@@ -135,7 +135,7 @@ export default function AddTwinScreen() {
                           style={styles.mockAvatarImage}
                           resizeMode="contain"
                         />
-                      </View>
+                </View>
                       
                       <View style={styles.mockConnector} />
                       
@@ -146,7 +146,7 @@ export default function AddTwinScreen() {
                           style={[styles.mockAvatarImage, styles.mockAvatarImageFlipped]}
                           resizeMode="contain"
                         />
-                      </View>
+            </View>
                     </View>
 
                     <View style={styles.mockScoreBadge}>
@@ -160,23 +160,23 @@ export default function AddTwinScreen() {
                     <View style={styles.mockBreakdownRow}>
                       <View style={styles.mockBreakdownIcon}>
                         <Heart size={12} color={Colors.gradients.turquoise[0]} />
-                      </View>
+                </View>
                       <View style={styles.mockBreakdownContent}>
                         <Text style={styles.mockBreakdownLabel}>Values</Text>
                         <View style={styles.mockBreakdownBarContainer}>
                           <View style={styles.mockBreakdownBarBackground}>
-                            <LinearGradient
-                              colors={Colors.gradients.turquoise}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 0 }}
+                  <LinearGradient
+                    colors={Colors.gradients.turquoise}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
                               style={[styles.mockBreakdownBar, { width: '92%' }]}
                             />
                           </View>
                           <Text style={styles.mockBreakdownValue}>92%</Text>
                         </View>
                       </View>
-                    </View>
-
+              </View>
+              
                     <View style={styles.mockBreakdownRow}>
                       <View style={styles.mockBreakdownIcon}>
                         <Sparkles size={12} color={Colors.gradients.turquoise[0]} />
@@ -195,8 +195,8 @@ export default function AddTwinScreen() {
                           <Text style={styles.mockBreakdownValue}>85%</Text>
                         </View>
                       </View>
-                    </View>
-                  </View>
+              </View>
+            </View>
 
                   {/* Insights */}
                   <View style={styles.mockInsightCard}>
@@ -213,16 +213,18 @@ export default function AddTwinScreen() {
                       <View style={styles.mockInsightDot} />
                       <Text style={styles.mockInsightText}>
                         Decision styles complement each other well.
-                      </Text>
-                    </View>
-                  </View>
+            </Text>
+          </View>
+        </View>
                 </ScrollView>
               </View>
             </View>
             </TouchableOpacity>
           </Animated.View>
+        </ScrollView>
 
-          {/* Continue Button */}
+        {/* Continue Button - Fixed at Bottom */}
+        <SafeAreaView style={styles.buttonContainer} edges={['bottom']}>
           <Animated.View 
             style={[
               styles.continueButtonWrapper,
@@ -243,7 +245,7 @@ export default function AddTwinScreen() {
               <Text style={styles.continueButtonText}>Continue</Text>
             </TouchableOpacity>
           </Animated.View>
-        </ScrollView>
+        </SafeAreaView>
       </SafeAreaView>
     </View>
   );
@@ -277,7 +279,15 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 24,
     paddingTop: 0,
-    paddingBottom: 60,
+    paddingBottom: 100,
+  },
+  buttonContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: Colors.background,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   
   // Hero
@@ -555,7 +565,7 @@ const styles = StyleSheet.create({
 
   // Button
   continueButtonWrapper: {
-    marginBottom: 16,
+    width: '100%',
   },
   continueButton: {
     width: '100%',

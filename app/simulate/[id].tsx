@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Modal, TextInput, Dimensions, Animated, Image, Easing, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Modal, TextInput, Dimensions, Animated, Image, Easing, KeyboardAvoidingView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -146,6 +146,7 @@ export default function TimelineDetailScreen() {
   const [scenarioModalVisible, setScenarioModalVisible] = useState(false);
   const [relationshipModalVisible, setRelationshipModalVisible] = useState(false);
   const [scenarioText, setScenarioText] = useState('');
+  const [showVariantInput, setShowVariantInput] = useState(false);
   const [assetNotifications, setAssetNotifications] = useState<Array<{ id: string; asset: any }>>([]);
   const notificationAnimations = useRef<Map<string, Animated.Value>>(new Map());
   const [networthModalVisible, setNetworthModalVisible] = useState(false);
@@ -380,6 +381,157 @@ export default function TimelineDetailScreen() {
       setStartTime(null);
     }
   }, [addingScenario]);
+
+  async function handleJustSimulate() {
+    if (!timeline || !user) return;
+
+    if (!isPremium) {
+      const currentYear = timeline.current_year || 1;
+      if (currentYear >= 3) {
+        router.push('/premium');
+        return;
+      }
+    }
+
+    setScenarioModalVisible(false);
+    setAddingScenario(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      const profile = await getProfile(user.id);
+      const currentYear = timeline.current_year || 1;
+      const advancement = await advanceTimeline({
+        currentProfile: profile,
+        currentStats: timeline.stats,
+        timelineHistory: timeline.events || [],
+        userDecision: '',
+        currentAge: timeline.current_age,
+        currentYear: currentYear,
+        existingRelationships: timeline.relationships || [],
+      });
+
+      const newStats = {
+        money: Math.max(0, Math.min(10, timeline.stats.money + advancement.statDeltas.money)),
+        happiness: Math.max(0, Math.min(10, timeline.stats.happiness + advancement.statDeltas.happiness)),
+        freedom: Math.max(0, Math.min(10, timeline.stats.freedom + advancement.statDeltas.freedom)),
+        growth: Math.max(0, Math.min(10, timeline.stats.growth + advancement.statDeltas.growth)),
+        relationships: Math.max(0, Math.min(10, timeline.stats.relationships + advancement.statDeltas.relationships)),
+      };
+
+      previousStats.current = timeline.stats;
+      previousNetWorth.current = timeline.twin_profile?.netWorth || null;
+      
+      const calendarStartYear = new Date().getFullYear();
+      const currentCalendarYear = calendarStartYear + currentYear - 1;
+      const yearSnapshots = timeline.twin_profile?.year_snapshots || {};
+      
+      yearSnapshots[currentCalendarYear] = {
+        netWorth: timeline.twin_profile?.netWorth || null,
+        location: timeline.twin_profile?.location || null,
+        job: timeline.twin_profile?.job || null,
+        relationships_count: timeline.relationships?.length || 0,
+        relationships: [...(timeline.relationships || [])],
+        stats: { ...timeline.stats },
+        assets: [...(timeline.assets || [])],
+      };
+      
+      const previousYearSnapshot = {
+        netWorth: timeline.twin_profile?.netWorth || null,
+        location: timeline.twin_profile?.location || null,
+        job: timeline.twin_profile?.job || null,
+        relationships_count: timeline.relationships?.length || 0,
+        stats: { ...timeline.stats },
+      };
+      
+      let eventsToAdd = advancement.newEvents || [];
+      if (eventsToAdd.length === 0) {
+        eventsToAdd = [{
+          time: `Year ${currentYear + 1}, Month 6`,
+          title: 'Life Progress',
+          description: 'Your life continues to evolve.',
+          type: 'milestone',
+          year: calendarStartYear + currentYear,
+          month: 6,
+        }];
+      }
+      
+      const newSimYear = currentYear + 1;
+      const actualCalendarYear = calendarStartYear + newSimYear - 1;
+      
+      const newEventsWithYear = eventsToAdd.map((event: any) => {
+        event.year = actualCalendarYear;
+        return event;
+      });
+      
+      const updatedEvents = [...(timeline.events || []), ...newEventsWithYear];
+      
+      const existingAssets = timeline.assets || [];
+      const removedAssetTypes = (advancement as any).removedAssets || [];
+      const filteredAssets = existingAssets.filter((asset: any) => 
+        !removedAssetTypes.includes(asset.type) && !removedAssetTypes.includes(asset.name)
+      );
+      const updatedAssets = [...filteredAssets, ...(advancement.newAssets || [])];
+
+      const eventsForDB = updatedEvents.map((event: any) => ({
+        time: event.time || '',
+        title: event.title || '',
+        description: event.description || '',
+        type: event.type || 'milestone',
+        year: event.year || null,
+        month: event.month || null,
+        people: event.people || [],
+      }));
+
+      const updatedTimeline = await updateTimeline(timelineId, {
+        current_age: advancement.newAge,
+        current_year: currentYear + 1,
+        stats: newStats,
+        events: eventsForDB,
+        assets: updatedAssets,
+        twin_profile: {
+          ...advancement.profileUpdates,
+          profileDeltas: advancement.profileDeltas,
+          previous_year_snapshot: previousYearSnapshot,
+          year_snapshots: yearSnapshots,
+        },
+        relationships: advancement.relationships || timeline.relationships || [],
+      });
+
+      if (advancement.newAssets && advancement.newAssets.length > 0) {
+        const newNotifications = advancement.newAssets.map((asset, index) => ({
+          id: `${Date.now()}-${index}`,
+          asset,
+        }));
+        setAssetNotifications(newNotifications);
+        
+        newNotifications.forEach((notif) => {
+          const animValue = new Animated.Value(0);
+          notificationAnimations.current.set(notif.id, animValue);
+          Animated.spring(animValue, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 7,
+          }).start();
+        });
+
+        setTimeout(() => {
+          newNotifications.forEach((notif) => {
+            dismissNotification(notif.id);
+          });
+        }, 5000);
+      }
+
+      const reloadedTimeline = await getTimeline(timelineId);
+      setTimeline(reloadedTimeline || updatedTimeline);
+      setScenarioText('');
+    } catch (error) {
+      console.error('Error simulating:', error);
+      Alert.alert('Error', 'Failed to simulate. Please try again.');
+    } finally {
+      setAddingScenario(false);
+    }
+  }
 
   async function handleAddScenario() {
     if (!scenarioText.trim() || !timeline || !user) return;
@@ -1381,48 +1533,114 @@ export default function TimelineDetailScreen() {
           animationType="fade"
           onRequestClose={() => setScenarioModalVisible(false)}
         >
-          <KeyboardAvoidingView 
-            style={styles.modalOverlay} 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
+          <TouchableOpacity 
+            activeOpacity={1} 
+            style={styles.modalOverlay}
+            onPress={() => setScenarioModalVisible(false)}
           >
-            <View style={styles.modalContent}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'position' : 'height'}
+              style={styles.modalKeyboardView}
+            >
+              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+                <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <View style={styles.modalTitleContainer}>
-                  <Text style={styles.modalTitle}>Anything you want to test?</Text>
-                </View>
+                <Text style={styles.modalTitle}>Simulate Next Year</Text>
                 <TouchableOpacity onPress={() => setScenarioModalVisible(false)} style={styles.modalClose}>
-                  <X size={20} color={Colors.textTertiary} />
+                  <X size={24} color={Colors.textTertiary} />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.modalSubtitle}>
-                Any life events you want to include to effect the simulation?
-              </Text>
-              <TextInput
-                style={styles.scenarioInput}
-                placeholder="E.g., I decide to quit my job and travel the world..."
-                placeholderTextColor={Colors.textTertiary}
-                value={scenarioText}
-                onChangeText={setScenarioText}
-                multiline
-                autoFocus
-              />
-              <TouchableOpacity
-                onPress={handleAddScenario}
-                disabled={!scenarioText.trim() || addingScenario}
-                style={[styles.modalButton, (!scenarioText.trim() || addingScenario) && styles.modalButtonDisabled]}
-              >
-                <LinearGradient
-                  colors={(!scenarioText.trim() || addingScenario) ? ['#999', '#AAA'] : ['#2563EB', '#0EA5E9']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.modalButtonGradient}
+              
+              <View style={styles.modalBody}>
+                <Text style={styles.modalSubtitle}>
+                  Choose how you want to simulate the next year
+                </Text>
+
+                <TouchableOpacity
+                  onPress={handleJustSimulate}
+                  disabled={addingScenario}
+                  style={[styles.modalOptionCard, addingScenario && styles.modalButtonDisabled]}
                 >
-                  {addingScenario ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalButtonText}>Simulate Next Year</Text>}
-                </LinearGradient>
+                  <View style={styles.modalOptionIcon}>
+                    <Sparkles size={24} color={Colors.textPrimary} />
+                  </View>
+                  <View style={styles.modalOptionContent}>
+                    <Text style={styles.modalOptionTitle}>Just Simulate</Text>
+                    <Text style={styles.modalOptionDescription}>
+                      Let your twin predict what naturally happens
+                    </Text>
+                  </View>
+                  <ChevronRight size={20} color={Colors.textTertiary} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowVariantInput(!showVariantInput);
+                  }}
+                  disabled={addingScenario}
+                  style={[styles.modalOptionCard, showVariantInput && styles.modalOptionCardActive, addingScenario && styles.modalButtonDisabled]}
+                >
+                  <View style={styles.modalOptionIcon}>
+                    <Zap size={24} color={Colors.textPrimary} />
+                  </View>
+                  <View style={styles.modalOptionContent}>
+                    <Text style={styles.modalOptionTitle}>Add a Variant</Text>
+                    <Text style={styles.modalOptionDescription}>
+                      Include a specific life event or decision
+                    </Text>
+                  </View>
+                  <ChevronDown 
+                    size={20} 
+                    color={Colors.textTertiary}
+                    style={{ 
+                      transform: [{ rotate: showVariantInput ? '180deg' : '0deg' }] 
+                    }}
+                  />
+                </TouchableOpacity>
+
+                {showVariantInput && (
+                  <View style={styles.variantInputContainer}>
+                    <TextInput
+                      style={styles.scenarioInput}
+                      placeholder="E.g., I decide to quit my job and travel the world..."
+                      placeholderTextColor={Colors.textTertiary}
+                      value={scenarioText}
+                      onChangeText={setScenarioText}
+                      multiline
+                      numberOfLines={4}
+                      textAlignVertical="top"
+                      autoFocus
+                      returnKeyType="done"
+                      blurOnSubmit={true}
+                    />
+                    <TouchableOpacity
+                      onPress={handleAddScenario}
+                      disabled={!scenarioText.trim() || addingScenario}
+                      style={[styles.modalButton, (!scenarioText.trim() || addingScenario) && styles.modalButtonDisabled]}
+                    >
+                      <LinearGradient
+                        colors={(!scenarioText.trim() || addingScenario) ? ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.3)'] : ['#25729f', '#62edb9']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={styles.modalButtonGradient}
+                      >
+                        {addingScenario ? (
+                          <ActivityIndicator color="#FFF" />
+                        ) : (
+                          <>
+                            <Text style={styles.modalButtonText}>Simulate with Variant</Text>
+                            <ChevronRight size={20} color="#FFFFFF" />
+                          </>
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+                </View>
               </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+          </TouchableOpacity>
         </Modal>
 
         <Modal
@@ -2405,8 +2623,7 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'flex-end',
   },
   relationshipModalOverlay: {
     flex: 1,
@@ -2427,40 +2644,134 @@ const styles = StyleSheet.create({
     maxWidth: 500,
     minHeight: 500,
   },
+  modalKeyboardView: {
+    width: '100%',
+  },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
+    backgroundColor: Colors.background,
+    borderRadius: 32,
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+    maxHeight: height * 0.85,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
-    minHeight: 300,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000000',
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
+    flex: 1,
   },
   modalClose: {
-    padding: 4,
+    padding: 8,
+    marginRight: -8,
+  },
+  modalBody: {
+    marginBottom: 24,
   },
   modalSubtitle: {
+    fontSize: 15,
     color: Colors.textSecondary,
-    marginBottom: 16,
+    marginBottom: 20,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
+    lineHeight: 22,
+  },
+  modalOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+    shadowColor: 'rgba(0,0,0,0.03)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modalOptionCardActive: {
+    borderColor: Colors.textPrimary,
+    borderWidth: 2,
+  },
+  modalOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  modalOptionContent: {
+    flex: 1,
+  },
+  modalOptionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    marginBottom: 4,
+  },
+  modalOptionDescription: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
+    lineHeight: 20,
+  },
+  variantInputContainer: {
+    marginTop: 8,
+    gap: 16,
+  },
+  scenarioInput: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 16,
+    color: Colors.textPrimary,
+    minHeight: 120,
+    maxHeight: 200,
+    textAlignVertical: 'top',
+    fontFamily: Fonts.secondary.regular,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+  },
+  modalButton: {
+    borderRadius: 28,
+    overflow: 'hidden',
+  },
+  modalButtonDisabled: {
+    opacity: 0.5,
+  },
+  modalButtonGradient: {
+    flexDirection: 'row',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
     fontFamily: Fonts.secondary.bold,
   },
   lifeLogModalSubtitle: {
@@ -2468,32 +2779,6 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     marginTop: 4,
     fontFamily: Fonts.secondary.bold,
-  },
-  scenarioInput: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 16,
-    fontSize: 16,
-    color: '#000000',
-    minHeight: 120,
-    textAlignVertical: 'top',
-    marginBottom: 24,
-  },
-  modalButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  modalButtonDisabled: {
-    opacity: 0.7,
-  },
-  modalButtonGradient: {
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  modalButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
   },
   relationshipsList: {
     marginTop: 8,

@@ -108,7 +108,7 @@ export default function ProfileScreen() {
 
   // Typewriter for invitation text
   const { displayedLines: invitationLines } = useTypewriter(
-    showDiscordModal ? ["You've been invited"] : [],
+    showDiscordModal ? ["You've", "been", "invited"] : [],
     {
       speed: 50,
       onAllComplete: () => {
@@ -340,9 +340,6 @@ export default function ProfileScreen() {
     if (card.id === 'twin_society') {
       setShowDiscordModal(true);
       trackEvent(MixpanelEvents.TWIN_SOCIETY_MODAL_VIEWED, { source: 'profile' });
-    } else if (card.id === 'twin_reveal') {
-      // Explicitly navigate to twin reveal page
-      router.push('/onboarding/twin-reveal' as any);
     } else if (card.onboardingStep) {
       router.push(card.onboardingStep as any);
     } else if (card.route) {
@@ -369,7 +366,6 @@ export default function ProfileScreen() {
     { id: 'current_location', title: 'Location', subtitle: currentLocation || 'Not set', route: '/profile/edit-location' as any, completed: !!currentLocation, icon: MapPin },
     { id: 'net_worth', title: 'Net Worth', subtitle: netWorth || 'Not set', route: '/profile/edit-networth' as any, completed: !!netWorth, icon: Banknote },
     { id: 'political_views', title: 'Politics', subtitle: politicalViews || 'Not set', route: '/profile/edit-politics' as any, completed: !!politicalViews, icon: Flag },
-    { id: 'twin_reveal', title: 'Twin Reveal', subtitle: 'View your digital twin', route: '/onboarding/twin-reveal' as any, completed: true, icon: Sparkles },
     { id: 'twin_society', title: 'Twin Society', subtitle: 'Join our Discord community', route: null as any, completed: true, icon: Users },
   ];
 
@@ -556,52 +552,64 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.relationshipCard}>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                contentContainerStyle={styles.graphScrollContent}
-                contentOffset={{ x: (GRAPH_CONTENT_WIDTH + 40 - (width - 40)) / 2, y: 0 }}
+            {relationships.length === 0 ? (
+              <TouchableOpacity 
+                onPress={() => router.push('/relationships/add')} 
+                style={styles.emptyRelationshipCard}
+                activeOpacity={0.8}
               >
-                <View style={styles.graphContainer}>
-                  <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                    <Svg style={StyleSheet.absoluteFill}>
-                      {visibleRelationships.map((_, index) => {
-                        const pos = satellitePositions[index];
-                        const startX = GRAPH_CONTENT_WIDTH / 2;
-                        const startY = RELATIONSHIP_GRAPH_HEIGHT - 40;
-                        const endX = startX + pos.x;
-                        const endY = startY + pos.y;
-                        const controlX = (startX + endX) / 2;
-                        const controlY = startY - 30;
-                        return (
-                          <Path
-                            key={`line-${index}`}
-                            d={`M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`}
-                            stroke="#E5E7EB"
-                            strokeWidth="1"
-                            strokeDasharray="2, 2"
-                            fill="none"
-                          />
-                        );
-                      })}
-                    </Svg>
+                <Users size={32} color={Colors.textTertiary} />
+                <Text style={styles.emptyRelationshipText}>Add relationships</Text>
+                <Text style={styles.emptyRelationshipSubtext}>Connect with people in your life</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.relationshipCard}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={styles.graphScrollContent}
+                  contentOffset={{ x: (GRAPH_CONTENT_WIDTH + 40 - (width - 40)) / 2, y: 0 }}
+                >
+                  <View style={styles.graphContainer}>
+                    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                      <Svg style={StyleSheet.absoluteFill}>
+                        {visibleRelationships.map((_, index) => {
+                          const pos = satellitePositions[index];
+                          const startX = GRAPH_CONTENT_WIDTH / 2;
+                          const startY = RELATIONSHIP_GRAPH_HEIGHT - 40;
+                          const endX = startX + pos.x;
+                          const endY = startY + pos.y;
+                          const controlX = (startX + endX) / 2;
+                          const controlY = startY - 30;
+                          return (
+                            <Path
+                              key={`line-${index}`}
+                              d={`M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`}
+                              stroke="#E5E7EB"
+                              strokeWidth="1"
+                              strokeDasharray="2, 2"
+                              fill="none"
+                            />
+                          );
+                        })}
+                      </Svg>
+                    </View>
+
+                    {visibleRelationships.map((rel, index) => {
+                      const pos = satellitePositions[index];
+                      return (
+                        <View key={rel.id} style={[styles.satellite, { transform: [{ translateX: pos.x }, { translateY: pos.y }], bottom: 40, left: '50%', marginLeft: -25 }]}>
+                          <View style={styles.satelliteIcon}><Text style={styles.satelliteEmoji}>{getRelationshipEmoji(rel.relationship_type)}</Text></View>
+                          <Text style={styles.satelliteName} numberOfLines={1}>{rel.name}</Text>
+                        </View>
+                      );
+                    })}
+
+                    <View style={styles.centralNode}><View style={styles.centralNodeInner}><User size={20} color={Colors.textPrimary} /></View></View>
                   </View>
-
-                  {visibleRelationships.map((rel, index) => {
-                    const pos = satellitePositions[index];
-                    return (
-                      <View key={rel.id} style={[styles.satellite, { transform: [{ translateX: pos.x }, { translateY: pos.y }], bottom: 40, left: '50%', marginLeft: -25 }]}>
-                        <View style={styles.satelliteIcon}><Text style={styles.satelliteEmoji}>{getRelationshipEmoji(rel.relationship_type)}</Text></View>
-                        <Text style={styles.satelliteName} numberOfLines={1}>{rel.name}</Text>
-                      </View>
-                    );
-                  })}
-
-                  <View style={styles.centralNode}><View style={styles.centralNodeInner}><User size={20} color={Colors.textPrimary} /></View></View>
-                </View>
-              </ScrollView>
-            </View>
+                </ScrollView>
+              </View>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -666,9 +674,13 @@ export default function ProfileScreen() {
               }}
               pointerEvents={showContent ? 'none' : 'auto'}
             >
-              <Text style={styles.invitationText}>
-                {invitationLines[0] || ''}
-              </Text>
+              <View style={styles.invitationTextContainer}>
+                {invitationLines.map((line, index) => (
+                  <Text key={index} style={styles.invitationText}>
+                    {line || ''}
+                  </Text>
+                ))}
+              </View>
             </Animated.View>
 
             {/* Content - Fades in after invitation */}
@@ -766,6 +778,9 @@ const styles = StyleSheet.create({
   manageLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2 },
   manageLinkText: { fontSize: 14, fontFamily: Fonts.secondary.bold, color: Colors.textPrimary, fontWeight: '600' },
   relationshipCard: { backgroundColor: '#FFFFFF', borderRadius: 24, shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', overflow: 'hidden' },
+  emptyRelationshipCard: { backgroundColor: '#FFFFFF', borderRadius: 24, paddingVertical: 40, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center', shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  emptyRelationshipText: { fontSize: 16, fontFamily: Fonts.secondary.bold, fontWeight: '600', color: Colors.textPrimary, marginTop: 12, marginBottom: 4 },
+  emptyRelationshipSubtext: { fontSize: 13, fontFamily: Fonts.secondary.regular, fontWeight: '300', color: Colors.textTertiary, textAlign: 'center' },
   graphScrollContent: { paddingHorizontal: 20, paddingVertical: 20 },
   graphContainer: { height: RELATIONSHIP_GRAPH_HEIGHT, width: GRAPH_CONTENT_WIDTH, position: 'relative', alignItems: 'center', justifyContent: 'center' },
   centralNode: { position: 'absolute', bottom: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' },
@@ -841,6 +856,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 10,
+  },
+  invitationTextContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   invitationText: {
     fontSize: 32,

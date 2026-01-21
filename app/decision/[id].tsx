@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Clipboard, Modal, Linking, Platform, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Alert, Image, Clipboard, Modal, Linking, Platform, Animated, Share } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
@@ -9,15 +9,12 @@ import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
-import { Home, Sparkles, Users, Lock, Zap, Share as ShareIcon, Instagram, Ghost } from 'lucide-react-native';
-import * as FileSystem from 'expo-file-system';
+import { Home, Sparkles, Users, Lock, Zap, Share as ShareIcon, Instagram, Ghost, ChevronRight } from 'lucide-react-native';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useTwin } from '@/store/useTwin';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
-import { captureRef } from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Fonts } from '@/constants/Theme';
@@ -34,10 +31,8 @@ export default function DecisionResultScreen() {
   const [suggestions, setSuggestions] = useState<any>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [participants, setParticipants] = useState<any[]>([]);
-  const viewShotRef = useRef(null);
   const [sharing, setSharing] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareImageUri, setShareImageUri] = useState<string | null>(null);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -258,104 +253,55 @@ export default function DecisionResultScreen() {
   }
 
   async function handleShare() {
-    if (sharing) return;
+    if (sharing || !prediction) return;
     setSharing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const uri = await captureRef(viewShotRef, {
-        format: 'png',
-        quality: 0.9,
-        result: 'tmpfile',
-      });
-
-      setShareImageUri(uri);
       setShowShareModal(true);
       trackEvent(MixpanelEvents.DECISION_SHARE_OPENED, { decision_id: decision.id });
     } catch (error) {
-      console.error('Error generating share image:', error);
-      Alert.alert('Error', 'Failed to generate share image.');
+      console.error('Error opening share modal:', error);
     } finally {
       setSharing(false);
     }
   }
 
-  async function shareToInstagram() {
-    if (!shareImageUri) return;
+  async function shareDecision() {
+    if (!prediction) return;
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     try {
-      // Copy app store link to clipboard
       const appStoreLink = 'https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842';
-      Clipboard.setString(appStoreLink);
+      const rationalePreview = prediction.rationale.length > 150 
+        ? prediction.rationale.substring(0, 150) + '...' 
+        : prediction.rationale;
+      
+      const shareMessage = `Question: ${decision.question}\n\nRecommended: ${prediction.prediction}\n\nWhy: ${rationalePreview}\n\ndecided with mora\n${appStoreLink}`;
 
-      // For Instagram Stories, we need to use the share sheet
-      // Instagram doesn't support direct image sharing via URL scheme
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(shareImageUri, {
-          UTI: 'public.image',
-          mimeType: 'image/png',
-          dialogTitle: 'Share to Instagram',
-        });
-        trackEvent(MixpanelEvents.DECISION_SHARED, { decision_id: decision.id, platform: 'instagram' });
-      }
-      setShowShareModal(false);
-    } catch (error) {
-      console.error('Error sharing to Instagram:', error);
-      Alert.alert('Error', 'Failed to share to Instagram.');
-    }
-  }
-
-  async function shareToSnapchat() {
-    if (!shareImageUri) return;
-    
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    try {
-      // Copy app store link to clipboard
-      const appStoreLink = 'https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842';
-      Clipboard.setString(appStoreLink);
-
-      // Snapchat also uses the native share sheet
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(shareImageUri, {
-          UTI: 'public.image',
-          mimeType: 'image/png',
-          dialogTitle: 'Share to Snapchat',
-        });
-        trackEvent(MixpanelEvents.DECISION_SHARED, { decision_id: decision.id, platform: 'snapchat' });
-      }
-      setShowShareModal(false);
-    } catch (error) {
-      console.error('Error sharing to Snapchat:', error);
-      Alert.alert('Error', 'Failed to share to Snapchat.');
-    }
-  }
-
-  async function shareMore() {
-    if (!shareImageUri) return;
-    
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    try {
-      // Copy app store link to clipboard
-      const appStoreLink = 'https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842';
-      Clipboard.setString(appStoreLink);
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(shareImageUri, {
-          UTI: 'public.image',
-          mimeType: 'image/png',
-          dialogTitle: 'Share your Decision',
-        });
-        trackEvent(MixpanelEvents.DECISION_SHARED, { decision_id: decision.id, platform: 'other' });
-      }
+      await Share.share({
+        message: shareMessage,
+      });
+      
+      trackEvent(MixpanelEvents.DECISION_SHARED, { decision_id: decision.id, platform: 'native' });
       setShowShareModal(false);
     } catch (error) {
       console.error('Error sharing:', error);
       Alert.alert('Error', 'Failed to share.');
     }
+  }
+
+  async function shareToInstagram() {
+    shareDecision();
+  }
+
+  async function shareToSnapchat() {
+    shareDecision();
+  }
+
+  async function shareMore() {
+    shareDecision();
   }
 
   if (loading || predicting) {
@@ -655,20 +601,30 @@ export default function DecisionResultScreen() {
               </View>
             )}
 
-            <TouchableOpacity
-              style={styles.simulateButtonPremium}
+            <Pressable
               onPress={isPremium ? handleSimulate : () => router.push('/premium' as any)}
-              activeOpacity={0.8}
+              style={({ pressed }) => [
+                styles.simulateButtonPremium,
+                {
+                  shadowColor: '#25729f',
+                  transform: [{ translateY: pressed ? 2 : 0 }],
+                  shadowOffset: { width: 0, height: pressed ? 2 : 8 },
+                  shadowOpacity: pressed ? 0.3 : 0.5,
+                  shadowRadius: pressed ? 8 : 20,
+                  elevation: pressed ? 4 : 12,
+                }
+              ]}
             >
               <LinearGradient
-                colors={Colors.gradients.turquoise}
+                colors={['#25729f', '#62edb9']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
                 style={styles.simulateButtonGradient}
               >
                 <Text style={styles.simulateButtonTextActive}>Simulate Each Choice</Text>
+                <ChevronRight size={20} color="#FFFFFF" />
               </LinearGradient>
-            </TouchableOpacity>
+            </Pressable>
 
             <TouchableOpacity
               style={styles.askAnotherButton}
@@ -700,77 +656,6 @@ export default function DecisionResultScreen() {
         </SafeAreaView>
       </View>
 
-      {/* Hidden Share Card */}
-      {decision && prediction && (
-        <View 
-          ref={viewShotRef} 
-          style={styles.shareCardContainer}
-          collapsable={false}
-        >
-          <View style={styles.shareBackground}>
-            {/* Header Card */}
-            <View style={styles.shareHeaderCard}>
-              <Text style={styles.shareHeaderLabel}>Question</Text>
-              <Text style={styles.shareQuestion}>{decision.question}</Text>
-            </View>
-
-            {/* Prediction Card */}
-            <View style={styles.sharePredictionCard}>
-              <Text style={styles.sharePredictionLabel}>Recommended</Text>
-              <Text style={styles.sharePredictionValue}>{prediction.prediction}</Text>
-              <Text style={styles.shareConfidence}>
-                {confidence.toFixed(0)}% confidence
-              </Text>
-            </View>
-
-            {/* Options Card */}
-            {prediction.probs && (
-              <View style={styles.shareSectionCard}>
-                <Text style={styles.shareSectionTitle}>All Options</Text>
-                {Object.entries(prediction.probs as Record<string, number>).map(
-                  ([option, prob]) => (
-                    <View key={option} style={styles.shareOptionRow}>
-                      <Text style={styles.shareOptionName}>{option}</Text>
-                      <View style={styles.shareProbContainer}>
-                        <View style={styles.shareProbBarBackground}>
-                          <LinearGradient
-                            colors={Colors.gradients.turquoise}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={[
-                              styles.shareProbBar,
-                              { width: `${(prob as number) * 100}%` },
-                            ]}
-                          />
-                        </View>
-                        <Text style={styles.shareProbText}>
-                          {((prob as number) * 100).toFixed(0)}%
-                        </Text>
-                      </View>
-                    </View>
-                  )
-                )}
-              </View>
-            )}
-
-            {/* Footer */}
-            <View style={styles.shareFooter}>
-              <View style={styles.shareFooterContent}>
-                <Text style={styles.shareGeneratedBy}>Generated by your AI Twin</Text>
-                <Text style={styles.shareLink}>Build your own AI Twin. Search "Mora" on{'\n'}the App Store.</Text>
-              </View>
-              <View style={styles.shareAppIcon}>
-                 <Image 
-                  source={require('@/assets/images/icon.png')}
-                  style={styles.shareAppIconImage}
-                  resizeMode="contain"
-                />
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
-
       {/* Custom Share Modal */}
       <Modal
         visible={showShareModal}
@@ -786,8 +671,23 @@ export default function DecisionResultScreen() {
           <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
           <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
             <View style={styles.shareModalContent}>
-              <Text style={styles.shareModalTitle}>Share to</Text>
+              <Text style={styles.shareModalTitle}>Share Result</Text>
               
+              <TouchableOpacity 
+                style={styles.mainShareButton}
+                onPress={shareDecision}
+              >
+                <LinearGradient
+                  colors={['#25729f', '#62edb9']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.mainShareButtonGradient}
+                >
+                  <ShareIcon size={24} color="#FFFFFF" />
+                  <Text style={styles.mainShareButtonText}>Share Message</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
               <View style={styles.socialButtons}>
                 <TouchableOpacity 
                   style={styles.socialButton}
@@ -799,7 +699,7 @@ export default function DecisionResultScreen() {
                     end={{ x: 1, y: 1 }}
                     style={styles.socialButtonGradient}
                   >
-                    <Instagram size={32} color="#FFFFFF" />
+                    <Instagram size={28} color="#FFFFFF" />
                   </LinearGradient>
                   <Text style={styles.socialButtonLabel}>Instagram</Text>
                 </TouchableOpacity>
@@ -809,7 +709,7 @@ export default function DecisionResultScreen() {
                   onPress={shareToSnapchat}
                 >
                   <View style={[styles.socialButtonGradient, { backgroundColor: '#FFFC00' }]}>
-                    <Ghost size={32} color="#000000" />
+                    <Ghost size={28} color="#000000" />
                   </View>
                   <Text style={styles.socialButtonLabel}>Snapchat</Text>
                 </TouchableOpacity>
@@ -818,8 +718,8 @@ export default function DecisionResultScreen() {
                   style={styles.socialButton}
                   onPress={shareMore}
                 >
-                  <View style={[styles.socialButtonGradient, { backgroundColor: 'rgba(135, 206, 250, 0.2)' }]}>
-                    <ShareIcon size={32} color="#FFFFFF" />
+                  <View style={[styles.socialButtonGradient, { backgroundColor: 'rgba(0,0,0,0.05)' }]}>
+                    <ShareIcon size={28} color={Colors.textPrimary} />
                   </View>
                   <Text style={styles.socialButtonLabel}>More</Text>
                 </TouchableOpacity>
@@ -961,16 +861,18 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '400',
+    fontWeight: '800',
     color: Colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: 16,
     letterSpacing: 0.2,
+    fontFamily: Fonts.secondary.bold,
   },
   rationale: {
     fontSize: 16,
     lineHeight: 24,
     color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.bold,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
   },
   optionRow: {
     marginBottom: 16,
@@ -1012,7 +914,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     lineHeight: 22,
     letterSpacing: 0.1,
-    fontFamily: Fonts.secondary.bold,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
   },
   simulateButtonWrapper: {
     marginTop: 24,
@@ -1040,26 +943,23 @@ const styles = StyleSheet.create({
   simulateButtonPremium: {
     marginTop: 24,
     marginBottom: 8,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: 'transparent',
-    shadowColor: 'rgba(0, 0, 0, 0.05)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderRadius: 28,
+    overflow: 'visible',
   },
   simulateButtonGradient: {
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    borderRadius: 20,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+    borderRadius: 28,
   },
   simulateButtonTextActive: {
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
   simulateButtonInner: {
     paddingVertical: 20,
@@ -1231,7 +1131,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: 12,
     letterSpacing: 0.2,
-    fontFamily: Fonts.secondary.bold,
+    fontFamily: Fonts.secondary.semibold,
   },
   suggestionProbs: {
     gap: 8,
@@ -1246,7 +1146,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     flex: 1,
-    fontFamily: Fonts.secondary.bold,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
   },
   suggestionProb: {
     fontSize: 14,
@@ -1269,7 +1170,8 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 8,
     fontStyle: 'italic',
-    fontFamily: Fonts.secondary.bold,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
   },
   emptyStateText: {
     fontSize: 14,
@@ -1277,7 +1179,8 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 16,
-    fontFamily: Fonts.secondary.bold,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
   },
   participantsSection: {
     marginBottom: 24,
@@ -1390,227 +1293,85 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
   shareIconContainer: {
     width: 24,
     height: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  shareCardContainer: {
-    position: 'absolute',
-    left: -10000,
-    top: 0,
-    width: 375,
-    backgroundColor: Colors.background,
-  },
-  shareBackground: {
-    backgroundColor: Colors.background,
-    padding: 20,
-    paddingBottom: 16,
-    minHeight: 350,
-    maxHeight: 550,
-  },
-  shareHeaderCard: {
-    marginBottom: 24,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: Colors.backgroundSecondary,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    padding: 18,
-  },
-  shareHeaderLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 8,
-  },
-  shareQuestion: {
-    fontSize: 20,
-    fontWeight: '600',
-    lineHeight: 26,
-    color: Colors.textPrimary,
-    letterSpacing: -0.3,
-  },
-  sharePredictionCard: {
-    backgroundColor: Colors.backgroundSecondary,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 24,
-  },
-  sharePredictionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: 8,
-  },
-  sharePredictionValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 8,
-  },
-  shareConfidence: {
-    fontSize: 16,
-    color: '#10B981',
-    fontWeight: '600',
-  },
-  shareSectionCard: {
-    backgroundColor: Colors.backgroundSecondary,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 24,
-  },
-  shareSectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 12,
-    letterSpacing: 0.2,
-  },
-  shareOptionRow: {
-    marginBottom: 16,
-  },
-  shareOptionName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 10,
-    letterSpacing: 0.1,
-  },
-  shareProbContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  shareProbBarBackground: {
-    flex: 1,
-    height: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  shareProbBar: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  shareProbText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    minWidth: 40,
-  },
-  shareWhatIf: {
-    marginTop: 8,
-    gap: 8,
-  },
-  shareSuggestion: {
-    backgroundColor: Colors.backgroundSecondary,
-    borderRadius: 12,
-    padding: 16,
-  },
-  shareSuggestionText: {
-    fontSize: 15,
-    color: Colors.textPrimary,
-    fontStyle: 'italic',
-  },
-  shareFooter: {
-    marginTop: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
-    paddingTop: 12,
-  },
-  shareFooterContent: {
-    gap: 3,
-  },
-  shareGeneratedBy: {
-    fontSize: 12,
-    color: Colors.textTertiary,
-  },
-  shareLink: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  shareAppIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: Colors.backgroundSecondary,
-  },
-  shareAppIconImage: {
-    width: '100%',
-    height: '100%',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
   shareModalContent: {
     backgroundColor: Colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     padding: 24,
-    paddingBottom: 40,
+    paddingBottom: 48,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
   },
   shareModalTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.textPrimary,
     marginBottom: 24,
     textAlign: 'center',
+    fontFamily: Fonts.secondary.bold,
+  },
+  mainShareButton: {
+    width: '100%',
+    borderRadius: 24,
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  mainShareButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 12,
+  },
+  mainShareButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
   },
   socialButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
+    gap: 32,
     marginBottom: 24,
-    flexWrap: 'wrap',
-    gap: 20,
   },
   socialButton: {
     alignItems: 'center',
-    gap: 10,
-    width: 90,
+    gap: 8,
   },
   socialButtonGradient: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   socialButtonLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: Colors.textPrimary,
-    textAlign: 'center',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   cancelButton: {
     paddingVertical: 16,
     alignItems: 'center',
-    borderRadius: 12,
-    backgroundColor: Colors.backgroundSecondary,
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
   },
   chaosHeaderColumn: {
     marginBottom: 12,
@@ -1623,8 +1384,9 @@ const styles = StyleSheet.create({
   },
   chaosMessage: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '300',
     opacity: 0.9,
+    fontFamily: Fonts.secondary.regular,
   },
   chaosValue: {
     fontSize: 18,
@@ -1658,11 +1420,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textSecondary,
     lineHeight: 22,
-    fontFamily: Fonts.secondary.bold,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
   },
   nextStepItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 16,
     gap: 16,
   },
@@ -1670,17 +1433,17 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '800',
     color: Colors.textSecondary,
-    lineHeight: 38,
-    marginTop: -4,
+    lineHeight: 32,
     fontFamily: Fonts.secondary.bold,
+    minWidth: 40,
+    textAlign: 'left',
   },
   nextStepText: {
     flex: 1,
     fontSize: 16,
     color: Colors.textPrimary,
     lineHeight: 24,
-    fontWeight: '500',
-    paddingTop: 4,
-    fontFamily: Fonts.secondary.bold,
+    fontWeight: '300',
+    fontFamily: Fonts.secondary.regular,
   },
 });
