@@ -17,9 +17,16 @@ let currentUserId: string | null = null;
 /**
  * Initialize Mixpanel Session Replay
  * Note: Session Replay is currently in Private Beta - contact Mixpanel for access
+ * IMPORTANT: Session Replay must be initialized AFTER regular Mixpanel is initialized
  */
 async function initializeSessionReplay(userId: string): Promise<void> {
   if (sessionReplayInitialized || !MIXPANEL_TOKEN) {
+    return;
+  }
+
+  // Ensure regular Mixpanel is initialized first
+  if (!mixpanel || !isInitialized) {
+    console.warn('Cannot initialize Session Replay: Mixpanel not initialized yet');
     return;
   }
 
@@ -52,6 +59,9 @@ async function initializeSessionReplay(userId: string): Promise<void> {
  */
 export async function initializeMixpanel(): Promise<void> {
   if (isInitialized || !MIXPANEL_TOKEN) {
+    if (!MIXPANEL_TOKEN) {
+      console.warn('⚠️ Mixpanel token not found in app config');
+    }
     return;
   }
 
@@ -59,9 +69,14 @@ export async function initializeMixpanel(): Promise<void> {
     mixpanel = new Mixpanel(MIXPANEL_TOKEN, true); // trackAutomaticEvents = true
     await mixpanel.init();
     isInitialized = true;
-    console.log('📊 Mixpanel initialized');
+    console.log('📊 Mixpanel initialized successfully');
+    
+    // Set opt-out tracking to false to ensure events are tracked
+    mixpanel.setOptOutTracking(false);
   } catch (error) {
     console.error('Failed to initialize Mixpanel:', error);
+    isInitialized = false;
+    mixpanel = null;
   }
 }
 
@@ -70,7 +85,11 @@ export async function initializeMixpanel(): Promise<void> {
  */
 export function trackEvent(eventName: string, properties?: Record<string, any>): void {
   if (!mixpanel || !isInitialized) {
-    console.warn('Mixpanel not initialized, skipping event:', eventName);
+    console.warn('⚠️ Mixpanel not initialized, skipping event:', eventName, {
+      mixpanel: !!mixpanel,
+      isInitialized,
+      hasToken: !!MIXPANEL_TOKEN
+    });
     return;
   }
 
@@ -228,6 +247,23 @@ export function incrementUserProperty(key: string, value: number = 1): void {
     mixpanel.getPeople().increment(key, value);
   } catch (error) {
     console.error('Failed to increment user property:', error);
+  }
+}
+
+/**
+ * Flush pending events to Mixpanel
+ * Useful for ensuring events are sent before app closes
+ */
+export function flushMixpanel(): void {
+  if (!mixpanel || !isInitialized) {
+    return;
+  }
+
+  try {
+    mixpanel.flush();
+    console.log('📊 Mixpanel events flushed');
+  } catch (error) {
+    console.error('Failed to flush Mixpanel:', error);
   }
 }
 

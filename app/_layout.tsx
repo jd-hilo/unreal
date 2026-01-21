@@ -46,7 +46,14 @@ export default function RootLayout() {
 
   // Initialize Mixpanel
   useEffect(() => {
-    initializeMixpanel();
+    (async () => {
+      try {
+        await initializeMixpanel();
+        console.log('Mixpanel initialization complete');
+      } catch (error) {
+        console.error('Failed to initialize Mixpanel:', error);
+      }
+    })();
   }, []);
 
   // Initialize premium status and Mixpanel user when user is available
