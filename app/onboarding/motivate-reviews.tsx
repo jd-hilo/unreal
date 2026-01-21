@@ -10,22 +10,22 @@ const CARD_WIDTH = width - 80;
 
 const reviews = [
   {
-    text: "This app completely changed 🎯 how I make decisions. My twin's perspective is incredibly accurate.",
+    text: "this app literally changed how I make decisions. my twin's perspective is scarily accurate.",
     author: "Sarah M.",
     rating: 5,
   },
   {
-    text: "I've never felt more understood by an app. The simulations 🤯✨ are eerily accurate to my life.",
+    text: "I've never felt more understood by an app. the simulations are lowkey spot on to my actual life.",
     author: "James T.",
     rating: 5,
   },
   {
-    text: "Finally, an app that gets me. The life simulations helped me avoid a huge career mistake.",
+    text: "finally an app that actually gets me. helped me dodge a massive career L fr 🤯✨💯",
     author: "Emily R.",
     rating: 5,
   },
   {
-    text: "It's like having a best friend 💜🙌 who knows you better than you know yourself.",
+    text: "it's like having a bestie who knows you better than you know yourself.",
     author: "Michael K.",
     rating: 5,
   },
@@ -148,10 +148,11 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     textAlign: 'center',
     fontFamily: Fonts.primary.semibold,
+    lineHeight: 36,
   },
   customSubtitle: {
-    fontFamily: Fonts.secondary.bold,
-    fontWeight: '400',
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
     textAlign: 'center',
   },
   container: {

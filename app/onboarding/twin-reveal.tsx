@@ -170,22 +170,38 @@ export default function TwinRevealScreen() {
 
       // Generate archetype and simulation variants
       if (profileData) {
-        setLoadingDescription(true);
-        setLoadingSimulations(true);
-        try {
-          const [archetypeResult, variants] = await Promise.all([
-            generateTwinArchetype(profileData),
-            generateOneYearSimulationVariants(profileData)
-          ]);
-          setArchetype(archetypeResult);
-          setSimulationVariants(variants);
-        } catch (error) {
-          console.error('Failed to generate archetype or simulations:', error);
-          // Fallback will be handled by initial state or UI check
-        } finally {
+        // Handle Archetype
+        const existingArchetype = (profileData.core_json as any)?.twin_archetype;
+        
+        if (existingArchetype) {
+          setArchetype(existingArchetype);
           setLoadingDescription(false);
-          setLoadingSimulations(false);
+        } else {
+          setLoadingDescription(true);
+          generateTwinArchetype(profileData)
+            .then(result => {
+              setArchetype(result);
+            })
+            .catch(error => {
+              console.error('Failed to generate archetype:', error);
+            })
+            .finally(() => {
+              setLoadingDescription(false);
+            });
         }
+
+        // Handle Simulations
+        setLoadingSimulations(true);
+        generateOneYearSimulationVariants(profileData)
+          .then(variants => {
+            setSimulationVariants(variants);
+          })
+          .catch(error => {
+            console.error('Failed to generate simulations:', error);
+          })
+          .finally(() => {
+            setLoadingSimulations(false);
+          });
       }
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -1034,7 +1050,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textSecondary,
     lineHeight: 22,
-    fontFamily: Fonts.primary.regular,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
   },
 
   // CTA Button

@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { View, StyleSheet, Text, Animated, Dimensions, Image } from 'react-native';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Colors, Fonts } from '@/constants/Theme';
-import { Sparkles, Brain, Clock } from 'lucide-react-native';
+import { Sparkles, Brain, Clock, MapPin } from 'lucide-react-native';
 import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -71,18 +71,15 @@ export default function MotivateUniqueScreen() {
                      onboardingResponses['06-stress'] || 
                      null;
                      
-      // Try to find decision/style response
-      const style = onboardingResponses['style'] || 
-                    onboardingResponses['04-style'] || 
-                    onboardingResponses['decision-style'] || 
-                    'Analyzing...';
+      // Get hometown
+      const hometown = profile?.hometown || 'Not set';
 
       setProfileData({
         name,
         age,
         values: topValues,
         stressResponse: stress,
-        decisionStyle: style
+        decisionStyle: hometown
       });
       
     } catch (error) {
@@ -200,13 +197,13 @@ export default function MotivateUniqueScreen() {
                   end={{ x: 1, y: 1 }}
                   style={styles.iconGradient}
                 >
-                  <Sparkles size={20} color="#FFFFFF" />
+                  <MapPin size={20} color="#FFFFFF" />
                 </LinearGradient>
               </View>
               <View style={styles.statContent}>
-                <Text style={styles.statLabel}>Decision Making Style</Text>
+                <Text style={styles.statLabel}>Hometown</Text>
                 <Text style={styles.statValue}>
-                  {profileData.decisionStyle || 'Analyzing...'}
+                  {profileData.decisionStyle || 'Not set'}
                 </Text>
               </View>
             </View>

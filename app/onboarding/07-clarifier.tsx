@@ -6,7 +6,7 @@ import { useTwin } from '@/store/useTwin';
 import { useAuth } from '@/store/useAuth';
 import { completeOnboarding, getProfile, saveOnboardingResponse, updateProfileFields } from '@/lib/storage';
 import { trackEvent, MixpanelEvents, setUserProperty } from '@/lib/mixpanel';
-import { summarizeOnboardingGroup, type OnboardingSummaryData } from '@/lib/ai';
+import { summarizeOnboardingGroup, type OnboardingSummaryData, generateTwinArchetype } from '@/lib/ai';
 import { useTypewriter } from '@/hooks/useTypewriter';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
@@ -16,6 +16,9 @@ const LOADING_STEPS = [
   'Building desires...',
   'Instilling hometown values...',
   'Structuring decision patterns...',
+  'Mapping your personality...',
+  'Calibrating cognitive traits...',
+  'Defining your archetype...',
   'Finalizing your digital twin...'
 ];
 
@@ -307,17 +310,51 @@ export default function OnboardingStep7() {
         core_values: finalCoreValues
       };
       
-      await supabase
+      // Update profile with values_json and core_json
+      const updatedProfile = await supabase
         .from('profiles')
         .update({ 
           values_json: finalValuesJson,
           core_json: updatedCoreJson
         } as any)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      // Get updated profile for archetype generation
+      const updatedProfileData = updatedProfile.data || profile;
+      
+      // Generate twin archetype during loading
+      console.log('🎭 [Twin Creation] Generating twin archetype...');
+      let archetypeResult;
+      try {
+        archetypeResult = await generateTwinArchetype({
+          ...updatedProfileData,
+          core_value: finalCoreValue,
+          life_journey: finalLifeJourney,
+        });
+        console.log('✅ [Twin Creation] Generated archetype:', archetypeResult.title);
+        
+        // Add archetype to updatedCoreJson before completing onboarding
+        updatedCoreJson.twin_archetype = archetypeResult;
+        
+        console.log('✅ [Twin Creation] Archetype added to core_json');
+      } catch (archetypeError) {
+        console.error('⚠️ [Twin Creation] Failed to generate archetype:', archetypeError);
+        // Continue without archetype - it can be generated later
+      }
 
       // Get hometown and university from profile (already saved in life journey section)
-      const hometown = profile?.hometown || lifeJourneyData?.hometown;
-      const university = profile?.university || lifeJourneyData?.collegeName;
+      const hometown = updatedProfileData?.hometown || lifeJourneyData?.hometown;
+      const university = updatedProfileData?.university || lifeJourneyData?.collegeName;
+      
+      // Update profile with final core_json including archetype
+      await supabase
+        .from('profiles')
+        .update({ 
+          core_json: updatedCoreJson
+        } as any)
+        .eq('user_id', user.id);
       
       // Complete onboarding (hometown and university should already be saved, but ensure they're set)
       await completeOnboarding(user.id, {
@@ -370,7 +407,7 @@ export default function OnboardingStep7() {
 
   return (
     <OnboardingScreen
-      title={isSummarizing ? "We're creating your digital twin" : animatedTitle}
+      title={isSummarizing ? null : animatedTitle}
       progress={0.90}
       onNext={handleComplete}
       nextLabel={isSummarizing ? "Creating" : "Create Digital Twin"}
