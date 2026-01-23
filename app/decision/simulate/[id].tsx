@@ -2,7 +2,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
-import { getDecision, getDecisionParticipants } from '@/lib/storage';
+import { useTwin } from '@/store/useTwin';
+import { getDecision, getDecisionParticipants, createTimeline, getProfile, updateTimeline } from '@/lib/storage';
 import { generateTimelineSimulation } from '@/lib/ai';
 import { buildCorePack } from '@/lib/relevance';
 import { ArrowLeft, Sparkles, Zap, Brain } from 'lucide-react-native';
@@ -20,6 +21,7 @@ export default function SimulationScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const user = useAuth((state) => state.user);
+  const { isPremium } = useTwin();
   const [decision, setDecision] = useState<any>(null);
   const [timeline, setTimeline] = useState<TimelineSimulation | null>(null);
   const [simulations, setSimulations] = useState<Record<string, TimelineSimulation>>({});
@@ -265,6 +267,57 @@ export default function SimulationScreen() {
       const initialOption = decisionData.prediction?.prediction || options[0] || '';
       if (newSimulations[initialOption]) {
         setTimeline(newSimulations[initialOption]);
+        
+        // Create timeline and route to it automatically
+        try {
+          const profile = await getProfile(user.id);
+          
+          // Calculate age from birth year (same logic as simulate/new.tsx)
+          let currentAge = 25; // Default age
+          const responses = profile?.core_json?.onboarding_responses || {};
+          const birthYearVal = responses['birth-year'] || responses['00-birth-year'];
+          if (birthYearVal) {
+            const birthYear = parseInt(birthYearVal);
+            if (!isNaN(birthYear)) {
+              currentAge = new Date().getFullYear() - birthYear;
+            }
+          }
+          
+          // Convert simulation events to timeline format
+          const selectedSimulation = newSimulations[initialOption];
+          const timelineEvents = (selectedSimulation.one_year || []).map((event: any) => ({
+            time: event.time || '',
+            title: event.title || '',
+            description: event.description || '',
+            type: 'milestone',
+            year: new Date().getFullYear() + 1, // Next year
+            month: null,
+            people: event.people || [],
+          }));
+          
+          // Create timeline with the simulation data
+          const newTimeline = await createTimeline(
+            user.id,
+            `${decisionData.question} - ${initialOption}`,
+            currentAge,
+            { money: 5, happiness: 5, freedom: 5, growth: 5, relationships: 5 },
+            profile?.core_json || {},
+            [],
+            isPremium
+          );
+          
+          // Update timeline with events
+          await updateTimeline(newTimeline.id, {
+            events: timelineEvents,
+          });
+          
+          // Route to the new timeline
+          console.log(`[Simulation] Created timeline ${newTimeline.id}, routing...`);
+          router.replace(`/simulate/${newTimeline.id}` as any);
+        } catch (error) {
+          console.error('[Simulation] Error creating timeline:', error);
+          // Continue showing the simulation preview even if timeline creation fails
+        }
       }
 
       // Update progress

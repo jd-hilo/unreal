@@ -1,58 +1,15 @@
 import 'react-native-get-random-values';
 import { Mixpanel } from 'mixpanel-react-native';
 import Constants from 'expo-constants';
-import {
-  MPSessionReplay,
-  MPSessionReplayConfig,
-  MPSessionReplayMask,
-} from '@mixpanel/react-native-session-replay';
 
 const MIXPANEL_TOKEN = Constants.expoConfig?.extra?.mixpanelToken || '';
 
 let mixpanel: Mixpanel | null = null;
 let isInitialized = false;
-let sessionReplayInitialized = false;
 let currentUserId: string | null = null;
-
-/**
- * Initialize Mixpanel Session Replay
- * Note: Session Replay is currently in Private Beta - contact Mixpanel for access
- * IMPORTANT: Session Replay must be initialized AFTER regular Mixpanel is initialized
- */
-async function initializeSessionReplay(userId: string): Promise<void> {
-  if (sessionReplayInitialized || !MIXPANEL_TOKEN) {
-    return;
-  }
-
-  // Ensure regular Mixpanel is initialized first
-  if (!mixpanel || !isInitialized) {
-    console.warn('Cannot initialize Session Replay: Mixpanel not initialized yet');
-    return;
-  }
-
-  try {
-    // Configure Session Replay settings
-    const config = new MPSessionReplayConfig({
-      wifiOnly: false, // Set to true to upload replays only on Wi-Fi
-      recordingSessionsPercent: 100, // Percentage of sessions to record (0-100)
-      autoStartRecording: true, // Automatically start recording sessions
-      autoMaskedViews: [
-        MPSessionReplayMask.Image, // Automatically mask images
-        MPSessionReplayMask.Text, // Automatically mask text (for privacy)
-      ],
-      flushInterval: 5, // Interval in seconds to flush data
-      enableLogging: __DEV__, // Enable logging in development mode
-    });
-
-    // Initialize Session Replay
-    await MPSessionReplay.initialize(MIXPANEL_TOKEN, userId, config);
-    sessionReplayInitialized = true;
-    console.log('📹 Mixpanel Session Replay initialized');
-  } catch (error) {
-    // Session Replay may not be available (beta feature)
-    console.warn('Failed to initialize Session Replay (may require beta access):', error);
-  }
-}
+const pendingEvents: Array<{ name: string; properties?: Record<string, any> }> = [];
+const pendingUserProperties: Array<Record<string, any>> = [];
+let pendingUserId: string | null = null;
 
 /**
  * Initialize Mixpanel
@@ -70,9 +27,53 @@ export async function initializeMixpanel(): Promise<void> {
     await mixpanel.init();
     isInitialized = true;
     console.log('📊 Mixpanel initialized successfully');
-    
-    // Set opt-out tracking to false to ensure events are tracked
-    mixpanel.setOptOutTracking(false);
+    console.log('📊 Mixpanel instance:', !!mixpanel, 'isInitialized:', isInitialized);
+
+    // Process pending events
+    if (pendingEvents.length > 0) {
+      console.log(`📊 Processing ${pendingEvents.length} pending Mixpanel events`);
+      pendingEvents.forEach((event) => {
+        try {
+          mixpanel?.track(event.name, event.properties);
+          console.log('📊 Sent pending event:', event.name);
+        } catch (e) {
+          console.error('Failed to track pending event:', event.name, e);
+        }
+      });
+      pendingEvents.length = 0; // Clear queue
+      // Flush after processing pending events
+      try {
+        mixpanel?.flush();
+        console.log('📊 Flushed pending events');
+      } catch (e) {
+        console.error('Failed to flush pending events:', e);
+      }
+    }
+
+    // Process pending user identification
+    if (pendingUserId) {
+      try {
+        mixpanel?.identify(pendingUserId);
+        currentUserId = pendingUserId;
+        console.log('📊 Pending user identified:', pendingUserId);
+        pendingUserId = null;
+      } catch (e) {
+        console.error('Failed to identify pending user:', e);
+      }
+    }
+
+    // Process pending user properties
+    if (pendingUserProperties.length > 0) {
+      console.log(`📊 Processing ${pendingUserProperties.length} pending user property sets`);
+      const mergedProperties = Object.assign({}, ...pendingUserProperties);
+      try {
+        mixpanel?.getPeople().set(mergedProperties);
+        console.log('📊 Pending user properties set:', mergedProperties);
+      } catch (e) {
+        console.error('Failed to set pending user properties:', e);
+      }
+      pendingUserProperties.length = 0; // Clear queue
+    }
   } catch (error) {
     console.error('Failed to initialize Mixpanel:', error);
     isInitialized = false;
@@ -85,17 +86,31 @@ export async function initializeMixpanel(): Promise<void> {
  */
 export function trackEvent(eventName: string, properties?: Record<string, any>): void {
   if (!mixpanel || !isInitialized) {
-    console.warn('⚠️ Mixpanel not initialized, skipping event:', eventName, {
-      mixpanel: !!mixpanel,
-      isInitialized,
-      hasToken: !!MIXPANEL_TOKEN
-    });
+    if (MIXPANEL_TOKEN) {
+      // Queue event if we have a token but just aren't ready yet
+      console.log('⏳ Mixpanel not ready, queueing event:', eventName);
+      pendingEvents.push({ name: eventName, properties });
+    } else {
+      console.warn('⚠️ Mixpanel not initialized and no token, skipping event:', eventName);
+    }
     return;
   }
 
   try {
+    // Ensure user is identified before tracking (important for proper event attribution)
+    if (!currentUserId) {
+      console.warn('⚠️ Tracking event before user identification:', eventName);
+    }
+    
     mixpanel.track(eventName, properties);
-    console.log('📊 Tracked:', eventName, properties);
+    console.log('📊 Tracked:', eventName, properties, {
+      userId: currentUserId,
+      isInitialized,
+      hasMixpanel: !!mixpanel
+    });
+    
+    // Flush immediately to ensure events are sent (especially important for React Native)
+    mixpanel.flush();
   } catch (error) {
     console.error('Failed to track event:', eventName, error);
   }
@@ -106,7 +121,13 @@ export function trackEvent(eventName: string, properties?: Record<string, any>):
  */
 export async function identifyUser(userId: string): Promise<void> {
   if (!mixpanel || !isInitialized) {
-    console.warn('Mixpanel not initialized, skipping identify');
+    if (MIXPANEL_TOKEN) {
+      // Queue userId if we have a token but just aren't ready yet
+      console.log('⏳ Mixpanel not ready, queueing user identification');
+      pendingUserId = userId;
+    } else {
+      console.warn('⚠️ Mixpanel not initialized and no token, skipping identify');
+    }
     return;
   }
 
@@ -114,9 +135,6 @@ export async function identifyUser(userId: string): Promise<void> {
     mixpanel.identify(userId);
     currentUserId = userId;
     console.log('📊 User identified:', userId);
-
-    // Initialize Session Replay for this user
-    await initializeSessionReplay(userId);
   } catch (error) {
     console.error('Failed to identify user:', error);
   }
@@ -127,7 +145,13 @@ export async function identifyUser(userId: string): Promise<void> {
  */
 export function setUserProperties(properties: Record<string, any>): void {
   if (!mixpanel || !isInitialized) {
-    console.warn('Mixpanel not initialized, skipping set user properties');
+    if (MIXPANEL_TOKEN) {
+      // Queue properties if we have a token but just aren't ready yet
+      console.log('⏳ Mixpanel not ready, queueing user properties');
+      pendingUserProperties.push(properties);
+    } else {
+      console.warn('⚠️ Mixpanel not initialized and no token, skipping user properties');
+    }
     return;
   }
 
@@ -144,6 +168,10 @@ export function setUserProperties(properties: Record<string, any>): void {
  */
 export function setUserProperty(key: string, value: any): void {
   if (!mixpanel || !isInitialized) {
+    if (MIXPANEL_TOKEN) {
+      // Queue property if we have a token but just aren't ready yet
+      pendingUserProperties.push({ [key]: value });
+    }
     return;
   }
 
@@ -165,66 +193,9 @@ export async function resetMixpanel(): Promise<void> {
   try {
     mixpanel.reset();
     currentUserId = null;
-    sessionReplayInitialized = false;
     console.log('📊 Mixpanel reset');
-
-    // Stop Session Replay recording
-    try {
-      await MPSessionReplay.stopRecording();
-    } catch (error) {
-      // Ignore errors if Session Replay wasn't initialized
-    }
   } catch (error) {
     console.error('Failed to reset Mixpanel:', error);
-  }
-}
-
-/**
- * Start Session Replay recording manually
- */
-export async function startSessionReplay(): Promise<void> {
-  if (!sessionReplayInitialized) {
-    console.warn('Session Replay not initialized');
-    return;
-  }
-
-  try {
-    await MPSessionReplay.startRecording();
-    console.log('📹 Session Replay recording started');
-  } catch (error) {
-    console.error('Failed to start Session Replay:', error);
-  }
-}
-
-/**
- * Stop Session Replay recording manually
- */
-export async function stopSessionReplay(): Promise<void> {
-  if (!sessionReplayInitialized) {
-    return;
-  }
-
-  try {
-    await MPSessionReplay.stopRecording();
-    console.log('📹 Session Replay recording stopped');
-  } catch (error) {
-    console.error('Failed to stop Session Replay:', error);
-  }
-}
-
-/**
- * Check if Session Replay is currently recording
- */
-export async function isSessionReplayRecording(): Promise<boolean> {
-  if (!sessionReplayInitialized) {
-    return false;
-  }
-
-  try {
-    return await MPSessionReplay.isRecording();
-  } catch (error) {
-    console.error('Failed to check Session Replay status:', error);
-    return false;
   }
 }
 
@@ -256,6 +227,7 @@ export function incrementUserProperty(key: string, value: number = 1): void {
  */
 export function flushMixpanel(): void {
   if (!mixpanel || !isInitialized) {
+    console.warn('⚠️ Cannot flush: Mixpanel not initialized');
     return;
   }
 
@@ -265,6 +237,25 @@ export function flushMixpanel(): void {
   } catch (error) {
     console.error('Failed to flush Mixpanel:', error);
   }
+}
+
+/**
+ * Get Mixpanel status for debugging
+ */
+export function getMixpanelStatus(): {
+  isInitialized: boolean;
+  hasMixpanel: boolean;
+  hasToken: boolean;
+  currentUserId: string | null;
+  pendingEventsCount: number;
+} {
+  return {
+    isInitialized,
+    hasMixpanel: !!mixpanel,
+    hasToken: !!MIXPANEL_TOKEN,
+    currentUserId,
+    pendingEventsCount: pendingEvents.length,
+  };
 }
 
 // Predefined event tracking helpers for critical events

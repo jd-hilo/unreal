@@ -525,6 +525,9 @@ export default function TimelineDetailScreen() {
       const reloadedTimeline = await getTimeline(timelineId);
       setTimeline(reloadedTimeline || updatedTimeline);
       setScenarioText('');
+      
+      // Reload the entire page to refresh all data and UI
+      await loadTimeline();
     } catch (error) {
       console.error('Error simulating:', error);
       Alert.alert('Error', 'Failed to simulate. Please try again.');
@@ -1271,8 +1274,10 @@ export default function TimelineDetailScreen() {
                     </View>
 
                     <View style={styles.roleSection}>
-                       <View style={styles.roleRow}>
-                         <Briefcase size={18} color="#7C3AED" fill="#7C3AED" />
+                       <View style={[styles.roleRow, { gap: 2 }]}> 
+                         <View style={styles.roleIconContainer}>
+                           <Briefcase size={18} color="#7C3AED" fill="#7C3AED" />
+                         </View>
                          <Text style={styles.roleTitle}>{displayData.job || 'Unemployed'}</Text>
                        </View>
                     </View>
@@ -2364,14 +2369,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    // Critical: prevent full-width stretch so icon stays next to text
+    alignSelf: 'center',
+  },
+  roleIconContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   roleTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#000000',
+    // Center the icon+title as a unit (text won't stretch)
     textAlign: 'center',
     fontFamily: Fonts.secondary.bold,
+    marginLeft: 4,
+    flexGrow: 0,
+    flexShrink: 1,
   },
   progressStatsContainer: {
     flexDirection: 'row',
