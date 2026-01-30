@@ -366,6 +366,7 @@ export default function ProfileScreen() {
     { id: 'current_location', title: 'Location', subtitle: currentLocation || 'Not set', route: '/profile/edit-location' as any, completed: !!currentLocation, icon: MapPin },
     { id: 'net_worth', title: 'Net Worth', subtitle: netWorth || 'Not set', route: '/profile/edit-networth' as any, completed: !!netWorth, icon: Banknote },
     { id: 'political_views', title: 'Politics', subtitle: politicalViews || 'Not set', route: '/profile/edit-politics' as any, completed: !!politicalViews, icon: Flag },
+    { id: 'dream_self', title: 'Dream Self', subtitle: profileData?.dream_vision?.net_worth_goal ? 'View your vision' : 'Complete your dream self', route: '/onboarding/dream-self/welcome' as any, completed: !!profileData?.dream_vision?.net_worth_goal, icon: Sparkles },
     { id: 'twin_society', title: 'Twin Society', subtitle: 'Join our Discord community', route: null as any, completed: true, icon: Users },
   ];
 

@@ -26,6 +26,11 @@ export interface Database {
           life_situation: string | null;
           life_journey: string | null;
           core_value: string | null;
+          dream_vision: DreamVision | null;
+          dream_self_progress: Record<string, number>;
+          current_health: any | null;
+          relationship_details: any | null;
+          est_days_remaining: number | string | null;
           created_at: string;
           updated_at: string;
         };
@@ -51,6 +56,11 @@ export interface Database {
           life_situation?: string | null;
           life_journey?: string | null;
           core_value?: string | null;
+          dream_vision?: DreamVision | null;
+          dream_self_progress?: Record<string, number>;
+          current_health?: any | null;
+          relationship_details?: any | null;
+          est_days_remaining?: number | string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -76,6 +86,11 @@ export interface Database {
           life_situation?: string | null;
           life_journey?: string | null;
           core_value?: string | null;
+          dream_vision?: DreamVision | null;
+          dream_self_progress?: Record<string, number>;
+          current_health?: any | null;
+          relationship_details?: any | null;
+          est_days_remaining?: number | string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -479,6 +494,40 @@ export interface YearPredictionData {
   }[];
   insights: string[];
   focusAreas?: string[];
+}
+
+export interface DreamVision {
+  net_worth_goal?: string;
+  relationship_status_goal?: string;
+  partner_details?: string;
+  family_plans?: string;
+  dream_home?: string;
+  dream_city?: string;
+  career_vision?: string;
+  health_goals?: string;
+  hobbies_interests?: string;
+  travel_plans?: string;
+}
+
+export interface DailyTask {
+  id: string;
+  user_id: string;
+  task_content: string;
+  category: string | null;
+  is_completed: boolean;
+  scheduled_date: string;
+  feedback_journal?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ArchitectFeedback {
+  id: string;
+  user_id: string;
+  date: string;
+  feedback: string;
+  completed_tasks_count: number;
+  created_at: string;
 }
 
 export interface CoreJsonData {

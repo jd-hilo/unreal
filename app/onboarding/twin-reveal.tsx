@@ -217,8 +217,8 @@ export default function TwinRevealScreen() {
       screen: 'Twin Reveal',
     });
 
-    // Navigate to main app
-    router.replace('/(tabs)/home');
+    // Navigate to dream self welcome
+    router.replace('/onboarding/dream-self/welcome');
   }
 
   function handleCopyTwinCode() {
@@ -336,10 +336,132 @@ export default function TwinRevealScreen() {
     },
   ];
 
-  const visibleRelationships = relationships.slice(0, 6);
+  // Mindset Section - Grid Layout
+  const renderMindset = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Mindset</Text>
+      <View style={styles.gridContainer}>
+        {mindsetCards.map((card) => (
+          <TouchableOpacity 
+            key={card.id} 
+            style={styles.gridCard}
+            onPress={() => handleCardPress(card)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.gridIcon}>
+              {card.icon && <card.icon size={24} color={card.completed ? '#4ADE80' : Colors.textTertiary} />}
+            </View>
+            <Text style={styles.gridTitle}>{card.title}</Text>
+            {card.subtitle && (
+              <Text style={styles.gridSubtitle} numberOfLines={2}>{card.subtitle}</Text>
+            )}
+            <View style={styles.gridStatus}>
+              {card.completed ? <CheckCircle2 size={16} color="#4ADE80" /> : <CircleIcon size={16} color={Colors.textTertiary} />}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
 
-  // Determine status
-  const status = relationships.length > 0 ? 'Connected' : 'Single';
+  // 1-Year Simulations Section
+  const renderSimulations = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Potential 1-Year Simulations</Text>
+      {loadingSimulations ? (
+        <View style={styles.simulationLoadingContainer}>
+          <Activity size={24} color={Colors.gradients.turquoise[0]} />
+          <Text style={styles.simulationLoadingText}>Generating simulations...</Text>
+        </View>
+      ) : simulationVariants.length > 0 ? (
+        <View style={styles.simulationsContainer}>
+          {simulationVariants.map((variant) => (
+            <View key={variant.variant} style={styles.simulationCard}>
+              <View style={styles.simulationHeader}>
+                <Text style={styles.simulationVariantLabel}>Variant {variant.variant}</Text>
+                <View style={styles.probabilityBadge}>
+                  <Text style={styles.probabilityText}>{variant.probability}%</Text>
+                </View>
+              </View>
+              <LigatureFreeText 
+                text={variant.description} 
+                style={styles.simulationDescription} 
+              />
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+
+  // Archetype Section
+  const renderArchetype = () => (
+    <View style={styles.section}>
+      <View style={styles.uniqueCard}>
+        {loadingDescription ? (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <Activity size={24} color={Colors.gradients.turquoise[0]} />
+            <LigatureFreeText 
+              text="Finalizing your digital twin..." 
+              style={[styles.uniqueText, { marginTop: 12, textAlign: 'center', letterSpacing: 1 }]} 
+            />
+          </View>
+        ) : archetype ? (
+          <>
+            <View style={styles.archetypeHeader}>
+              <View style={styles.archetypeIconContainer}>
+                <Image
+                  source={require('@/assets/images/icon.png')}
+                  style={styles.archetypeIconImage}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={styles.archetypeLabel}>TWIN ARCHETYPE</Text>
+            </View>
+            
+            <LigatureFreeText text={archetype.title} style={styles.archetypeTitle} />
+            <LigatureFreeText text={archetype.description} style={styles.archetypeDescription} />
+
+            <View style={styles.decisionDnaContainer}>
+              <View style={styles.dnaHeaderRow}>
+                <Text style={styles.dnaLabel}>Decision DNA</Text>
+                <View style={styles.estDaysBadge}>
+                  <Text style={styles.estDaysBadgeText}>{profile?.est_days_remaining || '---'} Days</Text>
+                </View>
+              </View>
+              
+              {/* Logic Bar */}
+              <View style={styles.dnaRow}>
+                <Text style={styles.dnaRowLabel}>Logic</Text>
+                <View style={styles.dnaBarContainer}>
+                  <View style={[styles.dnaBar, { width: `${archetype.traits.logic}%`, backgroundColor: '#8EC5FC' }]} />
+                </View>
+                <Text style={styles.dnaValue}>{archetype.traits.logic}%</Text>
+              </View>
+
+              {/* Intuition Bar */}
+              <View style={styles.dnaRow}>
+                <Text style={styles.dnaRowLabel}>Intuition</Text>
+                <View style={styles.dnaBarContainer}>
+                  <View style={[styles.dnaBar, { width: `${archetype.traits.intuition}%`, backgroundColor: '#6BCA9A' }]} />
+                </View>
+                <Text style={styles.dnaValue}>{archetype.traits.intuition}%</Text>
+              </View>
+
+              {/* Emotion Bar */}
+              <View style={styles.dnaRow}>
+                <Text style={styles.dnaRowLabel}>Emotion</Text>
+                <View style={styles.dnaBarContainer}>
+                  <View style={[styles.dnaBar, { width: `${archetype.traits.emotion}%`, backgroundColor: '#E87A7F' }]} />
+                </View>
+                <Text style={styles.dnaValue}>{archetype.traits.emotion}%</Text>
+              </View>
+            </View>
+          </>
+        ) : null}
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -425,66 +547,7 @@ export default function TwinRevealScreen() {
                 transform: [{ translateY: slideAnim }],
               }}
             >
-              <View style={styles.section}>
-                <View style={styles.uniqueCard}>
-                  {loadingDescription ? (
-                    <View style={{ padding: 20, alignItems: 'center' }}>
-                      <Activity size={24} color={Colors.gradients.turquoise[0]} />
-                      <LigatureFreeText 
-                        text="Analyzing your unique profile..." 
-                        style={[styles.uniqueText, { marginTop: 12, textAlign: 'center', letterSpacing: 1 }]} 
-                      />
-                    </View>
-                  ) : archetype ? (
-                    <>
-                      <View style={styles.archetypeHeader}>
-                        <View style={styles.archetypeIconContainer}>
-                          <Image
-                            source={require('@/assets/images/icon.png')}
-                            style={styles.archetypeIconImage}
-                            resizeMode="contain"
-                          />
-                        </View>
-                        <Text style={styles.archetypeLabel}>TWIN ARCHETYPE</Text>
-                      </View>
-                      
-                      <LigatureFreeText text={archetype.title} style={styles.archetypeTitle} />
-                      <LigatureFreeText text={archetype.description} style={styles.archetypeDescription} />
-
-                      <View style={styles.decisionDnaContainer}>
-                        <Text style={styles.dnaLabel}>Decision DNA</Text>
-                        
-                        {/* Logic Bar */}
-                        <View style={styles.dnaRow}>
-                          <Text style={styles.dnaRowLabel}>Logic</Text>
-                          <View style={styles.dnaBarContainer}>
-                            <View style={[styles.dnaBar, { width: `${archetype.traits.logic}%`, backgroundColor: '#8EC5FC' }]} />
-                          </View>
-                          <Text style={styles.dnaValue}>{archetype.traits.logic}%</Text>
-                        </View>
-
-                        {/* Intuition Bar */}
-                        <View style={styles.dnaRow}>
-                          <Text style={styles.dnaRowLabel}>Intuition</Text>
-                          <View style={styles.dnaBarContainer}>
-                            <View style={[styles.dnaBar, { width: `${archetype.traits.intuition}%`, backgroundColor: '#6BCA9A' }]} />
-                          </View>
-                          <Text style={styles.dnaValue}>{archetype.traits.intuition}%</Text>
-                        </View>
-
-                        {/* Emotion Bar */}
-                        <View style={styles.dnaRow}>
-                          <Text style={styles.dnaRowLabel}>Emotion</Text>
-                          <View style={styles.dnaBarContainer}>
-                            <View style={[styles.dnaBar, { width: `${archetype.traits.emotion}%`, backgroundColor: '#E87A7F' }]} />
-                          </View>
-                          <Text style={styles.dnaValue}>{archetype.traits.emotion}%</Text>
-                        </View>
-                      </View>
-                    </>
-                  ) : null}
-                </View>
-              </View>
+              {renderArchetype()}
             </Animated.View>
 
             {/* Mindset Section - Grid Layout */}
@@ -494,30 +557,7 @@ export default function TwinRevealScreen() {
                 transform: [{ translateY: slideAnim }],
               }}
             >
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Mindset</Text>
-                <View style={styles.gridContainer}>
-                  {mindsetCards.map((card) => (
-                    <TouchableOpacity 
-                      key={card.id} 
-                      style={styles.gridCard}
-                      onPress={() => handleCardPress(card)}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.gridIcon}>
-                        {card.icon && <card.icon size={24} color={card.completed ? '#4ADE80' : Colors.textTertiary} />}
-                      </View>
-                      <Text style={styles.gridTitle}>{card.title}</Text>
-                      {card.subtitle && (
-                        <Text style={styles.gridSubtitle} numberOfLines={2}>{card.subtitle}</Text>
-                      )}
-                      <View style={styles.gridStatus}>
-                        {card.completed ? <CheckCircle2 size={16} color="#4ADE80" /> : <CircleIcon size={16} color={Colors.textTertiary} />}
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
+              {renderMindset()}
             </Animated.View>
 
             {/* 1-Year Simulations Section */}
@@ -527,32 +567,7 @@ export default function TwinRevealScreen() {
                 transform: [{ translateY: slideAnim }],
               }}
             >
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Potential 1-Year Simulations</Text>
-                {loadingSimulations ? (
-                  <View style={styles.simulationLoadingContainer}>
-                    <Activity size={24} color={Colors.gradients.turquoise[0]} />
-                    <Text style={styles.simulationLoadingText}>Generating simulations...</Text>
-                  </View>
-                ) : simulationVariants.length > 0 ? (
-                  <View style={styles.simulationsContainer}>
-                    {simulationVariants.map((variant) => (
-                      <View key={variant.variant} style={styles.simulationCard}>
-                        <View style={styles.simulationHeader}>
-                          <Text style={styles.simulationVariantLabel}>Variant {variant.variant}</Text>
-                          <View style={styles.probabilityBadge}>
-                            <Text style={styles.probabilityText}>{variant.probability}%</Text>
-                          </View>
-                        </View>
-                        <LigatureFreeText 
-                          text={variant.description} 
-                          style={styles.simulationDescription} 
-                        />
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
-              </View>
+              {renderSimulations()}
             </Animated.View>
 
             {/* Bottom spacing */}
@@ -839,7 +854,27 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
     letterSpacing: 1,
     textTransform: 'uppercase',
+  },
+  dnaHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  estDaysBadge: {
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  estDaysBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 0.5,
   },
   dnaRow: {
     flexDirection: 'row',

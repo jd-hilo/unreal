@@ -8,6 +8,8 @@ import type {
   WhatIfMetrics,
   TimelineSimulation,
   YearPredictionData,
+  DreamVision,
+  DailyTask,
 } from '@/types/database';
 
 // Anthropic API key (Claude 3.5)
@@ -3177,5 +3179,175 @@ Example JSON:
       description: "You weigh all options carefully while staying open to new possibilities.",
       traits: { logic: 34, intuition: 33, emotion: 33 }
     };
+  }
+}
+
+/**
+ * Generate a personalized plan from The Architect based on the user's dream self vision.
+ */
+export async function generateArchitectPlan(
+  profileData: any,
+  dreamVision: DreamVision,
+  completedTasks: string[] = [],
+  feedback?: string
+): Promise<Partial<DailyTask>[]> {
+  try {
+    const firstName = profileData?.first_name || 'User';
+    const currentLife = profileData?.life_situation || '';
+    const archetype = (profileData?.core_json as any)?.twin_archetype;
+    const twinDescription = archetype ? `${archetype.title}: ${archetype.description}` : 'Not yet defined';
+    
+    // Check progress to see which categories are completed
+    const progress = profileData?.dream_self_progress || {};
+    const completedCategories = Object.entries(progress)
+      .filter(([_, value]) => (value as number) >= 100)
+      .map(([key, _]) => key);
+
+    const systemPrompt = `You are The Architect, a master strategist and life designer. Your goal is to bridge the gap between a user's current digital twin and their "Dream Self". 
+    You provide exactly 3 actionable, daily tasks that are specific, measurable, and highly relevant to their aspirations.
+    You are direct, inspiring, and focused on systems rather than just motivation.
+    
+    CRITICAL RULES: 
+    1. Each task_content MUST be ULTRA-SHORT: 3-6 words maximum (never exceed 8 words). Think simple commands: "Call mom", "Save $10 today", "Walk 10 minutes", "Text one friend", "Research one apartment".
+    2. Tasks MUST be tiny micro-actions that take under 10 minutes. Make them feel effortless and impossible to skip.
+    3. Use simple, direct language. No fluff, no explanations, just the action.
+    4. Be specific with numbers when possible: "5 minutes", "3 options", "one person", "$10".
+    5. Rotate categories: prioritize categories where the user has the lowest progress.
+    6. Return ONLY a JSON array of 3 tasks.
+    7. Do NOT generate tasks for the following completed categories: ${completedCategories.join(', ') || 'None'}.`;
+
+    const userPrompt = `User: ${firstName}
+Current Digital Twin: ${twinDescription}
+Current Life Situation: ${currentLife}
+
+Dream Self Vision:
+- Net Worth Goal: ${dreamVision.net_worth_goal || 'Not specified'}
+- Relationship Goal: ${dreamVision.relationship_status_goal || 'Not specified'}
+- Partner Details: ${dreamVision.partner_details || 'Not specified'}
+- Family Plans: ${dreamVision.family_plans || 'Not specified'}
+- Dream Home: ${dreamVision.dream_home || 'Not specified'}
+- Dream City: ${dreamVision.dream_city || 'Not specified'}
+- Career Vision: ${dreamVision.career_vision || 'Not specified'}
+- Health Goals: ${dreamVision.health_goals || 'Not specified'}
+- Hobbies/Interests: ${dreamVision.hobbies_interests || 'Not specified'}
+- Travel Plans: ${dreamVision.travel_plans || 'Not specified'}
+
+Current Progress: ${JSON.stringify(progress)}
+
+${completedTasks.length > 0 ? `Recently Completed Tasks:\n- ${completedTasks.join('\n- ')}` : ''}
+${feedback ? `User Feedback on Previous Tasks: "${feedback}"` : ''}
+
+As The Architect, generate EXACTLY 3 immediate micro-tasks for this user to start TODAY. 
+These tasks should be TINY, effortless actions (under 10 mins) that feel like quick wins.
+
+Each task must have:
+1. "task_content": Ultra-short action phrase (3-6 words ideal, 8 words MAX). Examples: "Save $10 today", "Text one friend", "Walk 10 minutes", "Research one job", "Call a family member".
+2. "category": One of: "Financial", "Personal", "Lifestyle", "Career", "Health", "Growth". (Note: Career tasks count towards Financial progress).
+3. "scheduled_date": Set this to today's date in YYYY-MM-DD format.
+
+Make each task feel ridiculously easy to complete. Use simple, everyday language.
+
+Return ONLY a JSON array of 3 objects.`;
+
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.7,
+    });
+
+    // Claude might return the array directly or wrapped in an object
+    let tasks = JSON.parse(content);
+    if (!Array.isArray(tasks) && tasks.tasks) {
+      tasks = tasks.tasks;
+    }
+
+    return tasks as Partial<DailyTask>[];
+  } catch (error) {
+    console.error('Architect plan generation error:', error);
+    // Fallback tasks
+    return [
+      {
+        task_content: "List 3 priorities",
+        category: "Growth",
+        scheduled_date: new Date().toISOString().split('T')[0]
+      },
+      {
+        task_content: "Pick one new habit",
+        category: "Growth",
+        scheduled_date: new Date().toISOString().split('T')[0]
+      },
+      {
+        task_content: "Journal 5 minutes",
+        category: "Growth",
+        scheduled_date: new Date().toISOString().split('T')[0]
+      }
+    ];
+  }
+}
+
+/**
+ * Calculate progress points based on completed tasks and user feedback.
+ * Returns a number representing the progress increment (e.g., 0.5 to 5.0).
+ */
+export async function calculateArchitectProgress(
+  profileData: any,
+  completedTasks: any[],
+  feedback: string
+): Promise<{ increments: Record<string, number>; rationale: string }> {
+  try {
+    const dreamVision = profileData?.dream_vision || {};
+    const archetype = (profileData?.core_json as any)?.twin_archetype;
+    
+    const systemPrompt = `You are The Architect, a supportive friend and life coach who speaks warmly and personally to users. You evaluate their daily progress towards their "Dream Self" across 5 areas: Financial, Personal, Lifestyle, Health, and Growth.
+    Based on the tasks they completed and their feedback, you determine a realistic progress increment (0.0 to 5.0 points) for EACH relevant category.
+    Be realistic: significant life changes take time. Small, consistent steps should earn 0.2-1.5 points. Major breakthroughs might earn 3.0-5.0 points.
+    
+    IMPORTANT: Write the "rationale" as if you're a close friend speaking directly to them. Use "you" and "your", be encouraging, warm, and personal. Acknowledge their effort and celebrate their progress. Make it feel like a real conversation, not a formal report.
+    Return ONLY JSON.`;
+
+    const taskDetails = completedTasks.map(t => `${t.task_content} (${t.category})`).join('\n- ');
+    const currentEstDays = profileData?.est_days_remaining || 365; // Default if none
+
+    const userPrompt = `Dream Self Vision: ${JSON.stringify(dreamVision)}
+Digital Twin Archetype: ${archetype?.title || 'Unknown'}
+Current Estimated Days to Dream Self: ${currentEstDays}
+
+Tasks Completed Today:
+- ${taskDetails}
+
+User's Reflection/Feedback: "${feedback}"
+
+Evaluate this progress. How much closer are they to their dream self in each area?
+Also, update the "Estimated Days to Dream Self" based on today's performance and reflection.
+
+Logic for Estimated Days:
+1. If the user completed all tasks with high quality reflection, decrease the estimate (e.g., by 1-3 days).
+2. If the user struggled or didn't complete all tasks, keep the estimate the same or slightly increase it if they are falling behind.
+3. Use the user's journal reflection to gauge their mindset and adjust the estimate accordingly.
+
+Return a JSON object with:
+1. "increments": An object where keys are categories ("Financial", "Personal", "Lifestyle", "Health", "Growth") and values are numbers between 0.0 and 5.0. Only include categories that were progressed today.
+2. "rationale": Write this as a warm, personal message from a friend (2-3 sentences). Use "you" and "your", acknowledge their specific efforts, celebrate their progress, and be encouraging. Make it feel genuine and supportive, like you really see them and their journey.
+3. "est_days_remaining": The NEW updated estimate of how many days remain (integer).
+
+Example:
+{
+  "increments": { "Financial": 0.8, "Lifestyle": 1.2 },
+  "rationale": "I love seeing you take those small steps toward your dream city - researching neighborhoods and tracking your savings shows you're serious about this change. Every bit of progress counts, and you're building momentum that's going to carry you forward.",
+  "est_days_remaining": ${Math.max(1, Number(currentEstDays) - 1)}
+}`;
+
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.7,
+    });
+
+    return JSON.parse(content);
+  } catch (error) {
+    console.error('Progress calculation error:', error);
+    return { increments: { "Growth": 1.0 }, rationale: "Consistent daily action leads to steady growth." };
   }
 }

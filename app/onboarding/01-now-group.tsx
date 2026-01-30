@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { ChoiceQuestion } from '@/components/ChoiceQuestion';
 import { Input } from '@/components/Input';
@@ -10,6 +10,34 @@ import { getProfile } from '@/lib/storage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/Theme';
+
+const HEALTH_STATUS_OPTIONS = [
+  { emoji: '💪', label: 'Active & Fit' },
+  { emoji: '🏃', label: 'Regular Exercise' },
+  { emoji: '🧘', label: 'Mindful/Balanced' },
+  { emoji: '🍎', label: 'Healthy Eater' },
+  { emoji: '😴', label: 'Good Sleep Habits' },
+  { emoji: '🛋️', label: 'Sedentary' },
+  { emoji: '🍕', label: 'Poor Diet' },
+  { emoji: '🚬', label: 'Smoker' },
+  { emoji: '🍺', label: 'Occasional Drinker' },
+  { emoji: '📉', label: 'Low Energy' },
+  { emoji: '🩹', label: 'Recovering from Injury' },
+  { emoji: '🧪', label: 'Chronic Condition' },
+];
+
+const HEALTH_GOAL_OPTIONS = [
+  { emoji: '🏋️', label: 'Build Muscle' },
+  { emoji: '📉', label: 'Lose Weight' },
+  { emoji: '🏃', label: 'Run a Marathon' },
+  { emoji: '🧘', label: 'Reduce Stress' },
+  { emoji: '🥗', label: 'Eat Cleaner' },
+  { emoji: '💧', label: 'Drink More Water' },
+  { emoji: '🔋', label: 'Increase Energy' },
+  { emoji: '🤸', label: 'Improve Flexibility' },
+  { emoji: '😴', label: 'Better Sleep' },
+  { emoji: '🧠', label: 'Mental Clarity' },
+];
 
 const INTERESTS = [
   { emoji: '🎵', label: 'Music' },
@@ -106,6 +134,10 @@ interface LifeSituationAnswers {
   // Financial
   financialSituation: string;
   financialSituationOther: string;
+  netWorth?: string;
+  // Health
+  healthStatus?: string[];
+  healthGoals?: string[];
   // Life stage
   lifeStage: string;
   lifeStageOther: string;
@@ -117,6 +149,8 @@ interface LifeSituationAnswers {
 
 export default function LifeSituationGroupScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const fromDreamSelf = params.fromDreamSelf === 'true';
   const user = useAuth((state) => state.user);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [currentSubQuestion, setCurrentSubQuestion] = useState<string | null>(null);
@@ -142,7 +176,22 @@ export default function LifeSituationGroupScreen() {
     if (!user) return;
     
     try {
+      const { getProfile } = await import('@/lib/storage');
       const profile = await getProfile(user.id);
+      
+      // If we came from Dream Self flow to fill gaps, start at the first missing question
+      const hasNetWorth = !!profile?.net_worth;
+      const hasHealth = !!profile?.current_health?.status?.length;
+      const hasRelDetails = !!profile?.relationship_details?.status;
+
+      if (!hasRelDetails) {
+        setCurrentQuestion(2); // Relationship status
+      } else if (!hasNetWorth) {
+        setCurrentQuestion(3); // Financial/Net Worth
+      } else if (!hasHealth) {
+        setCurrentQuestion(4); // Health status
+      }
+
       const existingData = profile?.core_json?.onboarding_responses?.['01-now-group'];
       if (existingData) {
         try {
@@ -153,11 +202,15 @@ export default function LifeSituationGroupScreen() {
         }
       }
       
-      // Also load job from primary_role if it exists and currentJob is not set
-      if (profile?.core_json && !answers.currentJob) {
-        const coreJson = profile.core_json as any;
-        if (coreJson.primary_role) {
-          setAnswers((prev) => ({ ...prev, currentJob: coreJson.primary_role }));
+      // Also load job from career_entrypoint or primary_role if it exists and currentJob is not set
+      if (!answers.currentJob) {
+        if (profile?.career_entrypoint) {
+          setAnswers((prev) => ({ ...prev, currentJob: profile.career_entrypoint }));
+        } else if (profile?.core_json) {
+          const coreJson = profile.core_json as any;
+          if (coreJson.primary_role) {
+            setAnswers((prev) => ({ ...prev, currentJob: coreJson.primary_role }));
+          }
         }
       }
     } catch (error) {
@@ -234,8 +287,15 @@ export default function LifeSituationGroupScreen() {
       }
     }
 
+    if (currentQuestion === 3) {
+      if (!answers.netWorth) {
+        setCurrentSubQuestion('financial-net-worth');
+        return;
+      }
+    }
+
     // Move to next main question
-    if (currentQuestion < 6) {
+    if (currentQuestion < 8) {
       setCurrentQuestion(currentQuestion + 1);
       setCurrentSubQuestion(null);
     } else {
@@ -245,6 +305,15 @@ export default function LifeSituationGroupScreen() {
 
   function handleSubQuestionNext() {
     if (!currentSubQuestion) return;
+
+    // Handle financial follow-up
+    if (currentSubQuestion === 'financial-net-worth') {
+      if (answers.netWorth) {
+        setCurrentSubQuestion(null);
+        setCurrentQuestion(4);
+      }
+      return;
+    }
 
     // Handle work follow-ups
     if (currentSubQuestion === 'work-job') {
@@ -312,34 +381,51 @@ export default function LifeSituationGroupScreen() {
   async function handleComplete() {
     if (user) {
       try {
-        const { saveOnboardingResponse, getProfile } = await import('@/lib/storage');
+        const { saveOnboardingResponse, getProfile, updateProfileFields } = await import('@/lib/storage');
         const { supabase } = await import('@/lib/supabase');
         
         // Save answers temporarily for AI summarization
         await saveOnboardingResponse(user.id, '01-now-group', JSON.stringify(answers));
         
-        // Save job to core_json.primary_role if it exists
+        // Update profile fields with specific data
+        const profileUpdates: any = {};
+        
         if (answers.currentJob?.trim()) {
+          // Save job to both career_entrypoint and core_json.primary_role
+          profileUpdates.career_entrypoint = answers.currentJob.trim();
+          
           const existingProfile = await getProfile(user.id);
           const currentCoreJson = (existingProfile?.core_json as any) || {};
-          
-          const updatedCoreJson = {
+          profileUpdates.core_json = {
             ...currentCoreJson,
             primary_role: answers.currentJob.trim(),
           };
-          
-          const { error } = await supabase
-            .from('profiles')
-            .update({
-              core_json: updatedCoreJson as any,
-            })
-            .eq('user_id', user.id);
-          
-          if (error) {
-            console.error('Failed to save primary_role:', error);
-          } else {
-            console.log('✅ Saved primary_role to core_json:', answers.currentJob.trim());
-          }
+        }
+
+        if (answers.netWorth?.trim()) {
+          profileUpdates.net_worth = answers.netWorth.trim();
+        }
+
+        if (answers.healthStatus || answers.healthGoals) {
+          profileUpdates.current_health = {
+            status: answers.healthStatus || [],
+            goals: answers.healthGoals || [],
+          };
+        }
+
+        if (answers.relationshipStatus) {
+          profileUpdates.relationship_details = {
+            status: answers.relationshipStatus,
+            howLong: answers.singleHowLong || answers.relationshipHowLong,
+            partnerName: answers.partnerFirstName,
+            happiness: answers.relationshipHappiness,
+            lookingFor: answers.lookingFor,
+          };
+        }
+
+        if (Object.keys(profileUpdates).length > 0) {
+          await updateProfileFields(user.id, profileUpdates);
+          console.log('✅ Updated profile with detailed onboarding data');
         }
         
         trackEvent(MixpanelEvents.ONBOARDING_STEP_COMPLETED, {
@@ -350,6 +436,14 @@ export default function LifeSituationGroupScreen() {
         console.error('Failed to save answers:', error);
       }
     }
+    
+    // If we were filling gaps for Dream Self, go back there
+    const profile = await getProfile(user!.id);
+    if (profile?.net_worth && profile?.current_health?.status?.length && profile?.relationship_details?.status) {
+      router.push('/onboarding/dream-self/01-net-worth');
+      return;
+    }
+
     router.push('/onboarding/02-path-group');
   }
 
@@ -380,6 +474,10 @@ export default function LifeSituationGroupScreen() {
       return answers.relationshipHappiness !== null && answers.relationshipHappiness !== undefined;
     }
 
+    if (currentSubQuestion === 'financial-net-worth') {
+      return !!answers.netWorth?.trim();
+    }
+
     // Check main questions
     switch (currentQuestion) {
       case 0:
@@ -391,10 +489,14 @@ export default function LifeSituationGroupScreen() {
       case 3:
         return !!answers.financialSituation;
       case 4:
-        return !!answers.lifeStage;
+        return (answers.healthStatus?.length || 0) > 0;
       case 5:
-        return true; // Goals are optional but we allow empty
+        return (answers.healthGoals?.length || 0) > 0;
       case 6:
+        return !!answers.lifeStage;
+      case 7:
+        return true; // Goals are optional but we allow empty
+      case 8:
         return (answers.interests?.length || 0) > 0; // At least one interest required
       default:
         return false;
@@ -403,6 +505,9 @@ export default function LifeSituationGroupScreen() {
 
   function getQuestionTitle(): string {
     // Sub-question titles
+    if (currentSubQuestion === 'financial-net-worth') {
+      return 'What is your current net worth?';
+    }
     if (currentSubQuestion === 'work-job') {
       return 'What is your current job?';
     }
@@ -434,6 +539,8 @@ export default function LifeSituationGroupScreen() {
       'What\'s your living situation?',
       'What\'s your relationship status?',
       'How would you describe your financial situation?',
+      'How is your health & fitness?',
+      'What are your health goals?',
       'What stage of life are you in?',
       'What are your current goals?',
       'What are you interested in?',
@@ -445,7 +552,7 @@ export default function LifeSituationGroupScreen() {
     // Progress calculation is approximate since we have dynamic sub-questions
     // Start higher and progress more slowly to give users sense of progress
     // Convert to decimal (0-1) instead of percentage (0-100)
-    const baseProgress = 0.40 + (currentQuestion / 7) * 0.05;
+    const baseProgress = 0.40 + (currentQuestion / 9) * 0.05;
     return Math.min(baseProgress, 0.45);
   }
 
@@ -461,9 +568,34 @@ export default function LifeSituationGroupScreen() {
     });
   }
 
+  function toggleHealthStatus(status: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setAnswers((prev) => {
+      const current = prev.healthStatus || [];
+      if (current.includes(status)) {
+        return { ...prev, healthStatus: current.filter((i) => i !== status) };
+      } else {
+        return { ...prev, healthStatus: [...current, status] };
+      }
+    });
+  }
+
+  function toggleHealthGoal(goal: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setAnswers((prev) => {
+      const current = prev.healthGoals || [];
+      if (current.includes(goal)) {
+        return { ...prev, healthGoals: current.filter((i) => i !== goal) };
+      } else {
+        return { ...prev, healthGoals: [...current, goal] };
+      }
+    });
+  }
+
   return (
     <OnboardingScreen
       title={getQuestionTitle()}
+      subtitle={fromDreamSelf ? "Before we build your dream self, we will need to know a couple more things." : undefined}
       progress={getProgress()}
       onNext={handleNext}
       canContinue={canContinue()}
@@ -610,8 +742,88 @@ export default function LifeSituationGroupScreen() {
           />
         )}
 
-        {/* Life Stage Question */}
+        {/* Financial Follow-up */}
+        {currentSubQuestion === 'financial-net-worth' && (
+          <View style={styles.subQuestionContainer}>
+            <Input
+              placeholder="e.g., $50k, $1M, Debt-free..."
+              value={answers.netWorth || ''}
+              onChangeText={(value) => updateAnswer('netWorth', value)}
+              autoFocus={true}
+              containerStyle={styles.subQuestionInput}
+              placeholderTextColor={Colors.textTertiary}
+            />
+          </View>
+        )}
+
+        {/* Health Status Question */}
         {currentQuestion === 4 && !currentSubQuestion && (
+          <View style={styles.interestsContainer}>
+            <View style={styles.interestsGrid}>
+              {HEALTH_STATUS_OPTIONS.map((status) => {
+                const isSelected = (answers.healthStatus || []).includes(status.label);
+                return (
+                  <TouchableOpacity
+                    key={status.label}
+                    style={[
+                      styles.interestCard,
+                      isSelected && styles.interestCardSelected,
+                    ]}
+                    onPress={() => toggleHealthStatus(status.label)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.emoji}>{status.emoji}</Text>
+                    <Text
+                      style={[
+                        styles.interestLabel,
+                        isSelected && styles.interestLabelSelected,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {status.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Health Goal Question */}
+        {currentQuestion === 5 && !currentSubQuestion && (
+          <View style={styles.interestsContainer}>
+            <View style={styles.interestsGrid}>
+              {HEALTH_GOAL_OPTIONS.map((goal) => {
+                const isSelected = (answers.healthGoals || []).includes(goal.label);
+                return (
+                  <TouchableOpacity
+                    key={goal.label}
+                    style={[
+                      styles.interestCard,
+                      isSelected && styles.interestCardSelected,
+                    ]}
+                    onPress={() => toggleHealthGoal(goal.label)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.emoji}>{goal.emoji}</Text>
+                    <Text
+                      style={[
+                        styles.interestLabel,
+                        isSelected && styles.interestLabelSelected,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {goal.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Life Stage Question */}
+        {currentQuestion === 6 && !currentSubQuestion && (
           <ChoiceQuestion
             question=""
             options={['Early career', 'Mid-career', 'Established', 'Transition', 'Other']}
@@ -623,7 +835,7 @@ export default function LifeSituationGroupScreen() {
         )}
 
         {/* Goals Question */}
-        {currentQuestion === 5 && !currentSubQuestion && (
+        {currentQuestion === 7 && !currentSubQuestion && (
           <View style={styles.goalsContainer}>
             <Input
               placeholder="What are you working towards right now? (e.g., career change, starting a business, buying a home, improving health...)"
@@ -640,7 +852,7 @@ export default function LifeSituationGroupScreen() {
         )}
 
         {/* Interests Question */}
-        {currentQuestion === 6 && !currentSubQuestion && (
+        {currentQuestion === 8 && !currentSubQuestion && (
           <View style={styles.interestsContainer}>
             <View style={styles.interestsGrid}>
               {INTERESTS.map((interest) => {

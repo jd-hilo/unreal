@@ -18,7 +18,6 @@ const LOADING_STEPS = [
   'Structuring decision patterns...',
   'Mapping your personality...',
   'Calibrating cognitive traits...',
-  'Defining your archetype...',
   'Finalizing your digital twin...'
 ];
 
@@ -273,11 +272,29 @@ export default function OnboardingStep7() {
       
       // Now save to dedicated columns as well
       console.log('💾 [Twin Creation] Saving summaries to dedicated columns...');
+      
+      // Generate a consolidated narrative summary for semantic search
+      const consolidatedNarrative = [
+        finalLifeSituation,
+        finalLifeJourney,
+        finalCoreValue
+      ].filter(Boolean).join('\n\n');
+
+      let narrativeEmbedding: number[] | null = null;
+      try {
+        console.log('🧠 [Twin Creation] Generating narrative embedding...');
+        narrativeEmbedding = await embedText(consolidatedNarrative);
+      } catch (embedError) {
+        console.error('⚠️ [Twin Creation] Failed to generate narrative embedding:', embedError);
+      }
+
       await updateProfileFields(user.id, {
         life_situation: finalLifeSituation,
         life_journey: finalLifeJourney,
         core_value: finalCoreValue,
-      });
+        narrative_summary: consolidatedNarrative,
+        narrative_embedding: narrativeEmbedding as any,
+      } as any);
       console.log('✅ [Twin Creation] Saved summaries to dedicated columns (life_situation, life_journey, core_value)');
       if (summaries['06-stress']) {
         await saveOnboardingResponse(user.id, '06-stress', summaries['06-stress']);

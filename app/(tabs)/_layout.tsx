@@ -1,109 +1,179 @@
 import { Tabs } from 'expo-router';
-import { Home } from 'lucide-react-native';
+import { Home, CheckCircle, Compass, Zap, User } from 'lucide-react-native';
 import { HomeGradientIcon } from '@/components/GradientIcons';
 import { BlurView } from 'expo-blur';
-import { StyleSheet, Platform, View } from 'react-native';
+import { StyleSheet, Platform, View, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';
 import { useState, useEffect } from 'react';
-import { Colors } from '@/constants/Theme';
+import { Colors, Fonts } from '@/constants/Theme';
+import * as Haptics from 'expo-haptics';
 
-// Conditionally import liquid-glass only on iOS
-let LiquidGlassView: any;
-let isLiquidGlassSupported = false;
+const { width } = Dimensions.get('window');
 
-if (Platform.OS === 'ios') {
-  try {
-    const liquidGlass = require('@callstack/liquid-glass');
-    LiquidGlassView = liquidGlass.LiquidGlassView;
-    isLiquidGlassSupported = liquidGlass.isLiquidGlassSupported;
-  } catch (e) {
-    // Fallback if module not available
-    console.log('Liquid glass not available, using blur fallback');
-  }
+function CustomTabBar({ state, descriptors, navigation }: any) {
+  return (
+    <View style={styles.tabBarContainer}>
+      <BlurView intensity={80} tint="light" style={styles.tabBarBlur}>
+        <View style={styles.tabBarInner}>
+          {state.routes.map((route: any, index: number) => {
+            const { options } = descriptors[route.key];
+            const isFocused = state.index === index;
+
+            if (options.href === null) return null;
+
+            const onPress = () => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+
+              if (!isFocused && !event.defaultPrevented) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.navigate(route.name);
+              }
+            };
+
+            const Icon = options.tabBarIcon;
+
+            return (
+              <TouchableOpacity
+                key={route.key}
+                onPress={onPress}
+                style={styles.tabItem}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.iconWrapper, isFocused && styles.iconWrapperFocused]}>
+                  {Icon && <Icon 
+                    focused={isFocused} 
+                    color={isFocused ? '#000000' : Colors.textTertiary} 
+                    size={24} 
+                    fill={isFocused ? '#000000' : 'none'} // Fill icon when focused
+                  />}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </BlurView>
+    </View>
+  );
 }
 
 export default function TabLayout() {
-  const user = useAuth((state) => state.user);
-  const [abTestGroup, setAbTestGroup] = useState<'A' | 'B' | null>(null);
-
-  useEffect(() => {
-    async function fetchAbTestGroup() {
-      if (user?.id) {
-        try {
-          const profile = await getProfile(user.id);
-          setAbTestGroup(profile?.ab_test_group || null);
-        } catch (error) {
-          console.error('Failed to fetch AB test group:', error);
-        }
-      }
-    }
-    fetchAbTestGroup();
-  }, [user?.id]);
-
-  // Hide tab bar for group A users
-  const shouldHideTabBar = abTestGroup === 'A';
-
   return (
     <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        lazy: true,
         tabBarActiveTintColor: Colors.textPrimary,
         tabBarInactiveTintColor: Colors.textTertiary,
         sceneStyle: { backgroundColor: Colors.background },
-        tabBarStyle: {
-          display: 'none',
-        },
-        tabBarBackground: () => (
-          <View 
-            style={{
-              ...StyleSheet.absoluteFillObject,
-              overflow: 'hidden',
-            }}
-          >
-            <View 
-              style={{
-                ...StyleSheet.absoluteFillObject,
-                backgroundColor: Colors.background,
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                borderTopWidth: 1,
-                borderTopColor: 'rgba(0, 0, 0, 0.1)',
-              }}
-            />
-          </View>
-        ),
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '700',
-          marginTop: 4,
-        },
-        tabBarItemStyle: {
-          paddingVertical: 4,
-        },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
           title: 'Home',
-          gestureEnabled: false,
-          tabBarIcon: ({ focused, size }) => 
-            focused ? (
-              <HomeGradientIcon size={size} />
-            ) : (
-              <Home size={size} color={Colors.textTertiary} />
-            ),
+          tabBarIcon: ({ focused, color, size }) => (
+            <Home size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="decide"
+        options={{
+          title: 'Decide',
+          tabBarIcon: ({ focused, color, size }) => (
+            <CheckCircle size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="simulate"
+        options={{
+          title: 'Simulate',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Compass size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="compatibility"
+        options={{
+          title: 'Vibe',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Zap size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          href: null, // Hide from tab bar
+          href: null,
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBarContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+    paddingHorizontal: 20,
+  },
+  tabBarBlur: {
+    width: '100%',
+    maxWidth: 350, // Increased from 320 to allow more spacing
+    borderRadius: 40,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)', // More transparent for glass effect
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)', // Subtle glass border
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 12,
+      },
+    }),
+  },
+  tabBarInner: {
+    flexDirection: 'row',
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 6, // Minimal padding to push icons to edges
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+  },
+  iconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconWrapperFocused: {
+    // No background color
+  },
+  activeDot: {
+    display: 'none', // Remove the dot
+  },
+});

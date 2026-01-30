@@ -339,5 +339,8 @@ export const MixpanelEvents = {
   // Screen Views
   SCREEN_VIEWED: 'Screen Viewed',
   BUTTON_CLICKED: 'Button Clicked',
+
+  // Architect / Dream Self
+  STRATEGY_GENERATED: 'Strategy Generated',
 } as const;
 

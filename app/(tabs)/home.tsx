@@ -1,11 +1,13 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Image, Animated, Platform, Modal, Easing, Dimensions, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Image, Animated, Platform, Modal, Easing, Dimensions, Linking, KeyboardAvoidingView } from 'react-native';
 import Svg, { Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields } from '@/lib/storage';
-import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Star, Zap } from 'lucide-react-native';
+import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks } from '@/lib/storage';
+import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Star, Zap, Clipboard, Check, RefreshCw } from 'lucide-react-native';
+import { generateArchitectPlan, calculateArchitectProgress } from '@/lib/ai';
+import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -22,6 +24,46 @@ import { Colors, Fonts } from '@/constants/Theme';
 import { useTypewriter } from '@/hooks/useTypewriter';
 
 const { width } = Dimensions.get('window');
+
+// Floating Point Component for Gamification
+function FloatingPoint({ x, y, value }: { x: number; y: number; value: string }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 1000,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const translateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -100],
+  });
+
+  const opacity = anim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, 1, 0],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.floatingPoint,
+        {
+          left: x - 20,
+          top: y - 20,
+          opacity,
+          transform: [{ translateY }],
+        },
+      ]}
+    >
+      <Text style={styles.floatingPointText}>{value}</Text>
+    </Animated.View>
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -40,6 +82,35 @@ export default function HomeScreen() {
   const [showAccuracyInfo, setShowAccuracyInfo] = useState(false);
   const [showDiscordModal, setShowDiscordModal] = useState(false);
   const [showContent, setShowContent] = useState(false);
+  const [dailyTasks, setDailyTasks] = useState<any[]>([]);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [isGeneratingNext, setIsGeneratingNext] = useState(false);
+  const [floatingPoints, setFloatingPoints] = useState<{ id: string; x: number; y: number; value: string }[]>([]);
+  const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const taskScrollViewRef = useRef<ScrollView>(null);
+  const regenerateRotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isRegenerating) {
+      Animated.loop(
+        Animated.timing(regenerateRotateAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+    } else {
+      regenerateRotateAnim.setValue(0);
+    }
+  }, [isRegenerating]);
+
+  const spin = regenerateRotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
   
   // Animation refs for fade transitions
   const invitationOpacity = useRef(new Animated.Value(1)).current;
@@ -145,56 +216,22 @@ export default function HomeScreen() {
     setTrainLayout(train);
   };
   
-  // Animation values - start with slight opacity to avoid white screen
-  const fadeAnim = useRef(new Animated.Value(0.1)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  // Animation values - start with visible opacity
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-  useEffect(() => {
-    if (!user) {
-      router.replace('/auth');
-      return;
-    }
-
-    // Check onboarding status from database
-    checkOnboardingStatus(user.id)
-      .then(() => {
-        const isComplete = useTwin.getState().onboardingComplete;
-        if (!isComplete) {
-          router.replace('/onboarding/00-name');
-          return;
-        }
-        // Start fade animation immediately when we know we're showing content
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-        ]).start();
-        loadData();
-        setIsInitialLoad(false);
-      })
-      .catch((error) => {
-        console.warn('Failed to confirm onboarding status:', error);
-      });
-  }, [user, router, checkOnboardingStatus, fadeAnim, slideAnim]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
 
     try {
-      const [profile, decisions, whatifs, progress, journalToday] = await Promise.all([
+      const [profile, decisions, whatifs, progress, journalToday, tasks] = await Promise.all([
         getProfile(user.id),
         getDecisions(user.id),
         getWhatIfs(user.id),
         calculateOverallProgress(user.id),
-        getTodayJournal(user.id)
+        getTodayJournal(user.id),
+        getDailyTasks(user.id)
       ]);
 
       if (profile?.first_name) {
@@ -205,6 +242,55 @@ export default function HomeScreen() {
       setRecentWhatIfs(whatifs || []);
       setProfileProgress(progress || 0);
       setHasTodayJournal(!!journalToday);
+      setDailyTasks(tasks || []);
+
+      // Generate daily tasks if they don't exist for today and user has completed dream self
+      if ((!tasks || tasks.length === 0) && profile?.dream_vision) {
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          
+          // Get completed tasks from previous days to inform new task generation
+          let completedTasks: string[] = [];
+          try {
+            const allTasks = await getDailyTasks(user.id, null); // Get all tasks to find completed ones
+            completedTasks = allTasks
+              .filter(t => t.is_completed && t.scheduled_date !== today) // Only previous days' completed tasks
+              .map(t => t.task_content);
+          } catch (error) {
+            // Table might not exist yet, that's okay - just proceed without completed tasks context
+            console.warn('Could not fetch previous tasks (table may not exist):', error);
+          }
+          
+          // Get latest feedback if available (gracefully handle if table doesn't exist yet)
+          let latestFeedback = null;
+          try {
+            latestFeedback = await getLatestArchitectFeedback(user.id);
+          } catch (error) {
+            // Table might not exist yet, that's okay
+            console.warn('Could not fetch architect feedback (table may not exist):', error);
+          }
+          
+          // Generate new tasks for today
+          const newTasks = await generateArchitectPlan(
+            profile,
+            profile.dream_vision,
+            completedTasks,
+            latestFeedback?.feedback
+          );
+          
+          // Save tasks with today's date
+          const tasksWithDate = newTasks.map(task => ({
+            ...task,
+            scheduled_date: today
+          }));
+          
+          const savedTasks = await saveDailyTasks(user.id, tasksWithDate);
+          setDailyTasks(savedTasks || []);
+        } catch (error) {
+          console.error('Error generating daily tasks:', error);
+          // Don't block the UI if task generation fails
+        }
+      }
 
       // Auto-generate and save avatar for existing users who don't have one
       if (profile && !profile.avatar_variant) {
@@ -229,26 +315,10 @@ export default function HomeScreen() {
       }
 
 
-      // Only trigger animation if it hasn't started yet (for subsequent loads)
-      if (isInitialLoad) {
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-        ]).start();
-        setIsInitialLoad(false);
-      } else {
-        // For subsequent loads, ensure content is visible
-        fadeAnim.setValue(1);
-        slideAnim.setValue(0);
-      }
+      // Ensure content is visible
+      fadeAnim.setValue(1);
+      slideAnim.setValue(0);
+      setIsInitialLoad(false);
 
       // Check for store review
       const lastReview = await AsyncStorage.getItem('last_review_request');
@@ -275,8 +345,36 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('Error loading data:', error);
+      // Ensure content is visible even on error
+      fadeAnim.setValue(1);
+      slideAnim.setValue(0);
+      setIsInitialLoad(false);
     }
-  }, [user]);
+  }, [user, fadeAnim, slideAnim]);
+
+  useEffect(() => {
+    if (!user) {
+      router.replace('/auth');
+      return;
+    }
+
+    // Check onboarding status from database
+    checkOnboardingStatus(user.id)
+      .then(() => {
+        const isComplete = useTwin.getState().onboardingComplete;
+        if (!isComplete) {
+          router.replace('/onboarding/00-name');
+          return;
+        }
+        // Load data immediately
+        loadData();
+      })
+      .catch((error) => {
+        console.warn('Failed to confirm onboarding status:', error);
+        // Still try to load data even if onboarding check fails
+        loadData();
+      });
+  }, [user, router, checkOnboardingStatus, loadData]);
 
   useFocusEffect(
     useCallback(() => {
@@ -313,6 +411,206 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Error deleting item:', error);
       alert('Failed to delete item. Please try again.');
+    }
+  };
+
+  const handleToggleTask = async (task: any, event: any) => {
+    try {
+      if (task.is_completed) return; // Only animate on completion
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Animate floating points
+      const { pageX, pageY } = event.nativeEvent;
+      const id = Math.random().toString(36).substr(2, 9);
+      setFloatingPoints(prev => [...prev, { id, x: pageX, y: pageY, value: '+1' }]);
+      
+      // Remove point after animation
+      setTimeout(() => {
+        setFloatingPoints(prev => prev.filter(p => p.id !== id));
+      }, 1000);
+
+      const updatedTask = await updateDailyTask(task.id, { is_completed: true });
+      const newTasks = dailyTasks.map(t => t.id === task.id ? updatedTask : t);
+      setDailyTasks(newTasks);
+
+      // Scroll to next uncompleted task
+      const nextTaskIndex = dailyTasks.findIndex((t, idx) => t.id === task.id) + 1;
+      if (nextTaskIndex < dailyTasks.length) {
+        setTimeout(() => {
+          taskScrollViewRef.current?.scrollTo({
+            x: nextTaskIndex * (width * 0.65 + 12),
+            animated: true
+          });
+        }, 500);
+      }
+
+      // Check if all 3 tasks are completed
+      const completedCount = newTasks.filter(t => t.is_completed).length;
+      if (completedCount === 3) {
+        // Navigate to streak screen sequence
+        setTimeout(() => {
+          router.push('/onboarding/dream-self/streak');
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Error toggling task:', error);
+    }
+  };
+
+  const handleRegenerateTasks = async () => {
+    if (!user || !profileData || isRegenerating) return;
+    
+    setIsRegenerating(true);
+    setDailyTasks([]); // Clear immediately for instant feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // 1. Delete today's tasks (gracefully handle if table doesn't exist)
+      try {
+        await deleteDailyTasks(user.id, today);
+      } catch (error) {
+        // Table might not exist yet, that's okay - we'll just create new ones
+        console.warn('Could not delete existing tasks (table may not exist):', error);
+      }
+      
+      // 2. Get context for new tasks
+      let completedTasks: string[] = [];
+      try {
+        const allTasks = await getDailyTasks(user.id, null);
+        completedTasks = allTasks
+          .filter(t => t.is_completed && t.scheduled_date !== today)
+          .map(t => t.task_content);
+      } catch (error) {
+        // Table might not exist yet, that's okay - proceed without completed tasks context
+        console.warn('Could not fetch previous tasks (table may not exist):', error);
+      }
+      
+      // Get latest feedback if available (gracefully handle if table doesn't exist yet)
+      let latestFeedback = null;
+      try {
+        latestFeedback = await getLatestArchitectFeedback(user.id);
+      } catch (error) {
+        // Table might not exist yet, that's okay
+        console.warn('Could not fetch architect feedback (table may not exist):', error);
+      }
+      
+      // 3. Generate new tasks
+      const newTasks = await generateArchitectPlan(
+        profileData,
+        profileData.dream_vision,
+        completedTasks,
+        latestFeedback?.feedback
+      );
+      
+      // 4. Save new tasks
+      const tasksWithDate = newTasks.map(task => ({
+        ...task,
+        scheduled_date: today
+      }));
+      
+      try {
+        const savedTasks = await saveDailyTasks(user.id, tasksWithDate);
+        setDailyTasks(savedTasks || []);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (error) {
+        // If table doesn't exist, at least show the tasks locally
+        console.warn('Could not save tasks to database (table may not exist):', error);
+        setDailyTasks(tasksWithDate as any);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error('Error regenerating tasks:', error);
+      alert('Failed to regenerate tasks. Please try again.');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!user || !profileData || isGeneratingNext) return;
+    setIsGeneratingNext(true);
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // 1. Save feedback (gracefully handle if table doesn't exist yet)
+      try {
+        await saveArchitectFeedback(user.id, feedbackText, 3);
+      } catch (error) {
+        // Table might not exist yet, that's okay - continue without saving feedback
+        console.warn('Could not save architect feedback (table may not exist):', error);
+      }
+
+      // 2. Calculate realistic progress points
+      const completedTaskDetails = dailyTasks.map(t => ({
+        task_content: t.task_content,
+        category: t.category
+      }));
+      const { increments, rationale } = await calculateArchitectProgress(
+        profileData,
+        completedTaskDetails,
+        feedbackText
+      );
+
+      // 3. Update profile progress
+      const currentProgress = profileData.dream_self_progress || {
+        "Financial": 0,
+        "Personal": 0,
+        "Lifestyle": 0,
+        "Health": 0,
+        "Growth": 0
+      };
+      
+      const newProgress = { ...currentProgress };
+      Object.entries(increments).forEach(([category, increment]) => {
+        const cat = category === "Career" ? "Financial" : category;
+        if (newProgress[cat] !== undefined) {
+          newProgress[cat] = Math.min(100, (newProgress[cat] || 0) + (increment as number));
+        }
+      });
+
+      await updateProfileFields(user.id, { dream_self_progress: newProgress });
+
+      // 4. Generate next day's tasks
+      const nextTasks = await generateArchitectPlan(
+        profileData,
+        profileData.dream_vision,
+        completedTaskDetails.map(t => t.task_content),
+        feedbackText
+      );
+
+      // 5. Save next tasks (for tomorrow)
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      
+      const tasksWithDate = nextTasks.map(t => ({
+        ...t,
+        scheduled_date: tomorrowStr
+      }));
+
+      const { saveDailyTasks } = require('@/lib/storage');
+      await saveDailyTasks(user.id, tasksWithDate);
+
+      setShowFeedbackModal(false);
+      setFeedbackText('');
+      
+      // Navigate to streak screen instead of alert
+      router.push({
+        pathname: '/onboarding/dream-self/streak',
+        params: {
+          increments: JSON.stringify(increments),
+          rationale: rationale
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      alert("Failed to generate next tasks. Please try again.");
+    } finally {
+      setIsGeneratingNext(false);
     }
   };
 
@@ -353,6 +651,16 @@ export default function HomeScreen() {
               />
             </View>
             <View style={styles.topBarIcons}>
+              <TouchableOpacity 
+                style={styles.iconButton}
+                onPress={handleRegenerateTasks}
+                disabled={isRegenerating}
+              >
+                <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                  <RefreshCw size={20} color={isRegenerating ? Colors.textTertiary : Colors.textPrimary} strokeWidth={2.5} />
+                </Animated.View>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.moraTag}
                 onPress={() => {
@@ -419,229 +727,150 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* Action Rectangles */}
-            <View style={styles.actionsContainer}>
-              <View 
-                ref={decideRef}
-                style={styles.actionRectangleWrapper}
-                collapsable={false}
-              >
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push('/decision/new');
-                  }}
-                  style={({ pressed }) => [
-                    styles.actionRectangle,
-                    {
-                      shadowColor: '#fe8c9c',
-                      transform: [{ translateY: pressed ? 4 : 0 }],
-                      shadowOffset: { width: 0, height: pressed ? 0 : 4 },
-                      shadowOpacity: 1,
-                      shadowRadius: 0,
-                      elevation: pressed ? 2 : 8,
-                    }
-                  ]}
-                >
-                  <LinearGradient
-                    colors={['#fe8c9c', '#fdcca7']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.cardGradient, { opacity: 0.5 }]}
-                  />
-                  <View style={styles.actionIconContainer}>
-                    <CheckCircle size={24} color={Colors.textPrimary} />
-                  </View>
-                  <View style={styles.actionContent}>
-                    <Text style={styles.actionTitle}>Decide</Text>
-                    <Text style={styles.actionSubtitle}>
-                      Get recommendations and compare outcomes
-                    </Text>
-                  </View>
-                  <ChevronRight size={20} color={Colors.textTertiary} />
-                </Pressable>
-              </View>
-
-              <View 
-                ref={simulateRef}
-                style={styles.actionRectangleWrapper}
-                collapsable={false}
-              >
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push('/simulate');
-                  }}
-                  style={({ pressed }) => [
-                    styles.actionRectangle,
-                    {
-                      shadowColor: Colors.gradients.purple[0],
-                      transform: [{ translateY: pressed ? 4 : 0 }],
-                      shadowOffset: { width: 0, height: pressed ? 0 : 4 },
-                      shadowOpacity: 1,
-                      shadowRadius: 0,
-                      elevation: pressed ? 2 : 8,
-                    }
-                  ]}
-                >
-                  <LinearGradient
-                    colors={Colors.gradients.purple}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={[styles.cardGradient, { opacity: 0.5 }]}
-                  />
-                  <View style={styles.actionIconContainer}>
-                    <Compass size={24} color={Colors.textPrimary} />
-                  </View>
-                  <View style={styles.actionContent}>
-                    <Text style={styles.actionTitle}>Simulate</Text>
-                    <Text style={styles.actionSubtitle}>Experience emotional narratives and possible futures</Text>
-                  </View>
-                  <ChevronRight size={20} color={Colors.textTertiary} />
-                </Pressable>
-              </View>
-
-              {/* Compatibility Test Banner */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  trackEvent(MixpanelEvents.COMPATIBILITY_ADD_CLICKED);
-                  router.push('/compatibility/add-twin');
-                }}
-                activeOpacity={0.8}
-                style={styles.compatibilityBanner}
-              >
+            {/* Distance to Dream Self Card */}
+            {profileData?.dream_vision && (
+              <View style={styles.dreamSelfCard}>
                 <LinearGradient
-                  colors={['rgba(167, 139, 250, 0.06)', 'rgba(244, 114, 182, 0.06)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.compatibilityBannerGradient}
+                  colors={['rgba(167, 139, 250, 0.1)', 'rgba(244, 114, 182, 0.1)']}
+                  style={styles.dreamSelfCardGradient}
                 />
-                <View style={styles.compatibilityBannerContent}>
-                  <View style={styles.compatibilityBannerLeft}>
-                    <View style={styles.compatibilityBannerHeader}>
-                    <View style={styles.newTag}>
-                      <Text style={styles.newTagText}>Limited Time</Text>
-                    </View>
-                      <Text style={styles.compatibilityBannerTitle}>Check Compatibility</Text>
-                    </View>
-                    <Text style={styles.compatibilityBannerSubtitle}>See how your twin vibes with others</Text>
+                <View style={styles.dreamSelfCardHeader}>
+                  <View style={styles.dreamSelfIconContainer}>
+                    <Sparkles size={24} color="#A78BFA" fill="#A78BFA" />
                   </View>
-                  <View style={styles.compatibilityAvatars}>
-                    <Image 
-                      source={require('@/assets/images/manwhite.png')} 
-                      style={styles.compatibilityAvatar}
-                      resizeMode="contain"
-                    />
-                    <View style={styles.compatibilityConnector}>
-                      <Zap size={12} color="#A78BFA" fill="#A78BFA" />
-                    </View>
-                    <Image 
-                      source={require('@/assets/images/manwhite.png')} 
-                      style={[styles.compatibilityAvatar, styles.compatibilityAvatarFlipped]}
-                      resizeMode="contain"
-                    />
+                  <View>
+                    <Text style={styles.dreamSelfCardTitle}>Distance to Dream Self</Text>
+                    <Text style={styles.dreamSelfCardSubtitle}>Your journey to becoming your best version</Text>
                   </View>
                 </View>
-              </TouchableOpacity>
 
-              {/* Train Section */}
-              <TouchableOpacity
-                ref={trainRef}
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/home');
-                  router.push('/(tabs)/profile');
-                }}
-                activeOpacity={0.8}
-                style={styles.teachCard}
-              >
-                <View style={styles.teachCardHeader}>
-                  <View style={styles.teachTextContainer}>
-                    <View style={styles.teachTitleRow}>
-                      <Text style={styles.teachTitle}>Train</Text>
-                      <View style={styles.teachPercentageContainer}>
-                        <View style={styles.teachPercentageBadge}>
-                          <Text style={styles.teachPercentage}>{displayedProgress}%</Text>
-                        </View>
-                        {!hasTodayJournal && <View style={styles.journalDot} />}
-                      </View>
+                <View style={styles.dreamSelfCardContent}>
+                  <View style={styles.dreamSelfStats}>
+                    <View style={styles.dreamSelfStatItem}>
+                      <Text style={styles.dreamSelfStatLabel}>Progress</Text>
+                      <Text style={styles.dreamSelfStatValue}>
+                        {(() => {
+                          const p = profileData?.dream_self_progress || {};
+                          const values = Object.values(p) as number[];
+                          if (values.length === 0) return "0.0%";
+                          const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                          return avg.toFixed(1) + "%";
+                        })()}
+                      </Text>
                     </View>
-                    <Text style={styles.teachSubtitle}>Train your twin for more accurate answers</Text>
-                  </View>
-                  <View style={styles.teachArrowContainer}>
-                    <LinearGradient
-                      colors={['#25729f', '#62edb9']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={styles.teachArrowGradient}
-                    >
-                      <ArrowUpRight size={16} color="#FFFFFF" />
-                    </LinearGradient>
-                  </View>
-                </View>
-                <View style={styles.teachProgressContainer}>
-                  <ProgressBar 
-                    progress={displayedProgress / 100} 
-                    showLabel={false} 
-                    height={6}
-                    gradientColors={['#25729f', '#62edb9']}
-                    trackColor="rgba(0,0,0,0.05)"
-                  />
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Recent Activity / Echoes */}
-            {echoEntries.length > 0 && (
-              <View style={styles.echoSection}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Recent Activity</Text>
-                </View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.echoScrollContent}
-                  style={styles.echoScrollView}
-                >
-                  {echoEntries.map((echo) => (
-                  <TouchableOpacity
-                    key={echo.id}
-                    style={styles.echoCardWrapper}
-                    activeOpacity={echo.route ? 0.8 : 1}
-                    onPress={() => {
-                      if (echo.route) {
-                        router.push(echo.route as any);
-                      }
-                    }}
-                    onLongPress={() => handleLongPressEcho(echo)}
-                    disabled={!echo.route}
-                  >
-                    <View style={styles.echoCard}>
-                      <View style={styles.echoIcon}>
-                        {echo.type === 'whatif' ? (
-                          <Sparkles size={16} color={Colors.textTertiary} />
-                        ) : (
-                          <Compass size={16} color={Colors.textTertiary} />
-                        )}
-                      </View>
-                      <View style={styles.echoContent}>
-                        <Text style={styles.echoTitle} numberOfLines={1}>
-                          {echo.title}
-                        </Text>
-                        <Text style={styles.echoMeta} numberOfLines={1}>
-                          {echo.subtitle}
-                        </Text>
-                      </View>
-                      <ChevronRight size={16} color={Colors.textTertiary} />
+                    <View style={styles.dreamSelfStatDivider} />
+                    <View style={styles.dreamSelfStatItem}>
+                      <Text style={styles.dreamSelfStatLabel}>Est. Days</Text>
+                      <Text style={styles.dreamSelfStatValue}>
+                        {profileData?.est_days_remaining || '---'}
+                      </Text>
                     </View>
-                  </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                  </View>
+                  
+                  <View style={styles.progressVisualContainer}>
+                    <Image source={require('@/assets/images/manwhite.png')} style={styles.progressManIcon} resizeMode="contain" />
+                    <View style={styles.progressBarWrapper}>
+                      <ProgressBar 
+                        progress={(() => {
+                          const p = profileData?.dream_self_progress || {};
+                          const values = Object.values(p) as number[];
+                          if (values.length === 0) return 0;
+                          const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                          return avg / 100;
+                        })()} 
+                        showLabel={false} 
+                        height={14}
+                        gradientColors={['#A78BFA', '#F472B6']}
+                        trackColor="rgba(167, 139, 250, 0.1)"
+                      />
+                    </View>
+                    <Image source={require('@/assets/images/manwhite.png')} style={[styles.progressManIcon, styles.dreamManIcon]} resizeMode="contain" />
+                  </View>
+                </View>
               </View>
             )}
+
+            {/* Daily Tasks Section */}
+            {dailyTasks.length > 0 ? (
+              <View style={styles.architectSection}>
+                <View style={styles.sectionHeader}>
+                  <View>
+                    <Text style={styles.sectionTitle}>Daily Path</Text>
+                    <Text style={styles.sectionSubtitle}>Your micro-actions for today</Text>
+                  </View>
+                  <View style={styles.taskCountBadge}>
+                    <Text style={styles.taskCountText}>
+                      {dailyTasks.filter(t => t.is_completed).length}/3
+                    </Text>
+                  </View>
+                </View>
+                
+                <View style={styles.taskCarouselContainer}>
+                  <ScrollView 
+                    ref={taskScrollViewRef}
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.pathList}
+                    snapToInterval={width * 0.50 + 12}
+                    decelerationRate="fast"
+                  >
+                  {dailyTasks.map((task, index) => (
+                    <TouchableOpacity
+                      key={task.id}
+                      onPress={(e) => handleToggleTask(task, e)}
+                      activeOpacity={0.7}
+                      disabled={task.is_completed}
+                      style={task.is_completed && { opacity: 0.6 }}
+                    >
+                        <View style={[
+                          styles.taskCard,
+                          task.is_completed && styles.taskCardCompleted
+                        ]}>
+                          <View style={styles.taskContent}>
+                            <View style={styles.taskCategoryBadge}>
+                              <Text style={styles.taskCategoryText}>{task.category || 'Growth'}</Text>
+                            </View>
+                            <Text
+                              style={[
+                                styles.taskText,
+                                task.is_completed && styles.taskTextCompleted
+                              ]}
+                            >
+                              {task.task_content}
+                            </Text>
+                          </View>
+                          <View style={[
+                            styles.taskCheckbox,
+                            task.is_completed && styles.taskCheckboxChecked
+                          ]}>
+                            {task.is_completed ? (
+                              <Check size={12} color="#FFFFFF" strokeWidth={4} />
+                            ) : (
+                              <View style={styles.taskDot} />
+                            )}
+                          </View>
+                        </View>
+                    </TouchableOpacity>
+                  ))}
+                  </ScrollView>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.emptyStateContainer}>
+                <Text style={styles.emptyStateTitle}>No tasks yet</Text>
+                <Text style={styles.emptyStateText}>
+                  Complete your dream self setup to get personalized daily tasks from your Architect.
+                </Text>
+              </View>
+            )}
+
           </Animated.ScrollView>
         </SafeAreaView>
+        
+        {/* Floating Points - Outside ScrollView for proper absolute positioning */}
+        {floatingPoints.map(point => (
+          <FloatingPoint key={point.id} x={point.x} y={point.y} value={point.value} />
+        ))}
       </View>
 
       {/* Product Guide */}
@@ -817,6 +1046,69 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Architect Feedback Modal */}
+      <Modal
+        visible={showFeedbackModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowFeedbackModal(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.feedbackModalOverlay}
+        >
+          <View style={styles.feedbackModalContent}>
+            <View style={styles.feedbackHeader}>
+              <View style={styles.architectIconLarge}>
+                <Zap size={32} color="#FFFFFF" />
+              </View>
+              <Text style={styles.feedbackTitle}>Daily Review</Text>
+              <Text style={styles.feedbackSubtitle}>
+                You've completed all tasks for today. How did it go?
+              </Text>
+            </View>
+
+            <FloatingLabelInput
+              label="Your feedback for The Architect"
+              value={feedbackText}
+              onChangeText={setFeedbackText}
+              multiline
+              placeholder="e.g. Too easy, I need more financial focus, etc."
+              containerStyle={styles.feedbackInput}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.feedbackSubmitButton,
+                (!feedbackText || isGeneratingNext) && styles.feedbackSubmitDisabled
+              ]}
+              onPress={handleSubmitFeedback}
+              disabled={!feedbackText || isGeneratingNext}
+            >
+              <LinearGradient
+                colors={['#25729f', '#62edb9']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.feedbackSubmitGradient}
+              >
+                <Text style={styles.feedbackSubmitText}>
+                  {isGeneratingNext ? "Generating Tomorrow's Path..." : "Submit & Prepare Tomorrow"}
+                </Text>
+                {!isGeneratingNext && <ChevronRight size={20} color="#FFFFFF" />}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => setShowFeedbackModal(false)}
+              style={styles.feedbackCloseButton}
+              disabled={isGeneratingNext}
+            >
+              <Text style={styles.feedbackCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Delete Confirmation Modal */}
       <Modal
         visible={deleteModalVisible}
@@ -928,7 +1220,11 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 20,
+    paddingTop: 8,
     paddingBottom: 40,
+  },
+  tasksContainer: {
+    gap: 16,
   },
   compatibilityBanner: {
     marginTop: 8,
@@ -1039,6 +1335,414 @@ const styles = StyleSheet.create({
   greetingRest: {
     color: Colors.textPrimary,
     fontSize: 20,
+    fontFamily: Fonts.secondary.bold,
+  },
+  // Dream Self Card
+  dreamSelfCard: {
+    marginTop: 16,
+    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: '#A78BFA',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  dreamSelfCardGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  dreamSelfCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 20,
+  },
+  dreamSelfIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  dreamSelfCardTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
+  },
+  dreamSelfCardSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+  },
+  dreamSelfCardContent: {
+    gap: 16,
+  },
+  dreamSelfStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(167, 139, 250, 0.05)',
+    padding: 16,
+    borderRadius: 20,
+  },
+  dreamSelfStatItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  dreamSelfStatLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#A78BFA',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  dreamSelfStatValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  dreamSelfStatDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(167, 139, 250, 0.1)',
+  },
+  progressVisualContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
+  },
+  progressManIcon: {
+    width: 42,
+    height: 42,
+    opacity: 0.9,
+    tintColor: '#D1D1D1', // Slightly darker gray for better visibility on white
+  },
+  dreamManIcon: {
+    transform: [{ scaleX: -1 }],
+    opacity: 1,
+    tintColor: '#A78BFA', // Purple for dream self
+  },
+  progressBarWrapper: {
+    flex: 1,
+  },
+  // Architect Section
+  architectSection: {
+    marginBottom: 40,
+    marginTop: 24,
+    marginBottom: 32,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    marginTop: 4,
+  },
+  taskCountBadge: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  taskCountText: {
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
+  },
+  dreamProgressContainer: {
+    marginBottom: 24,
+    backgroundColor: 'rgba(255, 215, 0, 0.05)',
+    padding: 16,
+    borderRadius: 20,
+  },
+  dreamProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  dreamProgressLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  dreamProgressValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  estDaysLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  estDaysValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFD700',
+    fontFamily: Fonts.secondary.bold,
+  },
+  taskCarouselContainer: {
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  pathList: {
+    flexDirection: 'row',
+    paddingRight: 24,
+    paddingLeft: 4,
+    gap: 12,
+  },
+  taskCardGradient: {
+    padding: 0,
+    borderRadius: 24,
+    backgroundColor: 'transparent',
+  },
+  taskCard: {
+    width: width * 0.50,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)',
+    // 3D Effect
+    borderBottomWidth: 6,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
+    minHeight: 140,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  taskCardCompleted: {
+    backgroundColor: '#F8F8F8',
+    borderColor: 'transparent',
+    opacity: 0.6,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  taskCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+  },
+  taskCheckboxChecked: {
+    backgroundColor: '#4ADE80',
+    borderColor: '#4ADE80',
+  },
+  taskDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  taskNumber: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.textTertiary,
+  },
+  taskContent: {
+    width: '100%',
+  },
+  taskCategoryBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  taskCategoryText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontFamily: Fonts.secondary.bold,
+  },
+  taskText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    lineHeight: 24,
+  },
+  taskTextCompleted: {
+    color: Colors.textTertiary,
+    textDecorationLine: 'none',
+  },
+  taskCategory: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 4,
+  },
+  emptyStateContainer: {
+    marginTop: 24,
+    marginBottom: 32,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    padding: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 4,
+    alignItems: 'center',
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  floatingPoint: {
+    position: 'absolute',
+    backgroundColor: '#FFD700',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  floatingPointText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  // Feedback Modal
+  feedbackModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  feedbackModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  },
+  feedbackHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  architectIconLarge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#25729f',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  feedbackTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+    marginBottom: 8,
+  },
+  feedbackSubtitle: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    fontFamily: Fonts.secondary.regular,
+  },
+  feedbackInput: {
+    marginBottom: 24,
+  },
+  feedbackSubmitButton: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  feedbackSubmitGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+  },
+  feedbackSubmitText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  feedbackSubmitDisabled: {
+    opacity: 0.5,
+  },
+  feedbackCloseButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  feedbackCloseText: {
+    fontSize: 15,
+    color: Colors.textTertiary,
     fontFamily: Fonts.secondary.bold,
   },
   actionsContainer: {
