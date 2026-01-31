@@ -27,6 +27,17 @@ import { useTypewriter } from '@/hooks/useTypewriter';
 
 const { width } = Dimensions.get('window');
 
+// Helper function to get emoji for task category
+const getCategoryEmoji = (category: string | null | undefined): string => {
+  const cat = (category || 'Growth').toLowerCase();
+  if (cat.includes('financial') || cat.includes('career')) return '💰';
+  if (cat.includes('personal')) return '👤';
+  if (cat.includes('lifestyle')) return '🏠';
+  if (cat.includes('health')) return '💪';
+  if (cat.includes('growth')) return '✨';
+  return '✨'; // default
+};
+
 // Floating Point Component for Gamification
 function FloatingPoint({ x, y, value }: { x: number; y: number; value: string }) {
   const anim = useRef(new Animated.Value(0)).current;
@@ -961,7 +972,7 @@ export default function HomeScreen() {
                     horizontal 
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.pathList}
-                    snapToInterval={width * 0.50 + 12}
+                    snapToInterval={width * 0.65 + 12}
                     decelerationRate="fast"
                   >
                   {dailyTasks.map((task, index) => (
@@ -972,13 +983,16 @@ export default function HomeScreen() {
                       disabled={task.is_completed}
                       style={task.is_completed && { opacity: 0.6 }}
                     >
-                        <View style={[
-                          styles.taskCard,
-                          task.is_completed && styles.taskCardCompleted
-                        ]}>
+                        <View
+                          style={[
+                            styles.taskCard,
+                            task.is_completed && styles.taskCardCompleted
+                          ]}
+                        >
                           <View style={styles.taskContent}>
                             <View style={styles.taskCategoryBadge}>
                               <Text style={styles.taskCategoryText}>{task.category || 'Growth'}</Text>
+                              <Text style={styles.taskCategoryEmoji}>{getCategoryEmoji(task.category)}</Text>
                             </View>
                             <Text
                               style={[
@@ -1646,11 +1660,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   taskCard: {
-    width: width * 0.50,
+    width: width * 0.65,
+    height: 180,
     flexDirection: 'column',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     padding: 16,
+    paddingBottom: 48,
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     borderWidth: 1,
@@ -1663,7 +1679,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 4,
-    height: 140,
   },
   taskCardCompleted: {
     backgroundColor: '#F8F8F8',
@@ -1707,11 +1722,14 @@ const styles = StyleSheet.create({
   },
   taskCategoryBadge: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.03)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     marginBottom: 12,
+    gap: 4,
   },
   taskCategoryText: {
     fontSize: 10,
@@ -1720,6 +1738,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     fontFamily: Fonts.secondary.bold,
+  },
+  taskCategoryEmoji: {
+    fontSize: 10,
   },
   taskText: {
     fontSize: 15,

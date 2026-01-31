@@ -109,6 +109,8 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: Colors.background },
+          gestureEnabled: false,
+          fullScreenGestureEnabled: false,
         }}
       >
         <Stack.Screen name="welcome" />

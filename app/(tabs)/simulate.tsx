@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, Animated, Dimensions } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useState, useCallback, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
@@ -17,6 +18,7 @@ const { width } = Dimensions.get('window');
 
 export default function SimulateTab() {
   const router = useRouter();
+  const navigation = useNavigation();
   const user = useAuth((state) => state.user);
   const { isPremium } = useTwin();
   const [timelines, setTimelines] = useState<any[]>([]);
@@ -52,10 +54,39 @@ export default function SimulateTab() {
 
   useFocusEffect(
     useCallback(() => {
+      // Disable swipe-to-go-back gesture on both current and parent navigators
+      navigation.setOptions({
+        gestureEnabled: false,
+        fullScreenGestureEnabled: false,
+      });
+
+      // Also disable on parent navigator if it exists
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setOptions({
+          gestureEnabled: false,
+          fullScreenGestureEnabled: false,
+        });
+      }
+
       // Reset and fade in animation
       fadeAnim.setValue(0);
       loadData();
-    }, [loadData, fadeAnim])
+
+      return () => {
+        // Re-enable on cleanup if needed
+        navigation.setOptions({
+          gestureEnabled: true,
+          fullScreenGestureEnabled: true,
+        });
+        if (parent) {
+          parent.setOptions({
+            gestureEnabled: true,
+            fullScreenGestureEnabled: true,
+          });
+        }
+      };
+    }, [loadData, fadeAnim, navigation])
   );
 
   async function handleCreatePress() {

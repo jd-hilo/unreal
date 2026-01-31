@@ -6,6 +6,8 @@ export default function CompatibilityLayout() {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
+        gestureEnabled: false,
+        fullScreenGestureEnabled: false,
       }}
     >
       <Stack.Screen name="info" />

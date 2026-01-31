@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Fonts } from '@/constants/Theme';
@@ -10,17 +11,47 @@ import { useRef, useCallback } from 'react';
 
 export default function CompatibilityTab() {
   const router = useRouter();
+  const navigation = useNavigation();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(
     useCallback(() => {
+      // Disable swipe-to-go-back gesture on both current and parent navigators
+      navigation.setOptions({
+        gestureEnabled: false,
+        fullScreenGestureEnabled: false,
+      });
+
+      // Also disable on parent navigator if it exists
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setOptions({
+          gestureEnabled: false,
+          fullScreenGestureEnabled: false,
+        });
+      }
+
       fadeAnim.setValue(0);
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 600,
         useNativeDriver: true,
       }).start();
-    }, [fadeAnim])
+
+      return () => {
+        // Re-enable on cleanup if needed
+        navigation.setOptions({
+          gestureEnabled: true,
+          fullScreenGestureEnabled: true,
+        });
+        if (parent) {
+          parent.setOptions({
+            gestureEnabled: true,
+            fullScreenGestureEnabled: true,
+          });
+        }
+      };
+    }, [fadeAnim, navigation])
   );
 
   return (

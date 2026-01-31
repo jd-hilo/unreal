@@ -6,6 +6,8 @@ export default function ProfileLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: '#0C0C10' },
+        gestureEnabled: false,
+        fullScreenGestureEnabled: false,
       }}
     />
   );

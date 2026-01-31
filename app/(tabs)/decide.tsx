@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Pressable, Keyboard, Animated, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Fonts } from '@/constants/Theme';
@@ -18,6 +19,7 @@ const SUGGESTIONS_STORAGE_KEY = 'decide_suggested_questions';
 
 export default function DecideTab() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { user } = useAuth();
   const [inputText, setInputText] = useState('');
   const [suggestedQuestions, setSuggestedQuestions] = useState<Array<{ question: string; category: string }>>([]);
@@ -26,9 +28,26 @@ export default function DecideTab() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const inputBottomAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const suggestionFadeAnims = useRef<Animated.Value[]>([]).current;
+  const suggestionsContainerFade = useRef(new Animated.Value(1)).current;
 
   useFocusEffect(
     useCallback(() => {
+      // Disable swipe-to-go-back gesture on both current and parent navigators
+      navigation.setOptions({
+        gestureEnabled: false,
+        fullScreenGestureEnabled: false,
+      });
+
+      // Also disable on parent navigator if it exists
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setOptions({
+          gestureEnabled: false,
+          fullScreenGestureEnabled: false,
+        });
+      }
+
       if (user) {
         loadData();
       }
@@ -42,7 +61,21 @@ export default function DecideTab() {
         delay: 100,
         useNativeDriver: true,
       }).start();
-    }, [user])
+
+      return () => {
+        // Re-enable on cleanup if needed
+        navigation.setOptions({
+          gestureEnabled: true,
+          fullScreenGestureEnabled: true,
+        });
+        if (parent) {
+          parent.setOptions({
+            gestureEnabled: true,
+            fullScreenGestureEnabled: true,
+          });
+        }
+      };
+    }, [user, navigation])
   );
 
   useEffect(() => {
@@ -51,12 +84,14 @@ export default function DecideTab() {
       (e) => {
         const height = e.endCoordinates.height;
         setKeyboardHeight(height);
-        // Animate to keyboard height - this will position input right above keyboard
+        // Animate to 80% of keyboard height - positions input 20% closer to keyboard
         Animated.timing(inputBottomAnim, {
-          toValue: height,
+          toValue: height * 0.8,
           duration: Platform.OS === 'ios' ? 250 : 100,
           useNativeDriver: false,
         }).start();
+        // Hide suggestions immediately when keyboard appears
+        suggestionsContainerFade.setValue(0);
       }
     );
     
@@ -69,6 +104,13 @@ export default function DecideTab() {
           toValue: 0,
           duration: Platform.OS === 'ios' ? 250 : 100,
           useNativeDriver: false,
+        }).start();
+        // Fade in suggestions when keyboard hides
+        Animated.timing(suggestionsContainerFade, {
+          toValue: 1,
+          duration: 300,
+          delay: 100,
+          useNativeDriver: true,
         }).start();
       }
     );
@@ -111,6 +153,27 @@ export default function DecideTab() {
       setLoadingQuestions(false);
     }
   }
+
+  // Animate suggestions fade in when they're loaded
+  useEffect(() => {
+    if (!loadingQuestions && suggestedQuestions.length > 0) {
+      // Initialize fade animations for each suggestion
+      while (suggestionFadeAnims.length < suggestedQuestions.length) {
+        suggestionFadeAnims.push(new Animated.Value(0));
+      }
+      
+      // Animate each suggestion with a staggered delay
+      suggestionFadeAnims.slice(0, suggestedQuestions.length).forEach((anim, index) => {
+        anim.setValue(0);
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 400,
+          delay: index * 100, // Stagger each card by 100ms
+          useNativeDriver: true,
+        }).start();
+      });
+    }
+  }, [suggestedQuestions, loadingQuestions]);
 
   async function processDecision(questionText: string) {
     if (!user) return;
@@ -286,7 +349,7 @@ export default function DecideTab() {
             <View style={styles.spacer} />
 
             {/* Suggestions positioned above input */}
-            <View style={styles.suggestionsWrapper}>
+            <Animated.View style={[styles.suggestionsWrapper, { opacity: suggestionsContainerFade }]}>
               {loadingQuestions ? (
                 <View style={styles.loadingContainer}>
                   <Text style={styles.loadingText}>Generating suggested questions...</Text>
@@ -298,25 +361,35 @@ export default function DecideTab() {
                   contentContainerStyle={styles.carouselContainer}
                   style={styles.carousel}
                 >
-                  {suggestedQuestions.map((item, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[styles.suggestionCard, isNavigating && styles.suggestionCardDisabled]}
-                    onPress={() => handleSuggestionClick(item.question)}
-                    activeOpacity={0.8}
-                    disabled={isNavigating}
-                  >
-                      <View style={styles.suggestionCardContent}>
-                        <View style={styles.suggestionCategoryBadge}>
-                          <Text style={styles.suggestionCategoryText}>{item.category || 'Growth'}</Text>
-                        </View>
-                        <Text style={styles.suggestionCardText}>{item.question}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                  {suggestedQuestions.map((item, index) => {
+                    // Ensure we have an animation value for this index
+                    if (!suggestionFadeAnims[index]) {
+                      suggestionFadeAnims[index] = new Animated.Value(loadingQuestions ? 0 : 1);
+                    }
+                    return (
+                      <Animated.View
+                        key={index}
+                        style={{ opacity: suggestionFadeAnims[index] || 1 }}
+                      >
+                        <TouchableOpacity
+                          style={[styles.suggestionCard, isNavigating && styles.suggestionCardDisabled]}
+                          onPress={() => handleSuggestionClick(item.question)}
+                          activeOpacity={0.8}
+                          disabled={isNavigating}
+                        >
+                          <View style={styles.suggestionCardContent}>
+                            <View style={styles.suggestionCategoryBadge}>
+                              <Text style={styles.suggestionCategoryText}>{item.category || 'Growth'}</Text>
+                            </View>
+                            <Text style={styles.suggestionCardText}>{item.question}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    );
+                  })}
                 </ScrollView>
               )}
-            </View>
+            </Animated.View>
           </Animated.ScrollView>
 
           <Animated.View 
@@ -510,7 +583,7 @@ const styles = StyleSheet.create({
     elevation: 4,
     minWidth: 280,
     maxWidth: 320,
-    height: 140,
+    height: 170,
   },
   suggestionCardDisabled: {
     opacity: 0.5,
@@ -537,10 +610,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
   },
   suggestionCardText: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: Fonts.secondary.regular,
     color: Colors.textPrimary,
-    lineHeight: 24,
+    lineHeight: 22,
   },
   loadingContainer: {
     width: '100%',

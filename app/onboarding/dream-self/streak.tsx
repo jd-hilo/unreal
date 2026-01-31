@@ -1,11 +1,11 @@
-import { View, Text, StyleSheet, Animated, Image, Pressable, Dimensions, TextInput, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Animated, Image, Pressable, Dimensions, TextInput, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Keyboard, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Fonts } from '@/constants/Theme';
-import { ChevronRight, Flame, Sparkles, Calendar as CalendarIcon, BookOpen, CheckCircle2, Zap, MapPin, Heart, User, Copy, ArrowDown } from 'lucide-react-native';
+import { ChevronRight, Flame, Sparkles, Calendar as CalendarIcon, BookOpen, CheckCircle2, Zap, MapPin, Heart, User, Copy, ArrowDown, ArrowUp } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { ProgressBar } from '@/components/ProgressBar';
 import { getProfile, getDailyTasks, updateProfileFields, saveArchitectFeedback, saveDailyTasks, ensureTwinCode } from '@/lib/storage';
@@ -69,6 +69,10 @@ export default function StreakScreen() {
   // Progress animations
   const progressTitleFadeAnim = useRef(new Animated.Value(0)).current;
   const progressButtonFadeAnim = useRef(new Animated.Value(0)).current;
+  
+  // Keyboard animation for journal input
+  const journalInputBottomAnim = useRef(new Animated.Value(0)).current;
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
     if (user) loadData();
@@ -81,6 +85,41 @@ export default function StreakScreen() {
       Animated.spring(imageSlideAnim, { toValue: 0, tension: 40, friction: 8, useNativeDriver: true }),
     ]).start();
   }, [user]);
+
+  // Keyboard listeners for journal input
+  useEffect(() => {
+    if (stage !== 'journal') return;
+
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        const height = e.endCoordinates.height;
+        setKeyboardHeight(height);
+        Animated.timing(journalInputBottomAnim, {
+          toValue: height * 0.8,
+          duration: Platform.OS === 'ios' ? 250 : 100,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+    
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+        Animated.timing(journalInputBottomAnim, {
+          toValue: 0,
+          duration: Platform.OS === 'ios' ? 250 : 100,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, [stage, journalInputBottomAnim]);
 
   // Stage animations
   useEffect(() => {
@@ -245,15 +284,39 @@ export default function StreakScreen() {
   async function loadData() {
     if (!user) return;
     try {
-      const [profileData, tasksToday, allTasks, code] = await Promise.all([
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+      const [profileData, tasksToday, tasksYesterday, allTasks, code] = await Promise.all([
         getProfile(user.id),
-        getDailyTasks(user.id),
+        getDailyTasks(user.id, today),
+        getDailyTasks(user.id, yesterday),
         getDailyTasks(user.id, null),
         ensureTwinCode(user.id)
       ]);
       
       setProfile(profileData);
-      setCompletedTasks(tasksToday.filter(t => t.is_completed));
+      
+      // Find completed tasks from either today or yesterday (UTC)
+      // This handles timezone shifts where "local today" might be "UTC yesterday"
+      const completedToday = tasksToday.filter(t => t.is_completed);
+      const completedYesterday = tasksYesterday.filter(t => t.is_completed);
+      
+      // If today has completed tasks, use those. Otherwise check yesterday.
+      // We assume the user just finished a set of 3 tasks.
+      if (completedToday.length > 0) {
+        setCompletedTasks(completedToday);
+      } else if (completedYesterday.length > 0) {
+        setCompletedTasks(completedYesterday);
+      } else {
+        // Fallback: just take the 3 most recently completed tasks from allTasks
+        const recentlyCompleted = allTasks
+          .filter(t => t.is_completed)
+          .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+          .slice(0, 3);
+        setCompletedTasks(recentlyCompleted);
+      }
+
       setTwinCode(code);
       
       // Set previous est_days_remaining for comparison
@@ -273,11 +336,11 @@ export default function StreakScreen() {
       // Count consecutive days backwards from today/yesterday
       // If any day is missed, streak resets to 0
       let streak = 0;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const todayDate = new Date();
+      todayDate.setHours(0, 0, 0, 0);
       
       // Start from today
-      let curr = new Date(today);
+      let curr = new Date(todayDate);
       const todayStr = curr.toISOString().split('T')[0];
       
       // Check if today has completed tasks
@@ -373,31 +436,43 @@ export default function StreakScreen() {
     });
   }, [stageFadeAnim, stageSlideAnim, buttonFadeAnim, calendarButtonFadeAnim, journalButtonFadeAnim, progressButtonFadeAnim, calendarDotsAnim, journalInputFadeAnim]);
 
-  async function handleContinue() {
+  async function handleContinue(isSkipping = false) {
     if (stage === 'streak') {
       transitionTo('calendar');
     } else if (stage === 'calendar') {
       transitionTo('journal');
     } else if (stage === 'journal') {
-      if (!journalText.trim()) {
+      if (!isSkipping && !journalText.trim()) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         return;
       }
+      
+      const feedbackText = isSkipping ? "User skipped feedback." : journalText;
       
       setIsSubmitting(true);
       try {
         const { increments: incs, rationale: rat, est_days_remaining } = await calculateArchitectProgress(
           profile,
           completedTasks,
-          journalText
+          feedbackText
         );
         
         setIncrements(incs);
         setRationale(rat);
         
         // Compare with previous value to show arrow
-        const newEstDays = est_days_remaining || '---';
-        const newEstDaysNum = typeof newEstDays === 'number' ? newEstDays : (typeof newEstDays === 'string' && newEstDays !== '---' ? parseInt(newEstDays, 10) : null);
+        // Use current profile value as fallback if AI didn't return one
+        const currentEstDays = profile?.est_days_remaining || 365;
+        const currentEstDaysNum = typeof currentEstDays === 'number' ? currentEstDays : (typeof currentEstDays === 'string' && currentEstDays !== '---' ? parseInt(currentEstDays, 10) : 365);
+        
+        let newEstDays = est_days_remaining !== undefined && est_days_remaining !== null ? est_days_remaining : currentEstDays;
+        let newEstDaysNum = typeof newEstDays === 'number' ? newEstDays : (typeof newEstDays === 'string' && newEstDays !== '---' ? parseInt(newEstDays, 10) : currentEstDaysNum);
+        
+        // CRITICAL: Days can never increase - only stay the same or decrease
+        if (newEstDaysNum > currentEstDaysNum) {
+          newEstDaysNum = currentEstDaysNum;
+          newEstDays = currentEstDays;
+        }
         
         if (previousEstDays !== null && newEstDaysNum !== null && newEstDaysNum < previousEstDays) {
           setDaysDecreased(true);
@@ -627,40 +702,111 @@ export default function StreakScreen() {
   };
 
   const renderJournal = () => (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.stageContainer}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale: journalIconScaleAnim }],
-        }}
+    <View style={styles.stageContainer}>
+      <ScrollView 
+        contentContainerStyle={styles.journalScrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Image
-          source={require('@/assets/images/cube.png')}
-          style={styles.journalIconImage}
-          resizeMode="contain"
-        />
+        <View style={styles.journalHeaderContainer}>
+          <Animated.View
+            style={{
+              transform: [{ scale: journalIconScaleAnim }],
+              alignItems: 'center',
+            }}
+          >
+            <Image
+              source={require('@/assets/images/cube.png')}
+              style={styles.journalIconImage}
+              resizeMode="contain"
+            />
+          </Animated.View>
+          <Animated.View style={{ opacity: journalTitleFadeAnim, alignItems: 'center' }}>
+            <LigatureFreeText text="Architect Feedback" style={styles.journalTitle} numberOfLines={1} />
+          </Animated.View>
+          <Animated.View style={{ opacity: journalSubtitleFadeAnim, alignItems: 'center' }}>
+            <LigatureFreeText text="How did today's actions feel? Anything else I should be aware about in your life?" style={styles.journalSubtitle} />
+          </Animated.View>
+        </View>
+      </ScrollView>
+
+      <Animated.View 
+        style={[
+          styles.journalInputContainerFixed,
+          {
+            bottom: journalInputBottomAnim.interpolate({
+              inputRange: [0, 1000],
+              outputRange: [100, 1000],
+              extrapolate: 'clamp',
+            }),
+          }
+        ]}
+      >
+        <Animated.View style={[styles.journalInputWrapper, { opacity: journalInputFadeAnim }]}>
+          <TextInput
+            style={styles.journalInput}
+            placeholder="Write your thoughts here..."
+            placeholderTextColor="rgba(0,0,0,0.2)"
+            multiline
+            value={journalText}
+            onChangeText={setJournalText}
+            autoFocus
+            maxLength={1000}
+          />
+          <Pressable 
+            onPress={() => {
+              if (journalText.trim() && !isSubmitting) {
+                handleContinue();
+              }
+            }}
+            disabled={!journalText.trim() || isSubmitting}
+            style={({ pressed }) => [
+              styles.journalSendButtonWrapper,
+              (!journalText.trim() || isSubmitting) && styles.journalSendButtonDisabled,
+              {
+                shadowColor: '#F472B6',
+                transform: [{ translateY: pressed ? 2 : 0 }],
+                shadowOffset: { width: 0, height: pressed ? 2 : 4 },
+                shadowOpacity: pressed ? 0.3 : 0.5,
+                shadowRadius: pressed ? 8 : 12,
+                elevation: pressed ? 4 : 8,
+              }
+            ]}
+          >
+            {isSubmitting ? (
+              <LinearGradient
+                colors={['#F472B6', '#FB7185']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.journalSendButtonGradient}
+              >
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              </LinearGradient>
+            ) : journalText.trim() ? (
+              <LinearGradient
+                colors={['#F472B6', '#FB7185']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.journalSendButtonGradient}
+              >
+                <ArrowUp size={24} color="#FFFFFF" strokeWidth={2.5} />
+              </LinearGradient>
+            ) : (
+              <View style={[styles.journalSendButtonGradient, { backgroundColor: Colors.textTertiary }]}>
+                <ArrowUp size={24} color="#FFFFFF" strokeWidth={2.5} />
+              </View>
+            )}
+          </Pressable>
+        </Animated.View>
+        <TouchableOpacity 
+          onPress={() => handleContinue(true)}
+          style={styles.skipButton}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.skipButtonText}>Skip for now</Text>
+        </TouchableOpacity>
       </Animated.View>
-      <Animated.View style={{ opacity: journalTitleFadeAnim }}>
-        <LigatureFreeText text="Archetype Feedback" style={styles.stageTitle} />
-      </Animated.View>
-      <Animated.View style={{ opacity: journalSubtitleFadeAnim }}>
-        <LigatureFreeText text="How did today's actions feel? Anything else I should be aware about in your life?" style={styles.stageSubtitle} />
-      </Animated.View>
-      
-      <Animated.View style={[styles.journalInputWrapper, { opacity: journalInputFadeAnim }]}>
-        <TextInput
-          style={styles.journalInput}
-          placeholder="Write your thoughts here..."
-          placeholderTextColor="rgba(0,0,0,0.2)"
-          multiline
-          value={journalText}
-          onChangeText={setJournalText}
-          autoFocus
-        />
-      </Animated.View>
-    </KeyboardAvoidingView>
+    </View>
   );
 
   const renderProgress = () => (
@@ -683,26 +829,37 @@ export default function StreakScreen() {
         </View>
       </View>
 
-      <View style={styles.rationaleCard}>
-        <Text style={styles.rationaleText}>{rationale}</Text>
+      <View style={styles.progressList}>
+        {(['Financial', 'Personal', 'Lifestyle', 'Health', 'Growth'] as const).map((cat) => {
+          const increment = increments[cat];
+          const currentProgress = profile?.dream_self_progress?.[cat] || 0;
+          const progressPercent = Math.round(currentProgress);
+          return (
+            <View key={cat} style={styles.progressItem}>
+              <View style={styles.progressHeader}>
+                <Text style={styles.progressLabel}>{cat}</Text>
+                <View style={styles.progressValueRow}>
+                  <Text style={styles.progressPercent}>{progressPercent}%</Text>
+                  {increment !== undefined && increment > 0 && (
+                    <Text style={styles.progressValue}>+{increment.toFixed(1)} pts</Text>
+                  )}
+                </View>
+              </View>
+              <ProgressBar 
+                progress={currentProgress / 100}
+                showLabel={false}
+                height={12}
+                gradientColors={['#25729f', '#62edb9']}
+                trackColor="rgba(0,0,0,0.05)"
+              />
+            </View>
+          );
+        })}
       </View>
 
-      <View style={styles.progressList}>
-        {Object.entries(increments).map(([cat, inc]: [string, any]) => (
-          <View key={cat} style={styles.progressItem}>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressLabel}>{cat}</Text>
-              <Text style={styles.progressValue}>+{inc.toFixed(1)} pts</Text>
-            </View>
-            <ProgressBar 
-              progress={(profile?.dream_self_progress?.[cat] || 0) / 100}
-              showLabel={false}
-              height={12}
-              gradientColors={['#25729f', '#62edb9']}
-              trackColor="rgba(0,0,0,0.05)"
-            />
-          </View>
-        ))}
+      <View style={styles.rationaleCard}>
+        <Text style={styles.rationaleLabel}>A word from the architect</Text>
+        <Text style={styles.rationaleText}>"{rationale}"</Text>
       </View>
     </ScrollView>
   );
@@ -726,50 +883,51 @@ export default function StreakScreen() {
           {stage === 'progress' && renderProgress()}
         </Animated.View>
 
-        <Animated.View 
-          style={[
-            styles.footer,
-            {
-              opacity: stage === 'streak' ? buttonFadeAnim :
-                       stage === 'calendar' ? calendarButtonFadeAnim :
-                       stage === 'journal' ? journalButtonFadeAnim :
-                       stage === 'progress' ? progressButtonFadeAnim : 0
-            }
-          ]}
-        >
-          <Pressable 
-            onPress={handleContinue} 
-            style={({ pressed }) => [
-              styles.ctaButtonWrapper,
-              isSubmitting && { opacity: 0.7 },
+        {stage !== 'journal' && (
+          <Animated.View 
+            style={[
+              styles.footer,
               {
-                shadowColor: stage === 'streak' ? '#A78BFA' : 
-                            stage === 'calendar' ? '#A78BFA' :
-                            stage === 'journal' ? '#F472B6' : '#25729f',
-                transform: [{ translateY: pressed ? 2 : 0 }],
-                shadowOffset: { width: 0, height: pressed ? 2 : 8 },
-                shadowOpacity: pressed ? 0.3 : 0.5,
-                shadowRadius: pressed ? 8 : 20,
-                elevation: pressed ? 4 : 12,
+                opacity: stage === 'streak' ? buttonFadeAnim :
+                         stage === 'calendar' ? calendarButtonFadeAnim :
+                         stage === 'progress' ? progressButtonFadeAnim : 0
               }
             ]}
-            disabled={isSubmitting}
           >
-            <LinearGradient
-              colors={stage === 'streak' ? ['#A78BFA', '#F472B6'] : 
-                      stage === 'calendar' ? ['#A78BFA', '#C084FC'] :
-                      stage === 'journal' ? ['#F472B6', '#FB7185'] : ['#25729f', '#62edb9']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.ctaButtonGradient}
+            <Pressable 
+              onPress={handleContinue} 
+              style={({ pressed }) => [
+                styles.ctaButtonWrapper,
+                isSubmitting && { opacity: 0.7 },
+                {
+                  shadowColor: stage === 'streak' ? '#A78BFA' : 
+                              stage === 'calendar' ? '#A78BFA' :
+                              '#25729f',
+                  transform: [{ translateY: pressed ? 2 : 0 }],
+                  shadowOffset: { width: 0, height: pressed ? 2 : 8 },
+                  shadowOpacity: pressed ? 0.3 : 0.5,
+                  shadowRadius: pressed ? 8 : 20,
+                  elevation: pressed ? 4 : 12,
+                }
+              ]}
+              disabled={isSubmitting}
             >
-              <Text style={styles.ctaText}>
-                {isSubmitting ? "Evaluating..." : (stage === 'progress' ? "Finish" : "Continue")}
-              </Text>
-              {!isSubmitting && <ChevronRight size={20} color="#FFFFFF" />}
-            </LinearGradient>
-          </Pressable>
-        </Animated.View>
+              <LinearGradient
+                colors={stage === 'streak' ? ['#A78BFA', '#F472B6'] : 
+                        stage === 'calendar' ? ['#A78BFA', '#C084FC'] :
+                        ['#25729f', '#62edb9']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.ctaButtonGradient}
+              >
+                <Text style={styles.ctaText}>
+                  {isSubmitting ? "Evaluating..." : (stage === 'progress' ? "Finish" : "Continue")}
+                </Text>
+                {!isSubmitting && <ChevronRight size={20} color="#FFFFFF" />}
+              </LinearGradient>
+            </Pressable>
+          </Animated.View>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -922,8 +1080,91 @@ const styles = StyleSheet.create({
   dayDotToday: { borderColor: '#25729f', borderWidth: 2 },
   todayInnerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#25729f' },
 
-  journalInputWrapper: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 32, padding: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 12 },
-  journalInput: { width: '100%', minHeight: 180, padding: 24, color: Colors.textPrimary, fontSize: 17, fontFamily: Fonts.secondary.regular, textAlignVertical: 'top' },
+  journalInputContainerFixed: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    backgroundColor: Colors.background,
+    paddingBottom: Platform.OS === 'ios' ? 0 : 20,
+  },
+  journalInputWrapper: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 24, 
+    paddingHorizontal: 16, 
+    paddingVertical: 12,
+    minHeight: 64,
+    borderWidth: 1, 
+    borderColor: 'rgba(0,0,0,0.05)', 
+    shadowColor: 'rgba(0, 0, 0, 0.05)', 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 1, 
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  journalInput: { 
+    flex: 1, 
+    paddingVertical: 0, 
+    marginRight: 12,
+    color: Colors.textPrimary, 
+    fontSize: 18, 
+    fontFamily: Fonts.secondary.regular, 
+    maxHeight: 120,
+  },
+  journalSendButtonWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  journalSendButtonGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  journalSendButtonDisabled: {
+    opacity: 0.5,
+    shadowOpacity: 0,
+  },
+  journalScrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 200,
+  },
+  skipButton: {
+    alignSelf: 'center',
+    marginTop: 12,
+    paddingVertical: 8,
+  },
+  skipButtonText: {
+    color: Colors.textTertiary,
+    fontSize: 14,
+    fontFamily: Fonts.secondary.regular,
+    textDecorationLine: 'underline',
+  },
+  journalHeaderContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  journalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  journalSubtitle: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    marginTop: 12,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
 
   scrollContent: { paddingTop: 20, paddingBottom: 120 },
   progressTitle: { fontSize: 24, fontWeight: '800', color: Colors.textPrimary, textAlign: 'center', marginBottom: 24, fontFamily: Fonts.primary.regular },
@@ -948,14 +1189,16 @@ const styles = StyleSheet.create({
   arrowContainer: { marginLeft: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
   daysDecreasedText: { fontSize: 16, fontWeight: '700', color: '#4ADE80', fontFamily: Fonts.secondary.bold },
   
-  rationaleCard: { backgroundColor: '#FAFAFA', padding: 20, borderRadius: 24, flexDirection: 'row', gap: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', marginBottom: 32 },
-  rationaleIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 4 },
-  rationaleText: { flex: 1, color: Colors.textSecondary, fontSize: 15, lineHeight: 22, fontFamily: Fonts.secondary.regular, letterSpacing: 0.5 },
+  rationaleCard: { backgroundColor: '#FAFAFA', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', marginBottom: 32 },
+  rationaleLabel: { color: Colors.textTertiary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, fontFamily: Fonts.secondary.bold },
+  rationaleText: { color: Colors.textSecondary, fontSize: 15, lineHeight: 22, fontFamily: Fonts.secondary.regular, letterSpacing: 0.5 },
   
-  progressList: { gap: 20 },
+  progressList: { gap: 20, marginBottom: 24 },
   progressItem: { gap: 10 },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   progressLabel: { color: Colors.textTertiary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: Fonts.secondary.bold },
+  progressValueRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  progressPercent: { color: Colors.textPrimary, fontSize: 14, fontWeight: '800', fontFamily: Fonts.secondary.bold },
   progressValue: { color: '#25729f', fontSize: 14, fontWeight: '800', fontFamily: Fonts.secondary.bold },
 
   footer: { padding: 24, paddingBottom: 40 },

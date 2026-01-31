@@ -9,7 +9,7 @@ import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
-import { Home, Sparkles, Users, Lock, Zap, Share as ShareIcon, Instagram, Ghost, ChevronRight } from 'lucide-react-native';
+import { Home, Sparkles, Users, Lock, Zap, Share as ShareIcon, Instagram, Ghost, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -18,6 +18,21 @@ import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Fonts } from '@/constants/Theme';
+
+// Helper function to clean rationale text
+function cleanRationale(text: string): string {
+  if (!text) return text;
+  // Remove common unwanted phrases related to "decision making"
+  return text
+    .replace(/\bdecision[- ]making\b/gi, '')
+    .replace(/\bdecision making process\b/gi, '')
+    .replace(/\bdecision[- ]making process\b/gi, '')
+    .replace(/\bin decision making\b/gi, '')
+    .replace(/\bwhen making decisions\b/gi, '')
+    .replace(/\bdecision[- ]making context\b/gi, '')
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim();
+}
 
 export default function DecisionResultScreen() {
   const router = useRouter();
@@ -274,9 +289,10 @@ export default function DecisionResultScreen() {
     
     try {
       const appStoreLink = 'https://apps.apple.com/us/app/mora-simulate-your-life/id6754901842';
-      const rationalePreview = prediction.rationale.length > 150 
-        ? prediction.rationale.substring(0, 150) + '...' 
-        : prediction.rationale;
+      const cleanedRationale = cleanRationale(prediction.rationale);
+      const rationalePreview = cleanedRationale.length > 150 
+        ? cleanedRationale.substring(0, 150) + '...' 
+        : cleanedRationale;
       
       const shareMessage = `Question: ${decision.question}\n\nRecommended: ${prediction.prediction}\n\nWhy: ${rationalePreview}\n\ndecided with mora\n${appStoreLink}`;
 
@@ -360,8 +376,8 @@ export default function DecisionResultScreen() {
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
           {/* Top Bar */}
           <View style={styles.topBar}>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
-              <Home size={24} color={Colors.textPrimary} strokeWidth={2} />
+            <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+              <ChevronLeft size={24} color={Colors.textPrimary} strokeWidth={2} />
             </TouchableOpacity>
             {prediction && (
               <TouchableOpacity 
@@ -444,7 +460,7 @@ export default function DecisionResultScreen() {
             <View style={styles.section}>
               <View style={styles.sectionCard}>
                 <Text style={styles.sectionTitle}>Why this choice?</Text>
-                <Text style={styles.rationale}>{prediction.rationale}</Text>
+                <Text style={styles.rationale}>{cleanRationale(prediction.rationale)}</Text>
               </View>
             </View>
 
@@ -632,14 +648,6 @@ export default function DecisionResultScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.askAnotherButtonText}>Ask Another Decision</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/home')}
-              activeOpacity={0.7}
-              style={styles.goHomeTextContainer}
-            >
-              <Text style={styles.goHomeText}>Go to Home</Text>
             </TouchableOpacity>
 
             {/* Disclaimer */}

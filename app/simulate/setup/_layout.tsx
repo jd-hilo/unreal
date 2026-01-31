@@ -6,6 +6,8 @@ export default function SetupLayout() {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
+        gestureEnabled: false,
+        fullScreenGestureEnabled: false,
       }}
     >
       <Stack.Screen name="index" />

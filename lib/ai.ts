@@ -3305,7 +3305,7 @@ export async function calculateArchitectProgress(
   profileData: any,
   completedTasks: any[],
   feedback: string
-): Promise<{ increments: Record<string, number>; rationale: string }> {
+): Promise<{ increments: Record<string, number>; rationale: string; est_days_remaining?: number | string }> {
   try {
     const dreamVision = profileData?.dream_vision || {};
     const archetype = (profileData?.core_json as any)?.twin_archetype;
@@ -3314,7 +3314,7 @@ export async function calculateArchitectProgress(
     Based on the tasks they completed and their feedback, you determine a realistic progress increment (0.0 to 5.0 points) for EACH relevant category.
     Be realistic: significant life changes take time. Small, consistent steps should earn 0.2-1.5 points. Major breakthroughs might earn 3.0-5.0 points.
     
-    IMPORTANT: Write the "rationale" as if you're a close friend speaking directly to them. Use "you" and "your", be encouraging, warm, and personal. Acknowledge their effort and celebrate their progress. Make it feel like a real conversation, not a formal report.
+    IMPORTANT: Write the "rationale" as if you're a close friend speaking directly to them. Use "you" and "your", be encouraging, warm, and personal. Keep it SHORT - 1-2 sentences maximum. Acknowledge their effort and celebrate their progress. Make it feel like a real conversation, not a formal report.
     Return ONLY JSON.`;
 
     const taskDetails = completedTasks.map(t => `${t.task_content} (${t.category})`).join('\n- ');
@@ -3333,13 +3333,14 @@ Evaluate this progress. How much closer are they to their dream self in each are
 Also, update the "Estimated Days to Dream Self" based on today's performance and reflection.
 
 Logic for Estimated Days:
-1. If the user completed all tasks with high quality reflection, decrease the estimate (e.g., by 1-3 days).
-2. If the user struggled or didn't complete all tasks, keep the estimate the same or slightly increase it if they are falling behind.
-3. Use the user's journal reflection to gauge their mindset and adjust the estimate accordingly.
+1. If the user completed all tasks with high quality reflection, decrease the estimate by 1 day (or occasionally 2 days for exceptional progress).
+2. If the user struggled or didn't complete all tasks, keep the estimate the same (NEVER increase it).
+3. Use the user's journal reflection to gauge their mindset, but remember: days can only stay the same or decrease, never increase.
+4. IMPORTANT: The estimated days should typically decrease by 1 day when tasks are completed. Only keep it the same if progress was minimal or tasks were skipped.
 
 Return a JSON object with:
 1. "increments": An object where keys are categories ("Financial", "Personal", "Lifestyle", "Health", "Growth") and values are numbers between 0.0 and 5.0. Only include categories that were progressed today.
-2. "rationale": Write this as a warm, personal message from a friend (2-3 sentences). Use "you" and "your", acknowledge their specific efforts, celebrate their progress, and be encouraging. Make it feel genuine and supportive, like you really see them and their journey.
+2. "rationale": Write this as a warm, personal message from a friend (1-2 sentences MAXIMUM - keep it concise). Use "you" and "your", acknowledge their specific efforts, celebrate their progress, and be encouraging. Make it feel genuine and supportive, like you really see them and their journey.
 3. "est_days_remaining": The NEW updated estimate of how many days remain (integer).
 
 Example:
@@ -3356,10 +3357,20 @@ Example:
       temperature: 0.7,
     });
 
-    return JSON.parse(content);
+    const result = JSON.parse(content);
+    // Ensure est_days_remaining is included in the response
+    if (!result.est_days_remaining && profileData?.est_days_remaining) {
+      result.est_days_remaining = profileData.est_days_remaining;
+    }
+    return result;
   } catch (error) {
     console.error('Progress calculation error:', error);
-    return { increments: { "Growth": 1.0 }, rationale: "Consistent daily action leads to steady growth." };
+    const currentEstDays = profileData?.est_days_remaining || 365;
+    return { 
+      increments: { "Growth": 1.0 }, 
+      rationale: "Consistent daily action leads to steady growth.",
+      est_days_remaining: currentEstDays
+    };
   }
 }
 
