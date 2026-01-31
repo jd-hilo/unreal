@@ -128,11 +128,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 100,
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
   },
   tabBarBlur: {
     width: '100%',
-    maxWidth: 350, // Increased from 320 to allow more spacing
+    maxWidth: width * 0.69, // 15% increase from 60% (now 69% of screen width)
     borderRadius: 40,
     overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.15)', // More transparent for glass effect
@@ -152,16 +152,18 @@ const styles = StyleSheet.create({
   },
   tabBarInner: {
     flexDirection: 'row',
-    height: 72,
+    height: 76, // Reduced from 88
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 6, // Minimal padding to push icons to edges
+    justifyContent: 'flex-start',
+    paddingHorizontal: 0,
+    width: '100%',
   },
   tabItem: {
-    flex: 1,
+    width: '25%',
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
+    paddingVertical: 10, // Reduced padding
   },
   iconWrapper: {
     width: 44,

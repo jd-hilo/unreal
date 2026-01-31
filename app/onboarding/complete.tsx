@@ -406,13 +406,6 @@ export default function OnboardingCompleteScreen() {
                   >
                     <View style={styles.buttonBlur}>
                       <View style={styles.buttonContent} pointerEvents="box-none">
-                        <View style={styles.buttonIconContainer}>
-                          <Image 
-                            source={require('@/assets/images/star.png')}
-                            style={[styles.buttonIcon, { tintColor: '#FFFFFF' }]}
-                            resizeMode="contain"
-                          />
-                        </View>
                         <View style={styles.buttonTextContainer}>
                           <Text style={styles.buttonTitle}>Simulate your life</Text>
                           <Text style={styles.buttonSubtitle}>
@@ -451,8 +444,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   textContainer: {
-    marginBottom: 120,
     alignItems: 'center',
+    gap: 16,
+    width: '100%',
   },
   typingText: {
     fontSize: 32,
@@ -527,11 +521,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     opacity: 0.9,
-  },
-  textContainer: {
-    alignItems: 'center',
-    gap: 16,
-    width: '100%',
   },
   loadingText: {
     fontSize: 28,

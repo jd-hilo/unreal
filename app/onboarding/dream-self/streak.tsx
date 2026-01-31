@@ -269,20 +269,51 @@ export default function StreakScreen() {
       });
       setHistory(grouped);
 
-      // Simple streak calculation
+      // Active streak calculation (Duolingo-style)
+      // Count consecutive days backwards from today/yesterday
+      // If any day is missed, streak resets to 0
       let streak = 0;
-      const today = new Date().toISOString().split('T')[0];
-      let curr = new Date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Start from today
+      let curr = new Date(today);
+      const todayStr = curr.toISOString().split('T')[0];
+      
+      // Check if today has completed tasks
+      if (grouped[todayStr]) {
+        // Start counting from today
+        streak = 1;
+        curr.setDate(curr.getDate() - 1);
+      } else {
+        // Today not completed yet, check yesterday
+        curr.setDate(curr.getDate() - 1);
+        const yesterdayStr = curr.toISOString().split('T')[0];
+        
+        if (grouped[yesterdayStr]) {
+          // Start counting from yesterday
+          streak = 1;
+          curr.setDate(curr.getDate() - 1);
+        } else {
+          // Yesterday also not completed, streak is 0
+          setStreakNumber(0);
+          return;
+        }
+      }
+      
+      // Continue counting backwards until we hit a missed day
       while (true) {
         const d = curr.toISOString().split('T')[0];
         if (grouped[d]) {
           streak++;
           curr.setDate(curr.getDate() - 1);
         } else {
+          // Hit a missed day, stop counting
           break;
         }
       }
-      setStreakNumber(streak || 1);
+      
+      setStreakNumber(streak);
     } catch (e) {
       console.error(e);
     }
@@ -653,9 +684,6 @@ export default function StreakScreen() {
       </View>
 
       <View style={styles.rationaleCard}>
-        <View style={styles.rationaleIcon}>
-          <Sparkles size={20} color={Colors.gradients.turquoise[0]} fill={Colors.gradients.turquoise[0]} />
-        </View>
         <Text style={styles.rationaleText}>{rationale}</Text>
       </View>
 

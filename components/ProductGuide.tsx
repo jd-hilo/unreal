@@ -140,7 +140,7 @@ export function ProductGuide({
         </View>
       ),
       layout: decideLayout,
-      icon: require('@/assets/images/star.png'),
+      icon: null,
       cardTitle: "Decide",
       cardSubtitle: "Receive an authoritative recommendation for your path",
       isHorizontal: true,
@@ -425,24 +425,26 @@ export function ProductGuide({
                    styles.cardContent,
                    (currentStepData as any).isHorizontal && styles.cardContentHorizontal
                  ]}>
-                    <View style={[
-                      styles.iconContainer,
-                      (currentStepData as any).isHorizontal && styles.iconContainerHorizontal
-                    ]}>
-                       {currentStepData.isIconComponent && currentStepData.IconComponent ? (
-                          <currentStepData.IconComponent size={(currentStepData as any).isHorizontal ? 24 : 24} color={Colors.textPrimary} strokeWidth={1.5} />
-                       ) : (
-                          <Image 
-                            source={currentStepData.icon}
-                            style={[
-                              styles.iconImage, 
-                              (currentStepData as any).isHorizontal && styles.iconImageHorizontal,
-                              currentStepData.id === 'train' ? {} : { tintColor: Colors.textPrimary }
-                            ]}
-                            resizeMode="contain"
-                          />
-                       )}
-                    </View>
+                    {currentStepData.icon && (
+                      <View style={[
+                        styles.iconContainer,
+                        (currentStepData as any).isHorizontal && styles.iconContainerHorizontal
+                      ]}>
+                         {currentStepData.isIconComponent && currentStepData.IconComponent ? (
+                            <currentStepData.IconComponent size={(currentStepData as any).isHorizontal ? 24 : 24} color={Colors.textPrimary} strokeWidth={1.5} />
+                         ) : (
+                            <Image 
+                              source={currentStepData.icon}
+                              style={[
+                                styles.iconImage, 
+                                (currentStepData as any).isHorizontal && styles.iconImageHorizontal,
+                                currentStepData.id === 'train' ? {} : { tintColor: Colors.textPrimary }
+                              ]}
+                              resizeMode="contain"
+                            />
+                         )}
+                      </View>
+                    )}
                     <View style={(currentStepData as any).isHorizontal ? styles.textContainerHorizontal : null}>
                       <Text style={styles.cardTitle}>{currentStepData.cardTitle}</Text>
                       <Text style={styles.cardSubtitle}>{currentStepData.cardSubtitle}</Text>

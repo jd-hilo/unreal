@@ -5,8 +5,9 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks } from '@/lib/storage';
-import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Star, Zap, Clipboard, Check, RefreshCw } from 'lucide-react-native';
-import { generateArchitectPlan, calculateArchitectProgress } from '@/lib/ai';
+import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check, RefreshCw } from 'lucide-react-native';
+import { HomeGradientIcon, FlameGradientIcon } from '@/components/GradientIcons';
+import { generateArchitectPlan, calculateArchitectProgress, recalculateDreamProgress } from '@/lib/ai';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { Asset } from 'expo-asset';
 import { ProductGuide } from '@/components/ProductGuide';
 import { ProgressBar } from '@/components/ProgressBar';
+import { CircularProgress } from '@/components/CircularProgress';
 import { setHasSeenDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { Colors, Fonts } from '@/constants/Theme';
@@ -83,12 +85,15 @@ export default function HomeScreen() {
   const [showDiscordModal, setShowDiscordModal] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [dailyTasks, setDailyTasks] = useState<any[]>([]);
+  const [streakCount, setStreakCount] = useState<number>(0);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [isGeneratingNext, setIsGeneratingNext] = useState(false);
   const [floatingPoints, setFloatingPoints] = useState<{ id: string; x: number; y: number; value: string }[]>([]);
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const initialProfileRef = useRef<any>(null);
   const taskScrollViewRef = useRef<ScrollView>(null);
   const regenerateRotateAnim = useRef(new Animated.Value(0)).current;
 
@@ -225,27 +230,120 @@ export default function HomeScreen() {
     if (!user) return;
 
     try {
-      const [profile, decisions, whatifs, progress, journalToday, tasks] = await Promise.all([
+      const [profile, decisions, whatifs, progress, journalToday, tasks, allTasks] = await Promise.all([
         getProfile(user.id),
         getDecisions(user.id),
         getWhatIfs(user.id),
         calculateOverallProgress(user.id),
         getTodayJournal(user.id),
-        getDailyTasks(user.id)
+        getDailyTasks(user.id),
+        getDailyTasks(user.id, null) // Get all tasks for streak calculation
       ]);
+
+      // Check if we need to recalculate dream progress
+      if (initialProfileRef.current && profile) {
+        const hasChanged = 
+          initialProfileRef.current.current_location !== profile.current_location ||
+          initialProfileRef.current.net_worth !== profile.net_worth ||
+          (initialProfileRef.current.core_json as any)?.primary_role !== (profile.core_json as any)?.primary_role ||
+          JSON.stringify(initialProfileRef.current.dream_vision) !== JSON.stringify(profile.dream_vision);
+
+        if (hasChanged) {
+          setIsRecalculating(true);
+          try {
+            const { dream_self_progress, est_days_remaining } = await recalculateDreamProgress(
+              initialProfileRef.current,
+              profile,
+              initialProfileRef.current.dream_self_progress || {},
+              initialProfileRef.current.est_days_remaining || 365
+            );
+
+            await updateProfileFields(user.id, {
+              dream_self_progress,
+              est_days_remaining
+            });
+            
+            // Update local profile data with new progress
+            profile.dream_self_progress = dream_self_progress;
+            profile.est_days_remaining = est_days_remaining;
+          } catch (error) {
+            console.error('Recalculation failed on home screen:', error);
+          } finally {
+            setIsRecalculating(false);
+          }
+        }
+      }
 
       if (profile?.first_name) {
         setUserName(profile.first_name);
       }
+
+      // Redirect to dream self onboarding if not completed
+      if (profile && (!profile.dream_vision || Object.keys(profile.dream_vision).length === 0)) {
+        router.replace('/onboarding/dream-self/welcome');
+        return;
+      }
+
       setProfileData(profile);
+      initialProfileRef.current = profile;
       setRecentDecisions(decisions || []);
       setRecentWhatIfs(whatifs || []);
       setProfileProgress(progress || 0);
       setHasTodayJournal(!!journalToday);
-      setDailyTasks(tasks || []);
+      
+      // Ensure we only show today's tasks - filter and limit to max 3
+      const today = new Date().toISOString().split('T')[0];
+      const todayTasks = (tasks || [])
+        .filter(task => task.scheduled_date === today)
+        .slice(0, 3); // Limit to max 3 tasks
+      setDailyTasks(todayTasks);
+
+      // Calculate streak (Duolingo-style) - same logic as streak screen
+      const grouped: Record<string, boolean> = {};
+      (allTasks || []).forEach(t => {
+        if (!grouped[t.scheduled_date]) grouped[t.scheduled_date] = true;
+        if (!t.is_completed) grouped[t.scheduled_date] = false;
+      });
+
+      let streak = 0;
+      const todayDate = new Date();
+      todayDate.setHours(0, 0, 0, 0);
+      
+      let curr = new Date(todayDate);
+      const todayStr = curr.toISOString().split('T')[0];
+      
+      // Check if today has completed tasks
+      if (grouped[todayStr]) {
+        streak = 1;
+        curr.setDate(curr.getDate() - 1);
+      } else {
+        // Today not completed yet, check yesterday
+        curr.setDate(curr.getDate() - 1);
+        const yesterdayStr = curr.toISOString().split('T')[0];
+        
+        if (grouped[yesterdayStr]) {
+          streak = 1;
+          curr.setDate(curr.getDate() - 1);
+        }
+      }
+      
+      // Continue counting backwards until we hit a missed day
+      if (streak > 0) {
+        while (true) {
+          const d = curr.toISOString().split('T')[0];
+          if (grouped[d]) {
+            streak++;
+            curr.setDate(curr.getDate() - 1);
+          } else {
+            break;
+          }
+        }
+      }
+      
+      setStreakCount(streak);
 
       // Generate daily tasks if they don't exist for today and user has completed dream self
-      if ((!tasks || tasks.length === 0) && profile?.dream_vision) {
+      if ((!todayTasks || todayTasks.length === 0) && profile?.dream_vision) {
         try {
           const today = new Date().toISOString().split('T')[0];
           
@@ -285,7 +383,11 @@ export default function HomeScreen() {
           }));
           
           const savedTasks = await saveDailyTasks(user.id, tasksWithDate);
-          setDailyTasks(savedTasks || []);
+          // Ensure we only show today's tasks - filter and limit to max 3
+          const savedTodayTasks = (savedTasks || [])
+            .filter(task => task.scheduled_date === today)
+            .slice(0, 3); // Limit to max 3 tasks
+          setDailyTasks(savedTodayTasks);
         } catch (error) {
           console.error('Error generating daily tasks:', error);
           // Don't block the UI if task generation fails
@@ -381,6 +483,10 @@ export default function HomeScreen() {
       // Ensure content is visible when screen comes into focus
       fadeAnim.setValue(1);
       slideAnim.setValue(0);
+      
+      // Reset initialProfileRef to trigger recalculation if needed
+      initialProfileRef.current = null;
+      
       loadData();
     }, [loadData, fadeAnim, slideAnim])
   );
@@ -513,12 +619,22 @@ export default function HomeScreen() {
       
       try {
         const savedTasks = await saveDailyTasks(user.id, tasksWithDate);
-        setDailyTasks(savedTasks || []);
+        // Ensure we only show today's tasks - filter and limit to max 3
+        const today = new Date().toISOString().split('T')[0];
+        const todayTasks = (savedTasks || [])
+          .filter(task => task.scheduled_date === today)
+          .slice(0, 3); // Limit to max 3 tasks
+        setDailyTasks(todayTasks);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (error) {
         // If table doesn't exist, at least show the tasks locally
         console.warn('Could not save tasks to database (table may not exist):', error);
-        setDailyTasks(tasksWithDate as any);
+        // Ensure we only show today's tasks - filter and limit to max 3
+        const today = new Date().toISOString().split('T')[0];
+        const todayTasks = (tasksWithDate || [])
+          .filter(task => task.scheduled_date === today)
+          .slice(0, 3); // Limit to max 3 tasks
+        setDailyTasks(todayTasks as any);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
@@ -651,6 +767,11 @@ export default function HomeScreen() {
               />
             </View>
             <View style={styles.topBarIcons}>
+              <View style={styles.streakContainer}>
+                <FlameGradientIcon size={20} />
+                <Text style={styles.streakText}>{streakCount}</Text>
+              </View>
+
               <TouchableOpacity 
                 style={styles.iconButton}
                 onPress={handleRegenerateTasks}
@@ -706,17 +827,28 @@ export default function HomeScreen() {
               >
                 <Settings size={24} color={Colors.textPrimary} strokeWidth={2} />
               </TouchableOpacity>
-            </View>
           </View>
+        </View>
 
-          <Animated.ScrollView 
-            style={[styles.content, { 
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }]} 
-            contentContainerStyle={styles.contentContainer}
-            showsVerticalScrollIndicator={false}
-          >
+        {isRecalculating && (
+          <View style={styles.recalculatingOverlay}>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.9)', 'rgba(248,247,255,0.9)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <Sparkles size={48} color="#A78BFA" />
+            <Text style={styles.recalculatingText}>Recalculating your path...</Text>
+          </View>
+        )}
+
+        <Animated.ScrollView 
+          style={[styles.content, { 
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }]} 
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+        >
             {/* Main Header */}
             <View style={styles.headerContainer}>
               <View style={styles.headerLeft}>
@@ -729,65 +861,63 @@ export default function HomeScreen() {
 
             {/* Distance to Dream Self Card */}
             {profileData?.dream_vision && (
-              <View style={styles.dreamSelfCard}>
+              <TouchableOpacity 
+                style={styles.dreamSelfCard}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push('/gap-analysis');
+                }}
+                activeOpacity={0.9}
+              >
                 <LinearGradient
-                  colors={['rgba(167, 139, 250, 0.1)', 'rgba(244, 114, 182, 0.1)']}
+                  colors={['#FFFFFF', '#F8F7FF']}
                   style={styles.dreamSelfCardGradient}
                 />
-                <View style={styles.dreamSelfCardHeader}>
-                  <View style={styles.dreamSelfIconContainer}>
-                    <Sparkles size={24} color="#A78BFA" fill="#A78BFA" />
+                
+                <View style={styles.dreamSelfWidgetContent}>
+                  <View style={styles.dreamSelfWidgetLeft}>
+                    <Text style={styles.dreamSelfWidgetValue}>
+                      {(() => {
+                        const p = profileData?.dream_self_progress || {};
+                        const values = Object.values(p) as number[];
+                        if (values.length === 0) return "0%";
+                        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                        return Math.round(avg) + "%";
+                      })()}
+                    </Text>
+                    <View style={styles.dreamSelfWidgetLabelRow}>
+                      <Text style={styles.dreamSelfWidgetLabel}>Distance to Dream Self</Text>
+                      <ChevronRight size={14} color={Colors.textTertiary} />
+                    </View>
+                    
+                    {profileData?.est_days_remaining && (
+                      <View style={styles.dreamSelfWidgetDaysContainer}>
+                        <Text style={styles.dreamSelfWidgetDaysText}>
+                          Estimated {profileData.est_days_remaining} days left
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                  <View>
-                    <Text style={styles.dreamSelfCardTitle}>Distance to Dream Self</Text>
-                    <Text style={styles.dreamSelfCardSubtitle}>Your journey to becoming your best version</Text>
-                  </View>
-                </View>
 
-                <View style={styles.dreamSelfCardContent}>
-                  <View style={styles.dreamSelfStats}>
-                    <View style={styles.dreamSelfStatItem}>
-                      <Text style={styles.dreamSelfStatLabel}>Progress</Text>
-                      <Text style={styles.dreamSelfStatValue}>
-                        {(() => {
-                          const p = profileData?.dream_self_progress || {};
-                          const values = Object.values(p) as number[];
-                          if (values.length === 0) return "0.0%";
-                          const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                          return avg.toFixed(1) + "%";
-                        })()}
-                      </Text>
-                    </View>
-                    <View style={styles.dreamSelfStatDivider} />
-                    <View style={styles.dreamSelfStatItem}>
-                      <Text style={styles.dreamSelfStatLabel}>Est. Days</Text>
-                      <Text style={styles.dreamSelfStatValue}>
-                        {profileData?.est_days_remaining || '---'}
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.progressVisualContainer}>
-                    <Image source={require('@/assets/images/manwhite.png')} style={styles.progressManIcon} resizeMode="contain" />
-                    <View style={styles.progressBarWrapper}>
-                      <ProgressBar 
-                        progress={(() => {
-                          const p = profileData?.dream_self_progress || {};
-                          const values = Object.values(p) as number[];
-                          if (values.length === 0) return 0;
-                          const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                          return avg / 100;
-                        })()} 
-                        showLabel={false} 
-                        height={14}
-                        gradientColors={['#A78BFA', '#F472B6']}
-                        trackColor="rgba(167, 139, 250, 0.1)"
-                      />
-                    </View>
-                    <Image source={require('@/assets/images/manwhite.png')} style={[styles.progressManIcon, styles.dreamManIcon]} resizeMode="contain" />
+                  <View style={styles.dreamSelfWidgetRight}>
+                    <CircularProgress 
+                      progress={(() => {
+                        const p = profileData?.dream_self_progress || {};
+                        const values = Object.values(p) as number[];
+                        if (values.length === 0) return 0;
+                        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                        return avg / 100;
+                      })()}
+                      size={80}
+                      strokeWidth={8}
+                      icon={require('@/assets/images/manwhite.png')}
+                      colors={['#A78BFA', '#F472B6']}
+                      trackColor="rgba(167, 139, 250, 0.1)"
+                      iconTintColor={null}
+                    />
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             )}
 
             {/* Daily Tasks Section */}
@@ -1182,6 +1312,23 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'center',
   },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 154, 158, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 154, 158, 0.2)',
+  },
+  streakText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF9A9E',
+    fontFamily: Fonts.secondary.bold,
+  },
   moraTag: {
     borderRadius: 56,
     overflow: 'hidden',
@@ -1221,7 +1368,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   tasksContainer: {
     gap: 16,
@@ -1356,94 +1503,56 @@ const styles = StyleSheet.create({
   dreamSelfCardGradient: {
     ...StyleSheet.absoluteFillObject,
   },
-  dreamSelfCardHeader: {
+  dreamSelfWidgetContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 20,
+    justifyContent: 'space-between',
   },
-  dreamSelfIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  dreamSelfCardTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    fontFamily: Fonts.primary.regular,
-    color: Colors.textPrimary,
-  },
-  dreamSelfCardSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.regular,
-  },
-  dreamSelfCardContent: {
-    gap: 16,
-  },
-  dreamSelfStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(167, 139, 250, 0.05)',
-    padding: 16,
-    borderRadius: 20,
-  },
-  dreamSelfStatItem: {
+  dreamSelfWidgetLeft: {
     flex: 1,
-    alignItems: 'center',
+    gap: 4,
   },
-  dreamSelfStatLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#A78BFA',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  dreamSelfStatValue: {
-    fontSize: 18,
+  dreamSelfWidgetValue: {
+    fontSize: 42,
     fontWeight: '800',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
+    lineHeight: 48,
   },
-  dreamSelfStatDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: 'rgba(167, 139, 250, 0.1)',
-  },
-  progressVisualContainer: {
+  dreamSelfWidgetLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginTop: 8,
+    gap: 4,
+    marginBottom: 8,
   },
-  progressManIcon: {
-    width: 42,
-    height: 42,
-    opacity: 0.9,
-    tintColor: '#D1D1D1', // Slightly darker gray for better visibility on white
+  dreamSelfWidgetLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
   },
-  dreamManIcon: {
-    transform: [{ scaleX: -1 }],
-    opacity: 1,
-    tintColor: '#A78BFA', // Purple for dream self
+  dreamSelfWidgetDaysContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(167, 139, 250, 0.1)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  progressBarWrapper: {
-    flex: 1,
+  dreamSelfWidgetDaysText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#A78BFA',
+    fontFamily: Fonts.secondary.bold,
+  },
+  dreamSelfWidgetRight: {
+    marginLeft: 16,
   },
   // Architect Section
   architectSection: {
-    marginBottom: 40,
     marginTop: 24,
-    marginBottom: 32,
+    marginBottom: 100,
     backgroundColor: '#FFFFFF',
     borderRadius: 32,
     padding: 24,
@@ -1609,6 +1718,8 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
     lineHeight: 24,
+    paddingHorizontal: width * 0.04, // 4% of screen width
+    paddingVertical: width * 0.02, // 2% of screen width
   },
   taskTextCompleted: {
     color: Colors.textTertiary,
@@ -2191,5 +2302,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
+  },
+  recalculatingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  recalculatingText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
   },
 });

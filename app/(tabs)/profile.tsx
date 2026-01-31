@@ -7,7 +7,7 @@ import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { CheckCircle2, Circle as CircleIcon, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut, Sparkles, Trash2, User, MapPin, GraduationCap, Briefcase, Heart, Brain, Zap, Clock, Shield, Flag, Banknote, Home, Users, ArrowUpRight } from 'lucide-react-native';
+import { CheckCircle2, Circle as CircleIcon, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut, Sparkles, Trash2, User, MapPin, GraduationCap, Briefcase, Heart, Brain, Zap, Clock, Shield, Flag, Banknote, Home, Users, ArrowUpRight, AlertTriangle } from 'lucide-react-native';
 import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode, getInterestProgressNew, updateProfileFields, calculateOverallProgress } from '@/lib/storage';
 import { resetDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
@@ -101,6 +101,8 @@ export default function ProfileScreen() {
   const progressAnimRef = useRef<Animated.Value | null>(null);
   const [showDiscordModal, setShowDiscordModal] = useState(false);
   const [showContent, setShowContent] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
+  const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   
   // Animation refs for fade transitions
   const invitationOpacity = useRef(new Animated.Value(1)).current;
@@ -337,6 +339,14 @@ export default function ProfileScreen() {
   function handleCardPress(card: ProfileCard) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
+    const sensitiveFields = ['job', 'current_location', 'net_worth', 'dream_self'];
+    
+    if (sensitiveFields.includes(card.id)) {
+      setPendingRoute(card.route || card.onboardingStep || null);
+      setShowWarning(true);
+      return;
+    }
+
     if (card.id === 'twin_society') {
       setShowDiscordModal(true);
       trackEvent(MixpanelEvents.TWIN_SOCIETY_MODAL_VIEWED, { source: 'profile' });
@@ -360,13 +370,13 @@ export default function ProfileScreen() {
   const job = (profileData?.core_json as any)?.primary_role;
 
   const identityCards: ProfileCard[] = [
-    { id: 'university', title: 'Education', subtitle: university || 'Not set', route: '/profile/edit-university' as any, completed: !!university, icon: GraduationCap },
-    { id: 'job', title: 'Job', subtitle: job || 'Not set', route: '/profile/edit-job' as any, completed: !!job, icon: Briefcase },
-    { id: 'hometown', title: 'Hometown', subtitle: hometown || 'Not set', route: '/profile/edit-hometown' as any, completed: !!hometown, icon: Home },
-    { id: 'current_location', title: 'Location', subtitle: currentLocation || 'Not set', route: '/profile/edit-location' as any, completed: !!currentLocation, icon: MapPin },
-    { id: 'net_worth', title: 'Net Worth', subtitle: netWorth || 'Not set', route: '/profile/edit-networth' as any, completed: !!netWorth, icon: Banknote },
-    { id: 'political_views', title: 'Politics', subtitle: politicalViews || 'Not set', route: '/profile/edit-politics' as any, completed: !!politicalViews, icon: Flag },
-    { id: 'dream_self', title: 'Dream Self', subtitle: profileData?.dream_vision?.net_worth_goal ? 'View your vision' : 'Complete your dream self', route: '/onboarding/dream-self/welcome' as any, completed: !!profileData?.dream_vision?.net_worth_goal, icon: Sparkles },
+    { id: 'university', title: 'Education', subtitle: university || profileData?.core_json?.university || 'Not set', route: '/profile/edit-university' as any, completed: !!(university || profileData?.core_json?.university), icon: GraduationCap },
+    { id: 'job', title: 'Job', subtitle: job || profileData?.core_json?.primary_role || profileData?.core_json?.job || 'Not set', route: '/profile/edit-job' as any, completed: !!(job || profileData?.core_json?.primary_role || profileData?.core_json?.job), icon: Briefcase },
+    { id: 'hometown', title: 'Hometown', subtitle: hometown || profileData?.core_json?.hometown || 'Not set', route: '/profile/edit-hometown' as any, completed: !!(hometown || profileData?.core_json?.hometown), icon: Home },
+    { id: 'current_location', title: 'Location', subtitle: currentLocation || profileData?.core_json?.current_location || profileData?.core_json?.city || 'Not set', route: '/profile/edit-location' as any, completed: !!(currentLocation || profileData?.core_json?.current_location || profileData?.core_json?.city), icon: MapPin },
+    { id: 'net_worth', title: 'Net Worth', subtitle: netWorth || profileData?.core_json?.net_worth || 'Not set', route: '/profile/edit-networth' as any, completed: !!(netWorth || profileData?.core_json?.net_worth), icon: Banknote },
+    { id: 'political_views', title: 'Politics', subtitle: politicalViews || profileData?.core_json?.political_views || 'Not set', route: '/profile/edit-politics' as any, completed: !!(politicalViews || profileData?.core_json?.political_views), icon: Flag },
+    { id: 'dream_self', title: 'Dream Self', subtitle: profileData?.dream_vision?.net_worth_goal ? 'View your vision' : 'Complete your dream self', route: '/profile/edit-dreamself' as any, completed: !!profileData?.dream_vision?.net_worth_goal, icon: Sparkles },
     { id: 'twin_society', title: 'Twin Society', subtitle: 'Join our Discord community', route: null as any, completed: true, icon: Users },
   ];
 
@@ -749,6 +759,48 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Warning Modal */}
+      <Modal
+        visible={showWarning}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowWarning(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.warningIconContainer}>
+              <AlertTriangle size={32} color="#F59E0B" />
+            </View>
+            <Text style={styles.modalTitle}>Recalculation Warning</Text>
+            <Text style={styles.modalDescription}>
+              Changing your Current or Dream Twin details will trigger a recalculation of your path. 
+              {"\n\n"}
+              Your progress percentages and estimated days will be adjusted based on the new "gap" between who you are and who you want to become.
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]} 
+                onPress={() => setShowWarning(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.confirmButton]} 
+                onPress={() => {
+                  setShowWarning(false);
+                  if (pendingRoute) {
+                    router.push(pendingRoute as any);
+                  }
+                }}
+              >
+                <Text style={styles.confirmButtonText}>I Understand</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -940,4 +992,15 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
   },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalContent: { backgroundColor: '#FFFFFF', borderRadius: 32, padding: 24, width: '100%', alignItems: 'center' },
+  warningIconContainer: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(245, 158, 11, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: Colors.textPrimary, fontFamily: Fonts.primary.regular, marginBottom: 12, textAlign: 'center' },
+  modalDescription: { fontSize: 15, color: Colors.textSecondary, fontFamily: Fonts.secondary.regular, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  modalButtons: { flexDirection: 'row', gap: 12, width: '100%' },
+  modalButton: { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
+  cancelButton: { backgroundColor: 'rgba(0,0,0,0.05)' },
+  cancelButtonText: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary, fontFamily: Fonts.secondary.bold },
+  confirmButton: { backgroundColor: '#F59E0B' },
+  confirmButtonText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', fontFamily: Fonts.secondary.bold },
 });

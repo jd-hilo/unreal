@@ -3208,7 +3208,7 @@ export async function generateArchitectPlan(
     You are direct, inspiring, and focused on systems rather than just motivation.
     
     CRITICAL RULES: 
-    1. Each task_content MUST be ULTRA-SHORT: 3-6 words maximum (never exceed 8 words). Think simple commands: "Call mom", "Save $10 today", "Walk 10 minutes", "Text one friend", "Research one apartment".
+    1. Each task_content MUST be SHORT: 4-7 words ideal (never exceed 10 words). Think simple commands: "Call mom", "Save $10 today", "Walk 10 minutes", "Text one friend", "Research one apartment".
     2. Tasks MUST be tiny micro-actions that take under 10 minutes. Make them feel effortless and impossible to skip.
     3. Use simple, direct language. No fluff, no explanations, just the action.
     4. Be specific with numbers when possible: "5 minutes", "3 options", "one person", "$10".
@@ -3241,7 +3241,7 @@ As The Architect, generate EXACTLY 3 immediate micro-tasks for this user to star
 These tasks should be TINY, effortless actions (under 10 mins) that feel like quick wins.
 
 Each task must have:
-1. "task_content": Ultra-short action phrase (3-6 words ideal, 8 words MAX). Examples: "Save $10 today", "Text one friend", "Walk 10 minutes", "Research one job", "Call a family member".
+1. "task_content": Short action phrase (4-7 words ideal, 10 words MAX). Examples: "Save $10 today", "Text one friend", "Walk 10 minutes", "Research one job", "Call a family member".
 2. "category": One of: "Financial", "Personal", "Lifestyle", "Career", "Health", "Growth". (Note: Career tasks count towards Financial progress).
 3. "scheduled_date": Set this to today's date in YYYY-MM-DD format.
 
@@ -3351,3 +3351,76 @@ Example:
     return { increments: { "Growth": 1.0 }, rationale: "Consistent daily action leads to steady growth." };
   }
 }
+
+/**
+ * Recalculate dream self progress and estimated days when current or dream twin details change.
+ */
+export async function recalculateDreamProgress(
+  oldProfile: any,
+  newProfile: any,
+  oldProgress: Record<string, number>,
+  oldEstDays: number | string
+): Promise<{ dream_self_progress: Record<string, number>; est_days_remaining: number }> {
+  try {
+    const systemPrompt = `You are The Architect. A user has updated their Current Digital Twin or their Dream Self Goal. 
+    Your job is to intelligently adjust their progress percentages and estimated days remaining based on the new "gap".
+    
+    LOGIC:
+    1. If the gap has WIDENED (e.g., harder goal, or current situation got worse):
+       - Decrease progress percentages slightly (reflecting that there is now more work to do).
+       - Increase estimated days remaining.
+    2. If the gap has NARROWED (e.g., easier goal, or current situation improved):
+       - Increase progress percentages slightly (reflecting that they are now closer to the goal).
+       - Decrease estimated days remaining.
+    3. If the change is NEUTRAL or minor:
+       - Keep values mostly the same.
+    
+    Be smart: don't just reset to 0% unless the goal is completely different. Respect the work they've already done.
+    
+    Return ONLY JSON.`;
+
+    const userPrompt = `
+    OLD Current Twin: ${JSON.stringify({
+      location: oldProfile.current_location,
+      net_worth: oldProfile.net_worth,
+      job: (oldProfile.core_json as any)?.primary_role
+    })}
+    OLD Dream Goal: ${JSON.stringify(oldProfile.dream_vision)}
+    OLD Progress: ${JSON.stringify(oldProgress)}
+    OLD Estimated Days: ${oldEstDays}
+
+    NEW Current Twin: ${JSON.stringify({
+      location: newProfile.current_location,
+      net_worth: newProfile.net_worth,
+      job: (newProfile.core_json as any)?.primary_role
+    })}
+    NEW Dream Goal: ${JSON.stringify(newProfile.dream_vision)}
+
+    Based on these changes, provide the updated progress percentages and estimated days.
+    
+    Return a JSON object with:
+    1. "dream_self_progress": Updated object with categories "Financial", "Personal", "Lifestyle", "Health", "Growth".
+    2. "est_days_remaining": Updated integer.
+    `;
+
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.3,
+    });
+
+    const result = JSON.parse(content);
+    return {
+      dream_self_progress: result.dream_self_progress,
+      est_days_remaining: Math.max(1, Number(result.est_days_remaining))
+    };
+  } catch (error) {
+    console.error('Recalculation error:', error);
+    return {
+      dream_self_progress: oldProgress,
+      est_days_remaining: Number(oldEstDays)
+    };
+  }
+}
+

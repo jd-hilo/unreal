@@ -158,4 +158,24 @@ export function SimulationsGradientIcon({ size = 24 }: IconProps) {
   );
 }
 
+// Orange/Red Gradient: #FF9A9E to #FECFEF (Flame)
+export function FlameGradientIcon({ size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Defs>
+        <SvgLinearGradient id="flameGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor="#FF9A9E" />
+          <Stop offset="50%" stopColor="#FECFEF" />
+          <Stop offset="100%" stopColor="#FF6B6B" />
+        </SvgLinearGradient>
+      </Defs>
+      <Path
+        d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.1.2-2.2.6-3.3.1.3.4.7.9 1.8z"
+        fill="url(#flameGrad)"
+        stroke="none"
+      />
+    </Svg>
+  );
+}
+
 
