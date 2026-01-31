@@ -29,6 +29,7 @@ export default function SimulateDashboard() {
   const [profileData, setProfileData] = useState<any>(null);
   const [checkingFields, setCheckingFields] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Load profile data immediately (fast)
   const loadProfileData = useCallback(async () => {
@@ -70,11 +71,17 @@ export default function SimulateDashboard() {
   useFocusEffect(
     useCallback(() => {
       slideAnim.setValue(0);
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
       if (user) {
         loadProfileData();
         loadTimelines();
       }
-    }, [user, slideAnim, loadProfileData, loadTimelines])
+    }, [user, slideAnim, fadeAnim, loadProfileData, loadTimelines])
   );
 
   async function handleCreatePress() {
@@ -153,6 +160,7 @@ export default function SimulateDashboard() {
         styles.container,
         {
           transform: [{ translateX: slideAnim }],
+          opacity: fadeAnim,
         }
       ]}
     >

@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native
 import { useRef, useEffect } from 'react';
 import { Edit2, Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Fonts } from '@/constants/Theme';
 
 interface SwipeableOptionCardProps {
@@ -75,7 +76,14 @@ export function SwipeableOptionCard({
 
             {/* Number badge */}
             <View style={styles.numberBadge}>
-              <Text style={styles.numberText}>{index + 1}</Text>
+              <LinearGradient
+                colors={['#FF9F43', '#FF6B6B']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.numberBadgeGradient}
+              >
+                <Text style={styles.numberText}>{index + 1}</Text>
+              </LinearGradient>
             </View>
 
             {/* Option text */}
@@ -135,10 +143,16 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#febda1',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 0,
+  },
+  numberBadgeGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   numberText: {
     fontSize: 14,

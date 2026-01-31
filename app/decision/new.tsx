@@ -25,24 +25,35 @@ const TOTAL_STEPS = 4;
 
 export default function NewDecisionScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ question?: string | string[]; autoSubmit?: string | string[] }>();
+  const params = useLocalSearchParams<{ question?: string | string[]; autoSubmit?: string | string[]; options?: string | string[]; step?: string | string[] }>();
   const user = useAuth((state) => state.user);
   
   // Safely extract params (handle both string and array cases)
   const questionParam = Array.isArray(params.question) ? params.question[0] : params.question;
   const autoSubmitParam = Array.isArray(params.autoSubmit) ? params.autoSubmit[0] : params.autoSubmit;
+  const optionsParam = Array.isArray(params.options) ? params.options[0] : params.options;
+  const stepParam = Array.isArray(params.step) ? params.step[0] : params.step;
   const autoSubmit = autoSubmitParam === 'true';
   const autoSubmitStarted = useRef(false);
   
   // Step management
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(stepParam ? parseInt(stepParam) : 1);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const questionInputRef = useRef<TextInput>(null);
   
   // Form data
   const [question, setQuestion] = useState(questionParam || '');
-  const [derivedOptions, setDerivedOptions] = useState<string[]>([]);
+  const [derivedOptions, setDerivedOptions] = useState<string[]>(() => {
+    if (optionsParam) {
+      try {
+        return JSON.parse(optionsParam);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
   const [isDerivingOptions, setIsDerivingOptions] = useState(false);
   const [loading, setLoading] = useState(autoSubmit); // Show loading immediately if autoSubmit
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
@@ -112,7 +123,7 @@ export default function NewDecisionScreen() {
           if (!questionToUse) {
             const corePack = await buildCorePack(user.id);
             const questions = await generateInterestingDecisionQuestions(corePack, 3);
-            questionToUse = questions[0] || 'Should I make this change?';
+            questionToUse = (typeof questions[0] === 'string' ? questions[0] : questions[0]?.question) || 'Should I make this change?';
           }
 
           setQuestion(questionToUse);
@@ -731,121 +742,144 @@ export default function NewDecisionScreen() {
   function renderStep3() {
     return (
       <View style={styles.stepContainer}>
-        {addedTwins.length > 0 ? (
-          <View style={styles.twinAddedCard}>
-            <View style={styles.twinAddedBlur}>
-              <View style={styles.twinAddedContent}>
-                <View style={styles.twinAddedInfo}>
-                  <View style={styles.twinAddedIconContainer}>
-                    <UserPlus size={20} color={Colors.textPrimary} />
+        <View style={styles.optionsContainer}>
+          {addedTwins.length > 0 ? (
+            <View style={styles.twinCard}>
+              <View style={styles.twinCardBlur}>
+                <View style={styles.twinCardContent}>
+                  <View style={styles.twinCardInfo}>
+                    <View style={styles.twinCardIcon}>
+                      <UserPlus size={20} color={Colors.textPrimary} />
+                    </View>
+                    <View style={styles.twinCardText}>
+                      <Text style={styles.twinCardName}>{addedTwins[0].name}</Text>
+                      <Text style={styles.twinCardLabel}>Collaborator</Text>
+                    </View>
                   </View>
-                  <Text style={styles.twinAddedName}>{addedTwins[0].name} added</Text>
+                  <TouchableOpacity 
+                    onPress={() => handleRemoveTwin(addedTwins[0].userId)}
+                    style={styles.twinRemoveButton}
+                  >
+                    <X size={18} color={Colors.textTertiary} />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity 
-                  onPress={() => handleRemoveTwin(addedTwins[0].userId)}
-                  style={styles.removeTwinButton}
-                >
-                  <X size={20} color={Colors.textTertiary} />
-                </TouchableOpacity>
               </View>
             </View>
-          </View>
-        ) : (
-          <>
-            {!hasShared ? (
-              <View style={styles.collaboratorSection}>
+          ) : (
+            <>
+              {!hasShared ? (
                 <TouchableOpacity
                   onPress={handleShare}
-                  style={styles.airbudsCard}
+                  style={styles.twinCard}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.airbudsGradient}>
-                    <View style={styles.airbudsInner}>
-                      <View style={styles.airbudsIconCircle}>
-                        <Plus size={32} color={Colors.textPrimary} strokeWidth={2.5} />
+                  <View style={styles.twinCardBlur}>
+                    <View style={styles.twinCardContent}>
+                      <View style={styles.twinCardInfo}>
+                        <View style={styles.twinCardIcon}>
+                          <Plus size={20} color={Colors.textPrimary} />
+                        </View>
+                        <Text style={styles.twinCardInviteText}>Tap to invite</Text>
                       </View>
-                      <Text style={styles.airbudsText}>Tap to invite</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
-              </View>
-            ) : (
-              <>
-                <View style={styles.codeLabelRow}>
-                  <TouchableOpacity 
-                    onPress={() => setShowInfoModal(true)}
-                    style={styles.infoButton}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Info size={18} color={Colors.textTertiary} strokeWidth={2} />
-                  </TouchableOpacity>
-                </View>
-                <FloatingLabelInput
-                  label="6 digit mora#"
-                  value={twinCode}
-                  onChangeText={(text) => {
-                    setTwinCode(text);
-                    setTwinCodeError('');
-                    setFoundTwin(null);
-                  }}
-                  maxLength={6}
-                  keyboardType="number-pad"
-                  error={twinCodeError}
-                  returnKeyType="done"
-                  onSubmitEditing={handleLookupTwin}
-                />
-
-                {foundTwin && (
-                  <View style={styles.foundTwinCard}>
-                    <View style={styles.foundTwinContent}>
-                      <View style={styles.foundTwinIcon}>
-                        <UserPlus size={20} color={Colors.gradients.turquoise[0]} />
-                      </View>
-                      <View style={styles.foundTwinInfo}>
-                        <Text style={styles.foundTwinName}>{foundTwin.name}</Text>
-                        <Text style={styles.foundTwinCode}>#{foundTwin.code}</Text>
+              ) : (
+                <>
+                  <View style={styles.twinInputCard}>
+                    <View style={styles.twinInputCardBlur}>
+                      <View style={styles.twinInputCardContent}>
+                        <View style={styles.twinInputHeader}>
+                          <Text style={styles.twinInputLabel}>6 digit mora#</Text>
+                          <TouchableOpacity 
+                            onPress={() => setShowInfoModal(true)}
+                            style={styles.twinInfoButton}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          >
+                            <Info size={16} color={Colors.textTertiary} strokeWidth={2} />
+                          </TouchableOpacity>
+                        </View>
+                        <TextInput
+                          style={styles.twinCodeInput}
+                          value={twinCode}
+                          onChangeText={(text) => {
+                            setTwinCode(text);
+                            setTwinCodeError('');
+                            setFoundTwin(null);
+                          }}
+                          maxLength={6}
+                          keyboardType="number-pad"
+                          placeholder="000000"
+                          placeholderTextColor={Colors.textTertiary}
+                        />
+                        {twinCodeError ? (
+                          <Text style={styles.twinCodeError}>{twinCodeError}</Text>
+                        ) : null}
                       </View>
                     </View>
                   </View>
-                )}
 
-                {!foundTwin && (
-                  <TouchableOpacity
-                    onPress={handleLookupTwin}
-                    disabled={lookingUpTwin || twinCode.length !== 6}
-                    style={[
-                      styles.lookupButton,
-                      (lookingUpTwin || twinCode.length !== 6) && styles.lookupButtonDisabled
-                    ]}
-                    activeOpacity={0.9}
-                  >
-                    {lookingUpTwin ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.lookupButtonText}>Find Twin</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
+                  {foundTwin && (
+                    <View style={styles.twinCard}>
+                      <View style={styles.twinCardBlur}>
+                        <View style={styles.twinCardContent}>
+                          <View style={styles.twinCardInfo}>
+                            <View style={styles.twinCardIcon}>
+                              <UserPlus size={20} color={Colors.gradients.turquoise[0]} />
+                            </View>
+                            <View style={styles.twinCardText}>
+                              <Text style={styles.twinCardName}>{foundTwin.name}</Text>
+                              <Text style={styles.twinCardCode}>#{foundTwin.code}</Text>
+                            </View>
+                          </View>
+                          <TouchableOpacity
+                            onPress={handleAddFoundTwin}
+                            activeOpacity={0.9}
+                            style={styles.twinAddButtonWrapper}
+                          >
+                            <LinearGradient
+                              colors={['#FF9F43', '#FF6B6B']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={styles.twinAddButton}
+                            >
+                              <Text style={styles.twinAddButtonText}>Add</Text>
+                            </LinearGradient>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  )}
 
-                {foundTwin && (
-                  <TouchableOpacity
-                    onPress={handleAddFoundTwin}
-                    activeOpacity={0.9}
-                    style={styles.addTwinButton}
-                  >
-                    <LinearGradient
-                      colors={Colors.gradients.turquoise}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                    <Text style={styles.addTwinButtonText}>Add Twin</Text>
-                  </TouchableOpacity>
-                )}
-              </>
-            )}
-          </>
-        )}
+                  {!foundTwin && (
+                    <TouchableOpacity
+                      onPress={handleLookupTwin}
+                      disabled={lookingUpTwin || twinCode.length !== 6}
+                      style={styles.twinLookupButtonWrapper}
+                      activeOpacity={0.9}
+                    >
+                      <LinearGradient
+                        colors={['#FF9F43', '#FF6B6B']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          styles.twinLookupButton,
+                          (lookingUpTwin || twinCode.length !== 6) && styles.twinLookupButtonDisabled
+                        ]}
+                      >
+                        {lookingUpTwin ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Text style={styles.twinLookupButtonText}>Find Twin</Text>
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </View>
       </View>
     );
   }
@@ -854,32 +888,49 @@ export default function NewDecisionScreen() {
   function renderStep4() {
     return (
       <View style={styles.stepContainer}>
-        <View style={styles.reviewCard}>
-          <View style={styles.reviewBlur}>
-            <View style={styles.reviewContent}>
-              <Text style={styles.reviewLabel}>Question</Text>
-              <Text style={styles.reviewValue}>{question}</Text>
-
-              <Text style={[styles.reviewLabel, styles.reviewLabelSpaced]}>
-                Options ({derivedOptions.length})
-              </Text>
-              {derivedOptions.map((option, index) => (
-                <View key={index} style={styles.reviewOption}>
-                  <Text style={styles.reviewOptionNumber}>{index + 1}.</Text>
-                  <Text style={styles.reviewOptionText}>{option}</Text>
-                </View>
-              ))}
-
-              {addedTwins.length > 0 && (
-                <>
-                  <Text style={[styles.reviewLabel, styles.reviewLabelSpaced]}>
-                    Collaborator
-                  </Text>
-                  <Text style={styles.reviewValue}>{addedTwins[0].name}</Text>
-                </>
-              )}
+        <View style={styles.optionsContainer}>
+          {/* Question Card */}
+          <View style={styles.reviewCard}>
+            <View style={styles.reviewCardBlur}>
+              <View style={styles.reviewCardContent}>
+                <Text style={styles.reviewCardLabel}>Question</Text>
+                <Text style={styles.reviewCardValue}>{question}</Text>
+              </View>
             </View>
           </View>
+
+          {/* Options Cards */}
+          {derivedOptions.map((option, index) => (
+            <View key={index} style={styles.reviewOptionCard}>
+              <View style={styles.reviewOptionCardBlur}>
+                <View style={styles.reviewOptionCardContent}>
+                  <View style={styles.reviewOptionNumber}>
+                    <LinearGradient
+                      colors={['#FF9F43', '#FF6B6B']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.reviewOptionNumberGradient}
+                    >
+                      <Text style={styles.reviewOptionNumberText}>{index + 1}</Text>
+                    </LinearGradient>
+                  </View>
+                  <Text style={styles.reviewOptionText}>{option}</Text>
+                </View>
+              </View>
+            </View>
+          ))}
+
+          {/* Collaborator Card */}
+          {addedTwins.length > 0 && (
+            <View style={styles.reviewCard}>
+              <View style={styles.reviewCardBlur}>
+                <View style={styles.reviewCardContent}>
+                  <Text style={styles.reviewCardLabel}>Collaborator</Text>
+                  <Text style={styles.reviewCardValue}>{addedTwins[0].name}</Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
       </View>
     );
@@ -1067,7 +1118,7 @@ export default function NewDecisionScreen() {
                   progress={progress}
                   showLabel={false}
                   height={4}
-                  gradientColors={['#febda1', '#febda1']}
+                  gradientColors={['#FF9F43', '#FF6B6B']}
                   trackColor="rgba(0,0,0,0.05)"
                 />
               </View>
@@ -1122,12 +1173,15 @@ export default function NewDecisionScreen() {
                   ]}
                 >
                   {canProceed && !loading && !isDerivingOptions ? (
-                    <View
+                    <LinearGradient
+                      colors={['#FF9F43', '#FF6B6B']}
                       style={[
                         styles.floatingButton,
                         styles.floatingButtonActiveBorder,
-                        { backgroundColor: '#febda1' }
+                        { padding: 0 }
                       ]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
                     >
                       {currentStep === 4 && (
                         <View style={styles.cubeIconShadowWrapper}>
@@ -1145,7 +1199,7 @@ export default function NewDecisionScreen() {
                         size={20} 
                         color="#FFFFFF" 
                       />
-                    </View>
+                    </LinearGradient>
                   ) : (
                     <View style={styles.floatingButton}>
                       {currentStep === 4 && (
@@ -1318,7 +1372,7 @@ const styles = StyleSheet.create({
   },
   greetingRest: {
     color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
+    fontFamily: Fonts.primary.regular,
   },
   greetingSubtext: {
     color: Colors.textSecondary,
@@ -1757,18 +1811,190 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.05)',
     backgroundColor: '#FFFFFF',
     shadowColor: 'rgba(0, 0, 0, 0.05)',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 12,
   },
-  reviewBlur: {
+  // Twin card styles (matching SwipeableOptionCard)
+  twinCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
     backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 12,
   },
-  reviewContent: {
-    padding: 16,
+  twinCardBlur: {
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
   },
-  reviewLabel: {
+  twinCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    gap: 10,
+  },
+  twinCardInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  twinCardIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  twinCardText: {
+    flex: 1,
+  },
+  twinCardName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    lineHeight: 21,
+  },
+  twinCardLabel: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.regular,
+    marginTop: 2,
+  },
+  twinCardCode: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    marginTop: 2,
+  },
+  twinCardInviteText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    lineHeight: 21,
+  },
+  twinRemoveButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  twinAddButtonWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  twinAddButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  twinAddButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  twinInputCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 12,
+  },
+  twinInputCardBlur: {
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  twinInputCardContent: {
+    padding: 14,
+  },
+  twinInputHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  twinInputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontFamily: Fonts.secondary.bold,
+  },
+  twinInfoButton: {
+    padding: 4,
+  },
+  twinCodeInput: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 4,
+    paddingVertical: 4,
+  },
+  twinCodeError: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
+    fontFamily: Fonts.secondary.regular,
+  },
+  twinLookupButtonWrapper: {
+    width: '100%',
+    marginTop: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#FF9F43',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  twinLookupButton: {
+    width: '100%',
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  twinLookupButtonDisabled: {
+    opacity: 0.5,
+    shadowOpacity: 0,
+  },
+  twinLookupButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  // Review card styles (matching SwipeableOptionCard)
+  reviewCardBlur: {
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  reviewCardContent: {
+    padding: 14,
+  },
+  reviewCardLabel: {
     fontSize: 12,
     fontWeight: '600',
     color: Colors.textTertiary,
@@ -1777,33 +2003,62 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontFamily: Fonts.secondary.bold,
   },
-  reviewLabelSpaced: {
-    marginTop: 20,
-  },
-  reviewValue: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: Colors.textPrimary,
-    lineHeight: 24,
-    fontFamily: Fonts.secondary.bold,
-  },
-  reviewOption: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
-  reviewOptionNumber: {
+  reviewCardValue: {
     fontSize: 15,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: Colors.textPrimary,
+    lineHeight: 21,
+    fontFamily: Fonts.secondary.bold,
+  },
+  reviewOptionCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 12,
+  },
+  reviewOptionCardBlur: {
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  reviewOptionCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 10,
+  },
+  reviewOptionNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewOptionNumberGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewOptionNumberText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
     fontFamily: Fonts.secondary.bold,
   },
   reviewOptionText: {
     flex: 1,
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.textPrimary,
-    lineHeight: 22,
+    lineHeight: 21,
     fontFamily: Fonts.secondary.bold,
   },
   modalOverlay: {

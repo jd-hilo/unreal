@@ -177,7 +177,7 @@ export default function OnboardingCompleteScreen() {
       // Generate question
       const corePack = await buildCorePack(user.id);
       const questions = await generateInterestingDecisionQuestions(corePack, 3);
-      const question = questions[0] || 'Should I make this change?';
+      const question = (typeof questions[0] === 'string' ? questions[0] : questions[0]?.question) || 'Should I make this change?';
 
       // Derive options
       const options = await deriveDecisionOptionsWithContext(question, corePack);

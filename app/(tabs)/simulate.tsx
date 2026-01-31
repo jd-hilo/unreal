@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getTimelines, deleteTimeline, getProfile, getRelationships } from '@/lib/storage';
-import { ChevronRight, Zap, Play, Users, Plus } from 'lucide-react-native';
+import { ChevronRight, Zap, Play, Users, Plus, Compass } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -38,9 +38,11 @@ export default function SimulateTab() {
       setProfileData(profile);
       setTimelines(timelinesData || []);
       
+      // Fade in animation
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 500,
+        duration: 600,
+        delay: 100,
         useNativeDriver: true,
       }).start();
     } catch (error) {
@@ -50,8 +52,10 @@ export default function SimulateTab() {
 
   useFocusEffect(
     useCallback(() => {
+      // Reset and fade in animation
+      fadeAnim.setValue(0);
       loadData();
-    }, [loadData])
+    }, [loadData, fadeAnim])
   );
 
   async function handleCreatePress() {
@@ -105,7 +109,10 @@ export default function SimulateTab() {
         >
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>Simulate</Text>
+              <View style={styles.titleRow}>
+                <Compass size={32} color={Colors.textPrimary} strokeWidth={2} />
+                <Text style={styles.title}>Simulate</Text>
+              </View>
               <Text style={styles.subtitle}>Experience possible futures</Text>
             </View>
             <TouchableOpacity onPress={handleCreatePress} style={styles.plusButton}>
@@ -172,6 +179,7 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   content: { padding: 24, paddingBottom: 100 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { fontSize: 32, fontFamily: Fonts.primary.regular, color: Colors.textPrimary },
   subtitle: { fontSize: 16, color: Colors.textSecondary, fontFamily: Fonts.secondary.regular },
   plusButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' },

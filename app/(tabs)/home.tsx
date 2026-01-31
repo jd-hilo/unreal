@@ -96,6 +96,7 @@ export default function HomeScreen() {
   const initialProfileRef = useRef<any>(null);
   const taskScrollViewRef = useRef<ScrollView>(null);
   const regenerateRotateAnim = useRef(new Animated.Value(0)).current;
+  const greetingFadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (isRegenerating) {
@@ -111,6 +112,16 @@ export default function HomeScreen() {
       regenerateRotateAnim.setValue(0);
     }
   }, [isRegenerating]);
+
+  useEffect(() => {
+    // Fade in the greeting when component mounts
+    Animated.timing(greetingFadeAnim, {
+      toValue: 1,
+      duration: 800,
+      delay: 200,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   const spin = regenerateRotateAnim.interpolate({
     inputRange: [0, 1],
@@ -435,15 +446,24 @@ export default function HomeScreen() {
         }
       }
 
-      // Check for Discord modal (Twin Society) - Show only once for new users
+      // Check for Discord modal (Twin Society) - Show only on 6th visit
       const hasSeenDiscordModal = await AsyncStorage.getItem('has_seen_discord_modal');
       if (!hasSeenDiscordModal) {
-        // Delay slightly to let animations finish or feel more natural
-        setTimeout(() => {
-          setShowDiscordModal(true);
-          trackEvent(MixpanelEvents.TWIN_SOCIETY_MODAL_VIEWED, { source: 'auto' });
-          AsyncStorage.setItem('has_seen_discord_modal', 'true');
-        }, 1500);
+        // Get current visit count
+        const visitCountStr = await AsyncStorage.getItem('app_visit_count');
+        const visitCount = visitCountStr ? parseInt(visitCountStr, 10) : 0;
+        const newVisitCount = visitCount + 1;
+        await AsyncStorage.setItem('app_visit_count', newVisitCount.toString());
+        
+        // Only show modal on 6th visit
+        if (newVisitCount === 6) {
+          // Delay slightly to let animations finish or feel more natural
+          setTimeout(() => {
+            setShowDiscordModal(true);
+            trackEvent(MixpanelEvents.TWIN_SOCIETY_MODAL_VIEWED, { source: 'auto' });
+            AsyncStorage.setItem('has_seen_discord_modal', 'true');
+          }, 1500);
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -539,6 +559,9 @@ export default function HomeScreen() {
       const updatedTask = await updateDailyTask(task.id, { is_completed: true });
       const newTasks = dailyTasks.map(t => t.id === task.id ? updatedTask : t);
       setDailyTasks(newTasks);
+      
+      // Haptic feedback for task completion
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       // Scroll to next uncompleted task
       const nextTaskIndex = dailyTasks.findIndex((t, idx) => t.id === task.id) + 1;
@@ -570,6 +593,13 @@ export default function HomeScreen() {
     setIsRegenerating(true);
     setDailyTasks([]); // Clear immediately for instant feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    // Also clear decide page suggestions so they regenerate
+    try {
+      await AsyncStorage.removeItem(`decide_suggested_questions_${user.id}`);
+    } catch (error) {
+      console.warn('Could not clear decide suggestions:', error);
+    }
     
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -849,16 +879,6 @@ export default function HomeScreen() {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
         >
-            {/* Main Header */}
-            <View style={styles.headerContainer}>
-              <View style={styles.headerLeft}>
-                <Text style={styles.greeting}>
-                  <Text style={styles.greetingName}>Hi {userName || 'Friend'},{'\n'}</Text>
-                  <Text style={styles.greetingRest}>What do you want to{'\n'}explore right now?</Text>
-                </Text>
-              </View>
-            </View>
-
             {/* Distance to Dream Self Card */}
             {profileData?.dream_vision && (
               <TouchableOpacity 
@@ -1447,47 +1467,32 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: Fonts.secondary.bold,
   },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-    marginTop: 8,
+  greetingContainer: {
+    marginBottom: 12,
+    paddingTop: 8,
+    paddingLeft: 4,
   },
-  headerLeft: {
-    flex: 1,
-  },
-  headerRight: {
-    width: 70,
-    height: 70,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerEmoji: {
-    width: 80,
-    height: 80,
-    transform: [{ scale: 1 }],
-  },
-  greeting: {
-    fontSize: 22,
-    lineHeight: 24,
-    fontFamily: Fonts.primary.regular,
-    letterSpacing: -0.5,
-  },
-  greetingName: {
-    color: Colors.textSecondary,
+  greetingText: {
     fontSize: 20,
-    fontFamily: Fonts.primary.regular,
-  },
-  greetingRest: {
+    fontFamily: Fonts.primary.semibold,
     color: Colors.textPrimary,
-    fontSize: 20,
+    lineHeight: 28,
+    textAlign: 'left',
+    fontWeight: '600',
+  },
+  greetingSubtext: {
+    fontSize: 22,
     fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
+    lineHeight: 30,
+    textAlign: 'left',
+    fontWeight: '700',
+    marginTop: 4,
   },
   // Dream Self Card
   dreamSelfCard: {
     marginTop: 16,
-    marginBottom: 24,
+    marginBottom: 12,
     backgroundColor: '#FFFFFF',
     borderRadius: 32,
     padding: 24,
@@ -1551,11 +1556,11 @@ const styles = StyleSheet.create({
   },
   // Architect Section
   architectSection: {
-    marginTop: 24,
-    marginBottom: 100,
+    marginTop: 16,
+    marginBottom: 24,
     backgroundColor: '#FFFFFF',
     borderRadius: 32,
-    padding: 24,
+    padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
     shadowColor: 'rgba(0,0,0,0.05)',
@@ -1624,12 +1629,15 @@ const styles = StyleSheet.create({
   },
   taskCarouselContainer: {
     paddingTop: 16,
-    paddingBottom: 24,
+    paddingBottom: 16,
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
   },
   pathList: {
     flexDirection: 'row',
     paddingRight: 24,
     paddingLeft: 4,
+    paddingVertical: 12,
     gap: 12,
   },
   taskCardGradient: {
@@ -1641,6 +1649,7 @@ const styles = StyleSheet.create({
     width: width * 0.50,
     flexDirection: 'column',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
@@ -1654,9 +1663,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 4,
-    minHeight: 140,
-    marginTop: 8,
-    marginBottom: 8,
+    height: 140,
   },
   taskCardCompleted: {
     backgroundColor: '#F8F8F8',
@@ -1695,6 +1702,8 @@ const styles = StyleSheet.create({
   },
   taskContent: {
     width: '100%',
+    flex: 1,
+    justifyContent: 'flex-start',
   },
   taskCategoryBadge: {
     alignSelf: 'flex-start',
@@ -1713,11 +1722,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
   },
   taskText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
-    lineHeight: 24,
+    lineHeight: 20,
     paddingHorizontal: width * 0.04, // 4% of screen width
     paddingVertical: width * 0.02, // 2% of screen width
   },
@@ -2000,7 +2009,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,

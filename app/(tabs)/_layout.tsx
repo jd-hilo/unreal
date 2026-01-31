@@ -87,7 +87,7 @@ export default function TabLayout() {
         options={{
           title: 'Decide',
           tabBarIcon: ({ focused, color, size }) => (
-            <CheckCircle size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <Compass size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -96,7 +96,7 @@ export default function TabLayout() {
         options={{
           title: 'Simulate',
           tabBarIcon: ({ focused, color, size }) => (
-            <Compass size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <CheckCircle size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />

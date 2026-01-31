@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Platform, Pressable, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -18,14 +18,14 @@ import { Colors, Fonts } from '@/constants/Theme';
 
 const WELCOME_LINES = [
   'welcome to mora',
-  'we help you make sense of big life decisions',
-  '(and the small ones too, like what movie to watch tonight)',
-  'we build a digital twin of you and run it through alternate lifelines',
-  'so you can choose the best path',
+  'we help you achieve your dream self.',
+  'by building a digital twin of you and who you want to be.',
+  'and help you close the gap.',
+  'get answers to decisions, run simulations, track real progress.',
   'ready to begin?',
 ];
 
-const LINE_FONT_SIZES = [23, 20, 20, 20, 20, 20]; // Same size for all except first line
+const LINE_FONT_SIZES = [23, 20, 20, 20, 20, 18]; // Smaller for last line
 const LIFT_AMOUNT = 0; // Don't lift lines - keep all visible
 const LIFT_DURATION = 250; // ms
 
@@ -40,37 +40,51 @@ export default function WelcomeScreen() {
   const logoOpacity = useSharedValue(0);
   const logoScale = useSharedValue(0.9);
 
-  const handleLineStart = (lineIndex: number) => {
+  // Store lineOpacities in ref for stable access in callbacks
+  const lineOpacitiesRef = useRef(lineOpacities);
+  lineOpacitiesRef.current = lineOpacities;
+
+  const handleLineStart = useCallback((lineIndex: number) => {
     // Trigger haptic at start of each line
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Fade in current line and keep it visible
-    lineOpacities[lineIndex].value = withTiming(1, {
+    lineOpacitiesRef.current[lineIndex].value = withTiming(1, {
       duration: 250,
       easing: Easing.out(Easing.ease),
     });
 
     // Don't lift previous lines - keep all visible
-  };
+  }, []);
 
-  const handleLineComplete = (lineIndex: number) => {
+  const handleLineComplete = useCallback((lineIndex: number) => {
     // No haptic here, only at start
-  };
+  }, []);
 
-  const handleCharTyped = () => {
+  const handleCharTyped = useCallback(() => {
     // Light haptic for each character typed
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  }, []);
 
-  const handleAllComplete = () => {
+  // Store shared values in refs for stable access in callbacks
+  const logoOpacityRef = useRef(logoOpacity);
+  const logoScaleRef = useRef(logoScale);
+  const buttonOpacityRef = useRef(buttonOpacity);
+  const buttonScaleRef = useRef(buttonScale);
+  logoOpacityRef.current = logoOpacity;
+  logoScaleRef.current = logoScale;
+  buttonOpacityRef.current = buttonOpacity;
+  buttonScaleRef.current = buttonScale;
+
+  const handleAllComplete = useCallback(() => {
     // Success haptic after final line
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // Wait 4 seconds after "ready to begin?" shows, then fade out all text
+    // Wait 4 seconds after final line shows, then fade out all text
     setTimeout(() => {
       // Fade out all text lines
       WELCOME_LINES.forEach((_, index) => {
-        lineOpacities[index].value = withTiming(0, {
+        lineOpacitiesRef.current[index].value = withTiming(0, {
           duration: 500,
           easing: Easing.out(Easing.ease),
         });
@@ -79,28 +93,28 @@ export default function WelcomeScreen() {
       // After text fades out, fade in logo and button
     setTimeout(() => {
       // Fade in logo in the middle
-      logoOpacity.value = withTiming(1, {
+      logoOpacityRef.current.value = withTiming(1, {
         duration: 600,
         easing: Easing.out(Easing.ease),
       });
-      logoScale.value = withSpring(1.0, {
+      logoScaleRef.current.value = withSpring(1.0, {
         damping: 15,
         stiffness: 150,
       });
 
       // Show button at bottom at the same time
       setButtonVisible(true);
-      buttonOpacity.value = withTiming(1, {
+      buttonOpacityRef.current.value = withTiming(1, {
         duration: 500,
         easing: Easing.out(Easing.ease),
       });
-      buttonScale.value = withSpring(1.0, {
+      buttonScaleRef.current.value = withSpring(1.0, {
         damping: 15,
         stiffness: 150,
       });
       }, 500); // Wait for text fade out to complete
-    }, 4000); // Wait 4 seconds after "ready to begin?" shows
-  };
+    }, 4000); // Wait 4 seconds after final line shows
+  }, []);
 
   const { displayedLines, isComplete } = useTypewriter(WELCOME_LINES, {
     speed: 30, // Slower typing speed

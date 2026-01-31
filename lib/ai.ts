@@ -2287,13 +2287,14 @@ function mockYearPrediction(scenarioType: 'estimated' | 'best_case' | 'worst_cas
  */
 export async function generateInterestingDecisionQuestions(
   corePack: string,
-  count: number = 3
-): Promise<string[]> {
+  count: number = 3,
+  excludedQuestions: string[] = []
+): Promise<Array<{ question: string; category: string }>> {
   if (DEV_MODE) {
     return [
-      'Should I take the new job offer?',
-      'Should I move to a new city?',
-      'Should I start my own business?'
+      { question: 'Should I take the new job offer?', category: 'Career' },
+      { question: 'Should I move to a new city?', category: 'Lifestyle' },
+      { question: 'Should I start my own business?', category: 'Career' }
     ];
   }
 
@@ -2305,14 +2306,16 @@ export async function generateInterestingDecisionQuestions(
     '- Make them thought-provoking and meaningful - questions they would actually want to know',
     '- Keep questions concise (under 15 words)',
     '- Focus on decisions that matter: career, relationships, lifestyle, major life changes',
-    '- Use SECOND PERSON (you/your)',
+    '- Use FIRST PERSON (I/my)',
     '- Make them specific to their profile when possible',
+    '- Categorize each question into one of: Career, Relationships, Lifestyle, Growth, Finance, Health',
+    excludedQuestions.length > 0 ? `- DO NOT generate any of the following questions or anything very similar: ${excludedQuestions.join(', ')}` : '',
     '',
     'Examples:',
-    '- "Should I take the remote job offer in Austin?"',
-    '- "Should I move in with my partner this year?"',
-    '- "Should I start freelancing on the side?"',
-    '- "Should I go back to school for my master\'s?"',
+    '- { "question": "Should I take the remote job offer in Austin?", "category": "Career" }',
+    '- { "question": "Should I move in with my partner this year?", "category": "Relationships" }',
+    '- { "question": "Should I start freelancing on the side?", "category": "Career" }',
+    '- { "question": "Should I go back to school for my master\'s?", "category": "Growth" }',
   ].join('\n');
 
   const userPrompt = [
@@ -2325,9 +2328,9 @@ export async function generateInterestingDecisionQuestions(
     'Return JSON:',
     '{',
     '  "questions": [',
-    '    "Should I take the new job offer?",',
-    '    "Should I move to a new city?",',
-    '    "Should I start my own business?"',
+    '    { "question": "Should I take the new job offer?", "category": "Career" },',
+    '    { "question": "Should I move to a new city?", "category": "Lifestyle" },',
+    '    { "question": "Should I start my own business?", "category": "Career" }',
     '  ]',
     '}',
   ].join('\n');
@@ -2341,13 +2344,20 @@ export async function generateInterestingDecisionQuestions(
     });
 
     const parsed = JSON.parse(content);
-    return parsed.questions || [];
+    const questions = parsed.questions || [];
+    // Ensure backward compatibility - if questions are strings, convert them
+    return questions.map((q: any) => {
+      if (typeof q === 'string') {
+        return { question: q, category: 'Growth' };
+      }
+      return { question: q.question || q, category: q.category || 'Growth' };
+    });
   } catch (error) {
     console.error('Failed to generate decision questions:', error);
     return [
-      'Should I take the new job offer?',
-      'Should I move to a new city?',
-      'Should I start my own business?'
+      { question: 'Should I take the new job offer?', category: 'Career' },
+      { question: 'Should I move to a new city?', category: 'Lifestyle' },
+      { question: 'Should I start my own business?', category: 'Career' }
     ];
   }
 }
@@ -3208,13 +3218,14 @@ export async function generateArchitectPlan(
     You are direct, inspiring, and focused on systems rather than just motivation.
     
     CRITICAL RULES: 
-    1. Each task_content MUST be SHORT: 4-7 words ideal (never exceed 10 words). Think simple commands: "Call mom", "Save $10 today", "Walk 10 minutes", "Text one friend", "Research one apartment".
-    2. Tasks MUST be tiny micro-actions that take under 10 minutes. Make them feel effortless and impossible to skip.
+    1. Each task_content MUST be SHORT: 4-7 words ideal (never exceed 10 words). Think simple commands: "Call mom", "Save $10", "Text one friend", "Research one apartment".
+    2. Tasks MUST be tiny micro-actions that feel effortless and impossible to skip.
     3. Use simple, direct language. No fluff, no explanations, just the action.
-    4. Be specific with numbers when possible: "5 minutes", "3 options", "one person", "$10".
-    5. Rotate categories: prioritize categories where the user has the lowest progress.
-    6. Return ONLY a JSON array of 3 tasks.
-    7. Do NOT generate tasks for the following completed categories: ${completedCategories.join(', ') || 'None'}.`;
+    4. Be specific with numbers when possible: "3 options", "one person", "$10".
+    5. Do NOT include time references in task_content (no "today", "right now", or minutes).
+    6. Rotate categories: prioritize categories where the user has the lowest progress.
+    7. Return ONLY a JSON array of 3 tasks.
+    8. Do NOT generate tasks for the following completed categories: ${completedCategories.join(', ') || 'None'}.`;
 
     const userPrompt = `User: ${firstName}
 Current Digital Twin: ${twinDescription}
@@ -3237,11 +3248,11 @@ Current Progress: ${JSON.stringify(progress)}
 ${completedTasks.length > 0 ? `Recently Completed Tasks:\n- ${completedTasks.join('\n- ')}` : ''}
 ${feedback ? `User Feedback on Previous Tasks: "${feedback}"` : ''}
 
-As The Architect, generate EXACTLY 3 immediate micro-tasks for this user to start TODAY. 
-These tasks should be TINY, effortless actions (under 10 mins) that feel like quick wins.
+As The Architect, generate EXACTLY 3 micro-tasks for this user to complete during the day. 
+These tasks should be TINY, effortless actions that feel like quick wins.
 
 Each task must have:
-1. "task_content": Short action phrase (4-7 words ideal, 10 words MAX). Examples: "Save $10 today", "Text one friend", "Walk 10 minutes", "Research one job", "Call a family member".
+1. "task_content": Short action phrase (4-7 words ideal, 10 words MAX). Examples: "Save $10", "Text one friend", "Research one job", "Call a family member".
 2. "category": One of: "Financial", "Personal", "Lifestyle", "Career", "Health", "Growth". (Note: Career tasks count towards Financial progress).
 3. "scheduled_date": Set this to today's date in YYYY-MM-DD format.
 
@@ -3278,7 +3289,7 @@ Return ONLY a JSON array of 3 objects.`;
         scheduled_date: new Date().toISOString().split('T')[0]
       },
       {
-        task_content: "Journal 5 minutes",
+        task_content: "Journal one prompt",
         category: "Growth",
         scheduled_date: new Date().toISOString().split('T')[0]
       }
@@ -3420,6 +3431,50 @@ export async function recalculateDreamProgress(
     return {
       dream_self_progress: oldProgress,
       est_days_remaining: Number(oldEstDays)
+    };
+  }
+}
+
+/**
+ * Generate an inspirational quote with proper source attribution
+ */
+export async function generateInspirationalQuote(): Promise<{ quote: string; author: string }> {
+  try {
+    const systemPrompt = `You are a helpful assistant that provides authentic, inspiring quotes from real, well-known figures (authors, leaders, philosophers, entrepreneurs, etc.).
+
+Rules:
+- Provide ONLY real quotes from actual people
+- Include the full name of the author
+- Choose quotes that are motivational and inspiring
+- Make sure the quote and author are accurate and verifiable
+- Keep quotes concise (1-2 sentences max)
+- Return JSON format: { "quote": "...", "author": "..." }`;
+
+    const userPrompt = `Generate an inspirational quote with its proper source. Return JSON:
+{
+  "quote": "The quote text here",
+  "author": "Author's Full Name"
+}`;
+
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.8,
+      maxTokens: 200,
+    });
+
+    const parsed = JSON.parse(content);
+    return {
+      quote: parsed.quote || 'The only way to do great work is to love what you do.',
+      author: parsed.author || 'Steve Jobs'
+    };
+  } catch (error) {
+    console.error('Error generating quote:', error);
+    // Fallback quote
+    return {
+      quote: 'The only way to do great work is to love what you do.',
+      author: 'Steve Jobs'
     };
   }
 }
