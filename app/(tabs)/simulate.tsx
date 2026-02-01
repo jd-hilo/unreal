@@ -1,18 +1,14 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Dimensions, Image } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useCallback, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
-import { useTwin } from '@/store/useTwin';
-import { getTimelines, deleteTimeline, getProfile, getRelationships } from '@/lib/storage';
-import { ChevronRight, Zap, Play, Users, Plus, Compass } from 'lucide-react-native';
+import { Compass, Briefcase, TrendingUp, Sparkles } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
-import { formatDistanceToNow } from 'date-fns';
 import { Colors, Fonts } from '@/constants/Theme';
-import { Avatar } from '@/components/Avatar';
 
 const { width } = Dimensions.get('window');
 
@@ -20,47 +16,16 @@ export default function SimulateTab() {
   const router = useRouter();
   const navigation = useNavigation();
   const user = useAuth((state) => state.user);
-  const { isPremium } = useTwin();
-  const [timelines, setTimelines] = useState<any[]>([]);
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [timelineToDelete, setTimelineToDelete] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string>('');
-  const [profileData, setProfileData] = useState<any>(null);
-  const [checkingFields, setCheckingFields] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  const loadData = useCallback(async () => {
-    if (!user) return;
-    try {
-      const [profile, timelinesData] = await Promise.all([
-        getProfile(user.id),
-        getTimelines(user.id),
-      ]);
-      setUserName(profile?.first_name || user?.email || 'Friend');
-      setProfileData(profile);
-      setTimelines(timelinesData || []);
-      
-      // Fade in animation
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        delay: 100,
-        useNativeDriver: true,
-      }).start();
-    } catch (error) {
-      console.error('Failed to load simulate data:', error);
-    }
-  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
-      // Disable swipe-to-go-back gesture on both current and parent navigators
+      // Disable swipe-to-go-back gesture
       navigation.setOptions({
         gestureEnabled: false,
         fullScreenGestureEnabled: false,
       });
 
-      // Also disable on parent navigator if it exists
       const parent = navigation.getParent();
       if (parent) {
         parent.setOptions({
@@ -69,12 +34,16 @@ export default function SimulateTab() {
         });
       }
 
-      // Reset and fade in animation
+      // Fade in animation
       fadeAnim.setValue(0);
-      loadData();
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        delay: 100,
+        useNativeDriver: true,
+      }).start();
 
       return () => {
-        // Re-enable on cleanup if needed
         navigation.setOptions({
           gestureEnabled: true,
           fullScreenGestureEnabled: true,
@@ -86,48 +55,13 @@ export default function SimulateTab() {
           });
         }
       };
-    }, [loadData, fadeAnim, navigation])
+    }, [fadeAnim, navigation])
   );
 
-  async function handleCreatePress() {
-    if (!user || checkingFields) return;
-    const maxTimelines = isPremium ? Infinity : 1;
-    if (timelines.length >= maxTimelines) {
-      alert(isPremium ? 'Limit reached' : 'Free users can have 1 timeline. Upgrade for unlimited.');
-      return;
-    }
-
+  const handleCareerSimPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setCheckingFields(true);
-    try {
-      const [profile, relationships] = await Promise.all([
-        getProfile(user.id),
-        getRelationships(user.id),
-      ]);
-      if (!profile?.net_worth || !profile?.current_location || !relationships?.length) {
-        router.push('/simulate/setup');
-      } else {
-        router.push('/simulate/new');
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setCheckingFields(false);
-    }
-  }
-
-  async function handleDeleteTimeline() {
-    if (!timelineToDelete) return;
-    try {
-      await deleteTimeline(timelineToDelete);
-      loadData();
-      setDeleteModalVisible(false);
-      setTimelineToDelete(null);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error(error);
-    }
-  }
+    router.push('/career-sim/setup');
+  }, [router]);
 
   return (
     <View style={styles.screen}>
@@ -138,6 +72,7 @@ export default function SimulateTab() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
+          {/* Header */}
           <View style={styles.header}>
             <View>
               <View style={styles.titleRow}>
@@ -146,94 +81,268 @@ export default function SimulateTab() {
               </View>
               <Text style={styles.subtitle}>Experience possible futures</Text>
             </View>
-            <TouchableOpacity onPress={handleCreatePress} style={styles.plusButton}>
-              <Plus size={24} color={Colors.textPrimary} />
-            </TouchableOpacity>
           </View>
 
+          {/* Career Simulation Hero Card */}
           <TouchableOpacity
-            onPress={handleCreatePress}
+            onPress={handleCareerSimPress}
             activeOpacity={0.9}
-            style={styles.featuredCard}
+            style={styles.heroCard}
           >
-            <LinearGradient colors={Colors.gradients.purple} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.featuredGradient}>
-              <View style={styles.featuredContent}>
-                <Text style={styles.featuredTitle}>New Simulation</Text>
-                <Text style={styles.featuredSubtitle}>Map a new timeline</Text>
+            <LinearGradient 
+              colors={Colors.gradients.purple} 
+              start={{ x: 0, y: 0 }} 
+              end={{ x: 1, y: 1 }} 
+              style={styles.heroGradient}
+            >
+              <View style={styles.heroContent}>
+                <View style={styles.heroIcon}>
+                  <Briefcase size={28} color="#FFFFFF" strokeWidth={2.5} />
+                </View>
+                <Text style={styles.heroTitle}>Simulate Your Career</Text>
+                <Text style={styles.heroSubtitle}>
+                  See where your career could take you in 5, 10, or 15 years
+                </Text>
+                <View style={styles.heroFeatures}>
+                  <View style={styles.featureItem}>
+                    <TrendingUp size={16} color="rgba(255,255,255,0.9)" strokeWidth={2} />
+                    <Text style={styles.featureText}>Realistic projections</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Sparkles size={16} color="rgba(255,255,255,0.9)" strokeWidth={2} />
+                    <Text style={styles.featureText}>Multiple scenarios</Text>
+                  </View>
+                </View>
                 <View style={styles.startButton}>
-                  <Text style={styles.startButtonText}>{checkingFields ? '...' : 'Start'}</Text>
+                  <Text style={styles.startButtonText}>Start Simulation</Text>
                 </View>
               </View>
-              <Image source={require('@/assets/images/cube.png')} style={styles.featuredImage} resizeMode="contain" />
+              <View style={styles.heroImageContainer}>
+                <View style={styles.heroDecoration} />
+              </View>
             </LinearGradient>
           </TouchableOpacity>
 
-          <Text style={styles.sectionTitle}>Your Timelines</Text>
-          {timelines.length === 0 ? (
-            <View style={styles.emptyState}><Text style={styles.emptyText}>No simulations active.</Text></View>
-          ) : (
-            timelines.map((t) => (
-              <TouchableOpacity key={t.id} style={styles.timelineCard} onPress={() => router.push(`/simulate/${t.id}`)} onLongPress={() => {
-                setTimelineToDelete(t.id);
-                setDeleteModalVisible(true);
-              }}>
-                <View style={styles.timelineIcon}><Users size={20} color={Colors.gradients.purple[1]} /></View>
-                <View style={styles.timelineInfo}>
-                  <Text style={styles.timelineTitle} numberOfLines={1}>{t.title}</Text>
-                  <Text style={styles.timelineMeta}>Age {t.current_age} • {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}</Text>
+          {/* Info Section */}
+          <View style={styles.infoSection}>
+            <Text style={styles.infoTitle}>What you'll discover</Text>
+            <View style={styles.infoCards}>
+              <View style={styles.infoCard}>
+                <View style={styles.infoCardIcon}>
+                  <Text style={styles.infoCardEmoji}>💰</Text>
                 </View>
-                <Play size={16} color={Colors.gradients.purple[1]} fill={Colors.gradients.purple[1]} />
-              </TouchableOpacity>
-            ))
-          )}
-        </Animated.ScrollView>
-      </SafeAreaView>
-
-      <Modal visible={deleteModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Delete Simulation?</Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity onPress={() => setDeleteModalVisible(false)} style={styles.modalCancel}><Text>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity onPress={handleDeleteTimeline} style={styles.modalDelete}><Text style={{color: '#FFF'}}>Delete</Text></TouchableOpacity>
+                <Text style={styles.infoCardTitle}>Compensation</Text>
+                <Text style={styles.infoCardDesc}>Expected salary and total comp trajectory</Text>
+              </View>
+              <View style={styles.infoCard}>
+                <View style={styles.infoCardIcon}>
+                  <Text style={styles.infoCardEmoji}>📈</Text>
+                </View>
+                <Text style={styles.infoCardTitle}>Growth Path</Text>
+                <Text style={styles.infoCardDesc}>Promotions, skills, and career milestones</Text>
+              </View>
+              <View style={styles.infoCard}>
+                <View style={styles.infoCardIcon}>
+                  <Text style={styles.infoCardEmoji}>⚖️</Text>
+                </View>
+                <Text style={styles.infoCardTitle}>Work-Life</Text>
+                <Text style={styles.infoCardDesc}>Hours, flexibility, and burnout risk</Text>
+              </View>
+              <View style={styles.infoCard}>
+                <View style={styles.infoCardIcon}>
+                  <Text style={styles.infoCardEmoji}>🔮</Text>
+                </View>
+                <Text style={styles.infoCardTitle}>Day-in-Life</Text>
+                <Text style={styles.infoCardDesc}>Realistic glimpses into your future</Text>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Animated.ScrollView>
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.background },
-  safeArea: { flex: 1 },
-  scrollView: { flex: 1 },
-  content: { padding: 24, paddingBottom: 100 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  title: { fontSize: 32, fontFamily: Fonts.primary.regular, color: Colors.textPrimary },
-  subtitle: { fontSize: 16, color: Colors.textSecondary, fontFamily: Fonts.secondary.regular },
-  plusButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' },
-  featuredCard: { borderRadius: 32, overflow: 'hidden', height: 180, marginBottom: 40 },
-  featuredGradient: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 32 },
-  featuredContent: { flex: 1, zIndex: 2 },
-  featuredTitle: { fontSize: 24, fontWeight: '800', color: '#FFFFFF', fontFamily: Fonts.primary.regular, marginBottom: 4 },
-  featuredSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 16 },
-  startButton: { backgroundColor: '#FFF', alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 12 },
-  startButtonText: { color: Colors.gradients.purple[1], fontWeight: '700' },
-  featuredImage: { width: 100, height: 100, position: 'absolute', right: -10, bottom: -10, opacity: 0.8 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: Colors.textPrimary, marginBottom: 16 },
-  timelineCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 24, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
-  timelineIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.03)', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
-  timelineInfo: { flex: 1 },
-  timelineTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
-  timelineMeta: { fontSize: 12, color: Colors.textTertiary, marginTop: 2 },
-  emptyState: { padding: 40, alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: 24 },
-  emptyText: { color: Colors.textTertiary },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalContent: { backgroundColor: '#FFF', borderRadius: 32, padding: 24, width: '100%' },
-  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 24 },
-  modalButtons: { flexDirection: 'row', gap: 12 },
-  modalCancel: { flex: 1, padding: 16, alignItems: 'center', borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.05)' },
-  modalDelete: { flex: 1, padding: 16, alignItems: 'center', borderRadius: 16, backgroundColor: '#EF4444' },
+  screen: { 
+    flex: 1, 
+    backgroundColor: Colors.background 
+  },
+  safeArea: { 
+    flex: 1 
+  },
+  scrollView: { 
+    flex: 1 
+  },
+  content: { 
+    padding: 24, 
+    paddingBottom: 120 
+  },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 32 
+  },
+  titleRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 12 
+  },
+  title: { 
+    fontSize: 32, 
+    fontFamily: Fonts.primary.regular, 
+    color: Colors.textPrimary 
+  },
+  subtitle: { 
+    fontSize: 16, 
+    color: Colors.textSecondary, 
+    fontFamily: Fonts.secondary.regular,
+    marginTop: 4,
+  },
+  heroCard: { 
+    borderRadius: 32, 
+    overflow: 'hidden', 
+    marginBottom: 40,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  heroGradient: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 32,
+    minHeight: 280,
+  },
+  heroContent: { 
+    flex: 1, 
+    zIndex: 2 
+  },
+  heroIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  heroTitle: { 
+    fontSize: 28, 
+    fontWeight: '800', 
+    color: '#FFFFFF', 
+    fontFamily: Fonts.primary.regular, 
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  heroSubtitle: { 
+    fontSize: 16, 
+    color: 'rgba(255,255,255,0.9)', 
+    marginBottom: 20,
+    lineHeight: 24,
+    fontFamily: Fonts.secondary.regular,
+  },
+  heroFeatures: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 24,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  featureText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    fontFamily: Fonts.secondary.regular,
+  },
+  startButton: { 
+    backgroundColor: '#FFF', 
+    alignSelf: 'flex-start', 
+    paddingVertical: 14, 
+    paddingHorizontal: 28, 
+    borderRadius: 16,
+    shadowColor: 'rgba(0, 0, 0, 0.2)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  startButtonText: { 
+    color: Colors.gradients.purple[1], 
+    fontWeight: '700',
+    fontSize: 16,
+    fontFamily: Fonts.secondary.bold,
+  },
+  heroImageContainer: {
+    position: 'absolute',
+    right: -20,
+    bottom: -20,
+    width: 180,
+    height: 180,
+    opacity: 0.15,
+  },
+  heroDecoration: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 90,
+    backgroundColor: '#FFFFFF',
+  },
+  infoSection: {
+    marginTop: 8,
+  },
+  infoTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+    marginBottom: 20,
+  },
+  infoCards: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  infoCard: {
+    width: (width - 72) / 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.04)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  infoCardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  infoCardEmoji: {
+    fontSize: 24,
+  },
+  infoCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    marginBottom: 6,
+  },
+  infoCardDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    lineHeight: 18,
+  },
 });
