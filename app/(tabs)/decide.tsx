@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   header: {
-    marginBottom: 32,
+    marginBottom: 48,
   },
   titleRow: {
     flexDirection: 'row',

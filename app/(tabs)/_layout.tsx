@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, Compass, Zap, User } from 'lucide-react-native';
+import { Home, Compass, Zap, User, Trophy } from 'lucide-react-native';
 import { HomeGradientIcon } from '@/components/GradientIcons';
 import { BlurView } from 'expo-blur';
 import { StyleSheet, Platform, View, TouchableOpacity, Text, Dimensions, Image } from 'react-native';
@@ -118,12 +118,22 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="leaderboard"
+        options={{
+          title: 'Leaderboard',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Trophy size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="compatibility"
         options={{
           title: 'Vibe',
           tabBarIcon: ({ focused, color, size }) => (
             <ManWhiteIcon size={size} color={color} />
           ),
+          href: null,
         }}
       />
       <Tabs.Screen

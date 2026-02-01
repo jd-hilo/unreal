@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     paddingTop: 40,
   },
   header: { 
-    marginBottom: 32,
+    marginBottom: 48,
     paddingHorizontal: 24,
   },
   titleRow: { 
