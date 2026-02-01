@@ -210,7 +210,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.primary.regular,
     fontWeight: '600',
     color: Colors.textPrimary,
-    marginBottom: 8,
   },
   sectionDesc: {
     fontSize: 14,

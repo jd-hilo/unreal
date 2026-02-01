@@ -430,6 +430,78 @@ export async function getSimulation(decisionId: string) {
   return data;
 }
 
+/**
+ * Save a career simulation result
+ */
+export async function saveCareerSimulation(
+  userId: string,
+  payload: {
+    timeHorizon: number;
+    pathType: 'stay' | 'switch' | 'startup';
+    currentRole?: string;
+    company?: string;
+    salary?: string;
+    simulationData: Record<string, any>;
+  }
+) {
+  const { data, error } = await supabase
+    .from('career_simulations')
+    .insert({
+      user_id: userId,
+      time_horizon: payload.timeHorizon,
+      path_type: payload.pathType,
+      role_title: payload.currentRole || null,
+      company: payload.company || null,
+      salary: payload.salary || null,
+      simulation_data: payload.simulationData as any,
+    } as any)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Get all career simulations for a user
+ */
+export async function getCareerSimulations(userId: string) {
+  const { data, error } = await supabase
+    .from('career_simulations')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Get a single career simulation by ID
+ */
+export async function getCareerSimulation(simulationId: string) {
+  const { data, error } = await supabase
+    .from('career_simulations')
+    .select('*')
+    .eq('id', simulationId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Delete a career simulation
+ */
+export async function deleteCareerSimulation(simulationId: string) {
+  const { error } = await supabase
+    .from('career_simulations')
+    .delete()
+    .eq('id', simulationId);
+
+  if (error) throw error;
+}
+
 export async function insertWhatIf(
   userId: string,
   payload: {

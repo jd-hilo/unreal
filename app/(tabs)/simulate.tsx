@@ -1,39 +1,61 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Dimensions, Image, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
-import { Compass, Briefcase, TrendingUp, Sparkles } from 'lucide-react-native';
+import { Briefcase, ChevronRight, Heart, Brain, Zap } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
 
+
 const { width } = Dimensions.get('window');
+
+const CARDS = [
+  {
+    id: 'career',
+    title: 'Simulate Your\nCareer',
+    subtitle: 'Clone your digital twin millions of times to find the highest probable lifeline.',
+    icon: Briefcase,
+    gradient: ['rgba(255, 20, 147, 0.1)', 'rgba(139, 92, 246, 0.1)'],
+    iconColor: '#8B5CF6',
+    action: '/career-sim/setup',
+    type: 'active',
+    buttonText: 'Start Simulation'
+  },
+  {
+    id: 'relationships',
+    title: 'Simulate your Relationship',
+    subtitle: 'Clone your digital twin millions of times to find the highest probable lifeline.',
+    icon: Heart,
+    gradient: ['rgba(239, 68, 68, 0.1)', 'rgba(236, 72, 153, 0.1)'],
+    iconColor: '#EC4899',
+    type: 'coming_soon',
+    buttonText: 'Coming Soon'
+  },
+  {
+    id: 'decisions',
+    title: 'Simulate your Social\nLife',
+    subtitle: 'Clone your digital twin millions of times to find the highest probable lifeline.',
+    icon: Brain,
+    gradient: ['rgba(59, 130, 246, 0.1)', 'rgba(147, 51, 234, 0.1)'],
+    iconColor: '#3B82F6',
+    type: 'coming_soon',
+    buttonText: 'Coming Soon'
+  }
+];
 
 export default function SimulateTab() {
   const router = useRouter();
   const navigation = useNavigation();
   const user = useAuth((state) => state.user);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
-      // Disable swipe-to-go-back gesture
-      navigation.setOptions({
-        gestureEnabled: false,
-        fullScreenGestureEnabled: false,
-      });
-
-      const parent = navigation.getParent();
-      if (parent) {
-        parent.setOptions({
-          gestureEnabled: false,
-          fullScreenGestureEnabled: false,
-        });
-      }
-
       // Fade in animation
       fadeAnim.setValue(0);
       Animated.timing(fadeAnim, {
@@ -42,122 +64,124 @@ export default function SimulateTab() {
         delay: 100,
         useNativeDriver: true,
       }).start();
-
-      return () => {
-        navigation.setOptions({
-          gestureEnabled: true,
-          fullScreenGestureEnabled: true,
-        });
-        if (parent) {
-          parent.setOptions({
-            gestureEnabled: true,
-            fullScreenGestureEnabled: true,
-          });
-        }
-      };
-    }, [fadeAnim, navigation])
+    }, [fadeAnim])
   );
 
-  const handleCareerSimPress = useCallback(() => {
+  const handleCardPress = useCallback((card: typeof CARDS[0]) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/career-sim/setup');
+    if (card.type === 'active' && card.action) {
+      // Redirect to the first step of the multi-page flow
+      router.push('/career-sim/01-time-horizon');
+    }
   }, [router]);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = event.nativeEvent.contentOffset.x / slideSize;
+    const roundIndex = Math.round(index);
+    if (roundIndex !== activeIndex) {
+      setActiveIndex(roundIndex);
+      Haptics.selectionAsync();
+    }
+  };
+
+  const renderCard = (card: typeof CARDS[0], index: number) => {
+    const Icon = card.icon;
+    return (
+      <View key={card.id} style={styles.cardWrapper}>
+        <TouchableOpacity
+          onPress={() => handleCardPress(card)}
+          activeOpacity={0.9}
+          style={styles.cardContainer}
+          disabled={card.type === 'coming_soon'}
+        >
+          {/* 3D Edge Effect - Top */}
+          <View style={styles.cardEdgeTop} />
+          {/* 3D Edge Effect - Left */}
+          <View style={styles.cardEdgeLeft} />
+          {/* 3D Edge Effect - Right */}
+          <View style={styles.cardEdgeRight} />
+          {/* 3D Edge Effect - Bottom */}
+          <View style={styles.cardEdgeBottom} />
+          
+          <View style={styles.cardInner}>
+            <LinearGradient
+              colors={['#FFFFFF', '#F8F7FF']}
+              style={styles.cardBackground}
+            />
+            
+            <View style={styles.cardContent}>
+              <View style={styles.iconContainer}>
+                <LinearGradient
+                  colors={card.gradient}
+                  style={styles.iconGradient}
+                >
+                  <Icon size={32} color={card.iconColor} strokeWidth={2.5} />
+                </LinearGradient>
+              </View>
+              
+              <Text style={styles.cardTitle}>{card.title}</Text>
+              <Text style={styles.cardSubtitle}>{card.subtitle}</Text>
+
+              <View style={styles.actionRow}>
+                <Text style={[styles.actionText, card.type === 'coming_soon' && styles.disabledText]}>
+                  {card.buttonText}
+                </Text>
+                <View style={[styles.actionButton, card.type === 'coming_soon' && styles.disabledButton]}>
+                  <ChevronRight size={20} color="#FFFFFF" strokeWidth={3} />
+                </View>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.screen}>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <Animated.ScrollView 
-          style={[styles.scrollView, { opacity: fadeAnim }]} 
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
+        <Animated.View 
+          style={[styles.container, { opacity: fadeAnim }]} 
         >
           {/* Header */}
           <View style={styles.header}>
-            <View>
-              <View style={styles.titleRow}>
-                <Compass size={32} color={Colors.textPrimary} strokeWidth={2} />
-                <Text style={styles.title}>Simulate</Text>
-              </View>
-              <Text style={styles.subtitle}>Experience possible futures</Text>
+            <View style={styles.titleRow}>
+              <Zap size={32} color={Colors.textPrimary} strokeWidth={2} />
+              <Text style={styles.title}>Simulate</Text>
             </View>
+            <Text style={styles.subtitle}>Experience possible futures</Text>
           </View>
 
-          {/* Career Simulation Hero Card */}
-          <TouchableOpacity
-            onPress={handleCareerSimPress}
-            activeOpacity={0.9}
-            style={styles.heroCard}
-          >
-            <LinearGradient 
-              colors={Colors.gradients.purple} 
-              start={{ x: 0, y: 0 }} 
-              end={{ x: 1, y: 1 }} 
-              style={styles.heroGradient}
+          {/* Carousel */}
+          <View style={styles.carouselContainer}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              contentContainerStyle={styles.carouselContent}
             >
-              <View style={styles.heroContent}>
-                <View style={styles.heroIcon}>
-                  <Briefcase size={28} color="#FFFFFF" strokeWidth={2.5} />
-                </View>
-                <Text style={styles.heroTitle}>Simulate Your Career</Text>
-                <Text style={styles.heroSubtitle}>
-                  See where your career could take you in 5, 10, or 15 years
-                </Text>
-                <View style={styles.heroFeatures}>
-                  <View style={styles.featureItem}>
-                    <TrendingUp size={16} color="rgba(255,255,255,0.9)" strokeWidth={2} />
-                    <Text style={styles.featureText}>Realistic projections</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Sparkles size={16} color="rgba(255,255,255,0.9)" strokeWidth={2} />
-                    <Text style={styles.featureText}>Multiple scenarios</Text>
-                  </View>
-                </View>
-                <View style={styles.startButton}>
-                  <Text style={styles.startButtonText}>Start Simulation</Text>
-                </View>
-              </View>
-              <View style={styles.heroImageContainer}>
-                <View style={styles.heroDecoration} />
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
+              {CARDS.map((card, index) => renderCard(card, index))}
+            </ScrollView>
 
-          {/* Info Section */}
-          <View style={styles.infoSection}>
-            <Text style={styles.infoTitle}>What you'll discover</Text>
-            <View style={styles.infoCards}>
-              <View style={styles.infoCard}>
-                <View style={styles.infoCardIcon}>
-                  <Text style={styles.infoCardEmoji}>💰</Text>
-                </View>
-                <Text style={styles.infoCardTitle}>Compensation</Text>
-                <Text style={styles.infoCardDesc}>Expected salary and total comp trajectory</Text>
-              </View>
-              <View style={styles.infoCard}>
-                <View style={styles.infoCardIcon}>
-                  <Text style={styles.infoCardEmoji}>📈</Text>
-                </View>
-                <Text style={styles.infoCardTitle}>Growth Path</Text>
-                <Text style={styles.infoCardDesc}>Promotions, skills, and career milestones</Text>
-              </View>
-              <View style={styles.infoCard}>
-                <View style={styles.infoCardIcon}>
-                  <Text style={styles.infoCardEmoji}>⚖️</Text>
-                </View>
-                <Text style={styles.infoCardTitle}>Work-Life</Text>
-                <Text style={styles.infoCardDesc}>Hours, flexibility, and burnout risk</Text>
-              </View>
-              <View style={styles.infoCard}>
-                <View style={styles.infoCardIcon}>
-                  <Text style={styles.infoCardEmoji}>🔮</Text>
-                </View>
-                <Text style={styles.infoCardTitle}>Day-in-Life</Text>
-                <Text style={styles.infoCardDesc}>Realistic glimpses into your future</Text>
-              </View>
+            {/* Pagination Dots */}
+            <View style={styles.pagination}>
+              {CARDS.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.dot,
+                    index === activeIndex ? styles.activeDot : styles.inactiveDot,
+                  ]}
+                />
+              ))}
             </View>
           </View>
-        </Animated.ScrollView>
+
+        </Animated.View>
       </SafeAreaView>
     </View>
   );
@@ -171,18 +195,13 @@ const styles = StyleSheet.create({
   safeArea: { 
     flex: 1 
   },
-  scrollView: { 
-    flex: 1 
-  },
-  content: { 
-    padding: 24, 
-    paddingBottom: 120 
+  container: {
+    flex: 1,
+    paddingTop: 40,
   },
   header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 32 
+    marginBottom: 32,
+    paddingHorizontal: 24,
   },
   titleRow: { 
     flexDirection: 'row', 
@@ -198,151 +217,173 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     color: Colors.textSecondary, 
     fontFamily: Fonts.secondary.regular,
-    marginTop: 4,
   },
-  heroCard: { 
-    borderRadius: 32, 
-    overflow: 'hidden', 
-    marginBottom: 40,
+  carouselContainer: {
+    flex: 1,
+    paddingBottom: 24,
+    marginTop: -20,
+  },
+  carouselContent: {
+    alignItems: 'center',
+  },
+  cardWrapper: {
+    width: width,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  cardContainer: {
+    width: '100%',
+    position: 'relative',
+    borderRadius: 40,
+    overflow: 'hidden',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.15,
+    shadowRadius: 30,
+    elevation: 12,
+    zIndex: 1,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
-    elevation: 8,
+    height: 500, // Fixed height for consistency
   },
-  heroGradient: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  // 3D Edge Effects
+  cardEdgeTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    zIndex: 10,
+  },
+  cardEdgeLeft: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderTopLeftRadius: 40,
+    borderBottomLeftRadius: 40,
+    zIndex: 10,
+  },
+  cardEdgeRight: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    borderTopRightRadius: 40,
+    borderBottomRightRadius: 40,
+    zIndex: 10,
+  },
+  cardEdgeBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.12)',
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    zIndex: 10,
+  },
+  cardInner: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 40,
+    overflow: 'hidden',
+    flex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  cardBackground: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  cardContent: {
     padding: 32,
-    minHeight: 280,
+    flex: 1,
+    justifyContent: 'space-between',
   },
-  heroContent: { 
-    flex: 1, 
-    zIndex: 2 
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    marginBottom: 24,
+    overflow: 'hidden',
   },
-  heroIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  iconGradient: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
-  heroTitle: { 
-    fontSize: 28, 
-    fontWeight: '800', 
-    color: '#FFFFFF', 
-    fontFamily: Fonts.primary.regular, 
-    marginBottom: 8,
+  cardTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+    marginBottom: 12,
     letterSpacing: -0.5,
   },
-  heroSubtitle: { 
-    fontSize: 16, 
-    color: 'rgba(255,255,255,0.9)', 
-    marginBottom: 20,
+  cardSubtitle: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    marginBottom: 32,
     lineHeight: 24,
     fontFamily: Fonts.secondary.regular,
   },
-  heroFeatures: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 24,
-  },
-  featureItem: {
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    marginTop: 'auto',
   },
-  featureText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
-    fontFamily: Fonts.secondary.regular,
+  actionText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
   },
-  startButton: { 
-    backgroundColor: '#FFF', 
-    alignSelf: 'flex-start', 
-    paddingVertical: 14, 
-    paddingHorizontal: 28, 
-    borderRadius: 16,
-    shadowColor: 'rgba(0, 0, 0, 0.2)',
+  actionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#1a1a1a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
-  startButtonText: { 
-    color: Colors.gradients.purple[1], 
-    fontWeight: '700',
-    fontSize: 16,
-    fontFamily: Fonts.secondary.bold,
-  },
-  heroImageContainer: {
-    position: 'absolute',
-    right: -20,
-    bottom: -20,
-    width: 180,
-    height: 180,
-    opacity: 0.15,
-  },
-  heroDecoration: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 90,
-    backgroundColor: '#FFFFFF',
-  },
-  infoSection: {
-    marginTop: 8,
-  },
-  infoTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.primary.regular,
-    marginBottom: 20,
-  },
-  infoCards: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  infoCard: {
-    width: (width - 72) / 2,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: 'rgba(0, 0, 0, 0.04)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  infoCardIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  infoCardEmoji: {
-    fontSize: 24,
-  },
-  infoCardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-    marginBottom: 6,
-  },
-  infoCardDesc: {
-    fontSize: 13,
+  disabledText: {
     color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.regular,
-    lineHeight: 18,
+    opacity: 0.6,
+  },
+  disabledButton: {
+    backgroundColor: '#E5E5EA',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  pagination: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 32,
+    gap: 8,
+  },
+  dot: {
+    height: 8,
+    borderRadius: 4,
+  },
+  activeDot: {
+    width: 24,
+    backgroundColor: '#1a1a1a',
+  },
+  inactiveDot: {
+    width: 8,
+    backgroundColor: '#E5E5EA',
   },
 });

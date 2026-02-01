@@ -5,7 +5,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks } from '@/lib/storage';
-import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check, RefreshCw } from 'lucide-react-native';
+import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check } from 'lucide-react-native';
 import { HomeGradientIcon, FlameGradientIcon } from '@/components/GradientIcons';
 import { generateArchitectPlan, calculateArchitectProgress, recalculateDreamProgress } from '@/lib/ai';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
@@ -102,27 +102,10 @@ export default function HomeScreen() {
   const [isGeneratingNext, setIsGeneratingNext] = useState(false);
   const [floatingPoints, setFloatingPoints] = useState<{ id: string; x: number; y: number; value: string }[]>([]);
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const initialProfileRef = useRef<any>(null);
   const taskScrollViewRef = useRef<ScrollView>(null);
-  const regenerateRotateAnim = useRef(new Animated.Value(0)).current;
   const greetingFadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (isRegenerating) {
-      Animated.loop(
-        Animated.timing(regenerateRotateAnim, {
-          toValue: 1,
-          duration: 1000,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      ).start();
-    } else {
-      regenerateRotateAnim.setValue(0);
-    }
-  }, [isRegenerating]);
 
   useEffect(() => {
     // Fade in the greeting when component mounts
@@ -133,11 +116,6 @@ export default function HomeScreen() {
       useNativeDriver: true,
     }).start();
   }, []);
-
-  const spin = regenerateRotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
   
   // Animation refs for fade transitions
   const invitationOpacity = useRef(new Animated.Value(1)).current;
@@ -598,94 +576,6 @@ export default function HomeScreen() {
     }
   };
 
-  const handleRegenerateTasks = async () => {
-    if (!user || !profileData || isRegenerating) return;
-    
-    setIsRegenerating(true);
-    setDailyTasks([]); // Clear immediately for instant feedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    // Also clear decide page suggestions so they regenerate
-    try {
-      await AsyncStorage.removeItem(`decide_suggested_questions_${user.id}`);
-    } catch (error) {
-      console.warn('Could not clear decide suggestions:', error);
-    }
-    
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      
-      // 1. Delete today's tasks (gracefully handle if table doesn't exist)
-      try {
-        await deleteDailyTasks(user.id, today);
-      } catch (error) {
-        // Table might not exist yet, that's okay - we'll just create new ones
-        console.warn('Could not delete existing tasks (table may not exist):', error);
-      }
-      
-      // 2. Get context for new tasks
-      let completedTasks: string[] = [];
-      try {
-        const allTasks = await getDailyTasks(user.id, null);
-        completedTasks = allTasks
-          .filter(t => t.is_completed && t.scheduled_date !== today)
-          .map(t => t.task_content);
-      } catch (error) {
-        // Table might not exist yet, that's okay - proceed without completed tasks context
-        console.warn('Could not fetch previous tasks (table may not exist):', error);
-      }
-      
-      // Get latest feedback if available (gracefully handle if table doesn't exist yet)
-      let latestFeedback = null;
-      try {
-        latestFeedback = await getLatestArchitectFeedback(user.id);
-      } catch (error) {
-        // Table might not exist yet, that's okay
-        console.warn('Could not fetch architect feedback (table may not exist):', error);
-      }
-      
-      // 3. Generate new tasks
-      const newTasks = await generateArchitectPlan(
-        profileData,
-        profileData.dream_vision,
-        completedTasks,
-        latestFeedback?.feedback
-      );
-      
-      // 4. Save new tasks
-      const tasksWithDate = newTasks.map(task => ({
-        ...task,
-        scheduled_date: today
-      }));
-      
-      try {
-        const savedTasks = await saveDailyTasks(user.id, tasksWithDate);
-        // Ensure we only show today's tasks - filter and limit to max 3
-        const today = new Date().toISOString().split('T')[0];
-        const todayTasks = (savedTasks || [])
-          .filter(task => task.scheduled_date === today)
-          .slice(0, 3); // Limit to max 3 tasks
-        setDailyTasks(todayTasks);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch (error) {
-        // If table doesn't exist, at least show the tasks locally
-        console.warn('Could not save tasks to database (table may not exist):', error);
-        // Ensure we only show today's tasks - filter and limit to max 3
-        const today = new Date().toISOString().split('T')[0];
-        const todayTasks = (tasksWithDate || [])
-          .filter(task => task.scheduled_date === today)
-          .slice(0, 3); // Limit to max 3 tasks
-        setDailyTasks(todayTasks as any);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    } catch (error) {
-      console.error('Error regenerating tasks:', error);
-      alert('Failed to regenerate tasks. Please try again.');
-    } finally {
-      setIsRegenerating(false);
-    }
-  };
-
   const handleSubmitFeedback = async () => {
     if (!user || !profileData || isGeneratingNext) return;
     setIsGeneratingNext(true);
@@ -812,16 +702,6 @@ export default function HomeScreen() {
                 <FlameGradientIcon size={20} />
                 <Text style={styles.streakText}>{streakCount}</Text>
               </View>
-
-              <TouchableOpacity 
-                style={styles.iconButton}
-                onPress={handleRegenerateTasks}
-                disabled={isRegenerating}
-              >
-                <Animated.View style={{ transform: [{ rotate: spin }] }}>
-                  <RefreshCw size={20} color={isRegenerating ? Colors.textTertiary : Colors.textPrimary} strokeWidth={2.5} />
-                </Animated.View>
-              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.moraTag}

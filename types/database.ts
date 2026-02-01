@@ -287,6 +287,44 @@ export interface Database {
           created_at?: string;
         };
       };
+      career_simulations: {
+        Row: {
+          id: string;
+          user_id: string;
+          time_horizon: number;
+          path_type: 'stay' | 'switch' | 'startup';
+          role_title: string | null;
+          company: string | null;
+          salary: string | null;
+          simulation_data: Record<string, any>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          time_horizon: number;
+          path_type: 'stay' | 'switch' | 'startup';
+          role_title?: string | null;
+          company?: string | null;
+          salary?: string | null;
+          simulation_data?: Record<string, any>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          time_horizon?: number;
+          path_type?: 'stay' | 'switch' | 'startup';
+          role_title?: string | null;
+          company?: string | null;
+          salary?: string | null;
+          simulation_data?: Record<string, any>;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       decision_participants: {
         Row: {
           id: string;

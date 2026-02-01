@@ -272,13 +272,14 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     lineHeight: 28,
     marginBottom: 6,
-    fontFamily: Fonts.secondary.bold,
+    fontFamily: Fonts.primary.regular,
   },
   subtitle: {
     fontSize: 16,
     color: Colors.textSecondary,
     lineHeight: 24,
-    fontFamily: Fonts.secondary.bold,
+    fontFamily: Fonts.secondary.regular,
+    fontWeight: '300',
   },
   body: {
     gap: 16,

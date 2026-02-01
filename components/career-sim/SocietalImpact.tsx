@@ -1,75 +1,111 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { Colors, Fonts } from '@/constants/Theme';
 import type { SocietalImpact as SocietalImpactType } from '@/lib/career-sim/types';
-import { Rocket, Users, Award, Zap } from 'lucide-react-native';
+import { Rocket, Users, Award } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface SocietalImpactProps {
   societalImpact: SocietalImpactType;
 }
 
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.75;
+
 function SocietalImpactComponent({ societalImpact }: SocietalImpactProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Your Societal Impact</Text>
-      <Text style={styles.subtitle}>2026-2040</Text>
+      <View style={styles.headerContainer}>
+        <Text style={styles.sectionTitle}>Your Societal Impact</Text>
+        <Text style={styles.subtitle}>2026-2040</Text>
+      </View>
       
-      <View style={styles.card}>
-        {/* Products Shipped */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Rocket size={20} color={Colors.gradients.purple[1]} strokeWidth={2.5} />
-            <Text style={styles.sectionLabel}>Products You Shipped</Text>
-          </View>
-          {societalImpact.productsShipped.map((product, index) => (
-            <View key={index} style={styles.bulletItem}>
-              <Text style={styles.bullet}>→</Text>
-              <Text style={styles.bulletText}>{product}</Text>
+      {/* Horizontal Scroll for Categories */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+        decelerationRate="fast"
+        snapToInterval={CARD_WIDTH + 16}
+        style={styles.scrollView}
+      >
+        {/* Products Card */}
+        <View style={styles.impactCard}>
+          <View style={styles.cardHeader}>
+            <View style={[styles.iconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
+              <Rocket size={20} color={Colors.gradients.purple[1]} strokeWidth={2.5} />
             </View>
-          ))}
+            <Text style={styles.cardTitle}>Products Shipped</Text>
+          </View>
+          <View style={styles.listContainer}>
+            {societalImpact.productsShipped.map((product, index) => (
+              <View key={index} style={styles.bulletItem}>
+                <View style={[styles.bulletDot, { backgroundColor: Colors.gradients.purple[1] }]} />
+                <Text style={styles.bulletText}>{product}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
-        {/* People Influenced */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Users size={20} color={Colors.gradients.turquoise[0]} strokeWidth={2.5} />
-            <Text style={styles.sectionLabel}>People You Influenced</Text>
-          </View>
-          {societalImpact.peopleInfluenced.map((item, index) => (
-            <View key={index} style={styles.bulletItem}>
-              <Text style={styles.bullet}>→</Text>
-              <Text style={styles.bulletText}>{item}</Text>
+        {/* People Card */}
+        <View style={styles.impactCard}>
+          <View style={styles.cardHeader}>
+            <View style={[styles.iconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+              <Users size={20} color={Colors.gradients.turquoise[0]} strokeWidth={2.5} />
             </View>
-          ))}
+            <Text style={styles.cardTitle}>People Influenced</Text>
+          </View>
+          <View style={styles.listContainer}>
+            {societalImpact.peopleInfluenced.map((item, index) => (
+              <View key={index} style={styles.bulletItem}>
+                <View style={[styles.bulletDot, { backgroundColor: Colors.gradients.turquoise[0] }]} />
+                <Text style={styles.bulletText}>{item}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
-        {/* Industry Contributions */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Award size={20} color="#FF9A8B" strokeWidth={2.5} />
-            <Text style={styles.sectionLabel}>Industry Contributions</Text>
-          </View>
-          {societalImpact.industryContributions.map((contribution, index) => (
-            <View key={index} style={styles.bulletItem}>
-              <Text style={styles.bullet}>→</Text>
-              <Text style={styles.bulletText}>{contribution}</Text>
+        {/* Industry Card */}
+        <View style={styles.impactCard}>
+          <View style={styles.cardHeader}>
+            <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 154, 139, 0.1)' }]}>
+              <Award size={20} color="#FF9A8B" strokeWidth={2.5} />
             </View>
-          ))}
+            <Text style={styles.cardTitle}>Industry Mark</Text>
+          </View>
+          <View style={styles.listContainer}>
+            {societalImpact.industryContributions.map((contribution, index) => (
+              <View key={index} style={styles.bulletItem}>
+                <View style={[styles.bulletDot, { backgroundColor: '#FF9A8B' }]} />
+                <Text style={styles.bulletText}>{contribution}</Text>
+              </View>
+            ))}
+          </View>
         </View>
+      </ScrollView>
 
+      {/* Narrative Section */}
+      <View style={styles.narrativeContainer}>
         {/* Ripple Effect */}
-        <View style={styles.rippleBox}>
-          <View style={styles.rippleHeader}>
-            <Zap size={18} color={Colors.gradients.purple[1]} strokeWidth={2.5} />
-            <Text style={styles.rippleTitle}>The Ripple Effect</Text>
-          </View>
-          <Text style={styles.rippleText}>{societalImpact.rippleEffect}</Text>
+        <View style={styles.narrativeCard}>
+          <LinearGradient
+            colors={['rgba(139, 92, 246, 0.05)', 'rgba(139, 92, 246, 0.02)']}
+            style={styles.narrativeGradient}
+          >
+            <Text style={styles.narrativeTitle}>The Ripple Effect</Text>
+            <Text style={styles.narrativeText}>{societalImpact.rippleEffect}</Text>
+          </LinearGradient>
         </View>
 
         {/* Honest Assessment */}
-        <View style={styles.honestBox}>
-          <Text style={styles.honestTitle}>The Honest Assessment</Text>
-          <Text style={styles.honestText}>{societalImpact.honestAssessment}</Text>
+        <View style={styles.narrativeCard}>
+          <LinearGradient
+            colors={['rgba(245, 158, 11, 0.05)', 'rgba(245, 158, 11, 0.02)']}
+            style={styles.narrativeGradient}
+          >
+            <Text style={[styles.narrativeTitle, { color: '#F59E0B' }]}>What changes if you...</Text>
+            <Text style={styles.narrativeText}>{societalImpact.honestAssessment}</Text>
+          </LinearGradient>
         </View>
       </View>
     </View>
@@ -82,6 +118,10 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 32,
   },
+  headerContainer: {
+    paddingHorizontal: 0,
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 18,
     fontFamily: Fonts.primary.regular,
@@ -93,50 +133,63 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.regular,
-    marginBottom: 12,
   },
-  card: {
+  scrollView: {
+    marginHorizontal: -24,
+    marginBottom: 24,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  impactCard: {
+    width: CARD_WIDTH,
     backgroundColor: '#FFFFFF',
-    borderRadius: 32,
-    padding: 24,
+    borderRadius: 24,
+    padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.05)',
     shadowColor: 'rgba(0,0,0,0.05)',
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
-    shadowRadius: 20,
-    elevation: 4,
+    shadowRadius: 12,
+    elevation: 3,
   },
-  section: {
-    marginBottom: 24,
-    paddingBottom: 24,
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.05)',
   },
-  sectionHeader: {
-    flexDirection: 'row',
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
+    justifyContent: 'center',
   },
-  sectionLabel: {
-    fontSize: 13,
+  cardTitle: {
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
-    letterSpacing: 0.3,
+  },
+  listContainer: {
+    gap: 12,
   },
   bulletItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
-    gap: 8,
+    gap: 10,
   },
-  bullet: {
-    fontSize: 16,
-    color: Colors.gradients.purple[1],
-    fontFamily: Fonts.secondary.bold,
-    marginTop: 2,
+  bulletDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginTop: 7,
   },
   bulletText: {
     flex: 1,
@@ -145,45 +198,27 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.regular,
     lineHeight: 20,
   },
-  rippleBox: {
-    backgroundColor: '#FAFAFA',
+  narrativeContainer: {
+    gap: 16,
+  },
+  narrativeCard: {
     borderRadius: 20,
-    padding: 16,
-    marginBottom: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.03)',
   },
-  rippleHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
+  narrativeGradient: {
+    padding: 20,
   },
-  rippleTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-    letterSpacing: 0.5,
-  },
-  rippleText: {
+  narrativeTitle: {
     fontSize: 14,
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.regular,
-    lineHeight: 22,
-  },
-  honestBox: {
-    backgroundColor: '#FAFAFA',
-    borderRadius: 20,
-    padding: 16,
-  },
-  honestTitle: {
-    fontSize: 13,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: Colors.gradients.purple[1],
     fontFamily: Fonts.secondary.bold,
     letterSpacing: 0.5,
     marginBottom: 12,
   },
-  honestText: {
+  narrativeText: {
     fontSize: 14,
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.regular,

@@ -1,8 +1,8 @@
 import { Tabs } from 'expo-router';
-import { Home, CheckCircle, Compass, Zap, User } from 'lucide-react-native';
+import { Home, Compass, Zap, User } from 'lucide-react-native';
 import { HomeGradientIcon } from '@/components/GradientIcons';
 import { BlurView } from 'expo-blur';
-import { StyleSheet, Platform, View, TouchableOpacity, Text, Dimensions } from 'react-native';
+import { StyleSheet, Platform, View, TouchableOpacity, Text, Dimensions, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';
@@ -11,6 +11,23 @@ import { Colors, Fonts } from '@/constants/Theme';
 import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
+
+// Man White Icon Component for Tab Bar (turns black when focused)
+const ManWhiteIcon = ({ size = 24, color }: { size?: number; color?: string }) => {
+  // When focused, color is black (#000000), when unfocused it's gray
+  // Use tintColor to make manwhite.png turn black when focused
+  return (
+    <Image
+      source={require('@/assets/images/manwhite.png')}
+      style={{
+        width: size,
+        height: size,
+        tintColor: color, // Black when focused, gray when unfocused
+      }}
+      resizeMode="contain"
+    />
+  );
+};
 
 function CustomTabBar({ state, descriptors, navigation }: any) {
   return (
@@ -96,7 +113,7 @@ export default function TabLayout() {
         options={{
           title: 'Simulate',
           tabBarIcon: ({ focused, color, size }) => (
-            <CheckCircle size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <Zap size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -105,7 +122,7 @@ export default function TabLayout() {
         options={{
           title: 'Vibe',
           tabBarIcon: ({ focused, color, size }) => (
-            <Zap size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <ManWhiteIcon size={size} color={color} />
           ),
         }}
       />

@@ -1,13 +1,15 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Image, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronLeft, AlertTriangle, Save, RefreshCw, Share2, Sparkles, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, AlertTriangle, Save, RefreshCw, Sparkles, ChevronRight } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
 import { MOCK_SIMULATIONS } from '@/lib/career-sim/mockData';
+import { useAuth } from '@/store/useAuth';
+import { saveCareerSimulation } from '@/lib/storage';
 import { CareerOutcomeCard } from '@/components/career-sim/CareerOutcomeCard';
 import { CareerTimeline } from '@/components/career-sim/CareerTimeline';
 import { GlobalComparison } from '@/components/career-sim/GlobalComparison';
@@ -33,7 +35,9 @@ export default function CareerSimResult() {
     pathType: string;
   }>();
 
+  const { user } = useAuth();
   const [activeModal, setActiveModal] = useState<ModalType>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Get simulation data based on path type
   const pathType = (params.pathType || 'stay') as 'stay' | 'switch' | 'startup';
@@ -88,11 +92,35 @@ export default function CareerSimResult() {
     });
   }, [params, router]);
 
-  const handleSave = useCallback(() => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // In a real app, save to storage
-    alert('Career path saved!');
-  }, []);
+  const handleSave = useCallback(async () => {
+    if (!user?.id) {
+      alert('Please sign in to save your career path');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      await saveCareerSimulation(user.id, {
+        timeHorizon: parseInt(params.timeHorizon || '10', 10),
+        pathType: pathType,
+        currentRole: params.currentRole || undefined,
+        company: params.company || undefined,
+        salary: params.salary || undefined,
+        simulationData: simulation as any,
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      alert('Career path saved! You can review it anytime.');
+    } catch (error) {
+      console.error('Error saving career simulation:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      alert('Failed to save career path. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user, params, pathType, simulation]);
 
   const handleNewSimulation = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -117,7 +145,13 @@ export default function CareerSimResult() {
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity 
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.replace('/(tabs)/simulate');
+            }} 
+            style={styles.backButton}
+          >
             <ChevronLeft size={24} color={Colors.textPrimary} strokeWidth={2.5} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
@@ -126,8 +160,16 @@ export default function CareerSimResult() {
               <Text style={styles.horizonText}>{params.timeHorizon} YEAR HORIZON</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.shareButton}>
-            <Share2 size={20} color={Colors.textPrimary} strokeWidth={2} />
+          <TouchableOpacity 
+            style={styles.shareButton}
+            onPress={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color={Colors.textPrimary} />
+            ) : (
+              <Save size={20} color={Colors.textPrimary} strokeWidth={2} />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -200,9 +242,17 @@ export default function CareerSimResult() {
               end={{ x: 1, y: 0 }}
               style={styles.ctaButtonGradient}
             >
-              <Save size={20} color="#FFFFFF" strokeWidth={2.5} />
-              <Text style={styles.ctaText}>Save This Path</Text>
-              <ChevronLeft size={20} color="#FFFFFF" strokeWidth={2.5} style={{ transform: [{ rotate: '180deg' }] }} />
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Save size={20} color="#FFFFFF" strokeWidth={2.5} />
+              )}
+              <Text style={styles.ctaText}>
+                {isSaving ? 'Saving...' : 'Save This Path'}
+              </Text>
+              {!isSaving && (
+                <ChevronLeft size={20} color="#FFFFFF" strokeWidth={2.5} style={{ transform: [{ rotate: '180deg' }] }} />
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -303,6 +353,7 @@ const styles = StyleSheet.create({
   },
   sectionsContainer: {
     paddingHorizontal: 24,
+    paddingTop: 24,
   },
   section: {
     marginBottom: 24,
