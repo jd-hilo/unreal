@@ -5,6 +5,7 @@ import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Input } from '@/components/Input';
 import { Building2 } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/Theme';
+import * as Haptics from 'expo-haptics';
 
 export default function CompanyScreen() {
   const router = useRouter();
@@ -28,12 +29,18 @@ export default function CompanyScreen() {
     });
   };
 
+  const handleBack = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.back();
+  };
+
   return (
     <OnboardingScreen
       title="Your Company"
       subtitle="Where do you currently work?"
       progress={0.75}
       onNext={handleNext}
+      onBack={handleBack}
       canContinue={company.trim().length > 0}
       nextLabel="Continue"
     >

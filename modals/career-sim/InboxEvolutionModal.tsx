@@ -85,6 +85,22 @@ const InboxViewComponent = memo(({ year, emails, filteredCount }: InboxViewCompo
 InboxViewComponent.displayName = 'InboxViewComponent';
 
 function InboxEvolutionModalComponent({ visible, onClose, inboxData }: InboxEvolutionModalProps) {
+  // Provide default values if inboxData is missing
+  const safeInboxData = inboxData || {
+    current: {
+      year: 2026,
+      emails: [],
+    },
+    future: {
+      year: 2032,
+      emails: [],
+    },
+    stats: {
+      responseTime: { current: '2 hours', future: '30 minutes' },
+      stressLevel: { current: 'Low', future: 'Medium' },
+    },
+  };
+
   return (
     <Modal
       visible={visible}
@@ -115,8 +131,8 @@ function InboxEvolutionModalComponent({ visible, onClose, inboxData }: InboxEvol
 
           {/* Current Inbox */}
           <InboxViewComponent 
-            year={inboxData.current.year}
-            emails={inboxData.current.emails}
+            year={safeInboxData.current?.year ?? 2026}
+            emails={safeInboxData.current?.emails ?? []}
           />
 
           <View style={styles.evolutionDivider}>
@@ -129,9 +145,9 @@ function InboxEvolutionModalComponent({ visible, onClose, inboxData }: InboxEvol
 
           {/* Future Inbox */}
           <InboxViewComponent 
-            year={inboxData.future.year}
-            emails={inboxData.future.emails}
-            filteredCount={inboxData.future.filteredCount}
+            year={safeInboxData.future?.year ?? 2032}
+            emails={safeInboxData.future?.emails ?? []}
+            filteredCount={safeInboxData.future?.filteredCount}
           />
 
           {/* Stats Comparison */}
@@ -145,18 +161,18 @@ function InboxEvolutionModalComponent({ visible, onClose, inboxData }: InboxEvol
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>AVG RESPONSE TIME</Text>
                 <View style={styles.statValues}>
-                  <Text style={styles.statCurrent}>{inboxData.stats.responseTime.current}</Text>
+                  <Text style={styles.statCurrent}>{safeInboxData.stats?.responseTime?.current ?? '2 hours'}</Text>
                   <ChevronRight size={14} color={Colors.textTertiary} />
-                  <Text style={styles.statFuture}>{inboxData.stats.responseTime.future}</Text>
+                  <Text style={styles.statFuture}>{safeInboxData.stats?.responseTime?.future ?? '30 minutes'}</Text>
                 </View>
               </View>
 
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>EMAIL STRESS LEVEL</Text>
                 <View style={styles.statValues}>
-                  <Text style={styles.statCurrent}>{inboxData.stats.stressLevel.current}</Text>
+                  <Text style={styles.statCurrent}>{safeInboxData.stats?.stressLevel?.current ?? 'Low'}</Text>
                   <ChevronRight size={14} color={Colors.textTertiary} />
-                  <Text style={styles.statFuture}>{inboxData.stats.stressLevel.future}</Text>
+                  <Text style={styles.statFuture}>{safeInboxData.stats?.stressLevel?.future ?? 'Medium'}</Text>
                 </View>
               </View>
             </View>

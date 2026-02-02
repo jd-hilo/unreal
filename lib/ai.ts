@@ -11,6 +11,7 @@ import type {
   DreamVision,
   DailyTask,
 } from '@/types/database';
+import type { CareerSimulation } from '@/lib/career-sim/types';
 
 // Anthropic API key (Claude 3.5)
 const anthropicApiKey = 
@@ -128,6 +129,15 @@ async function callClaude(options: {
       if (options.responseFormat?.type === 'json_object') {
         // Remove markdown code blocks if present
         content = content.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+        
+        // Try to extract JSON object if wrapped in text
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          content = jsonMatch[0];
+        }
+        
+        // Remove any leading/trailing whitespace or text
+        content = content.trim();
       }
       
       return content;
@@ -3213,19 +3223,40 @@ export async function generateArchitectPlan(
       .filter(([_, value]) => (value as number) >= 100)
       .map(([key, _]) => key);
 
+    // Calculate average progress to determine progression stage
+    const progressValues = Object.values(progress).filter(v => typeof v === 'number') as number[];
+    const avgProgress = progressValues.length > 0 
+      ? progressValues.reduce((sum, val) => sum + val, 0) / progressValues.length 
+      : 0;
+    
+    // Determine progression stage based on average progress
+    let progressionStage = 'exploration';
+    let stageGuidance = '';
+    if (avgProgress >= 70) {
+      progressionStage = 'commitment';
+      stageGuidance = `COMMITMENT STAGE (70-100% progress): Generate decisive daily actions that represent commitment and execution. These aren't "harder" - they're more CONSEQUENTIAL and SPECIFIC. Examples: "Sign apartment lease", "Close first customer", "Book one-way ticket", "Quit current job", "Plan second date with [name]". Tasks should be completable in one day but represent making decisions and committing to a direction based on what they've already explored and built.`;
+    } else if (avgProgress >= 30) {
+      progressionStage = 'action';
+      stageGuidance = `ACTION STAGE (30-70% progress): Generate concrete daily actions that build on their exploration. These aren't "harder" - they're more SPECIFIC and ACTIVE. Examples: "Email one landlord", "Interview one customer", "Go on one coffee date", "Apply to 3 jobs", "Join one fitness class". Tasks should be completable in one day and represent taking real steps based on what they've learned.`;
+    } else {
+      progressionStage = 'exploration';
+      stageGuidance = `EXPLORATION STAGE (0-30% progress): Generate exploratory daily actions that build awareness and discover options. Keep these LOW-STAKES and RESEARCH-ORIENTED. Examples: "Research 3 apartments in Austin", "List 5 business ideas", "Browse 3 dating apps", "Read one career article", "Walk 10 minutes". Tasks should be completable in one day and help them understand their options without commitment.`;
+    }
+
     const systemPrompt = `You are The Architect, a master strategist and life designer. Your goal is to bridge the gap between a user's current digital twin and their "Dream Self". 
     You provide exactly 3 actionable, daily tasks that are specific, measurable, and highly relevant to their aspirations.
     You are direct, inspiring, and focused on systems rather than just motivation.
     
     CRITICAL RULES: 
-    1. Each task_content MUST be SHORT: 4-7 words ideal (never exceed 10 words). Think simple commands: "Call mom", "Save $10", "Text one friend", "Research one apartment".
-    2. Tasks MUST be tiny micro-actions that feel effortless and impossible to skip.
+    1. Each task_content MUST be SHORT: 4-7 words ideal (never exceed 10 words). Think simple commands: "Research 3 apartments", "Email one landlord", "Sign lease", "List 5 ideas".
+    2. Tasks MUST be daily actions - completable within one day. They don't get "harder" as progress increases - they get more SPECIFIC, CONSEQUENTIAL, and COMMITTED.
     3. Use simple, direct language. No fluff, no explanations, just the action.
     4. Be specific with numbers when possible: "3 options", "one person", "$10".
     5. Do NOT include time references in task_content (no "today", "right now", or minutes).
     6. Rotate categories: prioritize categories where the user has the lowest progress.
-    7. Return ONLY a JSON array of 3 tasks.
-    8. Do NOT generate tasks for the following completed categories: ${completedCategories.join(', ') || 'None'}.`;
+    7. IMPORTANT - Progression Stages: ${stageGuidance}
+    8. Return ONLY a JSON array of 3 tasks.
+    9. Do NOT generate tasks for the following completed categories: ${completedCategories.join(', ') || 'None'}.`;
 
     const userPrompt = `User: ${firstName}
 Current Digital Twin: ${twinDescription}
@@ -3244,19 +3275,22 @@ Dream Self Vision:
 - Travel Plans: ${dreamVision.travel_plans || 'Not specified'}
 
 Current Progress: ${JSON.stringify(progress)}
+Average Progress: ${avgProgress.toFixed(1)}% (${progressionStage.toUpperCase()} stage)
 
 ${completedTasks.length > 0 ? `Recently Completed Tasks:\n- ${completedTasks.join('\n- ')}` : ''}
 ${feedback ? `User Feedback on Previous Tasks: "${feedback}"` : ''}
 
-As The Architect, generate EXACTLY 3 micro-tasks for this user to complete during the day. 
-These tasks should be TINY, effortless actions that feel like quick wins.
+As The Architect, generate EXACTLY 3 daily tasks for this user to complete. 
+Match the progression stage appropriately (${progressionStage} stage - ${avgProgress.toFixed(1)}% average).
+
+IMPORTANT: Tasks should progress from EXPLORATION → ACTION → COMMITMENT as they complete more tasks. This isn't about making tasks "harder" - it's about moving from low-stakes research to concrete actions to decisive commitments. All tasks remain equally completable in one day.
 
 Each task must have:
-1. "task_content": Short action phrase (4-7 words ideal, 10 words MAX). Examples: "Save $10", "Text one friend", "Research one job", "Call a family member".
+1. "task_content": Short action phrase (4-7 words ideal, 10 words MAX). Match the progression stage: exploration = research/discover, action = concrete steps, commitment = decisions/execution. Build on their completed tasks to suggest the logical next step.
 2. "category": One of: "Financial", "Personal", "Lifestyle", "Career", "Health", "Growth". (Note: Career tasks count towards Financial progress).
 3. "scheduled_date": Set this to today's date in YYYY-MM-DD format.
 
-Make each task feel ridiculously easy to complete. Use simple, everyday language.
+Use simple, everyday language. Tasks should naturally progress based on what they've already done.
 
 Return ONLY a JSON array of 3 objects.`;
 
@@ -3490,3 +3524,514 @@ Rules:
   }
 }
 
+/**
+ * Generate a comprehensive career simulation based on user profile and career path choices
+ */
+export async function generateCareerSimulation(
+  corePack: string,
+  options: {
+    timeHorizon: 5 | 10 | 15;
+    pathType: 'stay' | 'switch' | 'startup';
+    currentRole: string;
+    company: string;
+    salary: string;
+  }
+): Promise<CareerSimulation> {
+  const aiStartTime = performance.now();
+  console.log('[AI] Starting generateCareerSimulation at', new Date().toISOString());
+  console.log(`[AI] Time horizon: ${options.timeHorizon} years, Path type: ${options.pathType}`);
+  console.log(`[AI] Current role: ${options.currentRole}, Company: ${options.company}, Salary: ${options.salary}`);
+
+  if (DEV_MODE) {
+    console.log('[AI] DEV_MODE: Using mock career simulation');
+    // Return a simplified mock for dev mode
+    const { getSimulation } = require('@/lib/career-sim/mockData');
+    return getSimulation(options.pathType, options.timeHorizon);
+  }
+
+  const pathNameMap = {
+    stay: 'Stay at Current Company',
+    switch: 'Switch to New Company',
+    startup: 'Start Your Own Company',
+  };
+
+  const systemPrompt = `You are a career trajectory simulator. Generate a realistic career simulation based on the user's profile and chosen career path.
+
+CRITICAL REQUIREMENTS:
+1. Use SECOND PERSON (you/your) throughout
+2. Be SPECIFIC with numbers, percentages, and concrete details
+3. Base predictions on realistic industry data and career progression patterns
+4. Consider the user's current role, company, salary, and chosen path type
+5. Generate realistic outcomes reflecting opportunities and challenges
+6. Include key milestones, compensation changes, and role changes
+7. NO brand names - use generic descriptors
+8. ALL fields in the JSON structure MUST be present - never omit any field, even if minimal
+9. Arrays should have at least 1-2 items minimum (more is fine, but ensure completeness)
+
+Path Type Context:
+- "stay": User continues at current company
+- "switch": User moves to a new company
+- "startup": User starts their own company or joins an early-stage startup
+
+Time Horizon: ${options.timeHorizon} years.`;
+
+  const userPrompt = `User Profile Context:
+${corePack}
+
+Current Career Situation:
+- Role: ${options.currentRole}
+- Company: ${options.company}
+- Current Salary: $${options.salary}/year
+- Chosen Path: ${pathNameMap[options.pathType]}
+- Time Horizon: ${options.timeHorizon} years
+
+Generate a comprehensive career simulation with the following structure. Return valid JSON matching this exact format.
+
+CRITICAL: Every single field shown below MUST be included in your response. Do not skip any fields, even nested ones like metadata.folder, stats.meetingsPerWeek.current, etc. All arrays should have at least the minimum items specified.
+
+{
+  "id": "generated-${options.pathType}-${options.timeHorizon}y",
+  "timeHorizon": ${options.timeHorizon},
+  "pathName": "${pathNameMap[options.pathType]}",
+  "confidence": 75,
+  "outcome": {
+    "title": "Final role title at end of ${options.timeHorizon} years",
+    "company": "Company name (or 'Your Startup' if startup path)",
+    "totalComp": 250000,
+    "location": "City, State",
+    "satisfaction": 4.2
+  },
+  "stats": {
+    "compensation": {
+      "base": 200000,
+      "equity": 50000
+    },
+    "growth": {
+      "promotions": 2,
+      "yearsToSenior": 3,
+      "teamSize": 8
+    },
+    "workLife": {
+      "hoursPerWeek": 50,
+      "burnoutRisk": "Medium",
+      "flexibility": "High"
+    },
+    "skills": {
+      "technical": "Specific technical skills developed",
+      "leadership": "Leadership capabilities gained",
+      "expertise": "Domain expertise areas"
+    }
+  },
+  "timeline": {
+    "milestones": [
+      {
+        "year": 1,
+        "title": "Role title",
+        "company": "Company name",
+        "salary": 180000,
+        "description": "Brief description of milestone"
+      }
+    ]
+  },
+  "globalComparison": {
+    "income": {
+      "yourComp": 250000,
+      "globalPercentile": 8,
+      "globalAverage": 120000,
+      "usAverage": 195000,
+      "topEarners": { "range": "$450k - $650k", "group": "FAANG senior staff" },
+      "developingMarkets": { "min": 45000, "max": 80000 }
+    },
+    "careerProgression": {
+      "yourLevel": "Senior Manager level",
+      "globalPercentile": 12,
+      "mostCommon": "Senior IC (no management)",
+      "fastest": "Tech leads at unicorns (VP in 7 years)",
+      "many": "Still mid-level engineer"
+    },
+    "workLife": {
+      "yourHours": 50,
+      "globalPercentile": 55,
+      "range": { "min": 35, "minLabel": "Europe", "max": 80, "maxLabel": "startup hubs" },
+      "bestBalance": "Nordic countries, remote workers",
+      "worstBalance": "China tech, US startups"
+    },
+    "equity": {
+      "yourEquity": 180000,
+      "globalPercentile": 25,
+      "mostEngineers": "$0 - $30k equity",
+      "lotteryWinners": { "range": "$5M - $50M", "percentage": 0.1 },
+      "note": "You're in the top quartile by choosing stable equity"
+    },
+    "geographic": {
+      "northAmerica": 12000,
+      "europe": 8500,
+      "asia": 45000,
+      "latinAmerica": 3200,
+      "note": "You're in the top tier of a global workforce"
+    },
+    "globalReality": "A realistic assessment comparing the user's trajectory to global engineers"
+  },
+  "zoomIns": {
+    "regretMoments": [
+      {
+        "year": 2029,
+        "title": "Missed Opportunity Title",
+        "description": "Description of a regret moment - something you passed up that turned out well"
+      },
+      {
+        "year": 2031,
+        "title": "Another Regret Moment",
+        "description": "Another moment you still think about"
+      }
+    ],
+    "reflection": "A thoughtful reflection on the career path taken, acknowledging both wins and what might have been",
+    "cards": [
+      { "id": "email", "title": "The Email", "icon": "📧" },
+      { "id": "tuesday", "title": "Random Tuesday", "icon": "📅" },
+      { "id": "calendar", "title": "Calendar Evolution", "icon": "🗓️" },
+      { "id": "feedback", "title": "Team Feedback", "icon": "💬" },
+      { "id": "inbox", "title": "Inbox Evolution", "icon": "📬" }
+    ],
+    "randomTuesday": {
+      "date": "Tuesday, March 15, 2032",
+      "notifications": [
+        {
+          "app": "Slack",
+          "icon": "💬",
+          "title": "Team Standup",
+          "body": "Reminder: Standup in 5 minutes",
+          "time": "9:00 AM"
+        },
+        {
+          "app": "Email",
+          "icon": "📧",
+          "title": "New Message",
+          "body": "You have a new email from your manager",
+          "time": "9:15 AM"
+        }
+      ],
+      "timeline": [
+        {
+          "time": "8:00 AM",
+          "icon": "☕",
+          "title": "Morning Coffee",
+          "description": "You grab coffee before starting work"
+        },
+        {
+          "time": "9:00 AM",
+          "icon": "💼",
+          "title": "Team Standup",
+          "description": "Daily sync with your team"
+        }
+      ],
+      "stats": {
+        "decisionsMade": 12,
+        "imposterSyndromeMoments": 2
+      }
+    },
+    "theEmail": {
+      "from": "recruiter@company.com",
+      "to": "you@email.com",
+      "subject": "Exciting Opportunity at Tech Company",
+      "timestamp": "March 10, 2032 2:30 PM",
+      "body": "Email body content",
+      "metadata": {
+        "folder": "Opportunities",
+        "timesOpened": 3,
+        "lastUpdate": "March 12, 2032"
+      }
+    },
+    "calendar": {
+      "current": {
+        "year": 2026,
+        "events": [
+          {
+            "day": "Mon",
+            "time": "10:00 AM",
+            "title": "Team Meeting",
+            "color": "#8B5CF6",
+            "duration": 60
+          },
+          {
+            "day": "Tue",
+            "time": "2:00 PM",
+            "title": "Code Review",
+            "color": "#8B5CF6",
+            "duration": 30
+          },
+          {
+            "day": "Wed",
+            "time": "11:00 AM",
+            "title": "Sprint Planning",
+            "color": "#8B5CF6",
+            "duration": 90
+          },
+          {
+            "day": "Thu",
+            "time": "3:00 PM",
+            "title": "Design Review",
+            "color": "#8B5CF6",
+            "duration": 45
+          },
+          {
+            "day": "Fri",
+            "time": "10:00 AM",
+            "title": "Weekly Retro",
+            "color": "#8B5CF6",
+            "duration": 60
+          }
+        ]
+      },
+      "future": {
+        "year": 2032,
+        "events": [
+          {
+            "day": "Mon",
+            "time": "9:00 AM",
+            "title": "Leadership Sync",
+            "color": "#A78BFA",
+            "duration": 45
+          },
+          {
+            "day": "Mon",
+            "time": "2:00 PM",
+            "title": "Strategy Review",
+            "color": "#A78BFA",
+            "duration": 60
+          },
+          {
+            "day": "Tue",
+            "time": "10:00 AM",
+            "title": "Team 1:1s",
+            "color": "#A78BFA",
+            "duration": 30
+          },
+          {
+            "day": "Wed",
+            "time": "11:00 AM",
+            "title": "Board Prep",
+            "color": "#A78BFA",
+            "duration": 90
+          },
+          {
+            "day": "Thu",
+            "time": "9:00 AM",
+            "title": "Executive Briefing",
+            "color": "#A78BFA",
+            "duration": 60
+          },
+          {
+            "day": "Thu",
+            "time": "3:00 PM",
+            "title": "Budget Review",
+            "color": "#A78BFA",
+            "duration": 45
+          },
+          {
+            "day": "Fri",
+            "time": "10:00 AM",
+            "title": "All Hands",
+            "color": "#A78BFA",
+            "duration": 30
+          }
+        ]
+      },
+      "stats": {
+        "meetingsPerWeek": { "current": 8, "future": 15 },
+        "stressLevel": { "current": "Medium", "future": "High" },
+        "controlLevel": { "current": "Low", "future": "High" },
+        "lastOpenedFigma": { "current": "2 days ago", "future": "Never" }
+      }
+    },
+    "teamFeedback": {
+      "messages": [
+        {
+          "author": "Team Member",
+          "avatar": "👤",
+          "timestamp": "2:30 PM",
+          "message": "Great work on the project!",
+          "reactions": [{ "emoji": "👍", "count": 5 }]
+        },
+        {
+          "author": "Manager",
+          "avatar": "👔",
+          "timestamp": "2:45 PM",
+          "message": "Really impressed with your leadership on this",
+          "reactions": [{ "emoji": "🎉", "count": 3 }]
+        }
+      ],
+      "finalMessage": "Overall positive feedback message"
+    },
+    "inbox": {
+      "current": {
+        "year": 2026,
+        "emails": [
+          {
+            "sender": "colleague@company.com",
+            "subject": "Project Update",
+            "time": "10:00 AM",
+            "unread": true
+          },
+          {
+            "sender": "manager@company.com",
+            "subject": "Weekly Sync",
+            "time": "9:30 AM",
+            "unread": true
+          },
+          {
+            "sender": "hr@company.com",
+            "subject": "Benefits Enrollment",
+            "time": "8:00 AM",
+            "unread": false
+          }
+        ]
+      },
+      "future": {
+        "year": 2032,
+        "emails": [
+          {
+            "sender": "team@company.com",
+            "subject": "Strategic Planning",
+            "time": "9:00 AM",
+            "unread": false,
+            "important": true
+          },
+          {
+            "sender": "board@company.com",
+            "subject": "Q4 Review",
+            "time": "8:30 AM",
+            "unread": true,
+            "important": true
+          },
+          {
+            "sender": "investor@company.com",
+            "subject": "Follow-up Meeting",
+            "time": "8:15 AM",
+            "unread": false
+          }
+        ],
+        "filteredCount": 47
+      },
+      "stats": {
+        "responseTime": { "current": "2 hours", "future": "30 minutes" },
+        "stressLevel": { "current": "Low", "future": "Medium" }
+      }
+    }
+  },
+  "societalImpact": {
+    "productsShipped": ["Product 1", "Product 2", "Product 3"],
+    "peopleInfluenced": ["Team members", "Mentees", "Community"],
+    "industryContributions": ["Open source", "Conference talks", "Technical writing"],
+    "rippleEffect": "Description of broader impact - how your work affects others beyond direct team",
+    "honestAssessment": "Realistic assessment of actual societal impact - be honest about scale and reach"
+  },
+  "alternatePaths": [
+    { "id": "stay-current", "label": "Stay at Current" },
+    { "id": "switch-faang", "label": "Switch to FAANG" },
+    { "id": "startup-cto", "label": "Startup CTO" }
+  ]
+}
+
+CRITICAL JSON STRUCTURE REQUIREMENTS:
+- Generate ${Math.max(3, Math.ceil(options.timeHorizon / 3))}-${Math.ceil(options.timeHorizon / 2)} timeline milestones (fewer is fine - focus on key moments)
+- Make compensation progression realistic based on starting salary of $${options.salary}
+- Keep descriptions BRIEF (1 sentence max for timeline descriptions)
+- ALL fields must be present in the JSON response - do not omit any field
+- For arrays, include at least 1-2 items minimum:
+  * timeline.milestones: at least 3-5 items
+  * zoomIns.regretMoments: at least 1-2 items
+  * zoomIns.cards: exactly 5 items (email, tuesday, calendar, feedback, inbox)
+  * zoomIns.randomTuesday.notifications: at least 2-3 items
+  * zoomIns.randomTuesday.timeline: at least 3-4 items
+  * zoomIns.calendar.current.events: at least 3-5 items (day must be one of: "Mon", "Tue", "Wed", "Thu", "Fri")
+  * zoomIns.calendar.future.events: at least 5-8 items (day must be one of: "Mon", "Tue", "Wed", "Thu", "Fri")
+  * zoomIns.teamFeedback.messages: at least 2-3 items
+  * zoomIns.inbox.current.emails: at least 3-5 items
+  * zoomIns.inbox.future.emails: at least 5-8 items
+  * societalImpact.productsShipped: at least 2-3 items
+  * societalImpact.peopleInfluenced: at least 2-3 items
+  * societalImpact.industryContributions: at least 2-3 items
+  * alternatePaths: at least 2-3 items
+- Write in second person throughout
+- Focus on accuracy and completeness over verbosity
+- Ensure nested objects (like metadata, stats, range) are fully populated
+- For calendar events, the "day" field MUST be one of: "Mon", "Tue", "Wed", "Thu", "Fri" (3-letter abbreviations only)
+- Calendar event "color" should be a hex color code like "#8B5CF6" or "#A78BFA"
+- Calendar event "duration" is in minutes (e.g., 30, 45, 60, 90)
+- Return ONLY valid JSON - no markdown, no code blocks, no explanations, just the JSON object
+- Validate that all required fields are present before returning`;
+
+  try {
+    const promptPrepTime = performance.now();
+    console.log(`[AI] Prompt preparation took ${(promptPrepTime - aiStartTime).toFixed(2)}ms`);
+    
+    const apiCallStartTime = performance.now();
+    console.log('[AI] Making Claude API call for career simulation...');
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.6, // Slightly lower for faster, more deterministic output
+      maxTokens: 16384, // Increased to handle large career simulation responses (can be 13k+ chars)
+    });
+    const apiCallEndTime = performance.now();
+    const apiCallDuration = apiCallEndTime - apiCallStartTime;
+    console.log(`[AI] Claude API call completed in ${(apiCallDuration / 1000).toFixed(2)}s`);
+    console.log(`[AI] Response length: ${content.length} characters`);
+    console.log(`[AI] Response preview (first 500 chars):`, content.substring(0, 500));
+    console.log(`[AI] Response preview (last 500 chars):`, content.substring(Math.max(0, content.length - 500)));
+
+    const parseStartTime = performance.now();
+    
+    // Clean and validate JSON before parsing
+    let cleanedContent = content.trim();
+    
+    // Remove any markdown code blocks that might have been missed
+    cleanedContent = cleanedContent.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+    
+    // Try to extract JSON if it's wrapped in text
+    const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanedContent = jsonMatch[0];
+    }
+    
+    // Try parsing with better error handling
+    let simulationData: CareerSimulation;
+    try {
+      simulationData = JSON.parse(cleanedContent) as CareerSimulation;
+    } catch (parseError: any) {
+      // Log more details about the parse error
+      console.error(`[AI] JSON parse error details:`, {
+        error: parseError.message,
+        contentLength: cleanedContent.length,
+        contentStart: cleanedContent.substring(0, 200),
+        contentEnd: cleanedContent.substring(Math.max(0, cleanedContent.length - 200)),
+      });
+      
+      // Try to find and fix common JSON issues
+      // Fix unquoted keys (this is a common issue)
+      try {
+        // This is a fallback - try to fix unquoted keys
+        const fixedContent = cleanedContent.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":');
+        simulationData = JSON.parse(fixedContent) as CareerSimulation;
+        console.log(`[AI] Successfully parsed after fixing unquoted keys`);
+      } catch (fixError) {
+        // If that doesn't work, throw the original error with more context
+        throw new Error(`JSON Parse error: ${parseError.message}. Content preview: ${cleanedContent.substring(0, 500)}...`);
+      }
+    }
+    
+    const parseEndTime = performance.now();
+    console.log(`[AI] JSON parsing took ${(parseEndTime - parseStartTime).toFixed(2)}ms`);
+    
+    const totalTime = performance.now() - aiStartTime;
+    console.log(`[AI] Total generateCareerSimulation time: ${(totalTime / 1000).toFixed(2)}s`);
+
+    return simulationData;
+  } catch (error) {
+    const errorTime = performance.now() - aiStartTime;
+    console.error(`[AI] Career simulation error after ${(errorTime / 1000).toFixed(2)}s:`, error);
+    throw error;
+  }
+}

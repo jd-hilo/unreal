@@ -111,8 +111,8 @@ function CalendarEvolutionModalComponent({ visible, onClose, calendarData }: Cal
 
           {/* Current Calendar */}
           <CalendarViewComponent 
-            year={calendarData.current.year}
-            events={calendarData.current.events}
+            year={calendarData.current?.year ?? 2026}
+            events={calendarData.current?.events ?? []}
           />
 
           <View style={styles.evolutionArrow}>
@@ -126,8 +126,8 @@ function CalendarEvolutionModalComponent({ visible, onClose, calendarData }: Cal
 
           {/* Future Calendar */}
           <CalendarViewComponent 
-            year={calendarData.future.year}
-            events={calendarData.future.events}
+            year={calendarData.future?.year ?? 2032}
+            events={calendarData.future?.events ?? []}
           />
 
           {/* Stats Comparison */}
@@ -141,36 +141,36 @@ function CalendarEvolutionModalComponent({ visible, onClose, calendarData }: Cal
               <View style={styles.statBox}>
                 <Text style={styles.statBoxLabel}>MEETINGS / WEEK</Text>
                 <View style={styles.statBoxValues}>
-                  <Text style={styles.statBoxCurrent}>{calendarData.stats.meetingsPerWeek.current}</Text>
+                  <Text style={styles.statBoxCurrent}>{calendarData.stats?.meetingsPerWeek?.current ?? 8}</Text>
                   <ChevronRight size={14} color={Colors.textTertiary} />
-                  <Text style={styles.statBoxFuture}>{calendarData.stats.meetingsPerWeek.future}</Text>
+                  <Text style={styles.statBoxFuture}>{calendarData.stats?.meetingsPerWeek?.future ?? 15}</Text>
                 </View>
               </View>
 
               <View style={styles.statBox}>
                 <Text style={styles.statBoxLabel}>STRESS LEVEL</Text>
                 <View style={styles.statBoxValues}>
-                  <Text style={styles.statBoxCurrent}>{calendarData.stats.stressLevel.current}</Text>
+                  <Text style={styles.statBoxCurrent}>{calendarData.stats?.stressLevel?.current ?? 'Medium'}</Text>
                   <ChevronRight size={14} color={Colors.textTertiary} />
-                  <Text style={styles.statBoxFuture}>{calendarData.stats.stressLevel.future}</Text>
+                  <Text style={styles.statBoxFuture}>{calendarData.stats?.stressLevel?.future ?? 'High'}</Text>
                 </View>
               </View>
 
               <View style={styles.statBox}>
                 <Text style={styles.statBoxLabel}>AUTONOMY</Text>
                 <View style={styles.statBoxValues}>
-                  <Text style={styles.statBoxCurrent}>{calendarData.stats.controlLevel.current}</Text>
+                  <Text style={styles.statBoxCurrent}>{calendarData.stats?.controlLevel?.current ?? 'Low'}</Text>
                   <ChevronRight size={14} color={Colors.textTertiary} />
-                  <Text style={styles.statBoxFuture}>{calendarData.stats.controlLevel.future}</Text>
+                  <Text style={styles.statBoxFuture}>{calendarData.stats?.controlLevel?.future ?? 'High'}</Text>
                 </View>
               </View>
 
               <View style={styles.statBox}>
                 <Text style={styles.statBoxLabel}>LAST FIGMA EDIT</Text>
                 <View style={styles.statBoxValues}>
-                  <Text style={styles.statBoxCurrent}>{calendarData.stats.lastOpenedFigma.current}</Text>
+                  <Text style={styles.statBoxCurrent}>{calendarData.stats?.lastOpenedFigma?.current ?? '2 days ago'}</Text>
                   <ChevronRight size={14} color={Colors.textTertiary} />
-                  <Text style={styles.statBoxFuture}>{calendarData.stats.lastOpenedFigma.future}</Text>
+                  <Text style={styles.statBoxFuture}>{calendarData.stats?.lastOpenedFigma?.future ?? 'Never'}</Text>
                 </View>
               </View>
             </View>

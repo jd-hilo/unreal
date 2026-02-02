@@ -33,6 +33,12 @@ function ComparePathsSectionComponent({ alternatePaths, onPathPress }: ComparePa
     onPathPress(pathId);
   }, [onPathPress]);
 
+  const safePaths = alternatePaths || [
+    { id: 'stay-current', label: 'Stay at Current' },
+    { id: 'switch-faang', label: 'Switch to FAANG' },
+    { id: 'startup-cto', label: 'Startup CTO' },
+  ];
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -40,7 +46,7 @@ function ComparePathsSectionComponent({ alternatePaths, onPathPress }: ComparePa
         <Text style={styles.sectionTitle}>Want to see what changes if you...</Text>
       </View>
       <View style={styles.pathsContainer}>
-        {alternatePaths.map((path) => (
+        {safePaths.map((path) => (
           <PathButton
             key={path.id}
             path={path}

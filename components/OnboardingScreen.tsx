@@ -4,7 +4,7 @@ import { Button } from './Button';
 import { ProgressBar } from './ProgressBar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { ChevronRight, Sparkles } from 'lucide-react-native';
+import { ChevronRight, Sparkles, ChevronLeft } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
@@ -15,6 +15,7 @@ interface OnboardingScreenProps {
   progress: number;
   onNext: () => void;
   onSkip?: () => void;
+  onBack?: () => void;
   children: ReactNode;
   nextLabel?: string;
   loading?: boolean;
@@ -34,6 +35,7 @@ export function OnboardingScreen({
   progress,
   onNext,
   onSkip,
+  onBack,
   children,
   nextLabel = 'Continue',
   loading = false,
@@ -149,9 +151,20 @@ export function OnboardingScreen({
     >
       {/* Progress Header */}
       <View style={styles.header}>
-          <View style={styles.progressBarContainer}>
-            <ProgressBar progress={progress} showLabel={false} height={4} gradientColors={progressBarGradient} trackColor="rgba(0,0,0,0.05)" />
-          </View>
+        <View style={styles.headerTop}>
+          {onBack && (
+            <TouchableOpacity
+              onPress={onBack}
+              style={styles.backButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <ChevronLeft size={24} color={Colors.textPrimary} strokeWidth={2.5} />
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.progressBarContainer}>
+          <ProgressBar progress={progress} showLabel={false} height={4} gradientColors={progressBarGradient} trackColor="rgba(0,0,0,0.05)" />
+        </View>
       </View>
 
       <ScrollView
@@ -251,6 +264,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   progressBarContainer: {
     marginTop: 5,

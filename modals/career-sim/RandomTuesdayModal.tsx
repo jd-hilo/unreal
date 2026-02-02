@@ -14,6 +14,17 @@ interface RandomTuesdayModalProps {
 function RandomTuesdayModalComponent({ visible, onClose, tuesdayData }: RandomTuesdayModalProps) {
   const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  // Provide safe defaults if tuesdayData is missing
+  const safeTuesdayData = tuesdayData || {
+    date: 'Tuesday, March 15, 2032',
+    notifications: [],
+    timeline: [],
+    stats: {
+      decisionsMade: 0,
+      imposterSyndromeMoments: 0,
+    },
+  };
+
   return (
     <Modal
       visible={visible}
@@ -40,24 +51,24 @@ function RandomTuesdayModalComponent({ visible, onClose, tuesdayData }: RandomTu
 
             {/* Date & Time */}
             <View style={styles.lockScreenHeader}>
-              <Text style={styles.lockScreenDate}>{tuesdayData.date.split(',')[1].trim()}</Text>
+              <Text style={styles.lockScreenDate}>{safeTuesdayData.date?.split(',')[1]?.trim() ?? 'March 15'}</Text>
               <Text style={styles.lockScreenTime}>09:41</Text>
             </View>
 
             {/* Notifications */}
             <View style={styles.notificationsList}>
-              {tuesdayData.notifications.map((notification, index) => (
+              {safeTuesdayData.notifications?.map((notification, index) => (
                 <View key={index} style={styles.notificationCard}>
                   <View style={styles.notificationHeader}>
                     <View style={styles.appIconContainer}>
-                      <Text style={styles.appIconEmoji}>{notification.icon}</Text>
+                      <Text style={styles.appIconEmoji}>{notification.icon ?? '📱'}</Text>
                     </View>
-                    <Text style={styles.appName}>{notification.app.toUpperCase()}</Text>
-                    <Text style={styles.notifTime}>{notification.time}</Text>
+                    <Text style={styles.appName}>{notification.app?.toUpperCase() ?? 'APP'}</Text>
+                    <Text style={styles.notifTime}>{notification.time ?? '9:00 AM'}</Text>
                   </View>
                   <View style={styles.notificationContent}>
-                    <Text style={styles.notifTitle}>{notification.title}</Text>
-                    <Text style={styles.notifBody} numberOfLines={2}>{notification.body}</Text>
+                    <Text style={styles.notifTitle}>{notification.title ?? 'Notification'}</Text>
+                    <Text style={styles.notifBody} numberOfLines={2}>{notification.body ?? 'Notification body'}</Text>
                   </View>
                 </View>
               ))}

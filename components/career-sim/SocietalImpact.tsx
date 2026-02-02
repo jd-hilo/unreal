@@ -13,6 +13,15 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75;
 
 function SocietalImpactComponent({ societalImpact }: SocietalImpactProps) {
+  // Provide safe defaults
+  const safeImpact = societalImpact || {
+    productsShipped: ['Product 1', 'Product 2'],
+    peopleInfluenced: ['Team members', 'Mentees'],
+    industryContributions: ['Open source', 'Conference talks'],
+    rippleEffect: 'Description of broader impact',
+    honestAssessment: 'Realistic assessment of actual societal impact',
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -38,12 +47,12 @@ function SocietalImpactComponent({ societalImpact }: SocietalImpactProps) {
             <Text style={styles.cardTitle}>Products Shipped</Text>
           </View>
           <View style={styles.listContainer}>
-            {societalImpact.productsShipped.map((product, index) => (
+            {safeImpact.productsShipped?.map((product, index) => (
               <View key={index} style={styles.bulletItem}>
                 <View style={[styles.bulletDot, { backgroundColor: Colors.gradients.purple[1] }]} />
                 <Text style={styles.bulletText}>{product}</Text>
               </View>
-            ))}
+            )) || <Text style={styles.emptyText}>No products listed</Text>}
           </View>
         </View>
 
@@ -56,12 +65,12 @@ function SocietalImpactComponent({ societalImpact }: SocietalImpactProps) {
             <Text style={styles.cardTitle}>People Influenced</Text>
           </View>
           <View style={styles.listContainer}>
-            {societalImpact.peopleInfluenced.map((item, index) => (
+            {safeImpact.peopleInfluenced?.map((item, index) => (
               <View key={index} style={styles.bulletItem}>
                 <View style={[styles.bulletDot, { backgroundColor: Colors.gradients.turquoise[0] }]} />
                 <Text style={styles.bulletText}>{item}</Text>
               </View>
-            ))}
+            )) || <Text style={styles.emptyText}>No people listed</Text>}
           </View>
         </View>
 
@@ -74,12 +83,12 @@ function SocietalImpactComponent({ societalImpact }: SocietalImpactProps) {
             <Text style={styles.cardTitle}>Industry Mark</Text>
           </View>
           <View style={styles.listContainer}>
-            {societalImpact.industryContributions.map((contribution, index) => (
+            {safeImpact.industryContributions?.map((contribution, index) => (
               <View key={index} style={styles.bulletItem}>
                 <View style={[styles.bulletDot, { backgroundColor: '#FF9A8B' }]} />
                 <Text style={styles.bulletText}>{contribution}</Text>
               </View>
-            ))}
+            )) || <Text style={styles.emptyText}>No contributions listed</Text>}
           </View>
         </View>
       </ScrollView>
@@ -93,7 +102,7 @@ function SocietalImpactComponent({ societalImpact }: SocietalImpactProps) {
             style={styles.narrativeGradient}
           >
             <Text style={styles.narrativeTitle}>The Ripple Effect</Text>
-            <Text style={styles.narrativeText}>{societalImpact.rippleEffect}</Text>
+            <Text style={styles.narrativeText}>{safeImpact.rippleEffect ?? 'Description of broader impact'}</Text>
           </LinearGradient>
         </View>
 
@@ -104,7 +113,7 @@ function SocietalImpactComponent({ societalImpact }: SocietalImpactProps) {
             style={styles.narrativeGradient}
           >
             <Text style={[styles.narrativeTitle, { color: '#F59E0B' }]}>What changes if you...</Text>
-            <Text style={styles.narrativeText}>{societalImpact.honestAssessment}</Text>
+            <Text style={styles.narrativeText}>{safeImpact.honestAssessment ?? 'Realistic assessment of actual societal impact'}</Text>
           </LinearGradient>
         </View>
       </View>
@@ -223,5 +232,13 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.regular,
     lineHeight: 22,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 8,
   },
 });

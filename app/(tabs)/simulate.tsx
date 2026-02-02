@@ -1,14 +1,17 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Dimensions, Image, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Dimensions, Image, NativeSyntheticEvent, NativeScrollEvent, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
-import { Briefcase, ChevronRight, Heart, Brain, Zap } from 'lucide-react-native';
+import { Briefcase, ChevronRight, Heart, Brain, Zap, ChevronDown } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
+import { getCareerSimulations } from '@/lib/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { CareerSimulation } from '@/lib/career-sim/types';
 
 
 const { width } = Dimensions.get('window');
@@ -53,6 +56,26 @@ export default function SimulateTab() {
   const user = useAuth((state) => state.user);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [activeIndex, setActiveIndex] = useState(0);
+  const [recentSims, setRecentSims] = useState<any[]>([]);
+  const [showRecentDropdown, setShowRecentDropdown] = useState(false);
+  const [loadingSims, setLoadingSims] = useState(false);
+
+  // Load recent simulations
+  useEffect(() => {
+    const loadRecentSims = async () => {
+      if (!user?.id) return;
+      setLoadingSims(true);
+      try {
+        const sims = await getCareerSimulations(user.id);
+        setRecentSims(sims.slice(0, 10)); // Get last 10
+      } catch (error) {
+        console.error('Error loading recent simulations:', error);
+      } finally {
+        setLoadingSims(false);
+      }
+    };
+    loadRecentSims();
+  }, [user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -64,7 +87,14 @@ export default function SimulateTab() {
         delay: 100,
         useNativeDriver: true,
       }).start();
-    }, [fadeAnim])
+      
+      // Reload recent sims when tab is focused
+      if (user?.id) {
+        getCareerSimulations(user.id).then(sims => {
+          setRecentSims(sims.slice(0, 10));
+        }).catch(console.error);
+      }
+    }, [fadeAnim, user?.id])
   );
 
   const handleCardPress = useCallback((card: typeof CARDS[0]) => {
@@ -74,6 +104,75 @@ export default function SimulateTab() {
       router.push('/career-sim/01-time-horizon');
     }
   }, [router]);
+
+  const handleLoadSimulation = useCallback(async (sim: any) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setShowRecentDropdown(false);
+      
+      // Get simulation data (handle both database field names)
+      const simulationData = sim.simulation_data || sim.simulationData;
+      if (!simulationData) {
+        console.error('No simulation data found for sim:', sim);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
+      
+      // Store the simulation data temporarily for loading
+      const storageKey = `career_sim_${user?.id}_saved_${sim.id}`;
+      await AsyncStorage.setItem(
+        storageKey,
+        JSON.stringify(simulationData)
+      );
+      
+      // Navigate to result screen with the saved simulation
+      router.push({
+        pathname: '/career-sim/result',
+        params: {
+          timeHorizon: (sim.time_horizon || sim.timeHorizon || 10).toString(),
+          currentRole: sim.role_title || sim.roleTitle || '',
+          company: sim.company || '',
+          salary: sim.salary || '',
+          pathType: sim.path_type || sim.pathType || 'stay',
+          generated: 'true',
+          simulationKey: storageKey, // Use the full storage key
+        },
+      });
+    } catch (error) {
+      console.error('Error loading simulation:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  }, [router, user?.id]);
+
+  const formatDate = useCallback((dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }, []);
+
+  const getSimulationName = useCallback((sim: any) => {
+    // Try to get pathName from simulation_data
+    const simData = sim.simulation_data || sim.simulationData;
+    if (simData && simData.pathName) {
+      return simData.pathName;
+    }
+    // Fallback to path type label
+    const pathType = sim.path_type || sim.pathType;
+    const labels: Record<string, string> = {
+      'stay': 'Stay',
+      'switch': 'Switch',
+      'startup': 'Startup',
+    };
+    return labels[pathType] || pathType || 'Career';
+  }, []);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width;
@@ -141,17 +240,87 @@ export default function SimulateTab() {
   return (
     <View style={styles.screen}>
       <StatusBar style="dark" />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <Animated.View 
           style={[styles.container, { opacity: fadeAnim }]} 
         >
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.titleRow}>
-              <Zap size={32} color={Colors.textPrimary} strokeWidth={2} />
-              <Text style={styles.title}>Simulate</Text>
+            <View style={styles.headerLeft}>
+              <View style={styles.titleRow}>
+                <Zap size={32} color={Colors.textPrimary} strokeWidth={2} />
+                <Text style={styles.title}>Simulate</Text>
+              </View>
+              <Text style={styles.subtitle}>Experience possible futures</Text>
             </View>
-            <Text style={styles.subtitle}>Experience possible futures</Text>
+            {user?.id && (
+              <View style={styles.headerRight}>
+                <TouchableOpacity 
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowRecentDropdown(!showRecentDropdown);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['rgba(0, 188, 166, 0.06)', 'rgba(144, 140, 241, 0.06)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.recentSimsButton}
+                  >
+                    {loadingSims ? (
+                      <ActivityIndicator size="small" color="#696969" />
+                    ) : (
+                      <>
+                        <Text style={styles.recentSimsText}>Recent</Text>
+                        <ChevronDown 
+                          size={12} 
+                          color="#696969" 
+                          strokeWidth={2}
+                          style={[styles.dropdownIcon, showRecentDropdown && styles.dropdownIconRotated]}
+                        />
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+                {showRecentDropdown && (
+                  <>
+                    <TouchableWithoutFeedback onPress={() => setShowRecentDropdown(false)}>
+                      <View style={styles.dropdownOverlay} />
+                    </TouchableWithoutFeedback>
+                    <View style={styles.dropdown}>
+                      {recentSims.length === 0 ? (
+                        <View style={styles.dropdownEmpty}>
+                          <Text style={styles.dropdownEmptyText}>No recent simulations</Text>
+                        </View>
+                      ) : (
+                        <ScrollView style={styles.dropdownScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                          {recentSims.map((sim) => (
+                            <TouchableOpacity
+                              key={sim.id}
+                              style={styles.dropdownItem}
+                              onPress={() => handleLoadSimulation(sim)}
+                            >
+                              <View style={styles.dropdownItemContent}>
+                                <Text style={styles.dropdownItemTitle}>
+                                  {getSimulationName(sim)} • {sim.time_horizon || sim.timeHorizon}yr
+                                </Text>
+                                <Text style={styles.dropdownItemSubtitle}>
+                                  {sim.role_title || 'No role'} {sim.company ? `@ ${sim.company}` : ''}
+                                </Text>
+                                <Text style={styles.dropdownItemDate}>
+                                  {formatDate(sim.created_at)}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      )}
+                    </View>
+                  </>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Carousel */}
@@ -202,25 +371,129 @@ const styles = StyleSheet.create({
   header: { 
     marginBottom: 48,
     paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    position: 'relative',
+    marginTop: 8,
+  },
+  recentSimsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 56,
+    borderWidth: 0.5,
+    borderColor: '#DFDFDF',
+    gap: 6,
+    overflow: 'hidden',
+  },
+  recentSimsText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#696969',
+    fontFamily: Fonts.secondary.bold,
+    lineHeight: 16,
+  },
+  dropdownIcon: {
+    transform: [{ rotate: '0deg' }],
+  },
+  dropdownIconRotated: {
+    transform: [{ rotate: '180deg' }],
+  },
+  dropdownOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: -200,
+    right: -200,
+    bottom: -1000,
+    zIndex: 998,
+  },
+  dropdown: {
+    position: 'absolute',
+    top: 48,
+    right: 0,
+    width: 280,
+    maxHeight: 400,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 1000,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+  },
+  dropdownEmpty: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  dropdownEmptyText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+  },
+  dropdownScroll: {
+    maxHeight: 400,
+  },
+  dropdownItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  dropdownItemContent: {
+    gap: 4,
+  },
+  dropdownItemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  dropdownItemSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+  },
+  dropdownItemDate: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    opacity: 0.7,
+    marginTop: 2,
   },
   titleRow: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    gap: 12 
+    gap: 12,
+    marginBottom: 4,
   },
   title: { 
     fontSize: 32, 
-    fontFamily: Fonts.primary.regular, 
+    fontFamily: Fonts.primary.semibold, 
     color: Colors.textPrimary 
   },
   subtitle: { 
     fontSize: 16, 
     color: Colors.textSecondary, 
     fontFamily: Fonts.secondary.regular,
+    marginTop: 8,
   },
   carouselContainer: {
     flex: 1,
-    paddingBottom: 24,
+    paddingBottom: 120, // Reduced padding since cards are smaller
     marginTop: -20,
   },
   carouselContent: {
@@ -243,7 +516,7 @@ const styles = StyleSheet.create({
     elevation: 12,
     zIndex: 1,
     backgroundColor: '#FFFFFF',
-    height: 500, // Fixed height for consistency
+    height: 420, // Reduced height to prevent cutoff
   },
   // 3D Edge Effects
   cardEdgeTop: {
@@ -302,15 +575,15 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   cardContent: {
-    padding: 32,
+    padding: 28,
     flex: 1,
     justifyContent: 'space-between',
   },
   iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    marginBottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    marginBottom: 20,
     overflow: 'hidden',
   },
   iconGradient: {
@@ -319,18 +592,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: Colors.textPrimary,
     fontFamily: Fonts.primary.regular,
-    marginBottom: 12,
+    marginBottom: 10,
     letterSpacing: -0.5,
   },
   cardSubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.textSecondary,
-    marginBottom: 32,
-    lineHeight: 24,
+    marginBottom: 24,
+    lineHeight: 22,
     fontFamily: Fonts.secondary.regular,
   },
   actionRow: {
@@ -340,15 +613,15 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
   },
   actionText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
   },
   actionButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#1a1a1a',
     alignItems: 'center',
     justifyContent: 'center',
@@ -372,6 +645,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 32,
+    marginBottom: 20,
     gap: 8,
   },
   dot: {

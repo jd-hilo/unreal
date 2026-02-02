@@ -53,19 +53,23 @@ const TimelineNodeComponent = memo(({ node, isLast, index }: TimelineNodeCompone
 TimelineNodeComponent.displayName = 'TimelineNodeComponent';
 
 function CareerTimelineComponent({ timeline }: CareerTimelineProps) {
-  const { milestones } = timeline;
+  const milestones = timeline?.milestones || [];
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Your Career Journey</Text>
       <View style={styles.timelineContainer}>
-        {milestones.map((node, index) => (
-          <TimelineNodeComponent
-            key={`${node.year}-${index}`}
-            node={node}
-            isLast={index === milestones.length - 1}
-            index={index}
-          />
-        ))}
+        {milestones.length > 0 ? (
+          milestones.map((node, index) => (
+            <TimelineNodeComponent
+              key={`${node.year}-${index}`}
+              node={node}
+              isLast={index === milestones.length - 1}
+              index={index}
+            />
+          ))
+        ) : (
+          <Text style={styles.emptyText}>Timeline data is being generated...</Text>
+        )}
       </View>
     </View>
   );
@@ -176,5 +180,12 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.regular,
     lineHeight: 20,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    textAlign: 'center',
+    padding: 20,
   },
 });

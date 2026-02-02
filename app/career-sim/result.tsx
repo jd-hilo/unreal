@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Image, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft, AlertTriangle, Save, RefreshCw, Sparkles, ChevronRight } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +22,8 @@ import { RandomTuesdayModal } from '@/modals/career-sim/RandomTuesdayModal';
 import { CalendarEvolutionModal } from '@/modals/career-sim/CalendarEvolutionModal';
 import { TeamFeedbackModal } from '@/modals/career-sim/TeamFeedbackModal';
 import { InboxEvolutionModal } from '@/modals/career-sim/InboxEvolutionModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { CareerSimulation } from '@/lib/career-sim/types';
 
 type ModalType = 'email' | 'tuesday' | 'calendar' | 'feedback' | 'inbox' | null;
 
@@ -33,35 +35,94 @@ export default function CareerSimResult() {
     company: string;
     salary: string;
     pathType: string;
+    generated?: string;
+    simulationKey?: string;
   }>();
 
   const { user } = useAuth();
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [simulation, setSimulation] = useState<CareerSimulation | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Get simulation data based on path type
-  const pathType = (params.pathType || 'stay') as 'stay' | 'switch' | 'startup';
-  const simulationKey = pathType === 'stay' ? 'stay-current-10y' : 
+  // Load simulation data (generated or mock)
+  useEffect(() => {
+    const loadSimulation = async () => {
+      try {
+        // If we have a generated simulation key, load it from storage
+        if (params.generated === 'true' && params.simulationKey) {
+          // Try loading from AsyncStorage first
+          const storedData = await AsyncStorage.getItem(params.simulationKey);
+          if (storedData) {
+            try {
+              const parsed = JSON.parse(storedData) as CareerSimulation;
+              // Validate that we have the required simulation data
+              if (parsed && (parsed.timeline || parsed.outcome || parsed.stats)) {
+                setSimulation(parsed);
+                setLoading(false);
+                return;
+              } else {
+                console.warn('Invalid simulation data structure from storage:', parsed);
+              }
+            } catch (parseError) {
+              console.error('Error parsing simulation data from storage:', parseError);
+            }
+          }
+          
+          // If loading from storage failed, try fetching from database (for saved sims)
+          if (params.simulationKey.includes('saved_')) {
+            // Extract UUID from storage key format: career_sim_<userId>_saved_<simId>
+            const parts = params.simulationKey.split('_saved_');
+            const simId = parts.length > 1 ? parts[parts.length - 1] : null;
+            if (simId && user?.id) {
+              try {
+                const { getCareerSimulation } = await import('@/lib/storage');
+                const savedSim = await getCareerSimulation(simId);
+                if (savedSim) {
+                  const simData = savedSim.simulation_data || savedSim.simulationData;
+                  if (simData && (simData.timeline || simData.outcome || simData.stats)) {
+                    setSimulation(simData as CareerSimulation);
+                    // Also store it in AsyncStorage for next time
+                    await AsyncStorage.setItem(params.simulationKey, JSON.stringify(simData));
+                    setLoading(false);
+                    return;
+                  } else {
+                    console.warn('Invalid simulation data structure from database:', simData);
+                  }
+                }
+              } catch (dbError) {
+                console.error('Error fetching simulation from database:', dbError);
+              }
+            }
+          }
+        }
+
+        // Otherwise, use mock data
+        const pathType = (params.pathType || 'stay') as 'stay' | 'switch' | 'startup';
+        const mockKey = pathType === 'stay' ? 'stay-current-10y' : 
                        pathType === 'switch' ? 'switch-faang-10y' : 
                        'startup-cto-10y';
-  const simulation = MOCK_SIMULATIONS[simulationKey] || MOCK_SIMULATIONS['stay-current-10y'];
+        const mockSimulation = MOCK_SIMULATIONS[mockKey] || MOCK_SIMULATIONS['stay-current-10y'];
+        setSimulation(mockSimulation);
+      } catch (error) {
+        console.error('Error loading simulation:', error);
+        // Fallback to mock data
+        const pathType = (params.pathType || 'stay') as 'stay' | 'switch' | 'startup';
+        const mockKey = pathType === 'stay' ? 'stay-current-10y' : 
+                       pathType === 'switch' ? 'switch-faang-10y' : 
+                       'startup-cto-10y';
+        setSimulation(MOCK_SIMULATIONS[mockKey] || MOCK_SIMULATIONS['stay-current-10y']);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (!simulation) {
-    return (
-      <View style={styles.screen}>
-        <StatusBar style="dark" />
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Simulation data not found</Text>
-            <TouchableOpacity onPress={() => router.back()} style={styles.errorButton}>
-              <Text style={styles.errorButtonText}>Go Back</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </View>
-    );
-  }
+    loadSimulation();
+  }, [params.generated, params.simulationKey, params.pathType]);
 
+  const pathType = (params.pathType || 'stay') as 'stay' | 'switch' | 'startup';
+
+  // All hooks must be called before any conditional returns
   const handleZoomInPress = useCallback((type: 'email' | 'tuesday' | 'calendar' | 'feedback' | 'inbox') => {
     setActiveModal(type);
   }, []);
@@ -111,6 +172,7 @@ export default function CareerSimResult() {
         simulationData: simulation as any,
       });
 
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       alert('Career path saved! You can review it anytime.');
     } catch (error) {
@@ -127,6 +189,7 @@ export default function CareerSimResult() {
     router.push('/career-sim/setup');
   }, [router]);
 
+
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 75) return '#10B981';
     if (confidence >= 60) return '#F59E0B';
@@ -139,6 +202,37 @@ export default function CareerSimResult() {
     return 'LOW CONFIDENCE';
   };
 
+  // Conditional returns after all hooks
+  if (loading) {
+    return (
+      <View style={styles.screen}>
+        <StatusBar style="dark" />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.errorContainer}>
+            <ActivityIndicator size="large" color={Colors.gradients.purple[0]} />
+            <Text style={styles.errorText}>Loading simulation...</Text>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (!simulation) {
+    return (
+      <View style={styles.screen}>
+        <StatusBar style="dark" />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Simulation data not found</Text>
+            <TouchableOpacity onPress={() => router.back()} style={styles.errorButton}>
+              <Text style={styles.errorButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar style="dark" />
@@ -148,7 +242,13 @@ export default function CareerSimResult() {
           <TouchableOpacity 
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.replace('/(tabs)/simulate');
+              // Navigate back to simulate tab with replace to avoid push animation (slide left)
+              // We want it to feel like going "back" (slide right)
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/simulate');
+              }
             }} 
             style={styles.backButton}
           >
@@ -160,17 +260,7 @@ export default function CareerSimResult() {
               <Text style={styles.horizonText}>{params.timeHorizon} YEAR HORIZON</Text>
             </View>
           </View>
-          <TouchableOpacity 
-            style={styles.shareButton}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <ActivityIndicator size="small" color={Colors.textPrimary} />
-            ) : (
-              <Save size={20} color={Colors.textPrimary} strokeWidth={2} />
-            )}
-          </TouchableOpacity>
+          <View style={styles.headerRight} />
         </View>
 
         <ScrollView 
@@ -188,7 +278,7 @@ export default function CareerSimResult() {
             {/* SECTION 2: Zoom-Ins */}
             <View style={styles.section}>
               <ZoomInCard 
-                cards={simulation.zoomIns.cards}
+                cards={simulation.zoomIns?.cards}
                 onZoomInPress={handleZoomInPress} 
               />
             </View>
@@ -206,8 +296,8 @@ export default function CareerSimResult() {
             {/* SECTION 5: Regret Moments */}
             <View style={styles.section}>
               <RegretMoments 
-                regretMoments={simulation.zoomIns.regretMoments}
-                reflection={simulation.zoomIns.reflection}
+                regretMoments={simulation.zoomIns?.regretMoments}
+                reflection={simulation.zoomIns?.reflection}
               />
             </View>
 
@@ -229,60 +319,33 @@ export default function CareerSimResult() {
           </View>
         </ScrollView>
 
-        {/* CTA Button */}
-        <View style={styles.ctaContainer}>
-          <TouchableOpacity 
-            style={styles.ctaButtonWrapper}
-            onPress={handleSave}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={Colors.gradients.purple}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.ctaButtonGradient}
-            >
-              {isSaving ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Save size={20} color="#FFFFFF" strokeWidth={2.5} />
-              )}
-              <Text style={styles.ctaText}>
-                {isSaving ? 'Saving...' : 'Save This Path'}
-              </Text>
-              {!isSaving && (
-                <ChevronLeft size={20} color="#FFFFFF" strokeWidth={2.5} style={{ transform: [{ rotate: '180deg' }] }} />
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
       </SafeAreaView>
 
       {/* Modals */}
       <TheEmailModal
         visible={activeModal === 'email'}
         onClose={handleCloseModal}
-        emailData={simulation.zoomIns.theEmail}
+        emailData={simulation.zoomIns?.theEmail}
       />
       <RandomTuesdayModal
         visible={activeModal === 'tuesday'}
         onClose={handleCloseModal}
-        tuesdayData={simulation.zoomIns.randomTuesday}
+        tuesdayData={simulation.zoomIns?.randomTuesday}
       />
       <CalendarEvolutionModal
         visible={activeModal === 'calendar'}
         onClose={handleCloseModal}
-        calendarData={simulation.zoomIns.calendar}
+        calendarData={simulation.zoomIns?.calendar}
       />
       <TeamFeedbackModal
         visible={activeModal === 'feedback'}
         onClose={handleCloseModal}
-        feedbackData={simulation.zoomIns.teamFeedback}
+        feedbackData={simulation.zoomIns?.teamFeedback}
       />
       <InboxEvolutionModal
         visible={activeModal === 'inbox'}
         onClose={handleCloseModal}
-        inboxData={simulation.zoomIns.inbox}
+        inboxData={simulation.zoomIns?.inbox}
       />
     </View>
   );
@@ -319,6 +382,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerRight: {
+    position: 'relative',
   },
   headerCenter: {
     flex: 1,
@@ -357,39 +423,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 24,
-  },
-  ctaContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 40,
-  },
-  ctaButtonWrapper: {
-    borderRadius: 28,
-    overflow: 'visible',
-    shadowColor: Colors.gradients.purple[1],
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 12,
-  },
-  ctaButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    gap: 10,
-    borderRadius: 28,
-  },
-  ctaText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    fontFamily: Fonts.secondary.bold,
   },
   errorContainer: {
     flex: 1,

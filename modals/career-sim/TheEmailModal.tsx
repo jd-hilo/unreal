@@ -13,6 +13,20 @@ interface TheEmailModalProps {
 }
 
 function TheEmailModalComponent({ visible, onClose, emailData }: TheEmailModalProps) {
+  // Provide safe defaults if emailData is missing
+  const safeEmailData = emailData || {
+    from: 'recruiter@company.com',
+    to: 'you@email.com',
+    subject: 'Exciting Opportunity',
+    timestamp: 'March 10, 2032 2:30 PM',
+    body: 'Email body content is being generated...',
+    metadata: {
+      folder: 'Opportunities',
+      timesOpened: 1,
+      lastUpdate: 'March 12, 2032',
+    },
+  };
+
   return (
     <Modal
       visible={visible}
@@ -46,7 +60,7 @@ function TheEmailModalComponent({ visible, onClose, emailData }: TheEmailModalPr
           {/* Subject & Labels */}
           <View style={styles.subjectSection}>
             <View style={styles.subjectRow}>
-              <Text style={styles.subject}>{emailData.subject}</Text>
+              <Text style={styles.subject}>{safeEmailData.subject}</Text>
               <TouchableOpacity style={styles.starButton}>
                 <Star size={22} color="#FFD700" fill="#FFD700" />
               </TouchableOpacity>
@@ -56,7 +70,7 @@ function TheEmailModalComponent({ visible, onClose, emailData }: TheEmailModalPr
                 <Text style={[styles.labelText, { color: '#1967D2' }]}>Inbox</Text>
               </View>
               <View style={[styles.labelBadge, { backgroundColor: '#F1F3F4' }]}>
-                <Text style={[styles.labelText, { color: '#3C4043' }]}>{emailData.metadata.folder}</Text>
+                <Text style={[styles.labelText, { color: '#3C4043' }]}>{safeEmailData.metadata?.folder ?? 'Inbox'}</Text>
               </View>
             </View>
           </View>
@@ -68,13 +82,13 @@ function TheEmailModalComponent({ visible, onClose, emailData }: TheEmailModalPr
                 colors={['#4285F4', '#34A853']}
                 style={styles.avatarGradient}
               >
-                <Text style={styles.avatarText}>{emailData.from.charAt(0).toUpperCase()}</Text>
+                <Text style={styles.avatarText}>{safeEmailData.from?.charAt(0)?.toUpperCase() ?? 'R'}</Text>
               </LinearGradient>
             </View>
             <View style={styles.senderDetails}>
               <View style={styles.senderNameRow}>
-                <Text style={styles.senderName}>{emailData.from.split('<')[0].trim()}</Text>
-                <Text style={styles.emailTime}>{emailData.timestamp.split(' at ')[1]}</Text>
+                <Text style={styles.senderName}>{safeEmailData.from?.split('<')[0]?.trim() ?? safeEmailData.from}</Text>
+                <Text style={styles.emailTime}>{safeEmailData.timestamp?.split(' at ')[1] ?? '2:30 PM'}</Text>
               </View>
               <View style={styles.toRow}>
                 <Text style={styles.toText}>to me</Text>
@@ -90,7 +104,7 @@ function TheEmailModalComponent({ visible, onClose, emailData }: TheEmailModalPr
 
           {/* Email Content */}
           <View style={styles.emailContent}>
-            <Text style={styles.bodyText}>{emailData.body}</Text>
+            <Text style={styles.bodyText}>{safeEmailData.body}</Text>
             
             <View style={styles.signature}>
               <View style={styles.sigDivider} />
@@ -129,7 +143,7 @@ function TheEmailModalComponent({ visible, onClose, emailData }: TheEmailModalPr
                 <Text style={styles.metaTitle}>SIMULATION INSIGHT</Text>
               </View>
               <Text style={styles.metaDesc}>
-                This email represents a key milestone in your {emailData.metadata.folder.toLowerCase()} trajectory. You've opened this {emailData.metadata.timesOpened} times in this simulation.
+                This email represents a key milestone in your {safeEmailData.metadata?.folder?.toLowerCase() ?? 'career'} trajectory. You've opened this {safeEmailData.metadata?.timesOpened ?? 1} times in this simulation.
               </Text>
             </LinearGradient>
           </View>

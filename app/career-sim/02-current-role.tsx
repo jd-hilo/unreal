@@ -7,6 +7,7 @@ import { Briefcase } from 'lucide-react-native';
 import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
+import * as Haptics from 'expo-haptics';
 
 export default function CurrentRoleScreen() {
   const router = useRouter();
@@ -44,12 +45,18 @@ export default function CurrentRoleScreen() {
     });
   };
 
+  const handleBack = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.back();
+  };
+
   return (
     <OnboardingScreen
       title="Your Current Role"
       subtitle="Tell us about your current position"
       progress={0.5}
       onNext={handleNext}
+      onBack={handleBack}
       canContinue={currentRole.trim().length > 0}
       nextLabel="Continue"
     >

@@ -173,6 +173,14 @@ function ZoomInCardComponent({ cards, onZoomInPress }: ZoomInCardProps) {
     return subtitleMap[id] || 'Explore this moment';
   };
 
+  const safeCards = cards || [
+    { id: 'email', title: 'The Email', icon: '📧' },
+    { id: 'tuesday', title: 'Random Tuesday', icon: '📅' },
+    { id: 'calendar', title: 'Calendar Evolution', icon: '🗓️' },
+    { id: 'feedback', title: 'Team Feedback', icon: '💬' },
+    { id: 'inbox', title: 'Inbox Evolution', icon: '📬' },
+  ];
+
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>See the Details</Text>
@@ -185,7 +193,7 @@ function ZoomInCardComponent({ cards, onZoomInPress }: ZoomInCardProps) {
         snapToInterval={220 + 16}
         decelerationRate="fast"
       >
-        {cards.map((card) => (
+        {safeCards.map((card) => (
           <ZoomCardItem
             key={card.id}
             id={card.id}

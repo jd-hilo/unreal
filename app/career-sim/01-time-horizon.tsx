@@ -33,12 +33,18 @@ export default function TimeHorizonScreen() {
     });
   };
 
+  const handleBack = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.back();
+  };
+
   return (
     <OnboardingScreen
       title="Time Horizon"
       subtitle="How far into the future would you like to simulate?"
       progress={0.25}
       onNext={handleNext}
+      onBack={handleBack}
       canContinue={true}
       nextLabel="Continue"
     >

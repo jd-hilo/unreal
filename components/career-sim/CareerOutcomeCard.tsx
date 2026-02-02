@@ -9,6 +9,15 @@ interface CareerOutcomeCardProps {
 }
 
 function CareerOutcomeCardComponent({ outcome }: CareerOutcomeCardProps) {
+  // Provide safe defaults
+  const safeOutcome = outcome || {
+    title: 'Senior Role',
+    company: 'Tech Company',
+    totalComp: 200000,
+    location: 'San Francisco, CA',
+    satisfaction: 4.0,
+  };
+
   const formatCompensation = (amount: number): string => {
     if (amount >= 1000000) {
       return `$${(amount / 1000000).toFixed(1)}M`;
@@ -52,11 +61,11 @@ function CareerOutcomeCardComponent({ outcome }: CareerOutcomeCardProps) {
         <Text style={styles.label}>Career Outcome</Text>
       </View>
       
-      <Text style={styles.title}>{outcome.title}</Text>
+      <Text style={styles.title}>{safeOutcome.title}</Text>
       
       <View style={styles.companyRow}>
         <Building2 size={18} color={Colors.textSecondary} strokeWidth={2} />
-        <Text style={styles.company}>{outcome.company}</Text>
+        <Text style={styles.company}>{safeOutcome.company}</Text>
       </View>
 
       <View style={styles.compensationContainer}>
@@ -64,18 +73,18 @@ function CareerOutcomeCardComponent({ outcome }: CareerOutcomeCardProps) {
           <Text style={styles.compLabel}>Total Compensation</Text>
           <View style={styles.satisfactionBadge}>
             <View style={styles.stars}>
-              {renderStars(outcome.satisfaction)}
+              {renderStars(safeOutcome.satisfaction)}
             </View>
-            <Text style={styles.satisfactionText}>{outcome.satisfaction.toFixed(1)}</Text>
+            <Text style={styles.satisfactionText}>{safeOutcome.satisfaction.toFixed(1)}</Text>
           </View>
         </View>
         
-        <Text style={styles.compAmount}>{formatCompensation(outcome.totalComp)}</Text>
+        <Text style={styles.compAmount}>{formatCompensation(safeOutcome.totalComp)}</Text>
         
         <View style={styles.detailsRow}>
           <View style={styles.detailItem}>
             <MapPin size={14} color={Colors.textTertiary} strokeWidth={2} />
-            <Text style={styles.detailText}>{outcome.location}</Text>
+            <Text style={styles.detailText}>{safeOutcome.location}</Text>
           </View>
           <View style={styles.marketBadge}>
             <Text style={styles.marketText}>+12% vs Market</Text>

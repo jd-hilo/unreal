@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontFamily: Fonts.primary.regular,
+    fontFamily: Fonts.primary.semibold,
     color: Colors.textPrimary,
   },
   subtitle: {

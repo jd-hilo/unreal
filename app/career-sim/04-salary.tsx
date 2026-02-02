@@ -5,6 +5,7 @@ import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Input } from '@/components/Input';
 import { DollarSign } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/Theme';
+import * as Haptics from 'expo-haptics';
 
 export default function SalaryScreen() {
   const router = useRouter();
@@ -22,9 +23,9 @@ export default function SalaryScreen() {
     if (!salary.trim()) return;
     
     setLoading(true);
-    // Navigate to result screen with all parameters
+    // Navigate to generating screen which will call the API and then navigate to result
     router.push({
-      pathname: '/career-sim/result',
+      pathname: '/career-sim/generating',
       params: {
         timeHorizon: params.timeHorizon as string,
         currentRole: params.currentRole as string,
@@ -35,12 +36,18 @@ export default function SalaryScreen() {
     });
   };
 
+  const handleBack = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.back();
+  };
+
   return (
     <OnboardingScreen
       title="Your Current Salary"
       subtitle="What is your current annual salary?"
       progress={1.0}
       onNext={handleNext}
+      onBack={handleBack}
       canContinue={salary.trim().length > 0}
       nextLabel={loading ? 'Running...' : 'Run Simulation'}
       loading={loading}

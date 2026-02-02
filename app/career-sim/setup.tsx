@@ -60,10 +60,9 @@ export default function CareerSimSetup() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoading(true);
 
-    // Navigate to result screen with parameters
-    // For now, we'll default to "stay" path type
+    // Navigate to generating screen which will call the API and then navigate to result
     router.push({
-      pathname: '/career-sim/result',
+      pathname: '/career-sim/generating',
       params: {
         timeHorizon: timeHorizon.toString(),
         currentRole,

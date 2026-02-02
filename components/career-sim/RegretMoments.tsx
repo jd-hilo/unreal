@@ -10,25 +10,32 @@ interface RegretMomentsProps {
 }
 
 function RegretMomentsComponent({ regretMoments, reflection }: RegretMomentsProps) {
+  const safeRegretMoments = regretMoments || [];
+  const safeReflection = reflection || 'A thoughtful reflection on the career path taken, acknowledging both wins and what might have been.';
+
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Moments That Keep You Up</Text>
       <Text style={styles.subtitle}>The decisions you still think about</Text>
       
       <View style={styles.card}>
-        {regretMoments.map((moment, index) => (
-          <View key={index} style={styles.momentItem}>
-            <View style={styles.momentHeader}>
-              <Text style={styles.momentYear}>{moment.year}</Text>
-              <Text style={styles.momentTitle}>- {moment.title}</Text>
+        {safeRegretMoments.length > 0 ? (
+          safeRegretMoments.map((moment, index) => (
+            <View key={index} style={styles.momentItem}>
+              <View style={styles.momentHeader}>
+                <Text style={styles.momentYear}>{moment.year ?? 2029}</Text>
+                <Text style={styles.momentTitle}>- {moment.title ?? 'Missed Opportunity'}</Text>
+              </View>
+              <Text style={styles.momentDescription}>{moment.description ?? 'A moment you still think about.'}</Text>
             </View>
-            <Text style={styles.momentDescription}>{moment.description}</Text>
-          </View>
-        ))}
+          ))
+        ) : (
+          <Text style={styles.emptyText}>No regret moments recorded.</Text>
+        )}
 
         <View style={styles.reflectionBox}>
           <Text style={styles.reflectionTitle}>REFLECTION</Text>
-          <Text style={styles.reflectionText}>{reflection}</Text>
+          <Text style={styles.reflectionText}>{safeReflection}</Text>
         </View>
       </View>
     </View>
@@ -115,5 +122,13 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.regular,
     lineHeight: 22,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
   },
 });

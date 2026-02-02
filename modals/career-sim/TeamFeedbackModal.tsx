@@ -52,6 +52,12 @@ const MessageComponent = memo(({ message }: MessageComponentProps) => (
 MessageComponent.displayName = 'MessageComponent';
 
 function TeamFeedbackModalComponent({ visible, onClose, feedbackData }: TeamFeedbackModalProps) {
+  // Provide default values if feedbackData is missing
+  const safeFeedbackData = feedbackData || {
+    messages: [],
+    finalMessage: 'Team feedback data is being generated...',
+  };
+
   return (
     <Modal
       visible={visible}
@@ -91,7 +97,7 @@ function TeamFeedbackModalComponent({ visible, onClose, feedbackData }: TeamFeed
           </View>
 
           <View style={styles.messagesList}>
-            {feedbackData.messages.map((message, index) => (
+            {safeFeedbackData.messages?.map((message, index) => (
               <MessageComponent key={index} message={message} />
             ))}
 
@@ -105,7 +111,7 @@ function TeamFeedbackModalComponent({ visible, onClose, feedbackData }: TeamFeed
                   <Zap size={14} color={Colors.textTertiary} />
                   <Text style={styles.insightTitle}>UNSPOKEN TRUTH</Text>
                 </View>
-                <Text style={styles.insightText}>{feedbackData.finalMessage}</Text>
+                <Text style={styles.insightText}>{safeFeedbackData.finalMessage}</Text>
               </LinearGradient>
             </View>
           </View>
