@@ -78,6 +78,8 @@ export async function updateProfileFields(
     narrative_summary?: string;
     narrative_embedding?: number[];
     est_days_remaining?: number | string;
+    total_points?: number;
+    current_streak?: number;
   }
 ) {
   // Get existing profile to preserve core_json and values_json

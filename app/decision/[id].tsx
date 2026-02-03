@@ -666,15 +666,22 @@ export default function DecisionResultScreen() {
                 }
               ]}
             >
-              <LinearGradient
-                colors={['rgba(0, 188, 166, 0.06)', 'rgba(144, 140, 241, 0.06)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.architectButtonGradient}
-              >
-                <MessageCircle size={16} color="#696969" strokeWidth={2} />
-                <Text style={styles.architectButtonText}>Talk with the Architect</Text>
-              </LinearGradient>
+              <View style={styles.architectButtonBorder}>
+                <LinearGradient
+                  colors={['#FF8C42', '#FF6B35']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <View style={styles.architectButtonInner}>
+                  <Image 
+                    source={require('@/assets/images/cube.png')}
+                    style={styles.cubeIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.architectButtonText}>Discuss this Decision</Text>
+                </View>
+              </View>
             </Pressable>
 
             <TouchableOpacity
@@ -710,7 +717,7 @@ export default function DecisionResultScreen() {
                 }}
               >
                 <BlurView intensity={80} tint="light" style={styles.scrollHintBlur}>
-                  <Text style={styles.scrollHintText}>Scroll to speak to architect</Text>
+                  <Text style={styles.scrollHintText}>scroll to discuss this decision</Text>
                   <Animated.View
                     style={{
                       transform: [
@@ -1019,25 +1026,54 @@ const styles = StyleSheet.create({
   architectButton: {
     marginTop: 24,
     marginBottom: 8,
-    alignSelf: 'center',
+    width: '100%',
   },
-  architectButtonGradient: {
+  architectButtonBorder: {
+    borderRadius: 20,
+    padding: 1,
+    shadowColor: 'rgba(0, 0, 0, 0.15)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  architectButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
-    borderRadius: 56,
-    borderWidth: 0.5,
-    borderColor: '#DFDFDF',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 12,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+  },
+  newTagContainer: {
+    position: 'absolute',
+    top: 6,
+    right: 12,
+  },
+  newTagGradient: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  newTagText: {
+    fontSize: 10,
+    fontWeight: '300',
+    color: '#25729f',
+    fontFamily: Fonts.secondary.regular,
+    letterSpacing: 0.3,
   },
   architectButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#696969',
-    fontFamily: Fonts.secondary.bold,
-    lineHeight: 17,
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+  },
+  cubeIcon: {
+    width: 22,
+    height: 22,
   },
   simulateButtonInner: {
     paddingVertical: 20,
@@ -1074,21 +1110,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: 'rgba(0, 0, 0, 0.05)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   askAnotherButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
+    fontWeight: '300',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
   },
   goHomeTextContainer: {
     marginTop: 0,

@@ -3294,6 +3294,12 @@ Each task must have:
 1. "task_content": Short action phrase (4-7 words ideal, 10 words MAX). Match the progression stage: exploration = research/discover, action = concrete steps, commitment = decisions/execution. Build on their completed tasks to suggest the logical next step.
 2. "category": One of: "Financial", "Personal", "Lifestyle", "Career", "Health", "Growth". (Note: Career tasks count towards Financial progress).
 3. "scheduled_date": Set this to today's date in YYYY-MM-DD format.
+4. "points": Award points based on difficulty and progression stage:
+   - EXPLORATION stage (0-30% progress): 10-20 points (easier, low-stakes tasks)
+   - ACTION stage (30-70% progress): 20-35 points (moderate difficulty, concrete actions)
+   - COMMITMENT stage (70-100% progress): 35-50 points (high stakes, decisive actions)
+   
+   Within each stage, vary points based on task complexity and impact. More consequential or challenging tasks get more points.
 
 Use simple, everyday language. Tasks should naturally progress based on what they've already done.
 
@@ -3306,10 +3312,35 @@ Return ONLY a JSON array of 3 objects.`;
       temperature: 0.7,
     });
 
-    // Claude might return the array directly or wrapped in an object
-    let tasks = JSON.parse(content);
+    // Clean up the JSON string to handle common formatting issues
+    let cleanedContent = content
+      .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+      .trim();
+
+    // If content starts with { but doesn't start with [, it's likely an array without brackets
+    if (cleanedContent.trim().startsWith('{') && !cleanedContent.trim().startsWith('[{')) {
+      // Wrap in array brackets
+      cleanedContent = '[' + cleanedContent + ']';
+    }
+
+    // Try to parse, with detailed error logging
+    let tasks;
+    try {
+      tasks = JSON.parse(cleanedContent);
+    } catch (parseError) {
+      console.error('JSON Parse Error. Raw content:', content);
+      console.error('Cleaned content:', cleanedContent);
+      throw parseError; // Re-throw to trigger fallback
+    }
+    
     if (!Array.isArray(tasks) && tasks.tasks) {
       tasks = tasks.tasks;
+    }
+    
+    // Ensure we have an array
+    if (!Array.isArray(tasks)) {
+      tasks = [tasks];
     }
 
     return tasks as Partial<DailyTask>[];
@@ -3320,17 +3351,20 @@ Return ONLY a JSON array of 3 objects.`;
       {
         task_content: "List 3 priorities",
         category: "Growth",
-        scheduled_date: new Date().toISOString().split('T')[0]
+        scheduled_date: new Date().toISOString().split('T')[0],
+        points: 15
       },
       {
         task_content: "Pick one new habit",
         category: "Growth",
-        scheduled_date: new Date().toISOString().split('T')[0]
+        scheduled_date: new Date().toISOString().split('T')[0],
+        points: 15
       },
       {
         task_content: "Journal one prompt",
         category: "Growth",
-        scheduled_date: new Date().toISOString().split('T')[0]
+        scheduled_date: new Date().toISOString().split('T')[0],
+        points: 10
       }
     ];
   }
@@ -3372,10 +3406,10 @@ Evaluate this progress. How much closer are they to their dream self in each are
 Also, update the "Estimated Days to Dream Self" based on today's performance and reflection.
 
 Logic for Estimated Days:
-1. If the user completed all tasks with high quality reflection, decrease the estimate by 1 day (or occasionally 2 days for exceptional progress).
-2. If the user struggled or didn't complete all tasks, keep the estimate the same (NEVER increase it).
-3. Use the user's journal reflection to gauge their mindset, but remember: days can only stay the same or decrease, never increase.
-4. IMPORTANT: The estimated days should typically decrease by 1 day when tasks are completed. Only keep it the same if progress was minimal or tasks were skipped.
+1. ALWAYS decrease the estimate by 1 day when tasks are completed (this ensures consistency with percentage increases).
+2. For exceptional progress (total increments > 3.0 across all categories), decrease by 2 days.
+3. Days can NEVER increase - only stay the same or decrease.
+4. The decrease should be proportional to the progress: if you're giving meaningful percentage increases, you MUST decrease the days.
 
 Return a JSON object with:
 1. "increments": An object where keys are categories ("Financial", "Personal", "Lifestyle", "Health", "Growth") and values are numbers between 0.0 and 5.0. Only include categories that were progressed today.

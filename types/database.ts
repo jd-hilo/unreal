@@ -580,6 +580,7 @@ export interface DailyTask {
   category: string | null;
   is_completed: boolean;
   scheduled_date: string;
+  points: number;
   feedback_journal?: string;
   created_at: string;
   updated_at: string;

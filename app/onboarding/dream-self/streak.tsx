@@ -327,16 +327,31 @@ export default function StreakScreen() {
       }
       
       // Process history - group tasks by date and track completion
-      const grouped: Record<string, { total: number; completed: number }> = {};
+      const tasksByDate: Record<string, typeof allTasks> = {};
+      
+      // First, group all tasks by date
       allTasks.forEach(t => {
         const date = t.scheduled_date; // Use date as-is from database (should be YYYY-MM-DD)
-        if (!grouped[date]) {
-          grouped[date] = { total: 0, completed: 0 };
+        if (!tasksByDate[date]) {
+          tasksByDate[date] = [];
         }
-        grouped[date].total++;
-        if (t.is_completed) {
-          grouped[date].completed++;
-        }
+        tasksByDate[date].push(t);
+      });
+
+      const grouped: Record<string, { total: number; completed: number }> = {};
+      
+      // Then, for each date, only count the first 3 tasks (sorted by created_at)
+      Object.keys(tasksByDate).forEach(date => {
+        const dateTasks = tasksByDate[date]
+          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          .slice(0, 3); // Only count first 3 tasks per day
+        
+        grouped[date] = { total: dateTasks.length, completed: 0 };
+        dateTasks.forEach(t => {
+          if (t.is_completed) {
+            grouped[date].completed++;
+          }
+        });
       });
 
       // A day counts for streak only if ALL tasks are completed
@@ -503,6 +518,14 @@ export default function StreakScreen() {
         if (newEstDaysNum > currentEstDaysNum) {
           newEstDaysNum = currentEstDaysNum;
           newEstDays = currentEstDays;
+        }
+        
+        // CONSISTENCY CHECK: If we have progress increments but days didn't decrease, force a decrease
+        const totalIncrements = Object.values(incs).reduce((sum, val) => sum + (val as number), 0);
+        if (totalIncrements > 0 && newEstDaysNum >= currentEstDaysNum && currentEstDaysNum > 1) {
+          // Force decrease by 1 day to maintain consistency with percentage increases
+          newEstDaysNum = currentEstDaysNum - 1;
+          newEstDays = newEstDaysNum;
         }
         
         if (previousEstDays !== null && newEstDaysNum !== null && newEstDaysNum < previousEstDays) {

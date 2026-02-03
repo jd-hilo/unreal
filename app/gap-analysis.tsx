@@ -156,7 +156,7 @@ export default function GapAnalysisScreen() {
               colors={['rgba(255,255,255,0.9)', 'rgba(248,247,255,0.9)']}
               style={StyleSheet.absoluteFill}
             />
-            <Sparkles size={48} color="#A78BFA" />
+            <Sparkles size={48} color="#25729f" />
             <Text style={styles.recalculatingText}>Recalculating your path...</Text>
           </View>
         )}
@@ -174,7 +174,7 @@ export default function GapAnalysisScreen() {
                 <Text style={styles.summaryValue}>{Math.round(avgProgress)}%</Text>
                 <Text style={styles.summaryLabel}>Overall Alignment</Text>
                 <View style={styles.daysBadge}>
-                  <Sparkles size={12} color="#A78BFA" />
+                  <Sparkles size={12} color="#25729f" />
                   <Text style={styles.daysText}>Estimated {profileData.est_days_remaining || '---'} days left</Text>
                 </View>
               </View>
@@ -184,8 +184,8 @@ export default function GapAnalysisScreen() {
                   size={100}
                   strokeWidth={10}
                   icon={require('@/assets/images/manwhite.png')}
-                  colors={['#A78BFA', '#F472B6']}
-                  trackColor="rgba(167, 139, 250, 0.1)"
+                  colors={['#25729f', '#62edb9']}
+                  trackColor="rgba(37, 114, 159, 0.1)"
                   iconTintColor={null}
                 />
               </View>
@@ -206,8 +206,8 @@ export default function GapAnalysisScreen() {
                     progress={(progress[cat] || 0) / 100} 
                     showLabel={false} 
                     height={8}
-                    gradientColors={['#A78BFA', '#F472B6']}
-                    trackColor="rgba(167, 139, 250, 0.1)"
+                    gradientColors={['#25729f', '#62edb9']}
+                    trackColor="rgba(37, 114, 159, 0.1)"
                   />
                 </View>
               ))}
@@ -272,17 +272,17 @@ export default function GapAnalysisScreen() {
             {/* Dream Twin */}
             <View style={[styles.comparisonCard, styles.dreamCard]}>
               <LinearGradient
-                colors={['rgba(167, 139, 250, 0.05)', 'rgba(244, 114, 182, 0.05)']}
+                colors={['rgba(37, 114, 159, 0.05)', 'rgba(98, 237, 185, 0.05)']}
                 style={StyleSheet.absoluteFill}
               />
               <View style={styles.comparisonHeader}>
                 <View style={styles.comparisonTitleRow}>
-                  <View style={[styles.dot, { backgroundColor: '#A78BFA' }]} />
-                  <Text style={[styles.comparisonTitle, { color: '#A78BFA' }]}>Dream Self Goal</Text>
+                  <View style={[styles.dot, { backgroundColor: '#25729f' }]} />
+                  <Text style={[styles.comparisonTitle, { color: '#25729f' }]}>Dream Self Goal</Text>
                 </View>
                 <TouchableOpacity onPress={() => handleEditPress('/profile/edit-dreamself')} style={styles.editButton}>
-                  <Edit2 size={14} color="#A78BFA" />
-                  <Text style={[styles.editButtonText, { color: '#A78BFA' }]}>Edit</Text>
+                  <Edit2 size={14} color="#25729f" />
+                  <Text style={[styles.editButtonText, { color: '#25729f' }]}>Edit</Text>
                 </TouchableOpacity>
               </View>
               
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     padding: 24,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: '#A78BFA',
+    shadowColor: '#25729f',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 16,
@@ -390,13 +390,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(167, 139, 250, 0.1)',
+    backgroundColor: 'rgba(37, 114, 159, 0.1)',
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
   },
-  daysText: { fontSize: 12, fontWeight: '700', color: '#A78BFA', fontFamily: Fonts.secondary.bold },
+  daysText: { fontSize: 12, fontWeight: '700', color: '#25729f', fontFamily: Fonts.secondary.bold },
   summaryRight: { marginLeft: 16 },
   section: { marginBottom: 32 },
   sectionTitle: { fontSize: 20, fontWeight: '700', color: Colors.textPrimary, fontFamily: Fonts.primary.regular, marginBottom: 16 },
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   processLabel: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary, fontFamily: Fonts.secondary.bold },
   processValue: { fontSize: 14, fontWeight: '700', color: Colors.textPrimary, fontFamily: Fonts.secondary.bold },
   comparisonCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', overflow: 'hidden' },
-  dreamCard: { borderColor: 'rgba(167, 139, 250, 0.2)' },
+  dreamCard: { borderColor: 'rgba(37, 114, 159, 0.2)' },
   comparisonHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   comparisonTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4 },

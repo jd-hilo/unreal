@@ -200,7 +200,7 @@ export default function LeaderboardTab() {
 
     try {
       await Share.share({
-        message: `Join me on Mora and track your progress towards your dream self! Use my Mora# to add me as a friend: ${myTwinCode}\n\nDownload here: https://apps.apple.com/us/app/mora/id6742576400`,
+        message: `Join me on Mora and track your progress towards your dream self! Use my Mora# to add me to your leaderboard so we can track our progress together: ${myTwinCode}\n\nDownload here: https://apps.apple.com/us/app/mora/id6742576400`,
         title: 'Join me on Mora',
       });
     } catch (error) {

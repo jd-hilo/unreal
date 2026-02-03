@@ -5,7 +5,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks, getLocalDateString } from '@/lib/storage';
-import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check } from 'lucide-react-native';
+import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check, RefreshCw } from 'lucide-react-native';
 import { HomeGradientIcon, FlameGradientIcon } from '@/components/GradientIcons';
 import { generateArchitectPlan, calculateArchitectProgress, recalculateDreamProgress } from '@/lib/ai';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
@@ -73,7 +73,14 @@ function FloatingPoint({ x, y, value }: { x: number; y: number; value: string })
         },
       ]}
     >
-      <Text style={styles.floatingPointText}>{value}</Text>
+      <LinearGradient
+        colors={['#25729f', '#62edb9']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.floatingPointGradient}
+      >
+        <Text style={styles.floatingPointText}>{value}</Text>
+      </LinearGradient>
     </Animated.View>
   );
 }
@@ -103,6 +110,7 @@ export default function HomeScreen() {
   const [floatingPoints, setFloatingPoints] = useState<{ id: string; x: number; y: number; value: string }[]>([]);
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [isRefreshingTasks, setIsRefreshingTasks] = useState(false);
   const initialProfileRef = useRef<any>(null);
   const taskScrollViewRef = useRef<ScrollView>(null);
   const greetingFadeAnim = useRef(new Animated.Value(0)).current;
@@ -409,6 +417,19 @@ export default function HomeScreen() {
       }
       
       setStreakCount(streak);
+      
+      // Save streak to database
+      if (user && streak !== (profile?.current_streak || 0)) {
+        try {
+          await updateProfileFields(user.id, { current_streak: streak });
+          // Update local profile data
+          if (profileData) {
+            setProfileData({ ...profileData, current_streak: streak });
+          }
+        } catch (error) {
+          console.error('Error updating streak:', error);
+        }
+      }
 
       // Generate daily tasks if they don't exist for today and user has completed dream self
       if ((!todayTasks || todayTasks.length === 0) && profile?.dream_vision) {
@@ -603,12 +624,15 @@ export default function HomeScreen() {
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
-      // Animate floating points
+      // Get task position
       const { pageX, pageY } = event.nativeEvent;
-      const id = Math.random().toString(36).substr(2, 9);
-      setFloatingPoints(prev => [...prev, { id, x: pageX, y: pageY, value: '+1' }]);
       
-      // Remove point after animation
+      // Animate floating points text
+      const pointsValue = task.points || 10;
+      const id = Math.random().toString(36).substr(2, 9);
+      setFloatingPoints(prev => [...prev, { id, x: pageX, y: pageY, value: `+${pointsValue}` }]);
+      
+      // Remove point text after animation
       setTimeout(() => {
         setFloatingPoints(prev => prev.filter(p => p.id !== id));
       }, 1000);
@@ -616,6 +640,16 @@ export default function HomeScreen() {
       const updatedTask = await updateDailyTask(task.id, { is_completed: true });
       const newTasks = dailyTasks.map(t => t.id === task.id ? updatedTask : t);
       setDailyTasks(newTasks);
+      
+      // Award points to user profile
+      if (user && profileData) {
+        const currentPoints = profileData.total_points || 0;
+        const newPoints = currentPoints + pointsValue;
+        await updateProfileFields(user.id, { total_points: newPoints });
+        
+        // Update local profile data
+        setProfileData({ ...profileData, total_points: newPoints });
+      }
       
       // Haptic feedback for task completion
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -634,6 +668,9 @@ export default function HomeScreen() {
       // Check if all 3 tasks are completed
       const completedCount = newTasks.filter(t => t.is_completed).length;
       if (completedCount === 3) {
+        // Reload data to recalculate streak (which will also save it to DB)
+        await loadData();
+        
         // Navigate to streak screen sequence
         setTimeout(() => {
           router.push('/onboarding/dream-self/streak');
@@ -641,6 +678,51 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('Error toggling task:', error);
+    }
+  };
+
+  const handleRefreshTasks = async () => {
+    if (!user || !profileData || isRefreshingTasks) return;
+    
+    try {
+      setIsRefreshingTasks(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Delete current tasks for today
+      const todayStr = getLocalDateString();
+      await deleteDailyTasks(user.id, todayStr);
+      
+      // Get completed tasks for context
+      const allTasks = await getDailyTasks(user.id, null);
+      const completedTasks = allTasks
+        .filter(t => t.is_completed)
+        .map(t => t.task_content)
+        .slice(-10); // Last 10 completed tasks
+      
+      // Generate new tasks
+      const newTasks = await generateArchitectPlan(
+        profileData,
+        profileData.dream_vision,
+        completedTasks
+      );
+      
+      // Save new tasks
+      const tasksWithDate = newTasks.map(task => ({
+        ...task,
+        scheduled_date: todayStr,
+      }));
+      await saveDailyTasks(user.id, tasksWithDate);
+      
+      // Fetch and update UI
+      const refreshedTasks = await getDailyTasks(user.id, todayStr);
+      setDailyTasks(refreshedTasks);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Error refreshing tasks:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsRefreshingTasks(false);
     }
   };
 
@@ -797,6 +879,24 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.iconButton}
+                onPress={handleRefreshTasks}
+                disabled={isRefreshingTasks}
+              >
+                <Animated.View style={{
+                  transform: [{
+                    rotate: isRefreshingTasks ? '360deg' : '0deg'
+                  }]
+                }}>
+                  <RefreshCw 
+                    size={22} 
+                    color={isRefreshingTasks ? Colors.textTertiary : Colors.textPrimary} 
+                    strokeWidth={2} 
+                  />
+                </Animated.View>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.iconButton}
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   await measureLayouts();
@@ -890,8 +990,8 @@ export default function HomeScreen() {
                       size={80}
                       strokeWidth={8}
                       icon={require('@/assets/images/manwhite.png')}
-                      colors={['#A78BFA', '#F472B6']}
-                      trackColor="rgba(167, 139, 250, 0.1)"
+                      colors={['#25729f', '#62edb9']}
+                      trackColor="rgba(37, 114, 159, 0.1)"
                       iconTintColor={null}
                     />
                   </View>
@@ -938,9 +1038,19 @@ export default function HomeScreen() {
                           ]}
                         >
                           <View style={styles.taskContent}>
-                            <View style={styles.taskCategoryBadge}>
-                              <Text style={styles.taskCategoryText}>{task.category || 'Growth'}</Text>
-                              <Text style={styles.taskCategoryEmoji}>{getCategoryEmoji(task.category)}</Text>
+                            <View style={styles.taskHeader}>
+                              <View style={styles.taskCategoryBadge}>
+                                <Text style={styles.taskCategoryText}>{task.category || 'Growth'}</Text>
+                                <Text style={styles.taskCategoryEmoji}>{getCategoryEmoji(task.category)}</Text>
+                              </View>
+                              <LinearGradient
+                                colors={['#25729f', '#62edb9']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0, y: 1 }}
+                                style={styles.taskPointsBadge}
+                              >
+                                <Text style={styles.taskPointsText}>+{task.points || 10}</Text>
+                              </LinearGradient>
                             </View>
                             <Text
                               style={[
@@ -1668,16 +1778,37 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-start',
   },
+  taskHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 12,
+  },
   taskCategoryBadge: {
-    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.03)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    marginBottom: 12,
     gap: 4,
+  },
+  taskPointsBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(37, 114, 159, 0.3)',
+  },
+  taskPointsText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   taskCategoryText: {
     fontSize: 10,
@@ -1742,18 +1873,19 @@ const styles = StyleSheet.create({
   },
   floatingPoint: {
     position: 'absolute',
-    backgroundColor: '#FFD700',
+    zIndex: 1000,
+    shadowColor: '#25729f',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  floatingPointGradient: {
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
   },
   floatingPointText: {
     color: '#FFFFFF',
