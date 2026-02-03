@@ -178,4 +178,42 @@ export function FlameGradientIcon({ size = 24 }: IconProps) {
   );
 }
 
+// Gold/Yellow Gradient: #FFD700 to #FFA500 (Trophy)
+export function TrophyGradientIcon({ size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Defs>
+        <SvgLinearGradient id="trophyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor="#FFD700" />
+          <Stop offset="50%" stopColor="#FFA500" />
+          <Stop offset="100%" stopColor="#FF8C00" />
+        </SvgLinearGradient>
+      </Defs>
+      {/* Trophy base */}
+      <Path
+        d="M6 9C6 7.343 7.343 6 9 6H15C16.657 6 18 7.343 18 9V10C18 11.657 16.657 13 15 13H13V15H16V17H8V15H11V13H9C7.343 13 6 11.657 6 10V9Z"
+        fill="url(#trophyGrad)"
+        stroke="none"
+      />
+      {/* Trophy handles */}
+      <Path
+        d="M5 10C5 9.448 4.552 9 4 9H3C2.448 9 2 9.448 2 10V11C2 11.552 2.448 12 3 12H4C4.552 12 5 11.552 5 11V10Z"
+        fill="url(#trophyGrad)"
+        stroke="none"
+      />
+      <Path
+        d="M19 10C19 9.448 19.448 9 20 9H21C21.552 9 22 9.448 22 10V11C22 11.552 21.552 12 21 12H20C19.448 12 19 11.552 19 11V10Z"
+        fill="url(#trophyGrad)"
+        stroke="none"
+      />
+      {/* Trophy top cup */}
+      <Path
+        d="M7 4H17V6C17 5.448 16.552 5 16 5H8C7.448 5 7 5.448 7 6V4Z"
+        fill="url(#trophyGrad)"
+        stroke="none"
+      />
+    </Svg>
+  );
+}
+
 
