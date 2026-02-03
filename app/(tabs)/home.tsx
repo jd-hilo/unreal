@@ -1020,7 +1020,7 @@ export default function HomeScreen() {
                     decelerationRate="fast"
                   >
                     {onboardingTasks.map((task: any, index: number) => {
-                      const taskInfo = {
+                      const taskInfoMap: Record<string, { title: string; description: string; IconComponent: any; iconColor: string; route: string }> = {
                         ask_decision: {
                           title: 'Ask a decision',
                           description: "Get the architect's insights on your choices",
@@ -1042,7 +1042,8 @@ export default function HomeScreen() {
                           iconColor: '#FF9A9E',
                           route: '/(tabs)/leaderboard',
                         },
-                      }[task.task_type] || { title: task.task_type, description: '', IconComponent: Sparkles, iconColor: Colors.textSecondary, route: '/(tabs)/home' };
+                      };
+                      const taskInfo = taskInfoMap[task.task_type] || { title: task.task_type, description: '', IconComponent: Sparkles, iconColor: Colors.textSecondary, route: '/(tabs)/home' };
 
                       const TaskIcon = taskInfo.IconComponent;
 
