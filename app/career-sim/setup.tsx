@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useCallback, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';
-import { ChevronLeft, ChevronRight, Clock, Briefcase, Building2, DollarSign } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Clock, Briefcase, Building2, DollarSign, Target, Rocket, Sparkles } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -14,9 +14,9 @@ import { Input } from '@/components/Input';
 const { width } = Dimensions.get('window');
 
 const TIME_HORIZONS = [
-  { value: 5, label: '5 Years', desc: 'Near-term outlook', icon: '🎯' },
-  { value: 10, label: '10 Years', desc: 'Mid-career view', icon: '🚀' },
-  { value: 15, label: '15 Years', desc: 'Long-term vision', icon: '🔮' },
+  { value: 5, label: '5 Years', desc: 'Near-term outlook', IconComponent: Target, iconColor: '#FF6B6B' },
+  { value: 10, label: '10 Years', desc: 'Mid-career view', IconComponent: Rocket, iconColor: '#4ECDC4' },
+  { value: 15, label: '15 Years', desc: 'Long-term vision', IconComponent: Sparkles, iconColor: '#A78BFA' },
 ] as const;
 
 export default function CareerSimSetup() {
@@ -101,42 +101,54 @@ export default function CareerSimSetup() {
             {/* Time Horizon Section */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Clock size={20} color={Colors.gradients.purple[1]} strokeWidth={2} />
+                <Clock size={20} color={Colors.textPrimary} strokeWidth={2} />
                 <Text style={styles.sectionTitle}>Time Horizon</Text>
               </View>
               <Text style={styles.sectionDesc}>How far into the future would you like to simulate?</Text>
               
               <View style={styles.timeHorizonGrid}>
-                {TIME_HORIZONS.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.timeCard,
-                      timeHorizon === option.value && styles.timeCardSelected
-                    ]}
-                    onPress={() => handleTimeHorizonPress(option.value)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.timeCardEmoji}>{option.icon}</Text>
-                    <Text style={[
-                      styles.timeCardLabel,
-                      timeHorizon === option.value && styles.timeCardLabelSelected
-                    ]}>
-                      {option.label}
-                    </Text>
-                    <Text style={styles.timeCardDesc}>{option.desc}</Text>
-                    {timeHorizon === option.value && (
-                      <View style={styles.selectedIndicator} />
-                    )}
-                  </TouchableOpacity>
-                ))}
+                {TIME_HORIZONS.map((option) => {
+                  const Icon = option.IconComponent;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.timeCard,
+                        timeHorizon === option.value && styles.timeCardSelected
+                      ]}
+                      onPress={() => handleTimeHorizonPress(option.value)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[
+                        styles.timeCardIconContainer,
+                        { backgroundColor: timeHorizon === option.value ? `${option.iconColor}15` : 'rgba(0,0,0,0.03)' }
+                      ]}>
+                        <Icon 
+                          size={24} 
+                          color={timeHorizon === option.value ? option.iconColor : Colors.textSecondary} 
+                          strokeWidth={2.5} 
+                        />
+                      </View>
+                      <Text style={[
+                        styles.timeCardLabel,
+                        timeHorizon === option.value && styles.timeCardLabelSelected
+                      ]}>
+                        {option.label}
+                      </Text>
+                      <Text style={styles.timeCardDesc}>{option.desc}</Text>
+                      {timeHorizon === option.value && (
+                        <View style={[styles.selectedIndicator, { backgroundColor: option.iconColor }]} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
             {/* Current State Section */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Briefcase size={20} color={Colors.gradients.purple[1]} strokeWidth={2} />
+                <Briefcase size={20} color={Colors.textPrimary} strokeWidth={2} />
                 <Text style={styles.sectionTitle}>Your Current State</Text>
               </View>
               <Text style={styles.sectionDesc}>Tell us about your current position</Text>
@@ -180,14 +192,13 @@ export default function CareerSimSetup() {
                   <View style={styles.inputIcon}>
                     <DollarSign size={18} color={Colors.textSecondary} strokeWidth={2} />
                   </View>
-                  <Input
+                  <TextInput
                     placeholder="Current Salary (e.g., 150000)"
                     value={salary}
                     onChangeText={setSalary}
-                    keyboardType="numeric"
+                    keyboardType="number-pad"
                     returnKeyType="done"
                     style={styles.input}
-                    containerStyle={styles.inputContainer}
                     placeholderTextColor={Colors.textTertiary}
                   />
                 </View>
@@ -211,9 +222,9 @@ export default function CareerSimSetup() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={!isFormValid || loading ? ['#999', '#AAA'] : Colors.gradients.purple}
+                colors={!isFormValid || loading ? ['#999', '#AAA'] : ['#25729f', '#62edb9']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
                 style={styles.runGradient}
               >
                 <Text style={styles.runText}>
@@ -294,30 +305,35 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   timeHorizonGrid: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: 12,
   },
   timeCard: {
-    flex: 1,
+    width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: '#000',
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.1)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 1,
     shadowRadius: 12,
     elevation: 2,
   },
   timeCardSelected: {
-    borderColor: Colors.gradients.purple[1],
-    backgroundColor: 'rgba(192, 132, 252, 0.02)',
+    borderColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: '#FFFFFF',
   },
-  timeCardEmoji: {
-    fontSize: 32,
-    marginBottom: 12,
+  timeCardIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   timeCardLabel: {
     fontSize: 16,
@@ -327,7 +343,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   timeCardLabelSelected: {
-    color: Colors.gradients.purple[1],
+    color: Colors.textPrimary,
   },
   timeCardDesc: {
     fontSize: 12,
@@ -342,7 +358,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.gradients.purple[1],
   },
   inputGroup: {
     gap: 16,
@@ -351,15 +366,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
     paddingHorizontal: 16,
-    shadowColor: 'rgba(0, 0, 0, 0.04)',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 1,
+    shadowRadius: 12,
+    elevation: 2,
   },
   inputIcon: {
     marginRight: 12,
@@ -374,6 +389,7 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   input: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '500',
     color: Colors.textPrimary,
@@ -382,11 +398,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.regular,
   },
   infoBox: {
-    backgroundColor: 'rgba(192, 132, 252, 0.1)',
-    borderRadius: 16,
+    backgroundColor: 'rgba(37, 114, 159, 0.05)',
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(192, 132, 252, 0.2)',
+    borderColor: 'rgba(37, 114, 159, 0.1)',
   },
   infoBoxText: {
     fontSize: 13,
@@ -400,11 +416,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   runButton: {
-    borderRadius: 28,
+    borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: 'rgba(0, 0, 0, 0.15)',
+    shadowColor: '#25729f',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },

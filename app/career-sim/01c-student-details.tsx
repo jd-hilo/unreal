@@ -1,8 +1,8 @@
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Input } from '@/components/Input';
-import { Building2, ChevronRight, ChevronLeft } from 'lucide-react-native';
+import { GraduationCap, School, BookOpen, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -10,28 +10,26 @@ import { Colors, Fonts } from '@/constants/Theme';
 import { ProgressBar } from '@/components/ProgressBar';
 import * as Haptics from 'expo-haptics';
 
-export default function CompanyScreen() {
+export default function StudentDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [company, setCompany] = useState('');
-
-  useEffect(() => {
-    if (params.company) {
-      setCompany(params.company as string);
-    }
-  }, [params.company]);
+  const [grade, setGrade] = useState('');
+  const [school, setSchool] = useState('');
+  const [studying, setStudying] = useState('');
 
   const handleNext = () => {
     router.push({
-      pathname: '/career-sim/04-salary',
+      pathname: '/career-sim/generating',
       params: {
         timeHorizon: params.timeHorizon as string,
-        currentRole: params.currentRole as string,
-        company: company.trim(),
-        isStudent: params.isStudent || 'false',
-        ...(params.grade && { grade: params.grade }),
-        ...(params.school && { school: params.school }),
-        ...(params.studying && { studying: params.studying }),
+        isStudent: 'true',
+        grade: grade.trim(),
+        school: school.trim(),
+        studying: studying.trim(),
+        currentRole: `Student - ${studying.trim()}`,
+        company: school.trim(),
+        salary: '0',
+        pathType: 'stay',
       },
     });
   };
@@ -40,6 +38,8 @@ export default function CompanyScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.back();
   };
+
+  const isFormValid = grade.trim() && school.trim() && studying.trim();
 
   return (
     <View style={styles.screen}>
@@ -55,7 +55,7 @@ export default function CompanyScreen() {
               <ChevronLeft size={24} color={Colors.textPrimary} strokeWidth={2.5} />
             </TouchableOpacity>
             <View style={styles.progressBarContainer}>
-              <ProgressBar progress={0.75} showLabel={false} height={4} gradientColors={['#25729f', '#62edb9']} trackColor="rgba(0,0,0,0.05)" />
+              <ProgressBar progress={0.66} showLabel={false} height={4} gradientColors={['#25729f', '#62edb9']} trackColor="rgba(0,0,0,0.05)" />
             </View>
           </View>
 
@@ -66,39 +66,75 @@ export default function CompanyScreen() {
           >
             {/* Title Section */}
             <View style={styles.titleSection}>
-              <Text style={styles.title}>Your Company</Text>
-              <Text style={styles.subtitle}>Where do you currently work?</Text>
+              <Text style={styles.title}>Student Details</Text>
+              <Text style={styles.subtitle}>Tell us about your education</Text>
             </View>
 
-            {/* Input */}
-            <View style={styles.inputWrapper}>
-              <View style={styles.inputIcon}>
-                <Building2 size={18} color={Colors.textSecondary} strokeWidth={2} />
+            {/* Inputs */}
+            <View style={styles.inputGroup}>
+              <View style={styles.inputWrapper}>
+                <View style={styles.inputIcon}>
+                  <GraduationCap size={18} color={Colors.textSecondary} strokeWidth={2} />
+                </View>
+                <Input
+                  placeholder="Grade (e.g., 10, 12, Freshman, Sophomore)"
+                  value={grade}
+                  onChangeText={setGrade}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  style={styles.input}
+                  containerStyle={styles.inputContainer}
+                  placeholderTextColor={Colors.textTertiary}
+                />
               </View>
-              <Input
-                placeholder="Company (e.g., TechCorp)"
-                value={company}
-                onChangeText={setCompany}
-                autoCapitalize="words"
-                autoCorrect={false}
-                returnKeyType="next"
-                style={styles.input}
-                containerStyle={styles.inputContainer}
-                placeholderTextColor={Colors.textTertiary}
-              />
+
+              <View style={styles.inputWrapper}>
+                <View style={styles.inputIcon}>
+                  <School size={18} color={Colors.textSecondary} strokeWidth={2} />
+                </View>
+                <Input
+                  placeholder="School Name"
+                  value={school}
+                  onChangeText={setSchool}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  style={styles.input}
+                  containerStyle={styles.inputContainer}
+                  placeholderTextColor={Colors.textTertiary}
+                />
+              </View>
+
+              <View style={styles.inputWrapper}>
+                <View style={styles.inputIcon}>
+                  <BookOpen size={18} color={Colors.textSecondary} strokeWidth={2} />
+                </View>
+                <Input
+                  placeholder="What are you studying? (e.g., Computer Science, Business)"
+                  value={studying}
+                  onChangeText={setStudying}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  style={styles.input}
+                  containerStyle={styles.inputContainer}
+                  placeholderTextColor={Colors.textTertiary}
+                />
+              </View>
             </View>
           </ScrollView>
 
           {/* Footer Button */}
           <View style={styles.footer}>
             <TouchableOpacity 
-              style={[styles.nextButton, !company.trim() && styles.nextButtonDisabled]}
+              style={[styles.nextButton, !isFormValid && styles.nextButtonDisabled]}
               onPress={handleNext}
-              disabled={!company.trim()}
+              disabled={!isFormValid}
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={!company.trim() ? ['#999', '#AAA'] : ['#25729f', '#62edb9']}
+                colors={!isFormValid ? ['#999', '#AAA'] : ['#25729f', '#62edb9']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={styles.nextButtonGradient}
@@ -166,6 +202,9 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.regular,
     lineHeight: 22,
+  },
+  inputGroup: {
+    gap: 16,
   },
   inputWrapper: {
     flexDirection: 'row',

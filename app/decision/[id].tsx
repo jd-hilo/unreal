@@ -536,7 +536,7 @@ export default function DecisionResultScreen() {
             )}
 
             {/* If things were different Section */}
-            {decision.prediction && (
+            {decision.prediction && suggestions?.suggestions && (
               <View style={styles.section}>
                 <View style={styles.sectionCard}>
                     <View style={styles.sectionHeader}>
@@ -545,43 +545,35 @@ export default function DecisionResultScreen() {
                     </View>
                     <Text style={styles.sectionTitle}>If things were different…</Text>
                   </View>
-                  {loadingSuggestions ? (
-                    <ActivityIndicator size="small" color={Colors.textSecondary} style={styles.sectionLoader} />
-                  ) : suggestions?.suggestions ? (
-                    <View style={styles.suggestionsContainer}>
-                      {suggestions.suggestions.map((suggestion: any, index: number) => (
-                        <View key={index} style={styles.suggestionCard}>
-                          <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
-                          {suggestion.probs && (
-                            <View style={styles.suggestionProbs}>
-                              {Object.entries(suggestion.probs).map(([option, prob]: [string, any]) => {
-                                const currentProb = decision.prediction.probs[option] || 0;
-                                const delta = prob - currentProb;
-                                return (
-                                  <View key={option} style={styles.suggestionProbRow}>
-                                    <Text style={styles.suggestionOption}>{option}</Text>
-                                    <Text style={styles.suggestionProb}>{(prob * 100).toFixed(0)}%</Text>
-                                    {delta !== 0 && (
-                                      <Text style={[styles.suggestionDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
-                                        {delta > 0 ? '+' : ''}{(delta * 100).toFixed(0)}%
-                                      </Text>
-                                    )}
-                                  </View>
-                                );
-                              })}
-                            </View>
-                          )}
-                          {suggestion.delta && (
-                            <Text style={styles.suggestionDeltaText}>{suggestion.delta}</Text>
-                          )}
-                        </View>
-                      ))}
-                    </View>
-                  ) : (
-                    <Text style={styles.emptyStateText}>
-                      No suggestions available at this time.
-                    </Text>
-                  )}
+                  <View style={styles.suggestionsContainer}>
+                    {suggestions.suggestions.map((suggestion: any, index: number) => (
+                      <View key={index} style={styles.suggestionCard}>
+                        <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
+                        {suggestion.probs && (
+                          <View style={styles.suggestionProbs}>
+                            {Object.entries(suggestion.probs).map(([option, prob]: [string, any]) => {
+                              const currentProb = decision.prediction.probs[option] || 0;
+                              const delta = prob - currentProb;
+                              return (
+                                <View key={option} style={styles.suggestionProbRow}>
+                                  <Text style={styles.suggestionOption}>{option}</Text>
+                                  <Text style={styles.suggestionProb}>{(prob * 100).toFixed(0)}%</Text>
+                                  {delta !== 0 && (
+                                    <Text style={[styles.suggestionDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
+                                      {delta > 0 ? '+' : ''}{(delta * 100).toFixed(0)}%
+                                    </Text>
+                                  )}
+                                </View>
+                              );
+                            })}
+                          </View>
+                        )}
+                        {suggestion.delta && (
+                          <Text style={styles.suggestionDeltaText}>{suggestion.delta}</Text>
+                        )}
+                      </View>
+                    ))}
+                  </View>
                 </View>
               </View>
             )}
@@ -716,7 +708,7 @@ export default function DecisionResultScreen() {
                   scrollViewRef.current?.scrollToEnd({ animated: true });
                 }}
               >
-                <BlurView intensity={80} tint="light" style={styles.scrollHintBlur}>
+                <View style={styles.scrollHintBlur}>
                   <Text style={styles.scrollHintText}>scroll to discuss this decision</Text>
                   <Animated.View
                     style={{
@@ -732,7 +724,7 @@ export default function DecisionResultScreen() {
                   >
                     <ChevronDown size={16} color={Colors.textPrimary} strokeWidth={2} />
                   </Animated.View>
-                </BlurView>
+                </View>
               </TouchableOpacity>
             </Animated.View>
           )}
@@ -1562,26 +1554,24 @@ const styles = StyleSheet.create({
   },
   scrollHintBlur: {
     borderRadius: 24,
-    overflow: 'hidden',
     paddingVertical: 10,
     paddingHorizontal: 20,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    gap: 6,
+    backgroundColor: '#FFFFFF',
+    gap: 8,
     minWidth: 200,
     maxWidth: 250,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
       },
       android: {
-        elevation: 8,
+        elevation: 12,
       },
     }),
   },

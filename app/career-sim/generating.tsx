@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import { generateCareerSimulation } from '@/lib/ai';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DinoGame } from '@/components/DinoGame';
+import { DinoGame, DinoGameRef } from '@/components/DinoGame';
 
 const LOADING_STEPS = [
   'Analyzing your profile...',
@@ -36,6 +36,7 @@ export default function GeneratingScreen() {
   const [error, setError] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const dinoGameRef = useRef<DinoGameRef>(null);
 
   useEffect(() => {
     // Fade in animation
@@ -48,7 +49,7 @@ export default function GeneratingScreen() {
     // Animate progress bar
     Animated.timing(progressAnim, {
       toValue: 100,
-      duration: 30000, // 30 seconds total
+      duration: 60000, // 60 seconds total (2x slower)
       useNativeDriver: false,
     }).start();
 
@@ -128,32 +129,37 @@ export default function GeneratingScreen() {
     <View style={styles.screen}>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safeArea}>
-        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-          <View style={styles.content}>
-            <View style={styles.gameContainer}>
-              <DinoGame />
-            </View>
+        <Pressable 
+          style={styles.pressableContainer}
+          onPress={() => dinoGameRef.current?.jump()}
+        >
+          <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+            <View style={styles.content}>
+              <View style={styles.gameContainer}>
+                <DinoGame ref={dinoGameRef} />
+              </View>
 
-            <Text style={styles.title}>Generating Your Career Simulation</Text>
-            <Text style={styles.subtitle}>{LOADING_STEPS[loadingStep]}</Text>
+              <Text style={styles.title}>Generating Your Career Simulation</Text>
+              <Text style={styles.subtitle}>{LOADING_STEPS[loadingStep]}</Text>
 
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <Animated.View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: progressAnim.interpolate({
-                        inputRange: [0, 100],
-                        outputRange: ['0%', '100%'],
-                      }),
-                    },
-                  ]}
-                />
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <Animated.View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: progressAnim.interpolate({
+                          inputRange: [0, 100],
+                          outputRange: ['0%', '100%'],
+                        }),
+                      },
+                    ]}
+                  />
+                </View>
               </View>
             </View>
-          </View>
-        </Animated.View>
+          </Animated.View>
+        </Pressable>
       </SafeAreaView>
     </View>
   );
@@ -165,6 +171,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   safeArea: {
+    flex: 1,
+  },
+  pressableContainer: {
     flex: 1,
   },
   container: {

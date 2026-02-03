@@ -13,6 +13,7 @@ import type {
   DreamVision,
   DailyTask,
   ArchitectFeedback,
+  OnboardingTask,
 } from '@/types/database';
 
 /**
@@ -334,6 +335,15 @@ export async function insertDecision(
     .single();
 
   if (error) throw error;
+  
+  // Complete onboarding task for first decision
+  try {
+    await completeOnboardingTask(userId, 'ask_decision');
+  } catch (error) {
+    // Silently fail if onboarding task doesn't exist or is already complete
+    console.warn('Failed to complete onboarding task:', error);
+  }
+  
   return data;
 }
 
@@ -473,6 +483,15 @@ export async function saveCareerSimulation(
     .single();
 
   if (error) throw error;
+  
+  // Complete onboarding task for first career simulation
+  try {
+    await completeOnboardingTask(userId, 'simulate_career');
+  } catch (error) {
+    // Silently fail if onboarding task doesn't exist or is already complete
+    console.warn('Failed to complete onboarding task:', error);
+  }
+  
   return data;
 }
 
@@ -1887,4 +1906,73 @@ export async function saveDecisionChatMessage(
     if (error) throw error;
     return data;
   }
+}
+
+/**
+ * Initialize onboarding tasks for a new user
+ * Creates 3 tasks: ask_decision, simulate_career, invite_friend
+ */
+export async function initializeOnboardingTasks(userId: string) {
+  const { error } = await supabase.rpc('initialize_onboarding_tasks', {
+    p_user_id: userId,
+  });
+
+  if (error) throw error;
+}
+
+/**
+ * Get all onboarding tasks for a user
+ */
+export async function getOnboardingTasks(userId: string) {
+  const { data, error } = await supabase
+    .from('onboarding_tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Complete a specific onboarding task
+ */
+export async function completeOnboardingTask(userId: string, taskType: 'ask_decision' | 'simulate_career' | 'invite_friend') {
+  const { data, error } = await supabase
+    .from('onboarding_tasks')
+    .update({
+      is_completed: true,
+      completed_at: new Date().toISOString(),
+    } as any)
+    .eq('user_id', userId)
+    .eq('task_type', taskType)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Check if all onboarding tasks are complete
+ */
+export async function areOnboardingTasksComplete(userId: string) {
+  const { data, error } = await supabase.rpc('are_onboarding_tasks_complete', {
+    p_user_id: userId,
+  });
+
+  if (error) throw error;
+  return data as boolean;
+}
+
+/**
+ * Check and auto-complete onboarding tasks based on existing data
+ * (decisions and career simulations)
+ */
+export async function checkAndCompleteOnboardingTasks(userId: string) {
+  const { error } = await supabase.rpc('check_and_complete_onboarding_tasks', {
+    p_user_id: userId,
+  });
+
+  if (error) throw error;
 }

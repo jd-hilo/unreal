@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated, Easing } from 'react-native';
 import { Colors, Fonts } from '@/constants/Theme';
 import { RefreshCw, Play } from 'lucide-react-native';
@@ -15,7 +15,11 @@ const INITIAL_SPEED = 6;
 const MAX_SPEED = 18;
 const SPEED_INCREMENT = 0.2;
 
-export function DinoGame() {
+export interface DinoGameRef {
+  jump: () => void;
+}
+
+export const DinoGame = forwardRef<DinoGameRef>((props, ref) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
@@ -142,6 +146,10 @@ export function DinoGame() {
     };
   }, []);
 
+  useImperativeHandle(ref, () => ({
+    jump,
+  }));
+
   return (
     <View style={styles.container}>
       <TouchableOpacity 
@@ -208,7 +216,7 @@ export function DinoGame() {
       </TouchableOpacity>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

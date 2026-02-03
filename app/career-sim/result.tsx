@@ -37,6 +37,10 @@ export default function CareerSimResult() {
     pathType: string;
     generated?: string;
     simulationKey?: string;
+    isStudent?: string;
+    grade?: string;
+    school?: string;
+    studying?: string;
   }>();
 
   const { user } = useAuth();
@@ -59,6 +63,35 @@ export default function CareerSimResult() {
               // Validate that we have the required simulation data
               if (parsed && (parsed.timeline || parsed.outcome || parsed.stats)) {
                 setSimulation(parsed);
+                
+                // Automatically save newly generated simulation to database
+                if (user?.id && !params.simulationKey.includes('saved_')) {
+                  try {
+                    // Determine currentRole and company based on whether user is a student
+                    let currentRoleToSave = params.currentRole;
+                    let companyToSave = params.company;
+                    
+                    if (params.isStudent === 'true') {
+                      // For students, use studying as role and school as company
+                      currentRoleToSave = params.studying || params.currentRole || `Student - ${params.grade || 'N/A'}`;
+                      companyToSave = params.school || params.company;
+                    }
+                    
+                    await saveCareerSimulation(user.id, {
+                      timeHorizon: parseInt(params.timeHorizon || '10', 10),
+                      pathType: (params.pathType || 'stay') as 'stay' | 'switch' | 'startup',
+                      currentRole: currentRoleToSave || undefined,
+                      company: companyToSave || undefined,
+                      salary: params.salary || undefined,
+                      simulationData: parsed as any,
+                    });
+                    console.log('Career simulation automatically saved to database');
+                  } catch (saveError) {
+                    console.error('Error auto-saving career simulation:', saveError);
+                    // Don't block the UI if auto-save fails
+                  }
+                }
+                
                 setLoading(false);
                 return;
               } else {
@@ -132,6 +165,8 @@ export default function CareerSimResult() {
   }, []);
 
   const handleAlternatePathPress = useCallback((pathId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     // Map path IDs to path types
     const pathMap: Record<string, 'stay' | 'switch' | 'startup'> = {
       'stay-current': 'stay',
@@ -144,11 +179,19 @@ export default function CareerSimResult() {
 
     const newPathType = pathMap[pathId] || 'stay';
     
-    router.replace({
-      pathname: '/career-sim/result',
+    // Navigate to generating screen to create a new simulation with the new path type
+    router.push({
+      pathname: '/career-sim/generating',
       params: {
-        ...params,
+        timeHorizon: params.timeHorizon || '10',
+        currentRole: params.currentRole || '',
+        company: params.company || '',
+        salary: params.salary || '',
         pathType: newPathType,
+        isStudent: params.isStudent || 'false',
+        ...(params.grade && { grade: params.grade }),
+        ...(params.school && { school: params.school }),
+        ...(params.studying && { studying: params.studying }),
       },
     });
   }, [params, router]);
@@ -159,19 +202,33 @@ export default function CareerSimResult() {
       return;
     }
 
+    if (!simulation) {
+      alert('No simulation data to save');
+      return;
+    }
+
     setIsSaving(true);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
+      // Determine currentRole and company based on whether user is a student
+      let currentRoleToSave = params.currentRole;
+      let companyToSave = params.company;
+      
+      if (params.isStudent === 'true') {
+        // For students, use studying as role and school as company
+        currentRoleToSave = params.studying || params.currentRole || `Student - ${params.grade || 'N/A'}`;
+        companyToSave = params.school || params.company;
+      }
+      
       await saveCareerSimulation(user.id, {
         timeHorizon: parseInt(params.timeHorizon || '10', 10),
         pathType: pathType,
-        currentRole: params.currentRole || undefined,
-        company: params.company || undefined,
+        currentRole: currentRoleToSave || undefined,
+        company: companyToSave || undefined,
         salary: params.salary || undefined,
         simulationData: simulation as any,
       });
-
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       alert('Career path saved! You can review it anytime.');
@@ -242,13 +299,7 @@ export default function CareerSimResult() {
           <TouchableOpacity 
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              // Navigate back to simulate tab with replace to avoid push animation (slide left)
-              // We want it to feel like going "back" (slide right)
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace('/(tabs)/simulate');
-              }
+              router.back();
             }} 
             style={styles.backButton}
           >
@@ -384,11 +435,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerRight: {
-    position: 'relative',
+    width: 40,
   },
   headerCenter: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 11,
@@ -396,6 +448,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.bold,
     letterSpacing: 1.5,
+    textAlign: 'center',
   },
   horizonBadge: {
     backgroundColor: 'rgba(0,0,0,0.05)',
@@ -403,6 +456,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     marginTop: 4,
+    alignSelf: 'center',
   },
   horizonText: {
     fontSize: 10,
@@ -410,6 +464,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,

@@ -453,12 +453,8 @@ export default function DecideTab() {
             <View style={styles.spacer} />
 
             {/* Suggestions positioned above input */}
-            <Animated.View style={[styles.suggestionsWrapper, { opacity: suggestionsContainerFade }]}>
-              {loadingQuestions ? (
-                <View style={styles.loadingContainer}>
-                  <Text style={styles.loadingText}>Generating suggested questions...</Text>
-                </View>
-              ) : (
+            {!loadingQuestions && suggestedQuestions.length > 0 && (
+              <Animated.View style={[styles.suggestionsWrapper, { opacity: suggestionsContainerFade }]}>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -468,7 +464,7 @@ export default function DecideTab() {
                   {suggestedQuestions.map((item, index) => {
                     // Ensure we have an animation value for this index
                     if (!suggestionFadeAnims[index]) {
-                      suggestionFadeAnims[index] = new Animated.Value(loadingQuestions ? 0 : 1);
+                      suggestionFadeAnims[index] = new Animated.Value(1);
                     }
                     return (
                       <Animated.View
@@ -492,8 +488,8 @@ export default function DecideTab() {
                     );
                   })}
                 </ScrollView>
-              )}
-            </Animated.View>
+              </Animated.View>
+            )}
           </Animated.ScrollView>
 
           <Animated.View 
@@ -590,6 +586,7 @@ const styles = StyleSheet.create({
   },
   suggestionsWrapper: {
     width: '100%',
+    marginTop: 10,
   },
   header: {
     marginBottom: 48,
@@ -815,16 +812,5 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.regular,
     color: Colors.textPrimary,
     lineHeight: 22,
-  },
-  loadingContainer: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: Colors.textTertiary,
-    fontFamily: Fonts.secondary.regular,
   },
 });

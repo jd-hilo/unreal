@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,31 +9,38 @@ import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
 import { ProgressBar } from '@/components/ProgressBar';
 
-const TIME_HORIZONS = [
-  { value: 5, label: '5 Years', desc: 'Near-term outlook' },
-  { value: 10, label: '10 Years', desc: 'Mid-career view' },
-  { value: 15, label: '15 Years', desc: 'Long-term vision' },
-] as const;
-
-export default function TimeHorizonScreen() {
+export default function StudentCheckScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [timeHorizon, setTimeHorizon] = useState<5 | 10 | 15>(
-    (params.timeHorizon ? parseInt(params.timeHorizon as string) : 10) as 5 | 10 | 15
-  );
+  const [isStudent, setIsStudent] = useState<boolean | null>(null);
 
-  const handleTimeHorizonPress = (value: 5 | 10 | 15) => {
+  const handleSelect = (value: boolean) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setTimeHorizon(value);
+    setIsStudent(value);
   };
 
   const handleNext = () => {
-    router.push({
-      pathname: '/career-sim/01b-student-check',
-      params: {
-        timeHorizon: timeHorizon.toString(),
-      },
-    });
+    if (isStudent === null) return;
+    
+    if (isStudent) {
+      // Navigate to student details screen
+      router.push({
+        pathname: '/career-sim/01c-student-details',
+        params: {
+          timeHorizon: params.timeHorizon as string,
+          isStudent: 'true',
+        },
+      });
+    } else {
+      // Skip to current role screen
+      router.push({
+        pathname: '/career-sim/02-current-role',
+        params: {
+          timeHorizon: params.timeHorizon as string,
+          isStudent: 'false',
+        },
+      });
+    }
   };
 
   const handleBack = () => {
@@ -55,7 +62,7 @@ export default function TimeHorizonScreen() {
               <ChevronLeft size={24} color={Colors.textPrimary} strokeWidth={2.5} />
             </TouchableOpacity>
             <View style={styles.progressBarContainer}>
-              <ProgressBar progress={0.25} showLabel={false} height={4} gradientColors={['#25729f', '#62edb9']} trackColor="rgba(0,0,0,0.05)" />
+              <ProgressBar progress={0.33} showLabel={false} height={4} gradientColors={['#25729f', '#62edb9']} trackColor="rgba(0,0,0,0.05)" />
             </View>
           </View>
 
@@ -66,64 +73,98 @@ export default function TimeHorizonScreen() {
           >
             {/* Title Section */}
             <View style={styles.titleSection}>
-              <Text style={styles.title}>Time Horizon</Text>
-              <Text style={styles.subtitle}>How far into the future would you like to simulate?</Text>
+              <Text style={styles.title}>Are you a student?</Text>
+              <Text style={styles.subtitle}>This helps us provide more accurate career simulations</Text>
             </View>
 
-            {/* Cards */}
-            <View style={styles.timeHorizonGrid}>
-              {TIME_HORIZONS.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.timeCard,
-                    timeHorizon === option.value && styles.timeCardSelected
-                  ]}
-                  onPress={() => handleTimeHorizonPress(option.value)}
-                  activeOpacity={0.9}
-                >
-                    {/* 3D Edge Effects */}
-                    <View style={styles.cardEdgeTop} />
-                    <View style={styles.cardEdgeLeft} />
-                    <View style={styles.cardEdgeRight} />
-                    <View style={styles.cardEdgeBottom} />
+            {/* Options */}
+            <View style={styles.optionsGrid}>
+              <TouchableOpacity
+                style={[
+                  styles.optionCard,
+                  isStudent === true && styles.optionCardSelected
+                ]}
+                onPress={() => handleSelect(true)}
+                activeOpacity={0.9}
+              >
+                {/* 3D Edge Effects */}
+                <View style={styles.cardEdgeTop} />
+                <View style={styles.cardEdgeLeft} />
+                <View style={styles.cardEdgeRight} />
+                <View style={styles.cardEdgeBottom} />
+                
+                <View style={styles.cardInner}>
+                  <LinearGradient
+                    colors={['#FFFFFF', '#F8F7FF']}
+                    style={styles.cardBackground}
+                  />
+                  
+                  <View style={styles.cardContent}>
+                    <Text style={[
+                      styles.optionLabel,
+                      isStudent === true && styles.optionLabelSelected
+                    ]}>
+                      Yes, I'm a student
+                    </Text>
                     
-                    <View style={styles.cardInner}>
-                      <LinearGradient
-                        colors={['#FFFFFF', '#F8F7FF']}
-                        style={styles.cardBackground}
-                      />
-                      
-                      <View style={styles.cardContent}>
-                        <Text style={[
-                          styles.timeCardLabel,
-                          timeHorizon === option.value && styles.timeCardLabelSelected
-                        ]}>
-                          {option.label}
-                        </Text>
-                        <Text style={styles.timeCardDesc}>{option.desc}</Text>
-                        
-                        {timeHorizon === option.value && (
-                          <View style={styles.selectedIndicator}>
-                            <View style={styles.selectedDot} />
-                          </View>
-                        )}
+                    {isStudent === true && (
+                      <View style={styles.selectedIndicator}>
+                        <View style={styles.selectedDot} />
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.optionCard,
+                  isStudent === false && styles.optionCardSelected
+                ]}
+                onPress={() => handleSelect(false)}
+                activeOpacity={0.9}
+              >
+                {/* 3D Edge Effects */}
+                <View style={styles.cardEdgeTop} />
+                <View style={styles.cardEdgeLeft} />
+                <View style={styles.cardEdgeRight} />
+                <View style={styles.cardEdgeBottom} />
+                
+                <View style={styles.cardInner}>
+                  <LinearGradient
+                    colors={['#FFFFFF', '#F8F7FF']}
+                    style={styles.cardBackground}
+                  />
+                  
+                  <View style={styles.cardContent}>
+                    <Text style={[
+                      styles.optionLabel,
+                      isStudent === false && styles.optionLabelSelected
+                    ]}>
+                      No, I'm working
+                    </Text>
+                    
+                    {isStudent === false && (
+                      <View style={styles.selectedIndicator}>
+                        <View style={styles.selectedDot} />
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
             </View>
           </ScrollView>
 
           {/* Footer Button */}
           <View style={styles.footer}>
             <TouchableOpacity 
-              style={styles.nextButton}
+              style={[styles.nextButton, isStudent === null && styles.nextButtonDisabled]}
               onPress={handleNext}
+              disabled={isStudent === null}
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['#25729f', '#62edb9']}
+                colors={isStudent === null ? ['#999', '#AAA'] : ['#25729f', '#62edb9']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={styles.nextButtonGradient}
@@ -192,12 +233,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.regular,
     lineHeight: 22,
   },
-  timeHorizonGrid: {
-    flexDirection: 'column',
+  optionsGrid: {
+    flexDirection: 'row',
     gap: 12,
   },
-  timeCard: {
-    width: '100%',
+  optionCard: {
+    flex: 1,
     position: 'relative',
     borderRadius: 32,
     overflow: 'hidden',
@@ -207,7 +248,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 8,
     backgroundColor: '#FFFFFF',
-    minHeight: 120,
+    minHeight: 200,
   },
   cardEdgeTop: {
     position: 'absolute',
@@ -258,39 +299,31 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     overflow: 'hidden',
     flex: 1,
-    borderWidth: 2,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   cardBackground: {
     ...StyleSheet.absoluteFillObject,
   },
   cardContent: {
-    padding: 16,
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
   },
-  timeCardSelected: {
+  optionCardSelected: {
     shadowOpacity: 0.2,
     shadowColor: '#8B5CF6',
   },
-  timeCardLabel: {
-    fontSize: 18,
+  optionLabel: {
+    fontSize: 16,
     fontWeight: '800',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
-    marginBottom: 6,
     textAlign: 'center',
   },
-  timeCardLabelSelected: {
+  optionLabelSelected: {
     color: Colors.textPrimary,
-  },
-  timeCardDesc: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.regular,
-    textAlign: 'center',
-    lineHeight: 18,
   },
   selectedIndicator: {
     position: 'absolute',
@@ -322,6 +355,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
+  },
+  nextButtonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
   },
   nextButtonGradient: {
     flexDirection: 'row',

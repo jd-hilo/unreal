@@ -4,8 +4,8 @@ import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks, getLocalDateString } from '@/lib/storage';
-import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check, RefreshCw } from 'lucide-react-native';
+import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks, getLocalDateString, getOnboardingTasks, initializeOnboardingTasks, checkAndCompleteOnboardingTasks } from '@/lib/storage';
+import { Compass, Sparkles, X, Trash2, ChevronRight, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check, Lock, Briefcase, Share2, Trophy } from 'lucide-react-native';
 import { HomeGradientIcon, FlameGradientIcon } from '@/components/GradientIcons';
 import { generateArchitectPlan, calculateArchitectProgress, recalculateDreamProgress } from '@/lib/ai';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
@@ -105,6 +105,8 @@ export default function HomeScreen() {
   const [dailyTasks, setDailyTasks] = useState<any[]>([]);
   const [streakCount, setStreakCount] = useState<number>(0);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [onboardingTasks, setOnboardingTasks] = useState<any[]>([]);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [isGeneratingNext, setIsGeneratingNext] = useState(false);
   const [floatingPoints, setFloatingPoints] = useState<{ id: string; x: number; y: number; value: string }[]>([]);
@@ -238,14 +240,15 @@ export default function HomeScreen() {
     if (!user) return;
 
     try {
-      const [profile, decisions, whatifs, progress, journalToday, tasks, allTasks] = await Promise.all([
+      const [profile, decisions, whatifs, progress, journalToday, tasks, allTasks, onboardingTasksData] = await Promise.all([
         getProfile(user.id),
         getDecisions(user.id),
         getWhatIfs(user.id),
         calculateOverallProgress(user.id),
         getTodayJournal(user.id),
         getDailyTasks(user.id),
-        getDailyTasks(user.id, null) // Get all tasks for streak calculation
+        getDailyTasks(user.id, null), // Get all tasks for streak calculation
+        getOnboardingTasks(user.id)
       ]);
 
       // Check if we need to recalculate dream progress
@@ -298,6 +301,33 @@ export default function HomeScreen() {
       setRecentWhatIfs(whatifs || []);
       setProfileProgress(progress || 0);
       setHasTodayJournal(!!journalToday);
+      
+      // Initialize onboarding tasks if they don't exist
+      try {
+        if (!onboardingTasksData || onboardingTasksData.length === 0) {
+          await initializeOnboardingTasks(user.id);
+          const newOnboardingTasks = await getOnboardingTasks(user.id);
+          setOnboardingTasks(newOnboardingTasks || []);
+        } else {
+          setOnboardingTasks(onboardingTasksData);
+        }
+        
+        // Check and auto-complete onboarding tasks based on existing data
+        await checkAndCompleteOnboardingTasks(user.id);
+        
+        // Refresh onboarding tasks after auto-completion check
+        const updatedOnboardingTasks = await getOnboardingTasks(user.id);
+        setOnboardingTasks(updatedOnboardingTasks || []);
+        
+        // Check if all onboarding tasks are complete
+        const allComplete = (updatedOnboardingTasks || []).every((task: any) => task.is_completed);
+        setOnboardingComplete(allComplete);
+      } catch (error) {
+        // Silently handle if onboarding_tasks table doesn't exist yet (migration not run)
+        console.warn('Onboarding tasks not available (migration may not be run):', error);
+        setOnboardingTasks([]);
+        setOnboardingComplete(true); // Show daily path if table doesn't exist
+      }
       
       // Ensure we only show today's tasks - filter and limit to max 3
       const today = getLocalDateString();
@@ -877,34 +907,6 @@ export default function HomeScreen() {
                   )}
                 </LinearGradient>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.iconButton}
-                onPress={handleRefreshTasks}
-                disabled={isRefreshingTasks}
-              >
-                <Animated.View style={{
-                  transform: [{
-                    rotate: isRefreshingTasks ? '360deg' : '0deg'
-                  }]
-                }}>
-                  <RefreshCw 
-                    size={22} 
-                    color={isRefreshingTasks ? Colors.textTertiary : Colors.textPrimary} 
-                    strokeWidth={2} 
-                  />
-                </Animated.View>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.iconButton}
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  await measureLayouts();
-                  setShowDecisionGuide(true);
-                }}
-              >
-                <HelpCircle size={24} color={Colors.textPrimary} strokeWidth={2} />
-              </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.iconButton}
@@ -999,8 +1001,107 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
 
+            {/* Onboarding Tasks Section */}
+            {!onboardingComplete && onboardingTasks.length > 0 && (
+              <View style={styles.onboardingSection}>
+                <View style={styles.sectionHeader}>
+                  <View>
+                    <Text style={styles.sectionTitle}>Let's get started</Text>
+                    <Text style={styles.sectionSubtitle}>Complete these tasks to reveal your daily path to achieve your dream self.</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.onboardingTaskCarouselContainer}>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.onboardingTaskCarouselContent}
+                    snapToInterval={width * 0.65 + 12}
+                    decelerationRate="fast"
+                  >
+                    {onboardingTasks.map((task: any, index: number) => {
+                      const taskInfo = {
+                        ask_decision: {
+                          title: 'Ask a decision',
+                          description: "Get the architect's insights on your choices",
+                          IconComponent: Compass,
+                          iconColor: '#A78BFA',
+                          route: '/(tabs)/decide',
+                        },
+                        simulate_career: {
+                          title: 'Simulate your career',
+                          description: 'Explore your professional future',
+                          IconComponent: Zap,
+                          iconColor: '#FFD700',
+                          route: '/(tabs)/simulate',
+                        },
+                        invite_friend: {
+                          title: 'Invite a friend',
+                          description: 'Share your journey with others',
+                          IconComponent: Trophy,
+                          iconColor: '#FF9A9E',
+                          route: '/(tabs)/leaderboard',
+                        },
+                      }[task.task_type] || { title: task.task_type, description: '', IconComponent: Sparkles, iconColor: Colors.textSecondary, route: '/(tabs)/home' };
+
+                      const TaskIcon = taskInfo.IconComponent;
+
+                      return (
+                        <TouchableOpacity
+                          key={task.id}
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            router.push(taskInfo.route as any);
+                          }}
+                          style={task.is_completed && { opacity: 0.6 }}
+                        >
+                          <View style={[
+                            styles.onboardingTaskCard,
+                            task.is_completed && styles.onboardingTaskCardCompleted
+                          ]}>
+                            <View style={styles.onboardingTaskCardContent}>
+                              <View style={styles.onboardingTaskCardHeader}>
+                                <View style={[styles.onboardingTaskIconContainer, { backgroundColor: task.is_completed ? `${taskInfo.iconColor}15` : 'rgba(0,0,0,0.05)' }]}>
+                                  {task.is_completed ? (
+                                    <TaskIcon size={20} color={taskInfo.iconColor} strokeWidth={2.5} />
+                                  ) : (
+                                    <Lock size={20} color={Colors.textTertiary} strokeWidth={2.5} />
+                                  )}
+                                </View>
+                              </View>
+                              <Text style={[
+                                styles.onboardingTaskCardTitle,
+                                task.is_completed && styles.onboardingTaskCardTitleCompleted
+                              ]}>
+                                {taskInfo.title}
+                              </Text>
+                              <Text style={styles.onboardingTaskCardDescription}>
+                                {taskInfo.description}
+                              </Text>
+                            </View>
+                            <View style={[
+                              styles.onboardingTaskCheckbox,
+                              task.is_completed && styles.onboardingTaskCheckboxCompleted
+                            ]}>
+                              {task.is_completed ? (
+                                <Check size={12} color="#FFFFFF" strokeWidth={4} />
+                              ) : (
+                                <View style={styles.onboardingTaskDot} />
+                              )}
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              </View>
+            )}
+
             {/* Daily Tasks Section */}
             {dailyTasks.length > 0 ? (
+              onboardingComplete ? (
               <View style={styles.architectSection}>
                 <View style={styles.sectionHeader}>
                   <View>
@@ -1076,6 +1177,27 @@ export default function HomeScreen() {
                   ))}
                   </ScrollView>
                 </View>
+              </View>
+              ) : (
+                <View style={styles.lockedStateContainer}>
+                  <View style={styles.lockedIconContainer}>
+                    <Lock size={32} color={Colors.textTertiary} strokeWidth={2} />
+                  </View>
+                  <Text style={styles.lockedStateTitle}>Daily Path Locked</Text>
+                  <Text style={styles.lockedStateText}>
+                    Complete onboarding tasks above to unlock your curated micro actions for today
+                  </Text>
+                </View>
+              )
+            ) : !onboardingComplete ? (
+              <View style={styles.lockedStateContainer}>
+                <View style={styles.lockedIconContainer}>
+                  <Lock size={32} color={Colors.textTertiary} strokeWidth={2} />
+                </View>
+                <Text style={styles.lockedStateTitle}>Daily Path Locked</Text>
+                <Text style={styles.lockedStateText}>
+                  Complete onboarding tasks above to unlock your curated micro actions for today
+                </Text>
               </View>
             ) : (
               <View style={styles.emptyStateContainer}>
@@ -1867,6 +1989,154 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 14,
     color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  // Onboarding Section
+  onboardingSection: {
+    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  onboardingTaskCarouselContainer: {
+    paddingTop: 16,
+    paddingBottom: 16,
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+  },
+  onboardingTaskCarouselContent: {
+    flexDirection: 'row',
+    paddingRight: 24,
+    paddingLeft: 4,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  onboardingTaskCard: {
+    width: width * 0.65,
+    height: 180,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    padding: 16,
+    paddingBottom: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)',
+    borderBottomWidth: 6,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  onboardingTaskCardCompleted: {
+    backgroundColor: '#F8F8F8',
+    borderColor: 'transparent',
+    opacity: 0.6,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  onboardingTaskCardContent: {
+    width: '100%',
+    flex: 1,
+    justifyContent: 'flex-start',
+  },
+  onboardingTaskCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    width: '100%',
+    marginBottom: 12,
+  },
+  onboardingTaskIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  onboardingTaskCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  onboardingTaskCardTitleCompleted: {
+    color: Colors.textTertiary,
+  },
+  onboardingTaskCardDescription: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    lineHeight: 18,
+  },
+  onboardingTaskCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+  },
+  onboardingTaskCheckboxCompleted: {
+    backgroundColor: '#4ADE80',
+    borderColor: '#4ADE80',
+  },
+  onboardingTaskDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  // Locked State
+  lockedStateContainer: {
+    marginTop: 16,
+    marginBottom: 32,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderRadius: 32,
+    padding: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+  },
+  lockedIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  lockedStateTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: Fonts.primary.regular,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  lockedStateText: {
+    fontSize: 14,
+    color: Colors.textTertiary,
     fontFamily: Fonts.secondary.regular,
     textAlign: 'center',
     lineHeight: 20,

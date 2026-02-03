@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Platform } from 'react-native';
-import { X, Camera, Mic, Battery, Wifi, Signal } from 'lucide-react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Platform, ScrollView } from 'react-native';
+import { X, Camera, Mic, Battery, Wifi, Signal, Sparkles } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/Theme';
 import type { RandomTuesdayData } from '@/lib/career-sim/types';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,68 +29,91 @@ function RandomTuesdayModalComponent({ visible, onClose, tuesdayData }: RandomTu
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="fullScreen"
+      presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
       <View style={styles.container}>
-        {/* iPhone Lock Screen Mockup */}
-        <View style={styles.lockScreenContainer}>
-          <LinearGradient
-            colors={['#1a1a1a', '#2d3436']}
-            style={styles.lockScreenGradient}
-          >
-            {/* Status Bar */}
-            <View style={styles.statusBar}>
-              <Text style={styles.statusBarTime}>{currentTime}</Text>
-              <View style={styles.statusBarIcons}>
-                <Signal size={14} color="#FFFFFF" />
-                <Wifi size={14} color="#FFFFFF" />
-                <Battery size={14} color="#FFFFFF" />
-              </View>
-            </View>
-
-            {/* Date & Time */}
-            <View style={styles.lockScreenHeader}>
-              <Text style={styles.lockScreenDate}>{safeTuesdayData.date?.split(',')[1]?.trim() ?? 'March 15'}</Text>
-              <Text style={styles.lockScreenTime}>09:41</Text>
-            </View>
-
-            {/* Notifications */}
-            <View style={styles.notificationsList}>
-              {safeTuesdayData.notifications?.map((notification, index) => (
-                <View key={index} style={styles.notificationCard}>
-                  <View style={styles.notificationHeader}>
-                    <View style={styles.appIconContainer}>
-                      <Text style={styles.appIconEmoji}>{notification.icon ?? '📱'}</Text>
-                    </View>
-                    <Text style={styles.appName}>{notification.app?.toUpperCase() ?? 'APP'}</Text>
-                    <Text style={styles.notifTime}>{notification.time ?? '9:00 AM'}</Text>
-                  </View>
-                  <View style={styles.notificationContent}>
-                    <Text style={styles.notifTitle}>{notification.title ?? 'Notification'}</Text>
-                    <Text style={styles.notifBody} numberOfLines={2}>{notification.body ?? 'Notification body'}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            {/* Lock Screen Bottom */}
-            <View style={styles.lockScreenFooter}>
-              <View style={styles.footerIcon}>
-                <Camera size={20} color="#FFFFFF" />
-              </View>
-              <View style={styles.homeIndicator} />
-              <View style={styles.footerIcon}>
-                <Mic size={20} color="#FFFFFF" />
-              </View>
-            </View>
-          </LinearGradient>
-          
-          {/* Close Button Overlay */}
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color="#FFFFFF" />
+        {/* Toolbar */}
+        <View style={styles.toolbar}>
+          <TouchableOpacity onPress={onClose} style={styles.toolbarButton}>
+            <X size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
+          <View style={styles.toolbarActions}>
+            {/* Empty space for balance */}
+          </View>
         </View>
+
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* iPhone Lock Screen Mockup */}
+          <View style={styles.lockScreenContainer}>
+            <LinearGradient
+              colors={['#1a1a1a', '#2d3436']}
+              style={styles.lockScreenGradient}
+            >
+              {/* Status Bar */}
+              <View style={styles.statusBar}>
+                <Text style={styles.statusBarTime}>{currentTime}</Text>
+                <View style={styles.statusBarIcons}>
+                  <Signal size={14} color="#FFFFFF" />
+                  <Wifi size={14} color="#FFFFFF" />
+                  <Battery size={14} color="#FFFFFF" />
+                </View>
+              </View>
+
+              {/* Date & Time */}
+              <View style={styles.lockScreenHeader}>
+                <Text style={styles.lockScreenDate}>{safeTuesdayData.date?.split(',')[1]?.trim() ?? 'March 15'}</Text>
+                <Text style={styles.lockScreenTime}>09:41</Text>
+              </View>
+
+              {/* Notifications */}
+              <View style={styles.notificationsList}>
+                {safeTuesdayData.notifications?.map((notification, index) => (
+                  <View key={index} style={styles.notificationCard}>
+                    <View style={styles.notificationHeader}>
+                      <View style={styles.appIconContainer}>
+                        <Text style={styles.appIconEmoji}>{notification.icon ?? '📱'}</Text>
+                      </View>
+                      <Text style={styles.appName}>{notification.app?.toUpperCase() ?? 'APP'}</Text>
+                      <Text style={styles.notifTime}>{notification.time ?? '9:00 AM'}</Text>
+                    </View>
+                    <View style={styles.notificationContent}>
+                      <Text style={styles.notifTitle}>{notification.title ?? 'Notification'}</Text>
+                      <Text style={styles.notifBody} numberOfLines={2}>{notification.body ?? 'Notification body'}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {/* Lock Screen Bottom */}
+              <View style={styles.lockScreenFooter}>
+                <View style={styles.footerIcon}>
+                  <Camera size={20} color="#FFFFFF" />
+                </View>
+                <View style={styles.homeIndicator} />
+                <View style={styles.footerIcon}>
+                  <Mic size={20} color="#FFFFFF" />
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* App Metadata Footer */}
+          <View style={styles.appFooter}>
+            <LinearGradient
+              colors={['rgba(192, 132, 252, 0.05)', 'rgba(192, 132, 252, 0.1)']}
+              style={styles.metaCard}
+            >
+              <View style={styles.metaHeader}>
+                <Sparkles size={14} color={Colors.gradients.purple[1]} />
+                <Text style={styles.metaTitle}>SIMULATION INSIGHT</Text>
+              </View>
+              <Text style={styles.metaDesc}>
+                This represents a snapshot of a random Tuesday in your simulated future. You made {safeTuesdayData.stats?.decisionsMade ?? 0} decisions and experienced {safeTuesdayData.stats?.imposterSyndromeMoments ?? 0} moments of doubt.
+              </Text>
+            </LinearGradient>
+          </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -101,16 +124,44 @@ export const RandomTuesdayModal = memo(RandomTuesdayModalComponent);
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#FFFFFF',
+  },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F3F4',
+  },
+  toolbarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  toolbarButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+  },
+  scrollView: {
+    flex: 1,
   },
   lockScreenContainer: {
-    flex: 1,
+    margin: 20,
+    borderRadius: 24,
+    overflow: 'hidden',
     backgroundColor: '#000',
+    minHeight: 600,
   },
   lockScreenGradient: {
-    flex: 1,
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
     paddingHorizontal: 20,
+    paddingBottom: 40,
+    minHeight: 600,
   },
   statusBar: {
     flexDirection: 'row',
@@ -218,16 +269,32 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     opacity: 0.5,
   },
-  closeButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+  appFooter: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  metaCard: {
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(192, 132, 252, 0.2)',
+  },
+  metaHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
+    gap: 8,
+    marginBottom: 8,
+  },
+  metaTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.gradients.purple[1],
+    letterSpacing: 1,
+  },
+  metaDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+    fontFamily: Fonts.secondary.regular,
   },
 });

@@ -10,7 +10,7 @@ import { useRef, useCallback, useState, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/useAuth';
-import { getProfile } from '@/lib/storage';
+import { getProfile, completeOnboardingTask } from '@/lib/storage';
 
 interface LeaderboardEntry {
   user_id: string;
@@ -85,6 +85,8 @@ export default function LeaderboardTab() {
   const [moraCode, setMoraCode] = useState('');
   const [addingFriend, setAddingFriend] = useState(false);
   const [myTwinCode, setMyTwinCode] = useState<string | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<View>(null);
 
   const fetchLeaderboard = async () => {
     try {
@@ -193,6 +195,7 @@ export default function LeaderboardTab() {
   };
 
   const handleInvite = async () => {
+    setShowDropdown(false);
     if (!myTwinCode) {
       Alert.alert('Error', 'Your Mora# is not available yet');
       return;
@@ -203,9 +206,24 @@ export default function LeaderboardTab() {
         message: `Join me on Mora and track your progress towards your dream self! Use my Mora# to add me to your leaderboard so we can track our progress together: ${myTwinCode}\n\nDownload here: https://apps.apple.com/us/app/mora/id6742576400`,
         title: 'Join me on Mora',
       });
+      
+      // Complete onboarding task for inviting a friend
+      if (user?.id) {
+        try {
+          await completeOnboardingTask(user.id, 'invite_friend');
+        } catch (error) {
+          // Silently fail if onboarding task doesn't exist or is already complete
+          console.warn('Failed to complete onboarding task:', error);
+        }
+      }
     } catch (error) {
       console.error('Error sharing:', error);
     }
+  };
+
+  const handleAddFriendClick = () => {
+    setShowDropdown(false);
+    setShowAddModal(true);
   };
 
   const renderEmptyState = () => (
@@ -249,7 +267,7 @@ export default function LeaderboardTab() {
         <Share2 size={20} color="#FFFFFF" />
         <Text style={styles.emptyButtonText}>Invite Friends</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowAddModal(true)}>
+      <TouchableOpacity style={styles.secondaryButton} onPress={handleAddFriendClick}>
         <Text style={styles.secondaryButtonText}>I have a code</Text>
       </TouchableOpacity>
     </View>
@@ -258,6 +276,14 @@ export default function LeaderboardTab() {
   return (
     <View style={styles.screen}>
       <StatusBar style="dark" />
+      {/* Dropdown Overlay */}
+      {showDropdown && (
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setShowDropdown(false)}
+        />
+      )}
       <SafeAreaView style={styles.safeArea}>
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
           <View style={styles.header}>
@@ -267,18 +293,33 @@ export default function LeaderboardTab() {
                 <Text style={styles.title}>Leaderboard</Text>
               </View>
               <View style={styles.actionButtons}>
-                <TouchableOpacity 
-                  style={styles.actionButton} 
-                  onPress={() => setShowAddModal(true)}
-                >
-                  <UserPlus size={20} color={Colors.textPrimary} strokeWidth={2} />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.actionButton} 
-                  onPress={handleInvite}
-                >
-                  <Share2 size={20} color={Colors.textPrimary} strokeWidth={2} />
-                </TouchableOpacity>
+                <View ref={dropdownRef} style={styles.dropdownContainer}>
+                  <TouchableOpacity 
+                    style={styles.actionButton} 
+                    onPress={() => setShowDropdown(!showDropdown)}
+                  >
+                    <UserPlus size={20} color={Colors.textPrimary} strokeWidth={2} />
+                  </TouchableOpacity>
+                  {showDropdown && (
+                    <View style={styles.dropdown}>
+                      <TouchableOpacity 
+                        style={styles.dropdownItem}
+                        onPress={handleAddFriendClick}
+                      >
+                        <UserPlus size={18} color={Colors.textPrimary} strokeWidth={2} />
+                        <Text style={styles.dropdownItemText}>Add Friend</Text>
+                      </TouchableOpacity>
+                      <View style={styles.dropdownDivider} />
+                      <TouchableOpacity 
+                        style={styles.dropdownItem}
+                        onPress={handleInvite}
+                      >
+                        <Share2 size={18} color={Colors.textPrimary} strokeWidth={2} />
+                        <Text style={styles.dropdownItemText}>Invite Friend</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
               </View>
             </View>
             <Text style={styles.subtitle}>Who is making the most progress towards their dream self?</Text>
@@ -411,6 +452,48 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  dropdownContainer: {
+    position: 'relative',
+  },
+  dropdownOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'transparent',
+    zIndex: 998,
+  },
+  dropdown: {
+    position: 'absolute',
+    top: 52,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+    minWidth: 180,
+    zIndex: 999,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
+  },
+  dropdownDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    marginHorizontal: 8,
   },
   loadingContainer: {
     flex: 1,

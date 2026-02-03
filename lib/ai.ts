@@ -3222,6 +3222,10 @@ export async function generateArchitectPlan(
     const archetype = (profileData?.core_json as any)?.twin_archetype;
     const twinDescription = archetype ? `${archetype.title}: ${archetype.description}` : 'Not yet defined';
     
+    // Get current relationship status from relationship_details (correct location)
+    const currentRelationshipStatus = profileData?.relationship_details?.status || 'Not specified';
+    const partnerName = profileData?.relationship_details?.partnerName || null;
+    
     // Check progress to see which categories are completed
     const progress = profileData?.dream_self_progress || {};
     const completedCategories = Object.entries(progress)
@@ -3239,13 +3243,13 @@ export async function generateArchitectPlan(
     let stageGuidance = '';
     if (avgProgress >= 70) {
       progressionStage = 'commitment';
-      stageGuidance = `COMMITMENT STAGE (70-100% progress): Generate decisive daily actions that represent commitment and execution. These aren't "harder" - they're more CONSEQUENTIAL and SPECIFIC. Examples: "Sign apartment lease", "Close first customer", "Book one-way ticket", "Quit current job", "Plan second date with [name]". Tasks should be completable in one day but represent making decisions and committing to a direction based on what they've already explored and built.`;
+      stageGuidance = `COMMITMENT STAGE (70-100% progress): Generate decisive daily actions that represent commitment and execution. These aren't "harder" - they're more CONSEQUENTIAL and SPECIFIC. Examples: "Sign apartment lease", "Close first customer", "Book one-way ticket", "Quit current job". For relationships: if single, "Plan second date with [name]"; if in a relationship, "Discuss engagement timeline" or "Book couples counseling". Tasks should be completable in one day but represent making decisions and committing to a direction based on what they've already explored and built.`;
     } else if (avgProgress >= 30) {
       progressionStage = 'action';
-      stageGuidance = `ACTION STAGE (30-70% progress): Generate concrete daily actions that build on their exploration. These aren't "harder" - they're more SPECIFIC and ACTIVE. Examples: "Email one landlord", "Interview one customer", "Go on one coffee date", "Apply to 3 jobs", "Join one fitness class". Tasks should be completable in one day and represent taking real steps based on what they've learned.`;
+      stageGuidance = `ACTION STAGE (30-70% progress): Generate concrete daily actions that build on their exploration. These aren't "harder" - they're more SPECIFIC and ACTIVE. Examples: "Email one landlord", "Interview one customer", "Apply to 3 jobs", "Join one fitness class". For relationships: if single, "Go on one coffee date"; if in a relationship, "Plan one special date" or "Have one deep conversation". Tasks should be completable in one day and represent taking real steps based on what they've learned.`;
     } else {
       progressionStage = 'exploration';
-      stageGuidance = `EXPLORATION STAGE (0-30% progress): Generate exploratory daily actions that build awareness and discover options. Keep these LOW-STAKES and RESEARCH-ORIENTED. Examples: "Research 3 apartments in Austin", "List 5 business ideas", "Browse 3 dating apps", "Read one career article", "Walk 10 minutes". Tasks should be completable in one day and help them understand their options without commitment.`;
+      stageGuidance = `EXPLORATION STAGE (0-30% progress): Generate exploratory daily actions that build awareness and discover options. Keep these LOW-STAKES and RESEARCH-ORIENTED. Examples: "Research 3 apartments in Austin", "List 5 business ideas", "Read one career article", "Walk 10 minutes". For relationships: if single, "Browse 3 dating apps" or "Ask friend for introduction"; if in a relationship, "Research one date idea" or "List 3 conversation topics". Tasks should be completable in one day and help them understand their options without commitment.`;
     }
 
     const systemPrompt = `You are The Architect, a master strategist and life designer. Your goal is to bridge the gap between a user's current digital twin and their "Dream Self". 
@@ -3261,11 +3265,24 @@ export async function generateArchitectPlan(
     6. Rotate categories: prioritize categories where the user has the lowest progress.
     7. IMPORTANT - Progression Stages: ${stageGuidance}
     8. Return ONLY a JSON array of 3 tasks.
-    9. Do NOT generate tasks for the following completed categories: ${completedCategories.join(', ') || 'None'}.`;
+    9. Do NOT generate tasks for the following completed categories: ${completedCategories.join(', ') || 'None'}.
+    10. CRITICAL - Respect Current Situation: ALWAYS read and respect the user's CURRENT relationship status before generating any relationship/personal tasks:
+        - If status is "Partnered", "Dating", or "Married": They are IN A RELATIONSHIP. NEVER suggest dating apps, meeting new people, or finding partners. Instead focus on: deepening connection, quality time, communication, planning future together, discussing marriage/commitment, meeting each other's needs.
+        - If status is "Single": They are single. Tasks about meeting new people, dating apps, or social activities are appropriate.
+        - The goal is to bridge from their CURRENT state to their DREAM state. You MUST acknowledge where they are now.`;
 
     const userPrompt = `User: ${firstName}
 Current Digital Twin: ${twinDescription}
 Current Life Situation: ${currentLife}
+CURRENT Relationship Status: ${currentRelationshipStatus}${partnerName ? ` (Partner: ${partnerName})` : ''}
+
+IMPORTANT: The user is currently ${currentRelationshipStatus}. ${
+  ['Partnered', 'Dating', 'Married'].includes(currentRelationshipStatus) 
+    ? `They are IN A RELATIONSHIP. Do NOT suggest tasks about finding a partner, dating apps, or meeting new people. Focus on strengthening their current relationship toward their goal.`
+    : currentRelationshipStatus === 'Single'
+    ? `They are single. Tasks about meeting new people, dating apps, or social activities are appropriate.`
+    : ''
+}
 
 Dream Self Vision:
 - Net Worth Goal: ${dreamVision.net_worth_goal || 'Not specified'}

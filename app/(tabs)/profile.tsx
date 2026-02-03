@@ -8,7 +8,7 @@ import { useTwin } from '@/store/useTwin';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { CheckCircle2, Circle as CircleIcon, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut, Sparkles, Trash2, User, MapPin, GraduationCap, Briefcase, Heart, Brain, Zap, Clock, Shield, Flag, Banknote, Home, Users, ArrowUpRight, AlertTriangle } from 'lucide-react-native';
-import { getProfile, getTodayJournal, getRelationships, deleteAccountData, ensureTwinCode, getInterestProgressNew, updateProfileFields, calculateOverallProgress } from '@/lib/storage';
+import { getProfile, getRelationships, deleteAccountData, ensureTwinCode, getInterestProgressNew, updateProfileFields, calculateOverallProgress } from '@/lib/storage';
 import { resetDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -87,7 +87,6 @@ export default function ProfileScreen() {
   const { isPremium } = useTwin();
   const [profileData, setProfileData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [journalComplete, setJournalComplete] = useState(false);
   const [relationships, setRelationships] = useState<any[]>([]);
   const [twinCode, setTwinCode] = useState<string>('');
   const [infoModalVisible, setInfoModalVisible] = useState(false);
@@ -224,16 +223,14 @@ export default function ProfileScreen() {
   async function loadProfileData() {
     if (!user) return;
     try {
-      const [profile, todayJournal, rels, code, progress, overallProgress] = await Promise.all([
+      const [profile, rels, code, progress, overallProgress] = await Promise.all([
         getProfile(user.id),
-        getTodayJournal(user.id),
         getRelationships(user.id),
         ensureTwinCode(user.id),
         getInterestProgressNew(user.id).catch(() => 0),
         calculateOverallProgress(user.id).catch(() => 0)
       ]);
       setProfileData(profile);
-      setJournalComplete(!!todayJournal);
       setRelationships(rels || []);
       setTwinCode(code);
       setInterestProgress(progress);
@@ -368,10 +365,26 @@ export default function ProfileScreen() {
   const netWorth = profileData?.net_worth;
   const politicalViews = profileData?.political_views;
   const job = (profileData?.core_json as any)?.primary_role;
+  
+  // Format relationship subtitle
+  const relationshipStatus = profileData?.relationship_details?.status;
+  const partnerName = profileData?.relationship_details?.partnerName;
+  const howLong = profileData?.relationship_details?.howLong;
+  let relationshipSubtitle = 'Not set';
+  if (relationshipStatus) {
+    if (partnerName && howLong) {
+      relationshipSubtitle = `${relationshipStatus} - ${partnerName} (${howLong})`;
+    } else if (partnerName) {
+      relationshipSubtitle = `${relationshipStatus} - ${partnerName}`;
+    } else {
+      relationshipSubtitle = relationshipStatus;
+    }
+  }
 
   const identityCards: ProfileCard[] = [
     { id: 'university', title: 'Education', subtitle: university || profileData?.core_json?.university || 'Not set', route: '/profile/edit-university' as any, completed: !!(university || profileData?.core_json?.university), icon: GraduationCap },
     { id: 'job', title: 'Job', subtitle: job || profileData?.core_json?.primary_role || profileData?.core_json?.job || 'Not set', route: '/profile/edit-job' as any, completed: !!(job || profileData?.core_json?.primary_role || profileData?.core_json?.job), icon: Briefcase },
+    { id: 'relationship', title: 'Relationship', subtitle: relationshipSubtitle, route: '/profile/edit-relationship' as any, completed: !!relationshipStatus, icon: Heart },
     { id: 'hometown', title: 'Hometown', subtitle: hometown || profileData?.core_json?.hometown || 'Not set', route: '/profile/edit-hometown' as any, completed: !!(hometown || profileData?.core_json?.hometown), icon: Home },
     { id: 'current_location', title: 'Location', subtitle: currentLocation || profileData?.core_json?.current_location || profileData?.core_json?.city || 'Not set', route: '/profile/edit-location' as any, completed: !!(currentLocation || profileData?.core_json?.current_location || profileData?.core_json?.city), icon: MapPin },
     { id: 'net_worth', title: 'Net Worth', subtitle: netWorth || profileData?.core_json?.net_worth || 'Not set', route: '/profile/edit-networth' as any, completed: !!(netWorth || profileData?.core_json?.net_worth), icon: Banknote },
@@ -508,24 +521,6 @@ export default function ProfileScreen() {
                 )}
               </View>
             </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Daily</Text>
-            <TouchableOpacity style={styles.singleCard} onPress={() => router.push('/journal' as any)} activeOpacity={0.8}>
-              <LinearGradient colors={Colors.gradients.turquoise} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { opacity: 0.2 }]} />
-              <View style={styles.singleCardContent}>
-                <View style={styles.singleCardHeader}><View style={styles.singleCardIcon}><BookOpen size={24} color={Colors.textPrimary} /></View><Text style={styles.singleCardTitle}>Journal</Text></View>
-                <Text style={styles.singleCardSubtitle}>{journalComplete ? "Today's entry complete" : "Log your day"}</Text>
-                {!journalComplete && (
-                  <View style={styles.journalBadge}>
-                    <Clock size={12} color="#FFFFFF" strokeWidth={2.5} />
-                    <Text style={styles.journalBadgeText}>Complete daily journal</Text>
-                  </View>
-                )}
-              </View>
-              {journalComplete ? <CheckCircle2 size={24} color="#4ADE80" /> : <ChevronRight size={20} color={Colors.textTertiary} />}
-            </TouchableOpacity>
           </View>
 
           {!isPremium && (
@@ -857,29 +852,6 @@ const styles = StyleSheet.create({
   gridTitle: { fontSize: 15, fontFamily: Fonts.secondary.bold, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4 },
   gridSubtitle: { fontSize: 12, fontFamily: Fonts.secondary.regular, fontWeight: '300', color: Colors.textTertiary, lineHeight: 16, marginBottom: 8, flex: 1 },
   gridStatus: { alignSelf: 'flex-end' },
-  singleCard: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#FFFFFF', borderRadius: 24, shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 12, elevation: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', overflow: 'hidden' },
-  singleCardContent: { flex: 1 },
-  singleCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  singleCardIcon: { marginRight: 4 },
-  singleCardTitle: { fontSize: 16, fontFamily: Fonts.secondary.bold, fontWeight: '600', color: Colors.textPrimary },
-  singleCardSubtitle: { fontSize: 13, fontFamily: Fonts.secondary.bold, color: Colors.textTertiary },
-  journalBadge: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginTop: 8,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  journalBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    fontFamily: Fonts.secondary.bold,
-  },
   infoModalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   infoModalContent: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
   infoModalCloseButton: { position: 'absolute', top: 16, right: 16, padding: 4 },

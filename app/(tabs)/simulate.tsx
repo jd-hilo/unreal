@@ -40,7 +40,7 @@ const CARDS = [
   },
   {
     id: 'decisions',
-    title: 'Simulate your Social\nLife',
+    title: 'Simulate your\nSocial Life',
     subtitle: 'Clone your digital twin millions of times to find the highest probable lifeline.',
     icon: Brain,
     gradient: ['rgba(59, 130, 246, 0.1)', 'rgba(147, 51, 234, 0.1)'],
@@ -215,7 +215,7 @@ export default function SimulateTab() {
                   colors={card.gradient}
                   style={styles.iconGradient}
                 >
-                  <Icon size={32} color={card.iconColor} strokeWidth={2.5} />
+                  <Icon size={28} color={card.iconColor} strokeWidth={2.5} />
                 </LinearGradient>
               </View>
               
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   },
   carouselContainer: {
     flex: 1,
-    paddingBottom: 120, // Reduced padding since cards are smaller
+    paddingBottom: 100,
     marginTop: -20,
   },
   carouselContent: {
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     elevation: 12,
     zIndex: 1,
     backgroundColor: '#FFFFFF',
-    height: 420, // Reduced height to prevent cutoff
+    height: 360,
   },
   // 3D Edge Effects
   cardEdgeTop: {
@@ -575,15 +575,15 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   cardContent: {
-    padding: 28,
+    padding: 24,
     flex: 1,
     justifyContent: 'space-between',
   },
   iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    marginBottom: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    marginBottom: 16,
     overflow: 'hidden',
   },
   iconGradient: {
@@ -592,18 +592,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     color: Colors.textPrimary,
     fontFamily: Fonts.primary.regular,
-    marginBottom: 10,
+    marginBottom: 8,
     letterSpacing: -0.5,
   },
   cardSubtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.textSecondary,
-    marginBottom: 24,
-    lineHeight: 22,
+    marginBottom: 20,
+    lineHeight: 20,
     fontFamily: Fonts.secondary.regular,
   },
   actionRow: {

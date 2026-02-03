@@ -595,6 +595,15 @@ export interface ArchitectFeedback {
   created_at: string;
 }
 
+export interface OnboardingTask {
+  id: string;
+  user_id: string;
+  task_type: 'ask_decision' | 'simulate_career' | 'invite_friend';
+  is_completed: boolean;
+  completed_at: string | null;
+  created_at: string;
+}
+
 export interface CoreJsonData {
   age_range?: string;
   city?: string;
