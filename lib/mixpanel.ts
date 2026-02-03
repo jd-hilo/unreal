@@ -279,6 +279,7 @@ export const MixpanelEvents = {
   DECISION_SHARED: 'Decision Shared',
   DECISION_SHARE_OPENED: 'Decision Share Opened',
   DECISION_TWIN_ADDED: 'Decision Twin Added',
+  DECISION_CHAT_OPENED: 'Decision Chat Opened',
 
   // Premium
   PREMIUM_SCREEN_VIEWED: 'Premium Screen Viewed',

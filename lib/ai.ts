@@ -595,17 +595,20 @@ export async function predictDecision({
     'top factors considered across all twins, and an uncertainty score (0–1, lower = more confident).',
     '',
     'RATIONALE REQUIREMENTS:',
-    '- Include 1–2 vivid, user-specific hooks that reference concrete details from their profiles',
-    '- Examples: "Remember that journal entry about dreading long-distance calls? This move cuts that noise."',
-    '- Or: "Your tendency to overthink at 2am suggests this option aligns with your need for clarity."',
-    '- Reference specific experiences, preferences, patterns, or details from the Core Pack or Relevance Pack',
-    '- Make it feel personal and insightful, not generic',
+    '- Write like you\'re a close friend giving honest advice, not an AI analyzing data',
+    '- Be conversational, warm, and direct - use contractions (you\'re, that\'s, it\'s)',
+    '- When discussing both people, be natural: "You and [name] both..." or "While you want X, they\'re more about Y"',
+    '- Reference specific details from their lives naturally: "I know you mentioned..." or "Given how [name] felt about..."',
+    '- Examples: "Look, you both want freedom, so this makes sense." or "You\'re the planner, they\'re spontaneous - this balances that."',
+    '- Avoid formal language, jargon, or anything that sounds like analysis',
+    '- NEVER use phrases like "decision-making", "this choice", "this option", "based on your profile" - just speak naturally',
+    '- Make it feel like genuine advice from someone who knows both of you well',
     '',
-    'Keep tone reflective, human, and emotionally grounded — not mechanical.',
+    'Keep tone warm, honest, and conversational — like texting a friend who gets you.',
     '',
     'CRITICAL: Write all text in SECOND PERSON (you/your), never third person. Address the primary user directly.',
     'Use phrases like "you and [their name]" or "while you value X, they value Y".',
-    `Note: This decision is being analyzed by ${participantCount} twins collectively.`,
+    `Note: This is being analyzed with ${participantCount} twins collectively.`,
   ].join('\n') : [
     "You are the user's digital twin.",
     '',
@@ -617,13 +620,15 @@ export async function predictDecision({
     'top factors considered, and an uncertainty score (0–1, lower = more confident).',
     '',
     'RATIONALE REQUIREMENTS:',
-    '- Include 1–2 vivid, user-specific hooks that reference concrete details from their profile',
-    '- Examples: "Remember that journal entry about dreading long-distance calls? This move cuts that noise."',
-    '- Or: "Your tendency to overthink at 2am suggests this option aligns with your need for clarity."',
-    '- Reference specific experiences, preferences, patterns, or details from the Core Pack or Relevance Pack',
-    '- Make it feel personal and insightful, not generic',
+    '- Write like you\'re a close friend giving honest advice over coffee, not an AI analyzing data',
+    '- Be conversational, warm, and direct - use contractions (you\'re, that\'s, it\'s)',
+    '- Reference specific details from their life naturally: "I know you mentioned..." or "Given how you felt about..."',
+    '- Examples: "Look, you\'ve been saying you want more freedom. This is it." or "I know the stability thing matters to you, and honestly, this path gives you that."',
+    '- Avoid formal language, jargon, or anything that sounds like analysis',
+    '- NEVER use phrases like "decision-making", "this choice", "this option", "based on your profile" - just speak naturally',
+    '- Make it feel like genuine advice from someone who knows them well',
     '',
-    'Keep tone reflective, human, and emotionally grounded — not mechanical.',
+    'Keep tone warm, honest, and conversational — like texting a friend who gets you.',
     '',
     'CRITICAL: Write all text in SECOND PERSON (you/your), never third person. Address the user directly.',
   ].join('\n');
@@ -650,7 +655,7 @@ export async function predictDecision({
     '{',
     '  "prediction": "<one_of_options>",',
     '  "probs": {"<option1>": 0.XX, "<option2>": 0.XX},',
-    '  "rationale": "2–4 sentences explaining your reasoning in SECOND PERSON (you/your). Include 1–2 vivid, user-specific hooks referencing concrete details from their profile (e.g., journal entries, past experiences, specific preferences).",',
+    '  "rationale": "2–4 sentences in a warm, conversational tone like you\'re texting a close friend. Reference specific things from their life naturally. Use contractions. Be direct and honest. NO formal language or phrases like \'decision-making\' or \'this choice\' - just talk like a friend who gets them.",',
     '  "factors": ["values:freedom", "relationship:partner_4y_supportive", "decision_style:test-small"],',
     '  "uncertainty": 0.XX,',
     '  "chaosLevel": 0-100 (how wild/unpredictable this decision would make life),',
@@ -4032,6 +4037,103 @@ CRITICAL JSON STRUCTURE REQUIREMENTS:
   } catch (error) {
     const errorTime = performance.now() - aiStartTime;
     console.error(`[AI] Career simulation error after ${(errorTime / 1000).toFixed(2)}s:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Chat with the Architect about a decision
+ * The Architect acts as a wise mentor helping users think through their decision
+ * Returns a streaming response for real-time display
+ */
+export async function architectDecisionChat({
+  corePack,
+  decision,
+  prediction,
+  messages,
+}: {
+  corePack: string;
+  decision: {
+    question: string;
+    options: string[];
+    context_summary?: string;
+  };
+  prediction?: {
+    prediction: string;
+    rationale: string;
+    probs: Record<string, number>;
+    factors?: string[];
+    uncertainty?: number;
+  };
+  messages: Array<{ role: 'user' | 'architect'; content: string }>;
+}): Promise<string> {
+  if (DEV_MODE) {
+    const last = messages[messages.length - 1]?.content || '';
+    return `As your Architect, I've considered your question about "${decision.question}". You said: "${last}". Let me help you think through this more deeply. What matters most to you in this decision?`;
+  }
+
+  const anthropic = getAnthropic();
+  const today = new Date().toISOString().split('T')[0];
+
+  // Build context about the decision
+  const optionsList = decision.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n');
+  const predictionContext = prediction
+    ? `\n\nAI Analysis:
+- Recommended: ${prediction.prediction}
+- Confidence: ${Math.max(...Object.values(prediction.probs)) * 100}%
+- Rationale: ${prediction.rationale}
+${prediction.factors ? `- Key Factors: ${prediction.factors.join(', ')}` : ''}`
+    : '';
+
+  const systemPrompt = `You are The Architect, a wise and thoughtful mentor helping users think through important life decisions. Your role is to:
+
+1. Help users explore their decision deeply by asking clarifying questions
+2. Reference their digital twin (values, personality, life context) when relevant
+3. Acknowledge uncertainty and help explore tradeoffs
+4. Encourage users to trust their intuition while providing a thoughtful framework
+5. Be supportive but not prescriptive - guide them to their own insights
+
+Your tone is:
+- Wise and contemplative (like a trusted mentor)
+- Warm but not overly casual
+- Thoughtful and patient
+- Focused on helping them think, not telling them what to do
+
+Keep responses concise (2-4 sentences typically). Ask one good question at a time rather than overwhelming them.
+
+DECISION CONTEXT:
+Question: ${decision.question}
+
+Options:
+${optionsList}
+${decision.context_summary ? `\nContext: ${decision.context_summary}` : ''}
+${predictionContext}
+
+USER'S DIGITAL TWIN:
+${corePack.substring(0, 2000)}
+
+Today's date: ${today}
+
+Remember: You're here to help them think through this decision, not to make it for them. Reference their values and life context when it's genuinely relevant.`;
+
+  // Convert messages to Anthropic format
+  const anthropicMessages = messages.map((msg) => ({
+    role: msg.role === 'architect' ? 'assistant' : 'user',
+    content: msg.content,
+  }));
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      temperature: 0.8,
+      system: systemPrompt,
+      messages: anthropicMessages,
+    });
+
+    return response.content[0].text;
+  } catch (error) {
+    console.error('Architect decision chat error:', error);
     throw error;
   }
 }

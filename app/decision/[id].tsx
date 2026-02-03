@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Alert, Image, Clipboard, Modal, Linking, Platform, Animated, Share } from 'react-native';
+import { LigatureFreeText } from '@/components/LigatureFreeText';
 import * as Haptics from 'expo-haptics';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
@@ -9,7 +10,7 @@ import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
-import { Home, Sparkles, Users, Lock, Zap, Share as ShareIcon, Instagram, Ghost, ChevronRight, ChevronLeft } from 'lucide-react-native';
+import { Home, Sparkles, Users, Lock, Zap, Share as ShareIcon, Instagram, Ghost, ChevronRight, ChevronLeft, MessageCircle, ChevronDown } from 'lucide-react-native';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -48,10 +49,15 @@ export default function DecisionResultScreen() {
   const [participants, setParticipants] = useState<any[]>([]);
   const [sharing, setSharing] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showScrollHint, setShowScrollHint] = useState(true);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const hintOpacity = useRef(new Animated.Value(1)).current;
+  const arrowBounce = useRef(new Animated.Value(0)).current;
 
   // Disable swipe-to-go-back gesture on both current and parent navigators
   useFocusEffect(() => {
@@ -86,6 +92,26 @@ export default function DecisionResultScreen() {
       loadDecision();
     }
   }, [id, user]);
+
+  // Animate arrow bounce
+  useEffect(() => {
+    const bounceAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(arrowBounce, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(arrowBounce, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    bounceAnimation.start();
+    return () => bounceAnimation.stop();
+  }, [arrowBounce]);
 
   useEffect(() => {
     // Lazy-load suggestions after decision loads
@@ -236,35 +262,17 @@ export default function DecisionResultScreen() {
     }
   }
 
-  async function handleSimulate() {
+  async function handleChatWithArchitect() {
     if (!user || !decision) return;
     
-    // Check premium status
-    if (!isPremium) {
-      trackEvent(MixpanelEvents.PREMIUM_FEATURE_BLOCKED, {
-        feature: 'life_trajectory_simulation',
-        decision_id: decision.id
-      });
-      
-      Alert.alert(
-        'Premium Feature',
-        'Life trajectory simulations are available with mora+. Upgrade to unlock this feature.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Upgrade', onPress: () => router.push('/premium' as any) }
-        ]
-      );
-      return;
-    }
-    
-    // Track simulation started
-    trackEvent(MixpanelEvents.DECISION_SIMULATED, {
+    // Track chat opened
+    trackEvent(MixpanelEvents.DECISION_CHAT_OPENED, {
       decision_id: decision.id,
-      num_options: Array.isArray(decision.options) ? decision.options.length : JSON.parse(decision.options || '[]').length
+      has_prediction: !!decision.prediction
     });
     
-    // Navigate to simulation page
-    router.push(`/decision/simulate/${decision.id}` as any);
+    // Navigate to chat page
+    router.push(`/decision/chat/${decision.id}` as any);
   }
 
   async function handleShare() {
@@ -397,11 +405,43 @@ export default function DecisionResultScreen() {
           </View>
 
           <Animated.ScrollView 
+            ref={scrollViewRef as any}
             style={[styles.content, { 
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }]
             }]} 
             contentContainerStyle={styles.contentContainer}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              {
+                useNativeDriver: false,
+                listener: (event: any) => {
+                  const offsetY = event.nativeEvent.contentOffset.y;
+                  const contentHeight = event.nativeEvent.contentSize.height;
+                  const layoutHeight = event.nativeEvent.layoutMeasurement.height;
+                  const distanceFromBottom = contentHeight - layoutHeight - offsetY;
+                  
+                  // Fade out when within 100px of bottom
+                  if (distanceFromBottom < 100) {
+                    Animated.timing(hintOpacity, {
+                      toValue: 0,
+                      duration: 300,
+                      useNativeDriver: true,
+                    }).start(() => {
+                      setShowScrollHint(false);
+                    });
+                  } else if (!showScrollHint) {
+                    setShowScrollHint(true);
+                    Animated.timing(hintOpacity, {
+                      toValue: 1,
+                      duration: 300,
+                      useNativeDriver: true,
+                    }).start();
+                  }
+                },
+              }
+            )}
+            scrollEventThrottle={16}
           >
             {/* Main Header */}
             <View style={styles.headerCard}>
@@ -451,7 +491,7 @@ export default function DecisionResultScreen() {
           <>
             <View style={styles.predictionCard}>
               <Text style={styles.predictionLabel}>Recommended</Text>
-              <Text style={styles.predictionValue}>{prediction.prediction}</Text>
+              <LigatureFreeText text={prediction.prediction} style={styles.predictionValue} />
               <Text style={styles.confidence}>
                 {confidence.toFixed(0)}% confidence
               </Text>
@@ -490,6 +530,57 @@ export default function DecisionResultScreen() {
                         </View>
                       </View>
                     )
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* If things were different Section */}
+            {decision.prediction && (
+              <View style={styles.section}>
+                <View style={styles.sectionCard}>
+                    <View style={styles.sectionHeader}>
+                    <View style={styles.sparklesIconContainer}>
+                      <Sparkles size={20} color={Colors.textSecondary} />
+                    </View>
+                    <Text style={styles.sectionTitle}>If things were different…</Text>
+                  </View>
+                  {loadingSuggestions ? (
+                    <ActivityIndicator size="small" color={Colors.textSecondary} style={styles.sectionLoader} />
+                  ) : suggestions?.suggestions ? (
+                    <View style={styles.suggestionsContainer}>
+                      {suggestions.suggestions.map((suggestion: any, index: number) => (
+                        <View key={index} style={styles.suggestionCard}>
+                          <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
+                          {suggestion.probs && (
+                            <View style={styles.suggestionProbs}>
+                              {Object.entries(suggestion.probs).map(([option, prob]: [string, any]) => {
+                                const currentProb = decision.prediction.probs[option] || 0;
+                                const delta = prob - currentProb;
+                                return (
+                                  <View key={option} style={styles.suggestionProbRow}>
+                                    <Text style={styles.suggestionOption}>{option}</Text>
+                                    <Text style={styles.suggestionProb}>{(prob * 100).toFixed(0)}%</Text>
+                                    {delta !== 0 && (
+                                      <Text style={[styles.suggestionDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
+                                        {delta > 0 ? '+' : ''}{(delta * 100).toFixed(0)}%
+                                      </Text>
+                                    )}
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          )}
+                          {suggestion.delta && (
+                            <Text style={styles.suggestionDeltaText}>{suggestion.delta}</Text>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.emptyStateText}>
+                      No suggestions available at this time.
+                    </Text>
                   )}
                 </View>
               </View>
@@ -551,57 +642,6 @@ export default function DecisionResultScreen() {
               </View>
             )}
 
-            {/* If things were different Section */}
-            {decision.prediction && (
-              <View style={styles.section}>
-                <View style={styles.sectionCard}>
-                    <View style={styles.sectionHeader}>
-                    <View style={styles.sparklesIconContainer}>
-                      <Sparkles size={20} color={Colors.textSecondary} />
-                    </View>
-                    <Text style={styles.sectionTitle}>If things were different…</Text>
-                  </View>
-                  {loadingSuggestions ? (
-                    <ActivityIndicator size="small" color={Colors.textSecondary} style={styles.sectionLoader} />
-                  ) : suggestions?.suggestions ? (
-                    <View style={styles.suggestionsContainer}>
-                      {suggestions.suggestions.map((suggestion: any, index: number) => (
-                        <View key={index} style={styles.suggestionCard}>
-                          <Text style={styles.suggestionLabel}>{suggestion.label}</Text>
-                          {suggestion.probs && (
-                            <View style={styles.suggestionProbs}>
-                              {Object.entries(suggestion.probs).map(([option, prob]: [string, any]) => {
-                                const currentProb = decision.prediction.probs[option] || 0;
-                                const delta = prob - currentProb;
-                                return (
-                                  <View key={option} style={styles.suggestionProbRow}>
-                                    <Text style={styles.suggestionOption}>{option}</Text>
-                                    <Text style={styles.suggestionProb}>{(prob * 100).toFixed(0)}%</Text>
-                                    {delta !== 0 && (
-                                      <Text style={[styles.suggestionDelta, { color: delta > 0 ? '#10B981' : '#EF4444' }]}>
-                                        {delta > 0 ? '+' : ''}{(delta * 100).toFixed(0)}%
-                                      </Text>
-                                    )}
-                                  </View>
-                                );
-                              })}
-                            </View>
-                          )}
-                          {suggestion.delta && (
-                            <Text style={styles.suggestionDeltaText}>{suggestion.delta}</Text>
-                          )}
-                        </View>
-                      ))}
-                    </View>
-                  ) : (
-                    <Text style={styles.emptyStateText}>
-                      No suggestions available at this time.
-                    </Text>
-                  )}
-                </View>
-              </View>
-            )}
-
             {/* Next Steps */}
             {prediction.nextSteps && prediction.nextSteps.length > 0 && (
               <View style={styles.section}>
@@ -618,27 +658,22 @@ export default function DecisionResultScreen() {
             )}
 
             <Pressable
-              onPress={isPremium ? handleSimulate : () => router.push('/premium' as any)}
+              onPress={handleChatWithArchitect}
               style={({ pressed }) => [
-                styles.simulateButtonPremium,
+                styles.architectButton,
                 {
-                  shadowColor: '#25729f',
-                  transform: [{ translateY: pressed ? 2 : 0 }],
-                  shadowOffset: { width: 0, height: pressed ? 2 : 8 },
-                  shadowOpacity: pressed ? 0.3 : 0.5,
-                  shadowRadius: pressed ? 8 : 20,
-                  elevation: pressed ? 4 : 12,
+                  transform: [{ scale: pressed ? 0.98 : 1 }],
                 }
               ]}
             >
               <LinearGradient
-                colors={['#25729f', '#62edb9']}
+                colors={['rgba(0, 188, 166, 0.06)', 'rgba(144, 140, 241, 0.06)']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.simulateButtonGradient}
+                end={{ x: 1, y: 1 }}
+                style={styles.architectButtonGradient}
               >
-                <Text style={styles.simulateButtonTextActive}>Simulate Each Choice</Text>
-                <ChevronRight size={20} color="#FFFFFF" />
+                <MessageCircle size={16} color="#696969" strokeWidth={2} />
+                <Text style={styles.architectButtonText}>Talk with the Architect</Text>
               </LinearGradient>
             </Pressable>
 
@@ -651,16 +686,49 @@ export default function DecisionResultScreen() {
             </TouchableOpacity>
 
             {/* Disclaimer */}
-            {isPremium && (
-              <View style={styles.disclaimerSection}>
-                <Text style={styles.disclaimerText}>
-                  This trajectory is generated through simulations based on your unique profile. Use it as a thought experiment, not a prediction.
-                </Text>
-              </View>
-            )}
+            <View style={styles.disclaimerSection}>
+              <Text style={styles.disclaimerText}>
+                The Architect uses your digital twin to help you think through decisions, but the final choice is always yours.
+              </Text>
+            </View>
           </>
         )}
           </Animated.ScrollView>
+
+          {/* Sticky scroll hint */}
+          {showScrollHint && (
+            <Animated.View 
+              style={[
+                styles.scrollHint,
+                { opacity: hintOpacity }
+              ]}
+            >
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }}
+              >
+                <BlurView intensity={80} tint="light" style={styles.scrollHintBlur}>
+                  <Text style={styles.scrollHintText}>Scroll to speak to architect</Text>
+                  <Animated.View
+                    style={{
+                      transform: [
+                        {
+                          translateY: arrowBounce.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, 4],
+                          }),
+                        },
+                      ],
+                    }}
+                  >
+                    <ChevronDown size={16} color={Colors.textPrimary} strokeWidth={2} />
+                  </Animated.View>
+                </BlurView>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
         </SafeAreaView>
       </View>
 
@@ -948,26 +1016,28 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 0,
   },
-  simulateButtonPremium: {
+  architectButton: {
     marginTop: 24,
     marginBottom: 8,
-    borderRadius: 28,
-    overflow: 'visible',
+    alignSelf: 'center',
   },
-  simulateButtonGradient: {
+  architectButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    gap: 10,
-    borderRadius: 28,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+    borderRadius: 56,
+    borderWidth: 0.5,
+    borderColor: '#DFDFDF',
   },
-  simulateButtonTextActive: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  architectButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#696969',
     fontFamily: Fonts.secondary.bold,
+    lineHeight: 17,
   },
   simulateButtonInner: {
     paddingVertical: 20,
@@ -1453,5 +1523,46 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: '300',
     fontFamily: Fonts.secondary.regular,
+  },
+  scrollHint: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    paddingTop: 12,
+    alignItems: 'center',
+  },
+  scrollHintBlur: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    gap: 6,
+    minWidth: 200,
+    maxWidth: 250,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  scrollHintText: {
+    fontSize: 14,
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+    fontWeight: '400',
+    textAlign: 'center',
   },
 });

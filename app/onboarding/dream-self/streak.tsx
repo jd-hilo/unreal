@@ -8,7 +8,7 @@ import { Colors, Fonts } from '@/constants/Theme';
 import { ChevronRight, Flame, Sparkles, Calendar as CalendarIcon, BookOpen, CheckCircle2, Zap, MapPin, Heart, User, Copy, ArrowDown, ArrowUp } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { ProgressBar } from '@/components/ProgressBar';
-import { getProfile, getDailyTasks, updateProfileFields, saveArchitectFeedback, saveDailyTasks, ensureTwinCode } from '@/lib/storage';
+import { getProfile, getDailyTasks, updateProfileFields, saveArchitectFeedback, saveDailyTasks, ensureTwinCode, getLocalDateString } from '@/lib/storage';
 import { calculateArchitectProgress, generateArchitectPlan } from '@/lib/ai';
 import { useAuth } from '@/store/useAuth';
 import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
@@ -284,8 +284,10 @@ export default function StreakScreen() {
   async function loadData() {
     if (!user) return;
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      const today = getLocalDateString();
+      const yesterdayDate = new Date();
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const yesterday = getLocalDateString(yesterdayDate);
 
       const [profileData, tasksToday, tasksYesterday, allTasks, code] = await Promise.all([
         getProfile(user.id),
@@ -324,13 +326,31 @@ export default function StreakScreen() {
         setPreviousEstDays(typeof profileData.est_days_remaining === 'number' ? profileData.est_days_remaining : parseInt(profileData.est_days_remaining, 10));
       }
       
-      // Process history
-      const grouped: Record<string, boolean> = {};
+      // Process history - group tasks by date and track completion
+      const grouped: Record<string, { total: number; completed: number }> = {};
       allTasks.forEach(t => {
-        if (!grouped[t.scheduled_date]) grouped[t.scheduled_date] = true;
-        if (!t.is_completed) grouped[t.scheduled_date] = false;
+        const date = t.scheduled_date; // Use date as-is from database (should be YYYY-MM-DD)
+        if (!grouped[date]) {
+          grouped[date] = { total: 0, completed: 0 };
+        }
+        grouped[date].total++;
+        if (t.is_completed) {
+          grouped[date].completed++;
+        }
       });
-      setHistory(grouped);
+
+      // A day counts for streak only if ALL tasks are completed
+      const completedDays: Record<string, boolean> = {};
+      Object.keys(grouped).forEach(date => {
+        completedDays[date] = grouped[date].completed === grouped[date].total && grouped[date].total > 0;
+      });
+      
+      // Also create history object for UI (true if all tasks completed, false otherwise)
+      const history: Record<string, boolean> = {};
+      Object.keys(grouped).forEach(date => {
+        history[date] = completedDays[date];
+      });
+      setHistory(history);
 
       // Active streak calculation (Duolingo-style)
       // Count consecutive days backwards from today/yesterday
@@ -341,38 +361,49 @@ export default function StreakScreen() {
       
       // Start from today
       let curr = new Date(todayDate);
-      const todayStr = curr.toISOString().split('T')[0];
+      const todayStr = getLocalDateString(curr);
       
-      // Check if today has completed tasks
-      if (grouped[todayStr]) {
-        // Start counting from today
+      // Check if today has all tasks completed
+      if (completedDays[todayStr]) {
+        // Today is completed, start streak at 1
         streak = 1;
         curr.setDate(curr.getDate() - 1);
-      } else {
-        // Today not completed yet, check yesterday
-        curr.setDate(curr.getDate() - 1);
-        const yesterdayStr = curr.toISOString().split('T')[0];
         
-        if (grouped[yesterdayStr]) {
-          // Start counting from yesterday
+        // Continue counting backwards for consecutive completed days
+        while (true) {
+          const d = getLocalDateString(curr);
+          if (completedDays[d]) {
+            streak++;
+            curr.setDate(curr.getDate() - 1);
+          } else {
+            // Hit a missed day or no tasks for this day, stop counting
+            break;
+          }
+        }
+      } else {
+        // Today not completed yet, check if yesterday was completed
+        curr.setDate(curr.getDate() - 1);
+        const yesterdayStr = getLocalDateString(curr);
+        
+        if (completedDays[yesterdayStr]) {
+          // Yesterday was completed, start streak at 1
           streak = 1;
           curr.setDate(curr.getDate() - 1);
+          
+          // Continue counting backwards for consecutive completed days
+          while (true) {
+            const d = getLocalDateString(curr);
+            if (completedDays[d]) {
+              streak++;
+              curr.setDate(curr.getDate() - 1);
+            } else {
+              // Hit a missed day or no tasks for this day, stop counting
+              break;
+            }
+          }
         } else {
-          // Yesterday also not completed, streak is 0
-          setStreakNumber(0);
-          return;
-        }
-      }
-      
-      // Continue counting backwards until we hit a missed day
-      while (true) {
-        const d = curr.toISOString().split('T')[0];
-        if (grouped[d]) {
-          streak++;
-          curr.setDate(curr.getDate() - 1);
-        } else {
-          // Hit a missed day, stop counting
-          break;
+          // Neither today nor yesterday completed, streak is 0
+          streak = 0;
         }
       }
       
@@ -517,7 +548,7 @@ export default function StreakScreen() {
         
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        const tomorrowStr = getLocalDateString(tomorrow);
         const tasksWithDate = nextTasks.map(t => ({ ...t, scheduled_date: tomorrowStr }));
         await saveDailyTasks(user!.id, tasksWithDate);
 
@@ -675,7 +706,7 @@ export default function StreakScreen() {
         
         <Animated.View style={[styles.miniCalendar, { opacity: calendarDotsAnim }]}>
           {weekDays.map((day, i) => {
-            const dateStr = day.toISOString().split('T')[0];
+            const dateStr = getLocalDateString(day);
             const isDone = history[dateStr];
             const isToday = isSameDay(day, new Date());
             

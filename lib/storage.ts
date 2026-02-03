@@ -15,6 +15,18 @@ import type {
   ArchitectFeedback,
 } from '@/types/database';
 
+/**
+ * Get today's date string in local timezone (YYYY-MM-DD)
+ * Uses local time instead of UTC to prevent timezone issues
+ */
+export function getLocalDateString(date?: Date): string {
+  const d = date || new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export async function upsertProfileCore(
   userId: string,
   coreJson: CoreJsonData,
@@ -1693,7 +1705,7 @@ export async function saveDreamSelf(userId: string, dreamVision: DreamVision) {
  * Ensures scheduled_date is always set (defaults to today if not provided)
  */
 export async function saveDailyTasks(userId: string, tasks: Partial<DailyTask>[]) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
   
   const tasksToInsert = tasks.map(task => ({
     ...task,
@@ -1743,8 +1755,8 @@ export async function getDailyTasks(userId: string, date?: string | null) {
     // Limit to 3 tasks when fetching for a specific date (we generate exactly 3 per day)
     query = query.limit(3);
   } else {
-    // Default to today
-    const today = new Date().toISOString().split('T')[0];
+    // Default to today (using local timezone)
+    const today = getLocalDateString();
     query = query.eq('scheduled_date', today);
     // Limit to 3 tasks for today (we generate exactly 3 per day)
     query = query.limit(3);
@@ -1804,4 +1816,73 @@ export async function getLatestArchitectFeedback(userId: string) {
 
   if (error) throw error;
   return data;
+}
+
+/**
+ * Get decision chat for a specific decision
+ * Returns the chat history with all messages
+ */
+export async function getDecisionChat(decisionId: string, userId: string) {
+  const { data, error } = await supabase
+    .from('decision_chats')
+    .select('*')
+    .eq('decision_id', decisionId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Save a message to the decision chat
+ * Creates a new chat if it doesn't exist, or appends to existing messages
+ */
+export async function saveDecisionChatMessage(
+  decisionId: string,
+  userId: string,
+  role: 'user' | 'architect',
+  content: string
+) {
+  // Get existing chat
+  const existingChat = await getDecisionChat(decisionId, userId);
+  
+  const newMessage = {
+    role,
+    content,
+    timestamp: Date.now(),
+  };
+
+  if (existingChat) {
+    // Append to existing messages
+    const messages = Array.isArray(existingChat.messages) ? existingChat.messages : [];
+    const updatedMessages = [...messages, newMessage];
+    
+    const { data, error } = await supabase
+      .from('decision_chats')
+      .update({
+        messages: updatedMessages as any,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existingChat.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } else {
+    // Create new chat with first message
+    const { data, error } = await supabase
+      .from('decision_chats')
+      .insert({
+        decision_id: decisionId,
+        user_id: userId,
+        messages: [newMessage] as any,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
 }

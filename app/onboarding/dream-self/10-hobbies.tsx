@@ -4,7 +4,7 @@ import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { View, StyleSheet } from 'react-native';
 import { useAuth } from '@/store/useAuth';
-import { getProfile, updateProfileFields, saveDailyTasks } from '@/lib/storage';
+import { getProfile, updateProfileFields, saveDailyTasks, getLocalDateString } from '@/lib/storage';
 import { generateArchitectPlan } from '@/lib/ai';
 import * as Haptics from 'expo-haptics';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
@@ -56,7 +56,7 @@ export default function DreamHobbies() {
       const tasks = await generateArchitectPlan(profile, dreamVision);
 
       // 3. Save generated tasks with today's date
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString();
       const tasksWithDate = tasks.map(task => ({
         ...task,
         scheduled_date: today

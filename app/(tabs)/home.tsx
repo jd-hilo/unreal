@@ -4,7 +4,7 @@ import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks } from '@/lib/storage';
+import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks, getLocalDateString } from '@/lib/storage';
 import { Compass, Sparkles, X, Trash2, ChevronRight, HelpCircle, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check } from 'lucide-react-native';
 import { HomeGradientIcon, FlameGradientIcon } from '@/components/GradientIcons';
 import { generateArchitectPlan, calculateArchitectProgress, recalculateDreamProgress } from '@/lib/ai';
@@ -292,51 +292,119 @@ export default function HomeScreen() {
       setHasTodayJournal(!!journalToday);
       
       // Ensure we only show today's tasks - filter and limit to max 3
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString();
       const todayTasks = (tasks || [])
         .filter(task => task.scheduled_date === today)
         .slice(0, 3); // Limit to max 3 tasks
       setDailyTasks(todayTasks);
 
       // Calculate streak (Duolingo-style) - same logic as streak screen
-      const grouped: Record<string, boolean> = {};
+      // Group tasks by date and check if all tasks for each date are completed
+      // Only count the first 3 tasks per day (to handle duplicates)
+      const grouped: Record<string, { total: number; completed: number }> = {};
+      const tasksByDate: Record<string, typeof allTasks> = {};
+      
+      // First, group all tasks by date
       (allTasks || []).forEach(t => {
-        if (!grouped[t.scheduled_date]) grouped[t.scheduled_date] = true;
-        if (!t.is_completed) grouped[t.scheduled_date] = false;
+        // Normalize date from database (ensure it's YYYY-MM-DD format)
+        let date = t.scheduled_date;
+        if (date && date.includes('T')) {
+          date = date.split('T')[0];
+        }
+        if (!tasksByDate[date]) {
+          tasksByDate[date] = [];
+        }
+        tasksByDate[date].push(t);
+      });
+      
+      // Then, for each date, only count the first 3 tasks (sorted by created_at)
+      Object.keys(tasksByDate).forEach(date => {
+        const dateTasks = tasksByDate[date]
+          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          .slice(0, 3); // Only count first 3 tasks per day
+        
+        grouped[date] = { total: dateTasks.length, completed: 0 };
+        dateTasks.forEach(t => {
+          if (t.is_completed) {
+            grouped[date].completed++;
+          }
+        });
       });
 
-      let streak = 0;
+      // A day counts for streak only if ALL tasks are completed
+      const completedDays: Record<string, boolean> = {};
+      Object.keys(grouped).forEach(date => {
+        completedDays[date] = grouped[date].completed === grouped[date].total && grouped[date].total > 0;
+      });
+
+      // Debug logging
       const todayDate = new Date();
       todayDate.setHours(0, 0, 0, 0);
       
       let curr = new Date(todayDate);
-      const todayStr = curr.toISOString().split('T')[0];
+      const todayStr = getLocalDateString(curr);
       
-      // Check if today has completed tasks
-      if (grouped[todayStr]) {
+      console.log('Streak Debug:', {
+        todayStr,
+        completedDaysKeys: Object.keys(completedDays),
+        todayCompleted: completedDays[todayStr],
+        groupedToday: grouped[todayStr],
+        allTasksToday: (allTasks || []).filter(t => {
+          let date = t.scheduled_date;
+          if (date && date.includes('T')) date = date.split('T')[0];
+          return date === todayStr;
+        })
+      });
+      
+      // Initialize streak variable
+      let streak = 0;
+      
+      // Check if today has all tasks completed
+      // Also check if the date exists in completedDays (case-insensitive check)
+      const todayCompleted = completedDays[todayStr] || completedDays[todayStr.toLowerCase()] || completedDays[todayStr.toUpperCase()];
+      if (todayCompleted) {
+        // Today is completed, start streak at 1
         streak = 1;
         curr.setDate(curr.getDate() - 1);
-      } else {
-        // Today not completed yet, check yesterday
-        curr.setDate(curr.getDate() - 1);
-        const yesterdayStr = curr.toISOString().split('T')[0];
         
-        if (grouped[yesterdayStr]) {
-          streak = 1;
-          curr.setDate(curr.getDate() - 1);
-        }
-      }
-      
-      // Continue counting backwards until we hit a missed day
-      if (streak > 0) {
+        // Continue counting backwards for consecutive completed days
         while (true) {
-          const d = curr.toISOString().split('T')[0];
-          if (grouped[d]) {
+          const d = getLocalDateString(curr);
+          const dayCompleted = completedDays[d] || completedDays[d.toLowerCase()] || completedDays[d.toUpperCase()];
+          if (dayCompleted) {
             streak++;
             curr.setDate(curr.getDate() - 1);
           } else {
+            // Hit a missed day or no tasks for this day, stop counting
             break;
           }
+        }
+      } else {
+        // Today not completed yet, check if yesterday was completed
+        curr.setDate(curr.getDate() - 1);
+        const yesterdayStr = getLocalDateString(curr);
+        
+        const yesterdayCompleted = completedDays[yesterdayStr] || completedDays[yesterdayStr.toLowerCase()] || completedDays[yesterdayStr.toUpperCase()];
+        if (yesterdayCompleted) {
+          // Yesterday was completed, start streak at 1
+          streak = 1;
+          curr.setDate(curr.getDate() - 1);
+          
+          // Continue counting backwards for consecutive completed days
+          while (true) {
+            const d = getLocalDateString(curr);
+            const dayCompleted = completedDays[d] || completedDays[d.toLowerCase()] || completedDays[d.toUpperCase()];
+          if (dayCompleted) {
+              streak++;
+              curr.setDate(curr.getDate() - 1);
+            } else {
+              // Hit a missed day or no tasks for this day, stop counting
+              break;
+            }
+          }
+        } else {
+          // Neither today nor yesterday completed, streak is 0
+          streak = 0;
         }
       }
       
@@ -345,7 +413,7 @@ export default function HomeScreen() {
       // Generate daily tasks if they don't exist for today and user has completed dream self
       if ((!todayTasks || todayTasks.length === 0) && profile?.dream_vision) {
         try {
-          const today = new Date().toISOString().split('T')[0];
+          const today = getLocalDateString();
           
           // Get completed tasks from previous days to inform new task generation
           let completedTasks: string[] = [];
@@ -631,7 +699,7 @@ export default function HomeScreen() {
       // 5. Save next tasks (for tomorrow)
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      const tomorrowStr = getLocalDateString(tomorrow);
       
       const tasksWithDate = nextTasks.map(t => ({
         ...t,

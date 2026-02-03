@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Pressable, Keyboard, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Pressable, Keyboard, Animated, ActivityIndicator, TouchableWithoutFeedback } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Fonts } from '@/constants/Theme';
-import { ArrowUp, Compass } from 'lucide-react-native';
+import { ArrowUp, Compass, ChevronDown } from 'lucide-react-native';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { getDecisions, getProfile } from '@/lib/storage';
@@ -30,6 +30,9 @@ export default function DecideTab() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const suggestionFadeAnims = useRef<Animated.Value[]>([]).current;
   const suggestionsContainerFade = useRef(new Animated.Value(1)).current;
+  const [recentDecisions, setRecentDecisions] = useState<any[]>([]);
+  const [showRecentDropdown, setShowRecentDropdown] = useState(false);
+  const [loadingDecisions, setLoadingDecisions] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -50,6 +53,7 @@ export default function DecideTab() {
 
       if (user) {
         loadData();
+        loadRecentDecisions();
       }
       // Reset navigation state when page comes into focus
       setIsNavigating(false);
@@ -153,6 +157,39 @@ export default function DecideTab() {
       setLoadingQuestions(false);
     }
   }
+
+  async function loadRecentDecisions() {
+    if (!user?.id) return;
+    setLoadingDecisions(true);
+    try {
+      const decisions = await getDecisions(user.id, 10);
+      setRecentDecisions(decisions || []);
+    } catch (error) {
+      console.error('Error loading recent decisions:', error);
+    } finally {
+      setLoadingDecisions(false);
+    }
+  }
+
+  const formatDate = useCallback((dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }, []);
+
+  const handleLoadDecision = useCallback((decision: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowRecentDropdown(false);
+    router.push(`/decision/${decision.id}`);
+  }, [router]);
 
   // Animate suggestions fade in when they're loaded
   useEffect(() => {
@@ -339,11 +376,78 @@ export default function DecideTab() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.header}>
-              <View style={styles.titleRow}>
-                <Compass size={32} color={Colors.textPrimary} strokeWidth={2} />
-                <Text style={styles.title}>Decide</Text>
+              <View style={styles.headerLeft}>
+                <View style={styles.titleRow}>
+                  <Compass size={32} color={Colors.textPrimary} strokeWidth={2} />
+                  <Text style={styles.title}>Decide</Text>
+                </View>
+                <Text style={styles.subtitle}>Let your twin guide your decision</Text>
               </View>
-              <Text style={styles.subtitle}>Let your twin guide your decision</Text>
+              {user?.id && (
+                <View style={styles.headerRight}>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setShowRecentDropdown(!showRecentDropdown);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={['rgba(0, 188, 166, 0.06)', 'rgba(144, 140, 241, 0.06)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.recentDecisionsButton}
+                    >
+                      {loadingDecisions ? (
+                        <ActivityIndicator size="small" color="#696969" />
+                      ) : (
+                        <>
+                          <Text style={styles.recentDecisionsText}>Recent</Text>
+                          <ChevronDown 
+                            size={12} 
+                            color="#696969" 
+                            strokeWidth={2}
+                            style={[styles.dropdownIcon, showRecentDropdown && styles.dropdownIconRotated]}
+                          />
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                  {showRecentDropdown && (
+                    <>
+                      <TouchableWithoutFeedback onPress={() => setShowRecentDropdown(false)}>
+                        <View style={styles.dropdownOverlay} />
+                      </TouchableWithoutFeedback>
+                      <View style={styles.dropdown}>
+                        {recentDecisions.length === 0 ? (
+                          <View style={styles.dropdownEmpty}>
+                            <Text style={styles.dropdownEmptyText}>No recent decisions</Text>
+                          </View>
+                        ) : (
+                          <ScrollView style={styles.dropdownScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                            {recentDecisions.map((decision) => (
+                              <TouchableOpacity
+                                key={decision.id}
+                                style={styles.dropdownItem}
+                                onPress={() => handleLoadDecision(decision)}
+                              >
+                                <View style={styles.dropdownItemContent}>
+                                  <Text style={styles.dropdownItemTitle} numberOfLines={2}>
+                                    {decision.question}
+                                  </Text>
+                                  <Text style={styles.dropdownItemDate}>
+                                    {formatDate(decision.created_at)}
+                                  </Text>
+                                </View>
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        )}
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
             </View>
 
             <View style={styles.spacer} />
@@ -489,6 +593,16 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 48,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    position: 'relative',
+    marginTop: 8,
   },
   titleRow: {
     flexDirection: 'row',
@@ -504,6 +618,93 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.regular,
+    marginTop: 8,
+  },
+  recentDecisionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 56,
+    borderWidth: 0.5,
+    borderColor: '#DFDFDF',
+    gap: 6,
+    overflow: 'hidden',
+  },
+  recentDecisionsText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#696969',
+    fontFamily: Fonts.secondary.bold,
+    lineHeight: 16,
+  },
+  dropdownIcon: {
+    transform: [{ rotate: '0deg' }],
+  },
+  dropdownIconRotated: {
+    transform: [{ rotate: '180deg' }],
+  },
+  dropdownOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: -200,
+    right: -200,
+    bottom: -1000,
+    zIndex: 998,
+  },
+  dropdown: {
+    position: 'absolute',
+    top: 48,
+    right: 0,
+    width: 280,
+    maxHeight: 400,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 1000,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+  },
+  dropdownEmpty: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  dropdownEmptyText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+  },
+  dropdownScroll: {
+    maxHeight: 400,
+  },
+  dropdownItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  dropdownItemContent: {
+    gap: 4,
+  },
+  dropdownItemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    lineHeight: 20,
+  },
+  dropdownItemDate: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    opacity: 0.7,
+    marginTop: 2,
   },
   inputContainerFixed: {
     position: 'absolute',
