@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { View, StyleSheet, Text, ScrollView, Dimensions, Animated } from 'react-native';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Colors, Fonts } from '@/constants/Theme';
 import { Star } from 'lucide-react-native';
+import { trackEvent } from '@/lib/mixpanel';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 80;
@@ -36,6 +37,12 @@ export default function MotivateReviewsScreen() {
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - motivate-reviews');
+    }, [])
+  );
 
   // Auto-scroll carousel
   useEffect(() => {

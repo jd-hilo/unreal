@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
 import { MOCK_SIMULATIONS } from '@/lib/career-sim/mockData';
 import { useAuth } from '@/store/useAuth';
+import { useTwin } from '@/store/useTwin';
 import { saveCareerSimulation } from '@/lib/storage';
 import { CareerOutcomeCard } from '@/components/career-sim/CareerOutcomeCard';
 import { CareerTimeline } from '@/components/career-sim/CareerTimeline';
@@ -23,7 +24,7 @@ import { CalendarEvolutionModal } from '@/modals/career-sim/CalendarEvolutionMod
 import { TeamFeedbackModal } from '@/modals/career-sim/TeamFeedbackModal';
 import { InboxEvolutionModal } from '@/modals/career-sim/InboxEvolutionModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { CareerSimulation } from '@/lib/career-sim/types';
+import type { CareerSimulation, AlternatePath } from '@/lib/career-sim/types';
 
 type ModalType = 'email' | 'tuesday' | 'calendar' | 'feedback' | 'inbox' | null;
 
@@ -44,6 +45,7 @@ export default function CareerSimResult() {
   }>();
 
   const { user } = useAuth();
+  const { isPremium } = useTwin();
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [simulation, setSimulation] = useState<CareerSimulation | null>(null);
@@ -164,10 +166,9 @@ export default function CareerSimResult() {
     setActiveModal(null);
   }, []);
 
-  const handleAlternatePathPress = useCallback((pathId: string) => {
+  const handleAlternatePathPress = useCallback(async (path: AlternatePath) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    // Map path IDs to path types
+
     const pathMap: Record<string, 'stay' | 'switch' | 'startup'> = {
       'stay-current': 'stay',
       'switch-faang': 'switch',
@@ -177,9 +178,20 @@ export default function CareerSimResult() {
       'freelance': 'startup',
     };
 
-    const newPathType = pathMap[pathId] || 'stay';
-    
-    // Navigate to generating screen to create a new simulation with the new path type
+    const newPathType = pathMap[path.id] || (params.pathType as 'stay' | 'switch' | 'startup') || 'stay';
+
+    let baseSimulationKey: string | undefined;
+    if (simulation) {
+      const storageOwner = user?.id || 'anon';
+      baseSimulationKey = `career_sim_base_${storageOwner}_${Date.now()}`;
+      try {
+        await AsyncStorage.setItem(baseSimulationKey, JSON.stringify(simulation));
+      } catch (storageError) {
+        console.warn('Failed to store base simulation for alternate path:', storageError);
+        baseSimulationKey = undefined;
+      }
+    }
+
     router.push({
       pathname: '/career-sim/generating',
       params: {
@@ -192,9 +204,13 @@ export default function CareerSimResult() {
         ...(params.grade && { grade: params.grade }),
         ...(params.school && { school: params.school }),
         ...(params.studying && { studying: params.studying }),
+        ...(baseSimulationKey && { baseSimulationKey }),
+        ...(path.label && { alternatePathLabel: path.label }),
+        ...(path.year && { alternatePathYear: String(path.year) }),
+        ...(path.decision && { alternatePathDecision: path.decision }),
       },
     });
-  }, [params, router]);
+  }, [params, router, simulation, user]);
 
   const handleSave = useCallback(async () => {
     if (!user?.id) {
@@ -323,14 +339,16 @@ export default function CareerSimResult() {
           <View style={styles.sectionsContainer}>
             {/* SECTION 1: Career Outcome Card */}
             <View style={styles.section}>
-              <CareerOutcomeCard outcome={simulation.outcome} />
+              <CareerOutcomeCard outcome={simulation.outcome} isPremium={isPremium} />
             </View>
 
             {/* SECTION 2: Zoom-Ins */}
             <View style={styles.section}>
               <ZoomInCard 
                 cards={simulation.zoomIns?.cards}
-                onZoomInPress={handleZoomInPress} 
+                onZoomInPress={handleZoomInPress}
+                isPremium={isPremium}
+                router={router}
               />
             </View>
 
@@ -341,7 +359,7 @@ export default function CareerSimResult() {
 
             {/* SECTION 4: Global Comparison */}
             <View style={styles.section}>
-              <GlobalComparison globalComparison={simulation.globalComparison} />
+              <GlobalComparison globalComparison={simulation.globalComparison} isPremium={isPremium} />
             </View>
 
             {/* SECTION 5: Regret Moments */}

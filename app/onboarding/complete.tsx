@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useState, useEffect, useRef } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -54,6 +54,12 @@ export default function OnboardingCompleteScreen() {
   // Typewriter effect for "Let's explore..."
   const { displayedLines, isComplete } = useTypewriter(["Let's explore..."], { speed: 50 });
   const displayText = displayedLines[0] || '';
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - complete');
+    }, [])
+  );
 
   // Track screen view
   useEffect(() => {

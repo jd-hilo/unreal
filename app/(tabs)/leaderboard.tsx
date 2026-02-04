@@ -137,13 +137,6 @@ export default function LeaderboardTab() {
         });
       }
 
-      fadeAnim.setValue(0);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }).start();
-
       // Refresh leaderboard when screen is focused
       if (user) {
         fetchLeaderboard();
@@ -161,8 +154,20 @@ export default function LeaderboardTab() {
           });
         }
       };
-    }, [fadeAnim, navigation, user])
+    }, [navigation, user])
   );
+
+  // Fade in content when loading completes
+  useEffect(() => {
+    if (!loading) {
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading, fadeAnim]);
 
   const handleAddFriend = async () => {
     if (!moraCode || moraCode.length !== 6) {
@@ -325,22 +330,22 @@ export default function LeaderboardTab() {
             <Text style={styles.subtitle}>Who is making the most progress towards their dream self?</Text>
           </View>
 
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={Colors.textPrimary} />
-            </View>
-          ) : leaderboardData.length === 0 || (leaderboardData.length === 1 && leaderboardData[0]?.is_current_user) ? (
-            renderEmptyState()
+          {leaderboardData.length === 0 || (leaderboardData.length === 1 && leaderboardData[0]?.is_current_user) ? (
+            <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+              {renderEmptyState()}
+            </Animated.View>
           ) : (
-            <FlatList
-              data={leaderboardData}
-              keyExtractor={(item) => item.user_id}
-              renderItem={({ item, index }) => (
-                <LeaderboardItem item={item} index={index} />
-              )}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-            />
+            <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+              <FlatList
+                data={leaderboardData}
+                keyExtractor={(item) => item.user_id}
+                renderItem={({ item, index }) => (
+                  <LeaderboardItem item={item} index={index} />
+                )}
+                contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={false}
+              />
+            </Animated.View>
           )}
         </Animated.View>
       </SafeAreaView>

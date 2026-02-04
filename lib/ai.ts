@@ -3591,6 +3591,12 @@ export async function generateCareerSimulation(
     currentRole: string;
     company: string;
     salary: string;
+    alternateFrom?: {
+      decisionLabel: string;
+      decisionYear: number;
+      decisionKey?: string;
+      baseSimulation?: CareerSimulation | null;
+    };
   }
 ): Promise<CareerSimulation> {
   const aiStartTime = performance.now();
@@ -3613,16 +3619,27 @@ export async function generateCareerSimulation(
 
   const systemPrompt = `You are a career trajectory simulator. Generate a realistic career simulation based on the user's profile and chosen career path.
 
-CRITICAL REQUIREMENTS:
+⚠️ ABSOLUTE CRITICAL REQUIREMENT - READ THIS CAREFULLY:
+The user's CURRENT ROLE is: "${options.currentRole}"
+
+YOU MUST:
+- Start Year 1 of the timeline with "${options.currentRole}" or a logical immediate next step from this exact role
+- NEVER generate roles that are unrelated to "${options.currentRole}"
+- If they're an "App Developer", show: App Developer → Senior App Developer → Lead App Developer → Engineering Manager → Director of Engineering
+- If they're a "Marketing Manager", show: Marketing Manager → Senior Marketing Manager → Marketing Director → VP Marketing
+- If they're a "Product Designer", show: Product Designer → Senior Designer → Lead Designer → Design Manager → Head of Design
+- The final outcome title at year ${options.timeHorizon} must be a logical career progression from "${options.currentRole}"
+
+OTHER REQUIREMENTS:
 1. Use SECOND PERSON (you/your) throughout
 2. Be SPECIFIC with numbers, percentages, and concrete details
-3. Base predictions on realistic industry data and career progression patterns
-4. Consider the user's current role, company, salary, and chosen path type
-5. Generate realistic outcomes reflecting opportunities and challenges
-6. Include key milestones, compensation changes, and role changes
-7. NO brand names - use generic descriptors
-8. ALL fields in the JSON structure MUST be present - never omit any field, even if minimal
-9. Arrays should have at least 1-2 items minimum (more is fine, but ensure completeness)
+3. Base predictions on realistic industry data and career progression patterns for "${options.currentRole}" career path
+4. Generate realistic outcomes reflecting opportunities and challenges SPECIFIC to "${options.currentRole}"
+5. Include key milestones, compensation changes, and role changes that make sense for someone starting as "${options.currentRole}"
+6. NO brand names - use generic descriptors
+7. ALL fields in the JSON structure MUST be present - never omit any field, even if minimal
+8. Arrays should have at least 1-2 items minimum (more is fine, but ensure completeness)
+9. For alternatePaths: Generate 2-3 specific decision points from your generated timeline (e.g., "Accept Tech Corp offer (Year 2)", "Take promotion to Lead (Year 5)", "Join that startup (Year 7)"). Each path should include: id (unique), label (the decision), year (which year it occurs), and decision (short key like "accept_offer", "take_promotion", "join_startup")
 
 Path Type Context:
 - "stay": User continues at current company
@@ -3631,19 +3648,50 @@ Path Type Context:
 
 Time Horizon: ${options.timeHorizon} years.`;
 
+  const alternateContext = options.alternateFrom
+    ? `
+
+ALTERNATE TIMELINE MODE:
+You are creating an alternate timeline based on a specific decision point.
+
+Decision:
+- Decision label: "${options.alternateFrom.decisionLabel}"
+- Decision year: ${options.alternateFrom.decisionYear}
+- Decision key: ${options.alternateFrom.decisionKey || 'n/a'}
+
+BASE TIMELINE MILESTONES (keep years BEFORE the decision consistent with these):
+${JSON.stringify(options.alternateFrom.baseSimulation?.timeline?.milestones || [], null, 2)}
+
+Rules for alternate timeline:
+1. Years BEFORE the decision year must match the base timeline as closely as possible (role title, company, and salary).
+2. At the decision year, replace the milestone to reflect the decision label above.
+3. Years AFTER the decision year should logically follow from that alternate choice.
+4. The outcome should diverge from the base timeline in a realistic way.
+`
+    : '';
+
   const userPrompt = `User Profile Context:
 ${corePack}
 
 Current Career Situation:
-- Role: ${options.currentRole}
+- **STARTING ROLE: ${options.currentRole}** (This is their current role - all career progression MUST start from here)
 - Company: ${options.company}
 - Current Salary: $${options.salary}/year
 - Chosen Path: ${pathNameMap[options.pathType]}
 - Time Horizon: ${options.timeHorizon} years
 
+**IMPORTANT**: The user's current role is "${options.currentRole}". Year 1 of the timeline should show them in THIS EXACT ROLE or a natural immediate progression from it. Do NOT generate a timeline that jumps to unrelated roles like "VP of Business Development" if they're an "App Developer". Career progression must be logical and industry-appropriate for someone starting as "${options.currentRole}".
+${alternateContext}
+
 Generate a comprehensive career simulation with the following structure. Return valid JSON matching this exact format.
 
 CRITICAL: Every single field shown below MUST be included in your response. Do not skip any fields, even nested ones like metadata.folder, stats.meetingsPerWeek.current, etc. All arrays should have at least the minimum items specified.
+
+IMPORTANT FOR ALTERNATE PATHS: Look at the timeline milestones you generate. For alternatePaths, identify 2-3 KEY DECISION POINTS from your timeline where the user could have made a different choice. Examples:
+- If your timeline has "Year 2: Received offer from Tech Corp", create alternate path: "Accept Tech Corp offer (Year 2)"
+- If your timeline has "Year 5: Promoted to Director", create alternate path: "Stay as IC instead (Year 5)"
+- If your timeline has "Year 7: Startup opportunity", create alternate path: "Join that startup (Year 7)"
+The alternatePaths should reflect actual moments/opportunities from YOUR GENERATED TIMELINE.
 
 {
   "id": "generated-${options.pathType}-${options.timeHorizon}y",
@@ -3651,7 +3699,7 @@ CRITICAL: Every single field shown below MUST be included in your response. Do n
   "pathName": "${pathNameMap[options.pathType]}",
   "confidence": 75,
   "outcome": {
-    "title": "Final role title at end of ${options.timeHorizon} years",
+    "title": "Final role title at end of ${options.timeHorizon} years - MUST be logical progression from ${options.currentRole}",
     "company": "Company name (or 'Your Startup' if startup path)",
     "totalComp": 250000,
     "location": "City, State",
@@ -3682,10 +3730,10 @@ CRITICAL: Every single field shown below MUST be included in your response. Do n
     "milestones": [
       {
         "year": 1,
-        "title": "Role title",
-        "company": "Company name",
+        "title": "${options.currentRole} or natural progression from this role",
+        "company": "${options.company} or appropriate company for this path",
         "salary": 180000,
-        "description": "Brief description of milestone"
+        "description": "Brief description of milestone - MUST be related to ${options.currentRole} career path"
       }
     ]
   },
@@ -3983,9 +4031,9 @@ CRITICAL: Every single field shown below MUST be included in your response. Do n
     "honestAssessment": "Realistic assessment of actual societal impact - be honest about scale and reach"
   },
   "alternatePaths": [
-    { "id": "stay-current", "label": "Stay at Current" },
-    { "id": "switch-faang", "label": "Switch to FAANG" },
-    { "id": "startup-cto", "label": "Startup CTO" }
+    { "id": "decision-year-2-offer", "label": "Accept Facebook offer (Year 2)", "year": 2, "decision": "accept_offer" },
+    { "id": "decision-year-5-promotion", "label": "Stay IC instead of managing (Year 5)", "year": 5, "decision": "decline_promotion" },
+    { "id": "decision-year-8-startup", "label": "Join that startup (Year 8)", "year": 8, "decision": "join_startup" }
   ]
 }
 
@@ -4008,7 +4056,7 @@ CRITICAL JSON STRUCTURE REQUIREMENTS:
   * societalImpact.productsShipped: at least 2-3 items
   * societalImpact.peopleInfluenced: at least 2-3 items
   * societalImpact.industryContributions: at least 2-3 items
-  * alternatePaths: at least 2-3 items
+  * alternatePaths: at least 2-3 items with timeline-specific decisions (include id, label, year, decision fields)
 - Write in second person throughout
 - Focus on accuracy and completeness over verbosity
 - Ensure nested objects (like metadata, stats, range) are fully populated
@@ -4018,18 +4066,78 @@ CRITICAL JSON STRUCTURE REQUIREMENTS:
 - Return ONLY valid JSON - no markdown, no code blocks, no explanations, just the JSON object
 - Validate that all required fields are present before returning`;
 
-  try {
-    const promptPrepTime = performance.now();
-    console.log(`[AI] Prompt preparation took ${(promptPrepTime - aiStartTime).toFixed(2)}ms`);
-    
+  const parseSimulationFromContent = (rawContent: string): CareerSimulation => {
+    // Clean and validate JSON before parsing
+    let cleanedContent = rawContent.trim();
+
+    // Remove any markdown code blocks that might have been missed
+    cleanedContent = cleanedContent
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    // Try to extract JSON if it's wrapped in text
+    const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanedContent = jsonMatch[0];
+    }
+
+    // Try parsing with better error handling
+    try {
+      return JSON.parse(cleanedContent) as CareerSimulation;
+    } catch (parseError: any) {
+      // Log more details about the parse error
+      console.error(`[AI] JSON parse error details:`, {
+        error: parseError.message,
+        contentLength: cleanedContent.length,
+        contentStart: cleanedContent.substring(0, 200),
+        contentEnd: cleanedContent.substring(Math.max(0, cleanedContent.length - 200)),
+      });
+
+      // Try to find and fix common JSON issues
+      try {
+        // This is a fallback - try to fix unquoted keys
+        const fixedContent = cleanedContent.replace(
+          /([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g,
+          '$1"$2":'
+        );
+        const parsed = JSON.parse(fixedContent) as CareerSimulation;
+        console.log(`[AI] Successfully parsed after fixing unquoted keys`);
+        return parsed;
+      } catch (fixError) {
+        // If that doesn't work, throw the original error with more context
+        throw new Error(`JSON Parse error: ${parseError.message}. Content preview: ${cleanedContent.substring(0, 500)}...`);
+      }
+    }
+  };
+
+  const isRoleAligned = (data: CareerSimulation): boolean => {
+    const normalizedRole = options.currentRole?.trim().toLowerCase();
+    if (!normalizedRole) return true;
+    const roleTokens = normalizedRole.split(/[^a-z0-9]+/).filter((token) => token.length > 2);
+    if (roleTokens.length === 0) return true;
+
+    const includesRoleToken = (text?: string) => {
+      if (!text) return false;
+      const normalizedText = text.toLowerCase();
+      return roleTokens.some((token) => normalizedText.includes(token));
+    };
+
+    const firstMilestoneTitle = data.timeline?.milestones?.[0]?.title || '';
+    const outcomeTitle = data.outcome?.title || '';
+    return includesRoleToken(firstMilestoneTitle) || includesRoleToken(outcomeTitle);
+  };
+
+  const requestSimulation = async (prompt: string, temperature: number) => {
     const apiCallStartTime = performance.now();
     console.log('[AI] Making Claude API call for career simulation...');
     const content = await callClaude({
       system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
+      messages: [{ role: 'user', content: prompt }],
       responseFormat: { type: 'json_object' },
-      temperature: 0.6, // Slightly lower for faster, more deterministic output
-      maxTokens: 16384, // Increased to handle large career simulation responses (can be 13k+ chars)
+      temperature,
+      maxTokens: 16384,
     });
     const apiCallEndTime = performance.now();
     const apiCallDuration = apiCallEndTime - apiCallStartTime;
@@ -4039,48 +4147,33 @@ CRITICAL JSON STRUCTURE REQUIREMENTS:
     console.log(`[AI] Response preview (last 500 chars):`, content.substring(Math.max(0, content.length - 500)));
 
     const parseStartTime = performance.now();
-    
-    // Clean and validate JSON before parsing
-    let cleanedContent = content.trim();
-    
-    // Remove any markdown code blocks that might have been missed
-    cleanedContent = cleanedContent.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-    
-    // Try to extract JSON if it's wrapped in text
-    const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      cleanedContent = jsonMatch[0];
-    }
-    
-    // Try parsing with better error handling
-    let simulationData: CareerSimulation;
-    try {
-      simulationData = JSON.parse(cleanedContent) as CareerSimulation;
-    } catch (parseError: any) {
-      // Log more details about the parse error
-      console.error(`[AI] JSON parse error details:`, {
-        error: parseError.message,
-        contentLength: cleanedContent.length,
-        contentStart: cleanedContent.substring(0, 200),
-        contentEnd: cleanedContent.substring(Math.max(0, cleanedContent.length - 200)),
-      });
-      
-      // Try to find and fix common JSON issues
-      // Fix unquoted keys (this is a common issue)
-      try {
-        // This is a fallback - try to fix unquoted keys
-        const fixedContent = cleanedContent.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":');
-        simulationData = JSON.parse(fixedContent) as CareerSimulation;
-        console.log(`[AI] Successfully parsed after fixing unquoted keys`);
-      } catch (fixError) {
-        // If that doesn't work, throw the original error with more context
-        throw new Error(`JSON Parse error: ${parseError.message}. Content preview: ${cleanedContent.substring(0, 500)}...`);
-      }
-    }
-    
+    const simulationData = parseSimulationFromContent(content);
     const parseEndTime = performance.now();
     console.log(`[AI] JSON parsing took ${(parseEndTime - parseStartTime).toFixed(2)}ms`);
-    
+
+    return simulationData;
+  };
+
+  try {
+    const promptPrepTime = performance.now();
+    console.log(`[AI] Prompt preparation took ${(promptPrepTime - aiStartTime).toFixed(2)}ms`);
+
+    let simulationData = await requestSimulation(userPrompt, 0.6);
+
+    if (!isRoleAligned(simulationData)) {
+      console.warn(
+        `[AI] Role validation failed. Retrying with stricter prompt. Current role: "${options.currentRole}"`
+      );
+      const retryPrompt = `${userPrompt}
+
+VALIDATION FAILURE:
+Your previous output did NOT align with the current role "${options.currentRole}".
+You MUST make Year 1 start with the current role (or an immediate progression that includes it),
+and the outcome title must be a logical progression from the current role.
+Rewrite the entire JSON response to satisfy this requirement.`;
+      simulationData = await requestSimulation(retryPrompt, 0.4);
+    }
+
     const totalTime = performance.now() - aiStartTime;
     console.log(`[AI] Total generateCareerSimulation time: ${(totalTime / 1000).toFixed(2)}s`);
 

@@ -8,6 +8,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 interface ZoomInCardProps {
   cards: Array<{ id: string; title: string; icon: string }>;
   onZoomInPress: (type: 'email' | 'tuesday' | 'calendar' | 'feedback' | 'inbox') => void;
+  isPremium?: boolean;
+  router?: { push: (path: any) => void };
 }
 
 interface ZoomCardItemProps {
@@ -156,11 +158,18 @@ const ZoomCardItem = memo(({ id, title, subtitle, onPress }: ZoomCardItemProps) 
 
 ZoomCardItem.displayName = 'ZoomCardItem';
 
-function ZoomInCardComponent({ cards, onZoomInPress }: ZoomInCardProps) {
+function ZoomInCardComponent({ cards, onZoomInPress, isPremium = true, router }: ZoomInCardProps) {
   const handlePress = useCallback((type: 'email' | 'tuesday' | 'calendar' | 'feedback' | 'inbox') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    if (!isPremium && router) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      router.push('/premium' as any);
+      return;
+    }
+    
     onZoomInPress(type);
-  }, [onZoomInPress]);
+  }, [onZoomInPress, isPremium, router]);
 
   const getSubtitle = (id: string) => {
     const subtitleMap: Record<string, string> = {

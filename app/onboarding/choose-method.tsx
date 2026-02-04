@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -14,6 +14,7 @@ import { useTypewriter } from '@/hooks/useTypewriter';
 import { ChevronRight } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
+import { trackEvent } from '@/lib/mixpanel';
 
 const TITLE_LINES = [
   "let's build your digital twin",
@@ -32,6 +33,12 @@ export default function ChooseOnboardingMethod() {
   const router = useRouter();
   const [showButton, setShowButton] = useState(false);
   const [isContinuing, setIsContinuing] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - choose-method');
+    }, [])
+  );
 
   // Create shared values for each line's offset and opacity
   const lineOffsets = TITLE_LINES.map(() => useSharedValue(0));

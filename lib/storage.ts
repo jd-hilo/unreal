@@ -15,6 +15,7 @@ import type {
   ArchitectFeedback,
   OnboardingTask,
 } from '@/types/database';
+import { trackEvent } from './mixpanel';
 
 /**
  * Get today's date string in local timezone (YYYY-MM-DD)
@@ -1950,6 +1951,18 @@ export async function completeOnboardingTask(userId: string, taskType: 'ask_deci
     .single();
 
   if (error) throw error;
+  
+  // Track task completion
+  try {
+    const eventName = taskType === 'ask_decision' ? 'OB - ask-decision-complete' :
+                     taskType === 'simulate_career' ? 'OB - simulate-career-complete' :
+                     'OB - invite-friend-complete';
+    trackEvent(eventName);
+  } catch (trackingError) {
+    // Silently fail if tracking fails - don't break the completion flow
+    console.warn('Failed to track onboarding task completion:', trackingError);
+  }
+  
   return data;
 }
 

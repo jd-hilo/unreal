@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Animated, Image, Dimensions, Clipboard } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { getProfile, getRelationships, getUserInterests, ensureTwinCode } from '@/lib/storage';
@@ -89,6 +89,12 @@ export default function TwinRevealScreen() {
   const uniquePercentage = useMemo(() => {
     return Math.floor(Math.random() * (40 - 10 + 1)) + 10;
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - twin-reveal');
+    }, [])
+  );
 
   useEffect(() => {
     if (!user) {

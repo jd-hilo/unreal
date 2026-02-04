@@ -1,16 +1,23 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { View, StyleSheet } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { getProfile, updateProfileFields } from '@/lib/storage';
+import { trackEvent } from '@/lib/mixpanel';
 
 export default function DreamCity() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - dream-self-city');
+    }, [])
+  );
 
   useEffect(() => {
     loadExistingData();

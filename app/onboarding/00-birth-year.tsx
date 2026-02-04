@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { ChoiceQuestion } from '@/components/ChoiceQuestion';
 import { View, StyleSheet } from 'react-native';
@@ -12,6 +12,12 @@ export default function BirthYearScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [selectedYear, setSelectedYear] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - birth-year');
+    }, [])
+  );
 
   useEffect(() => {
     loadExistingData();

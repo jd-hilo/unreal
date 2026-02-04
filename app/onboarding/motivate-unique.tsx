@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { View, StyleSheet, Text, Animated, Dimensions, Image } from 'react-native';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Colors, Fonts } from '@/constants/Theme';
@@ -8,6 +8,7 @@ import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
+import { trackEvent } from '@/lib/mixpanel';
 
 const { width } = Dimensions.get('window');
 
@@ -24,6 +25,12 @@ export default function MotivateUniqueScreen() {
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - motivate-unique');
+    }, [])
+  );
 
   useEffect(() => {
     loadProfile();

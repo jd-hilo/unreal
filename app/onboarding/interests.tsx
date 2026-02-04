@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Platform, Animated } from 'react-native';
 import { useAuth } from '@/store/useAuth';
@@ -89,6 +89,12 @@ export default function InterestsScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [contentHeight, setContentHeight] = useState(0);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - interests');
+    }, [])
+  );
 
   useEffect(() => {
     loadExistingData();

@@ -1,17 +1,24 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Input } from '@/components/Input';
 import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/store/useAuth';
 import { saveOnboardingResponse } from '@/lib/storage';
 import { Colors } from '@/constants/Theme';
+import { trackEvent } from '@/lib/mixpanel';
 
 export default function OnboardingStep1() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - now');
+    }, [])
+  );
 
   useEffect(() => {
     loadExistingData();

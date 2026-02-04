@@ -12,6 +12,7 @@ import { Colors, Fonts } from '@/constants/Theme';
 import { getCareerSimulations } from '@/lib/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CareerSimulation } from '@/lib/career-sim/types';
+import { trackEvent } from '@/lib/mixpanel';
 
 
 const { width } = Dimensions.get('window');
@@ -100,8 +101,23 @@ export default function SimulateTab() {
   const handleCardPress = useCallback((card: typeof CARDS[0]) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (card.type === 'active' && card.action) {
+      // Track which card was clicked
+      if (card.id === 'career') {
+        trackEvent('Simulate - career-clicked');
+      } else if (card.id === 'relationships') {
+        trackEvent('Simulate - relationships-clicked');
+      } else if (card.id === 'decisions') {
+        trackEvent('Simulate - decisions-clicked');
+      }
       // Redirect to the first step of the multi-page flow
       router.push('/career-sim/01-time-horizon');
+    } else {
+      // Track clicks on coming soon items
+      if (card.id === 'relationships') {
+        trackEvent('Simulate - relationships-clicked');
+      } else if (card.id === 'decisions') {
+        trackEvent('Simulate - decisions-clicked');
+      }
     }
   }, [router]);
 
@@ -109,6 +125,13 @@ export default function SimulateTab() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setShowRecentDropdown(false);
+      
+      // Track when user loads a recent simulation
+      trackEvent('Simulate - recent-simulation-loaded', {
+        simulation_id: sim.id,
+        path_type: sim.path_type || sim.pathType,
+        time_horizon: sim.time_horizon || sim.timeHorizon,
+      });
       
       // Get simulation data (handle both database field names)
       const simulationData = sim.simulation_data || sim.simulationData;

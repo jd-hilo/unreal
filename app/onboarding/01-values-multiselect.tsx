@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { MultiSelectValues } from '@/components/MultiSelectValues';
 import { View, StyleSheet } from 'react-native';
@@ -13,6 +13,12 @@ export default function ValuesMultiselectScreen() {
   const user = useAuth((state) => state.user);
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [additionalContext, setAdditionalContext] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - values-multiselect');
+    }, [])
+  );
 
   useEffect(() => {
     loadExistingData();

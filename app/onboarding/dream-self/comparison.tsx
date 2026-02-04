@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Animated, Image, Dimensions } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useState, useEffect, useRef } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { trackEvent } from '@/lib/mixpanel';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { getProfile } from '@/lib/storage';

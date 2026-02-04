@@ -16,6 +16,12 @@ export default function DreamHobbies() {
   const [loading, setLoading] = useState(true);
   const [isBuilding, setIsBuilding] = useState(false);
 
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - dream-self-hobbies');
+    }, [])
+  );
+
   useEffect(() => {
     loadExistingData();
   }, [user]);

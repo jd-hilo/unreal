@@ -317,6 +317,25 @@ export default function HomeScreen() {
         
         // Refresh onboarding tasks after auto-completion check
         const updatedOnboardingTasks = await getOnboardingTasks(user.id);
+        
+        // Track newly completed tasks
+        if (onboardingTasksData && onboardingTasksData.length > 0) {
+          const taskMap = new Map(onboardingTasksData.map((t: any) => [t.task_type, t.is_completed]));
+          updatedOnboardingTasks?.forEach((task: any) => {
+            const wasCompleted = taskMap.get(task.task_type) || false;
+            if (!wasCompleted && task.is_completed) {
+              // Task was just completed
+              const eventName = task.task_type === 'ask_decision' ? 'OB - ask-decision-complete' :
+                               task.task_type === 'simulate_career' ? 'OB - simulate-career-complete' :
+                               task.task_type === 'invite_friend' ? 'OB - invite-friend-complete' :
+                               null;
+              if (eventName) {
+                trackEvent(eventName);
+              }
+            }
+          });
+        }
+        
         setOnboardingTasks(updatedOnboardingTasks || []);
         
         // Check if all onboarding tasks are complete
@@ -671,6 +690,16 @@ export default function HomeScreen() {
       const newTasks = dailyTasks.map(t => t.id === task.id ? updatedTask : t);
       setDailyTasks(newTasks);
       
+      // Track task completion
+      trackEvent('Daily Task - completed', {
+        task_id: task.id,
+        task_content: task.task_content,
+        category: task.category || 'uncategorized',
+        points: pointsValue,
+        completed_count: newTasks.filter(t => t.is_completed).length,
+        total_tasks: dailyTasks.length,
+      });
+      
       // Award points to user profile
       if (user && profileData) {
         const currentPoints = profileData.total_points || 0;
@@ -698,6 +727,12 @@ export default function HomeScreen() {
       // Check if all 3 tasks are completed
       const completedCount = newTasks.filter(t => t.is_completed).length;
       if (completedCount === 3) {
+        // Track all tasks completed
+        trackEvent('Daily Task - all-completed', {
+          total_tasks: dailyTasks.length,
+          total_points: newTasks.reduce((sum, t) => sum + (t.points || 10), 0),
+        });
+        
         // Reload data to recalculate streak (which will also save it to DB)
         await loadData();
         
@@ -1053,6 +1088,10 @@ export default function HomeScreen() {
                           activeOpacity={0.7}
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            // Track when user clicks simulate career from onboarding task
+                            if (task.task_type === 'simulate_career') {
+                              trackEvent('OB - simulate-career-clicked');
+                            }
                             router.push(taskInfo.route as any);
                           }}
                           style={task.is_completed && { opacity: 0.6 }}

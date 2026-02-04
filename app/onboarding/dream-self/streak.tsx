@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Animated, Image, Pressable, Dimensions, TextInput, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Keyboard, ActivityIndicator } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { trackEvent } from '@/lib/mixpanel';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -280,6 +281,12 @@ export default function StreakScreen() {
       ]).start();
     }
   }, [stage]);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - dream-self-streak');
+    }, [])
+  );
 
   async function loadData() {
     if (!user) return;

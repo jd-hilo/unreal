@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { ChoiceQuestion } from '@/components/ChoiceQuestion';
 import { Input } from '@/components/Input';
@@ -28,6 +28,12 @@ interface LifeJourneyAnswers {
 export default function LifeJourneyGroupScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - path-group');
+    }, [])
+  );
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [currentSubQuestion, setCurrentSubQuestion] = useState<string | null>(null);
   const [answers, setAnswers] = useState<LifeJourneyAnswers>({

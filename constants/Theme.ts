@@ -14,7 +14,7 @@ export const Colors = {
   // Gradients
   gradients: {
     peach: ['#E87A7F', '#E4B5D3', '#E4B8A6'] as const,
-    purple: ['#C084FC', '#8EC5FC', '#A8C0EE'] as const,
+    purple: ['#000000', '#1a1a1a', '#2d2d2d'] as const,
     turquoise: ['#6BCA9A', '#6BB8D4', '#7AA5E8'] as const,
   },
   

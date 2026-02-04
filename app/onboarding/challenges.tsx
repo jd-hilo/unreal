@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Input } from '@/components/Input';
 import { View, StyleSheet, Text } from 'react-native';
@@ -12,6 +12,12 @@ export default function ChallengesScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [challenges, setChallenges] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - challenges');
+    }, [])
+  );
 
   useEffect(() => {
     loadExistingData();

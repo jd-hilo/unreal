@@ -1,15 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { View, StyleSheet, Text, Animated, Easing } from 'react-native';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Colors, Fonts } from '@/constants/Theme';
 import { Users, Zap, TrendingUp } from 'lucide-react-native';
+import { trackEvent } from '@/lib/mixpanel';
 
 export default function MotivateStatsScreen() {
   const router = useRouter();
   const [displayCount, setDisplayCount] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - motivate-stats');
+    }, [])
+  );
 
   useEffect(() => {
     // Fade in animation

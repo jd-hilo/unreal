@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useCallback } from 'react';
+import { trackEvent } from '@/lib/mixpanel';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -34,6 +35,12 @@ export default function DreamSelfWelcome() {
   const user = useAuth((state) => state.user);
   const [showButton, setShowButton] = useState(false);
   const [isContinuing, setIsContinuing] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - dream-self-welcome');
+    }, [])
+  );
 
   // Create shared values for each line's opacity
   const lineOpacities = TITLE_LINES.map(() => useSharedValue(0));

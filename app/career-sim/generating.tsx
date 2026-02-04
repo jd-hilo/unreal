@@ -30,6 +30,10 @@ export default function GeneratingScreen() {
     company: string;
     salary: string;
     pathType: string;
+    baseSimulationKey?: string;
+    alternatePathLabel?: string;
+    alternatePathYear?: string;
+    alternatePathDecision?: string;
   }>();
   const { user } = useAuth();
   const [loadingStep, setLoadingStep] = useState(0);
@@ -82,12 +86,30 @@ export default function GeneratingScreen() {
       const corePack = await buildCorePack(user.id, [user.id]);
 
       // Step 2: Generate career simulation
+      let baseSimulation: any = null;
+      if (params.baseSimulationKey) {
+        try {
+          const stored = await AsyncStorage.getItem(params.baseSimulationKey);
+          if (stored) {
+            baseSimulation = JSON.parse(stored);
+          }
+        } catch (storageError) {
+          console.warn('Failed to load base simulation for alternate path:', storageError);
+        }
+      }
+
       const simulation = await generateCareerSimulation(corePack, {
         timeHorizon: parseInt(params.timeHorizon || '10', 10) as 5 | 10 | 15,
         pathType: (params.pathType || 'stay') as 'stay' | 'switch' | 'startup',
         currentRole: params.currentRole || '',
         company: params.company || '',
         salary: params.salary || '',
+        alternateFrom: params.alternatePathLabel && params.alternatePathYear ? {
+          decisionLabel: params.alternatePathLabel,
+          decisionYear: parseInt(params.alternatePathYear, 10),
+          decisionKey: params.alternatePathDecision,
+          baseSimulation,
+        } : undefined,
       });
 
       // Store generated simulation temporarily in AsyncStorage

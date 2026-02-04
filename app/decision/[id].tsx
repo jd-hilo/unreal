@@ -265,6 +265,31 @@ export default function DecisionResultScreen() {
   async function handleChatWithArchitect() {
     if (!user || !decision) return;
     
+    // Track button click
+    trackEvent('Decision - discuss-clicked', {
+      decision_id: decision.id,
+      has_prediction: !!decision.prediction,
+      is_premium: isPremium
+    });
+    
+    // Check premium status
+    if (!isPremium) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert(
+        'Premium Feature',
+        'Unlock the ability to discuss your decisions with your Architect by upgrading to mora+.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Upgrade', 
+            onPress: () => router.push('/premium' as any),
+            style: 'default'
+          },
+        ]
+      );
+      return;
+    }
+    
     // Track chat opened
     trackEvent(MixpanelEvents.DECISION_CHAT_OPENED, {
       decision_id: decision.id,

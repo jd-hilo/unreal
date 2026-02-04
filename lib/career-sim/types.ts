@@ -231,6 +231,8 @@ export interface InboxEmail {
 export interface AlternatePath {
   id: string;
   label: string;
+  year?: number;
+  decision?: string;
 }
 
 export interface SetupFormData {

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Input } from '@/components/Input';
 import { View, StyleSheet, Text } from 'react-native';
@@ -14,6 +14,12 @@ export default function OnboardingStep0() {
   const user = useAuth((state) => state.user);
   const [firstName, setFirstName] = useState('');
   const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - name');
+    }, [])
+  );
 
   useEffect(() => {
     loadExistingData();

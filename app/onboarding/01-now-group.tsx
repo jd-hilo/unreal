@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { ChoiceQuestion } from '@/components/ChoiceQuestion';
 import { Input } from '@/components/Input';
@@ -152,6 +152,12 @@ export default function LifeSituationGroupScreen() {
   const params = useLocalSearchParams();
   const fromDreamSelf = params.fromDreamSelf === 'true';
   const user = useAuth((state) => state.user);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - now-group');
+    }, [])
+  );
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [currentSubQuestion, setCurrentSubQuestion] = useState<string | null>(null);
   const [answers, setAnswers] = useState<LifeSituationAnswers>({

@@ -1,14 +1,16 @@
 import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Colors, Fonts } from '@/constants/Theme';
 import type { GlobalComparison as GlobalComparisonType } from '@/lib/career-sim/types';
 import { Trophy, TrendingUp, Clock, DollarSign } from 'lucide-react-native';
 
 interface GlobalComparisonProps {
   globalComparison: GlobalComparisonType;
+  isPremium?: boolean;
 }
 
-function GlobalComparisonComponent({ globalComparison }: GlobalComparisonProps) {
+function GlobalComparisonComponent({ globalComparison, isPremium = true }: GlobalComparisonProps) {
   // Provide safe defaults
   const safeComparison = globalComparison || {
     income: {
@@ -75,21 +77,41 @@ function GlobalComparisonComponent({ globalComparison }: GlobalComparisonProps) 
           
           <View style={styles.mainStat}>
             <Text style={styles.mainStatLabel}>Your Compensation</Text>
-            <Text style={styles.mainStatValue}>{formatCurrency(safeComparison.income?.yourComp ?? 200000)}</Text>
+            <View style={styles.compensationValueContainer}>
+              <Text style={styles.mainStatValue}>{formatCurrency(safeComparison.income?.yourComp ?? 200000)}</Text>
+              {!isPremium && (
+                <BlurView intensity={80} tint="light" style={styles.compensationBlur} />
+              )}
+            </View>
           </View>
 
           <View style={styles.grid}>
             <View style={styles.gridItem}>
               <Text style={styles.gridLabel}>Global Avg</Text>
-              <Text style={styles.gridValue}>{formatCurrency(safeComparison.income?.globalAverage ?? 120000)}</Text>
+              <View style={styles.gridValueContainer}>
+                <Text style={styles.gridValue}>{formatCurrency(safeComparison.income?.globalAverage ?? 120000)}</Text>
+                {!isPremium && (
+                  <BlurView intensity={80} tint="light" style={styles.gridValueBlur} />
+                )}
+              </View>
             </View>
             <View style={styles.gridItem}>
               <Text style={styles.gridLabel}>US Avg</Text>
-              <Text style={styles.gridValue}>{formatCurrency(safeComparison.income?.usAverage ?? 195000)}</Text>
+              <View style={styles.gridValueContainer}>
+                <Text style={styles.gridValue}>{formatCurrency(safeComparison.income?.usAverage ?? 195000)}</Text>
+                {!isPremium && (
+                  <BlurView intensity={80} tint="light" style={styles.gridValueBlur} />
+                )}
+              </View>
             </View>
             <View style={styles.gridItem}>
               <Text style={styles.gridLabel}>Top Earners</Text>
-              <Text style={styles.gridValue}>{safeComparison.income?.topEarners?.range ?? '$450k - $650k'}</Text>
+              <View style={styles.gridValueContainer}>
+                <Text style={styles.gridValue}>{safeComparison.income?.topEarners?.range ?? '$450k - $650k'}</Text>
+                {!isPremium && (
+                  <BlurView intensity={80} tint="light" style={styles.gridValueBlur} />
+                )}
+              </View>
             </View>
           </View>
         </View>
@@ -152,7 +174,12 @@ function GlobalComparisonComponent({ globalComparison }: GlobalComparisonProps) 
 
           <View style={styles.mainStat}>
             <Text style={styles.mainStatLabel}>Vested Equity</Text>
-            <Text style={styles.mainStatValue}>{formatCurrency(safeComparison.equity?.yourEquity ?? 180000)}</Text>
+            <View style={styles.compensationValueContainer}>
+              <Text style={styles.mainStatValue}>{formatCurrency(safeComparison.equity?.yourEquity ?? 180000)}</Text>
+              {!isPremium && (
+                <BlurView intensity={80} tint="light" style={styles.compensationBlur} />
+              )}
+            </View>
           </View>
 
           <View style={styles.noteBox}>
@@ -262,11 +289,33 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.regular,
     marginBottom: 2,
   },
+  gridValueContainer: {
+    position: 'relative',
+  },
   gridValue: {
     fontSize: 13,
     fontWeight: '600',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.semibold,
+  },
+  gridValueBlur: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 4,
+  },
+  compensationValueContainer: {
+    position: 'relative',
+  },
+  compensationBlur: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 4,
   },
   listContainer: {
     gap: 8,

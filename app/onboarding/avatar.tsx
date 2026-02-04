@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/store/useAuth';
@@ -14,6 +14,12 @@ export default function AvatarGenerationScreen() {
   const [name, setName] = useState('Friend');
   const [scaleAnim] = useState(new Animated.Value(0));
   const [opacityAnim] = useState(new Animated.Value(0));
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - avatar');
+    }, [])
+  );
 
   useEffect(() => {
     loadProfile();

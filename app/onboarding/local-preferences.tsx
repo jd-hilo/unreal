@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Alert, Platform, Animated, Image, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { ChoiceQuestion } from '@/components/ChoiceQuestion';
 import { useAuth } from '@/store/useAuth';
@@ -169,6 +169,12 @@ export default function LocalPreferencesScreen() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [otherValues, setOtherValues] = useState<Record<string, string>>({});
   const [requestingLocation, setRequestingLocation] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - local-preferences');
+    }, [])
+  );
 
   const currentQuestion = currentQuestionIndex >= 0 ? ALL_QUESTIONS[currentQuestionIndex] : null;
   const isInitialQuestion = currentQuestionIndex === -1;

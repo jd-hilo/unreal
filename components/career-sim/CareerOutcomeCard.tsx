@@ -1,14 +1,16 @@
 import React, { memo } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { MapPin, Star, Briefcase, Building2, DollarSign } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 import { Colors, Fonts } from '@/constants/Theme';
 import type { CareerOutcome } from '@/lib/career-sim/types';
 
 interface CareerOutcomeCardProps {
   outcome: CareerOutcome;
+  isPremium?: boolean;
 }
 
-function CareerOutcomeCardComponent({ outcome }: CareerOutcomeCardProps) {
+function CareerOutcomeCardComponent({ outcome, isPremium = true }: CareerOutcomeCardProps) {
   // Provide safe defaults
   const safeOutcome = outcome || {
     title: 'Senior Role',
@@ -79,7 +81,12 @@ function CareerOutcomeCardComponent({ outcome }: CareerOutcomeCardProps) {
           </View>
         </View>
         
-        <Text style={styles.compAmount}>{formatCompensation(safeOutcome.totalComp)}</Text>
+        <View style={styles.compAmountContainer}>
+          <Text style={styles.compAmount}>{formatCompensation(safeOutcome.totalComp)}</Text>
+          {!isPremium && (
+            <BlurView intensity={80} tint="light" style={styles.compAmountBlur} />
+          )}
+        </View>
         
         <View style={styles.detailsRow}>
           <View style={styles.detailItem}>
@@ -195,14 +202,25 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
     letterSpacing: 0.5,
   },
+  compAmountContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
   compAmount: {
     fontSize: 48,
     fontWeight: '800',
     color: Colors.textPrimary,
     fontFamily: Fonts.primary.regular,
-    marginBottom: 16,
     letterSpacing: -1,
     lineHeight: 54,
+  },
+  compAmountBlur: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 8,
   },
   detailsRow: {
     flexDirection: 'row',

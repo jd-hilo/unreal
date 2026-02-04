@@ -105,17 +105,6 @@ function SocietalImpactComponent({ societalImpact }: SocietalImpactProps) {
             <Text style={styles.narrativeText}>{safeImpact.rippleEffect ?? 'Description of broader impact'}</Text>
           </LinearGradient>
         </View>
-
-        {/* Honest Assessment */}
-        <View style={styles.narrativeCard}>
-          <LinearGradient
-            colors={['rgba(245, 158, 11, 0.05)', 'rgba(245, 158, 11, 0.02)']}
-            style={styles.narrativeGradient}
-          >
-            <Text style={[styles.narrativeTitle, { color: '#F59E0B' }]}>What changes if you...</Text>
-            <Text style={styles.narrativeText}>{safeImpact.honestAssessment ?? 'Realistic assessment of actual societal impact'}</Text>
-          </LinearGradient>
-        </View>
       </View>
     </View>
   );

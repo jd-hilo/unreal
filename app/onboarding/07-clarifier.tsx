@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { View, Text, StyleSheet, Animated, Image, Platform, Easing } from 'react-native';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { useTwin } from '@/store/useTwin';
@@ -46,6 +46,12 @@ export default function OnboardingStep7() {
   
   // Cursor blink animation
   const cursorBlinkAnim = useRef(new Animated.Value(1)).current;
+  
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent('OB - clarifier');
+    }, [])
+  );
   
   useEffect(() => {
     if (!titleComplete) {
