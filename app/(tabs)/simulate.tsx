@@ -13,6 +13,8 @@ import { getCareerSimulations } from '@/lib/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CareerSimulation } from '@/lib/career-sim/types';
 import { trackEvent } from '@/lib/mixpanel';
+import { useCareerSimCooldown } from '@/hooks/useCareerSimCooldown';
+import { useTwin } from '@/store/useTwin';
 
 
 const { width } = Dimensions.get('window');
@@ -55,6 +57,8 @@ export default function SimulateTab() {
   const router = useRouter();
   const navigation = useNavigation();
   const user = useAuth((state) => state.user);
+  const { isPremium } = useTwin();
+  const { isOnCooldown, formattedTime } = useCareerSimCooldown();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentSims, setRecentSims] = useState<any[]>([]);
@@ -99,6 +103,11 @@ export default function SimulateTab() {
   );
 
   const handleCardPress = useCallback((card: typeof CARDS[0]) => {
+    if (card.id === 'career' && !isPremium && isOnCooldown) {
+      // Don't allow navigation if on cooldown
+      return;
+    }
+    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (card.type === 'active' && card.action) {
       // Track which card was clicked
@@ -119,7 +128,7 @@ export default function SimulateTab() {
         trackEvent('Simulate - decisions-clicked');
       }
     }
-  }, [router]);
+  }, [router, isPremium, isOnCooldown]);
 
   const handleLoadSimulation = useCallback(async (sim: any) => {
     try {
@@ -209,13 +218,16 @@ export default function SimulateTab() {
 
   const renderCard = (card: typeof CARDS[0], index: number) => {
     const Icon = card.icon;
+    const isCareerCard = card.id === 'career';
+    const isDisabled = card.type === 'coming_soon' || (isCareerCard && !isPremium && isOnCooldown);
+    
     return (
       <View key={card.id} style={styles.cardWrapper}>
         <TouchableOpacity
           onPress={() => handleCardPress(card)}
           activeOpacity={0.9}
           style={styles.cardContainer}
-          disabled={card.type === 'coming_soon'}
+          disabled={isDisabled}
         >
           {/* 3D Edge Effect - Top */}
           <View style={styles.cardEdgeTop} />
@@ -246,11 +258,25 @@ export default function SimulateTab() {
               <Text style={styles.cardSubtitle}>{card.subtitle}</Text>
 
               <View style={styles.actionRow}>
-                <Text style={[styles.actionText, card.type === 'coming_soon' && styles.disabledText]}>
-                  {card.buttonText}
-                </Text>
-                <View style={[styles.actionButton, card.type === 'coming_soon' && styles.disabledButton]}>
-                  <ChevronRight size={20} color="#FFFFFF" strokeWidth={3} />
+                <View style={styles.actionTextContainer}>
+                  <Text style={[styles.actionText, isDisabled && styles.disabledText]}>
+                    {isCareerCard && !isPremium && isOnCooldown && formattedTime 
+                      ? formattedTime 
+                      : card.buttonText}
+                  </Text>
+                  {isCareerCard && !isPremium && isOnCooldown && formattedTime && (
+                    <TouchableOpacity 
+                      onPress={() => router.push('/premium')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.cooldownSubtext}>
+                        until next sim. Upgrade to mora+ for unlimited sims.
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <View style={[styles.actionButton, isDisabled && styles.disabledButton]}>
+                  <ChevronRight size={20} color={isDisabled ? Colors.textTertiary : "#FFFFFF"} strokeWidth={3} />
                 </View>
               </View>
             </View>
@@ -635,11 +661,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 'auto',
   },
+  actionTextContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
   actionText: {
     fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
+  },
+  cooldownSubtext: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.gradients.purple[1],
+    fontFamily: Fonts.secondary.regular,
+    marginTop: 2,
+    lineHeight: 14,
   },
   actionButton: {
     width: 44,

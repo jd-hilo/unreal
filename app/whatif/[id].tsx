@@ -429,7 +429,7 @@ export default function WhatIfResultScreen() {
                                 <View style={styles.biometricLockIcon}>
                                   <Lock size={16} color="#F59E0B" strokeWidth={2.5} />
                                 </View>
-                                <Text style={styles.biometricLockText}>Locked</Text>
+                                <Text style={styles.biometricLockText}>Reveal with mora+</Text>
                               </View>
                             </View>
                           </View>

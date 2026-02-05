@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
-import { MapPin, Star, Briefcase, Building2, DollarSign } from 'lucide-react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { MapPin, Star, Briefcase, Building2, DollarSign, Lock } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { Colors, Fonts } from '@/constants/Theme';
 import type { CareerOutcome } from '@/lib/career-sim/types';
@@ -8,9 +8,10 @@ import type { CareerOutcome } from '@/lib/career-sim/types';
 interface CareerOutcomeCardProps {
   outcome: CareerOutcome;
   isPremium?: boolean;
+  router?: { push: (path: any) => void };
 }
 
-function CareerOutcomeCardComponent({ outcome, isPremium = true }: CareerOutcomeCardProps) {
+function CareerOutcomeCardComponent({ outcome, isPremium = true, router }: CareerOutcomeCardProps) {
   // Provide safe defaults
   const safeOutcome = outcome || {
     title: 'Senior Role',
@@ -73,18 +74,26 @@ function CareerOutcomeCardComponent({ outcome, isPremium = true }: CareerOutcome
       <View style={styles.compensationContainer}>
         <View style={styles.compHeaderRow}>
           <Text style={styles.compLabel}>Total Compensation</Text>
-          <View style={styles.satisfactionBadge}>
-            <View style={styles.stars}>
-              {renderStars(safeOutcome.satisfaction)}
-            </View>
-            <Text style={styles.satisfactionText}>{safeOutcome.satisfaction.toFixed(1)}</Text>
+          <View style={styles.marketBadge}>
+            <Text style={styles.marketText}>+12% vs Market</Text>
           </View>
         </View>
         
         <View style={styles.compAmountContainer}>
           <Text style={styles.compAmount}>{formatCompensation(safeOutcome.totalComp)}</Text>
           {!isPremium && (
-            <BlurView intensity={80} tint="light" style={styles.compAmountBlur} />
+            <TouchableOpacity 
+              style={styles.compAmountBlur}
+              onPress={() => router?.push('/premium')}
+              activeOpacity={1}
+            >
+              <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill}>
+                <View style={styles.blurContent}>
+                  <Lock size={16} color={Colors.textSecondary} strokeWidth={2.5} />
+                  <Text style={styles.blurText}>Reveal with mora+</Text>
+                </View>
+              </BlurView>
+            </TouchableOpacity>
           )}
         </View>
         
@@ -92,9 +101,6 @@ function CareerOutcomeCardComponent({ outcome, isPremium = true }: CareerOutcome
           <View style={styles.detailItem}>
             <MapPin size={14} color={Colors.textTertiary} strokeWidth={2} />
             <Text style={styles.detailText}>{safeOutcome.location}</Text>
-          </View>
-          <View style={styles.marketBadge}>
-            <Text style={styles.marketText}>+12% vs Market</Text>
           </View>
         </View>
       </View>
@@ -205,6 +211,8 @@ const styles = StyleSheet.create({
   compAmountContainer: {
     position: 'relative',
     marginBottom: 16,
+    overflow: 'hidden',
+    borderRadius: 16,
   },
   compAmount: {
     fontSize: 48,
@@ -220,7 +228,21 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 8,
+    borderRadius: 16,
+    zIndex: 10,
+  },
+  blurContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  blurText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   detailsRow: {
     flexDirection: 'row',
@@ -240,17 +262,18 @@ const styles = StyleSheet.create({
   },
   marketBadge: {
     backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingLeft: 8,
+    paddingRight: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.2)',
   },
   marketText: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '700',
     color: '#10B981',
     fontFamily: Fonts.secondary.bold,
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
 });

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Check, Circle, Brain, Zap, Infinity, Sparkles } from 'lucide-react-native';
+import { X, Check, Circle, Brain, Zap, Infinity, Sparkles, MessageCircle, GitBranch, BarChart3 } from 'lucide-react-native';
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
@@ -316,19 +316,19 @@ export default function PremiumOnboardingScreen() {
                 description: 'Create unlimited timelines and simulate unlimited years',
               },
               {
-                icon: Zap,
-                title: 'Simulate Decision Outcomes',
-                description: 'Long-term outcomes for every decision',
+                icon: MessageCircle,
+                title: 'Discuss Decisions',
+                description: 'Chat with your Architect about any decision',
               },
               {
-                icon: Brain,
-                title: 'Future Biometric Prediction',
-                description: 'Detailed biometric predictions for scenarios',
+                icon: BarChart3,
+                title: 'In-Depth Data in Simulations',
+                description: 'See detailed compensation, comparisons, and insights',
               },
               {
-                icon: Sparkles,
-                title: 'Best Case & Worst Case Scenarios',
-                description: 'Optimistic and challenging future predictions',
+                icon: GitBranch,
+                title: 'Simulation Branches',
+                description: 'Explore alternate timelines and decision points',
               },
             ].map((feature, index) => {
               const Icon = feature.icon;

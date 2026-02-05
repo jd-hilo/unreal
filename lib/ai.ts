@@ -3011,24 +3011,26 @@ Generate 3 distinct 1-year simulation variants. Each should:
 
 CRITICAL: Use "you" and "your" throughout. Example: "You'll likely see progress..." not "The user will see progress..."
 
-Return JSON array:
-[
-  {
-    "variant": 1,
-    "description": "Short paragraph describing Variant 1...",
-    "probability": 45
-  },
-  {
-    "variant": 2,
-    "description": "Short paragraph describing Variant 2...",
-    "probability": 35
-  },
-  {
-    "variant": 3,
-    "description": "Short paragraph describing Variant 3...",
-    "probability": 20
-  }
-]`;
+Return JSON object with variants array:
+{
+  "variants": [
+    {
+      "variant": 1,
+      "description": "Short paragraph describing Variant 1...",
+      "probability": 45
+    },
+    {
+      "variant": 2,
+      "description": "Short paragraph describing Variant 2...",
+      "probability": 35
+    },
+    {
+      "variant": 3,
+      "description": "Short paragraph describing Variant 3...",
+      "probability": 20
+    }
+  ]
+}`;
 
     const content = await callClaude({
       system: systemPrompt,
@@ -3038,8 +3040,34 @@ Return JSON array:
       maxTokens: 800,
     });
 
+    // Clean the content - remove trailing commas and fix common JSON issues
+    let cleanedContent = content.trim();
+    // Remove trailing commas before closing brackets/braces
+    cleanedContent = cleanedContent.replace(/,(\s*[}\]])/g, '$1');
+    // Try to extract JSON if wrapped in markdown code blocks
+    const jsonMatch = cleanedContent.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+    if (jsonMatch) {
+      cleanedContent = jsonMatch[1];
+    }
+
     // Parse the response - it might be wrapped in a JSON object
-    let parsed = JSON.parse(content);
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanedContent);
+    } catch (parseError) {
+      // Try to fix common issues and parse again
+      console.warn('Initial JSON parse failed, attempting to fix:', parseError);
+      // Remove any non-JSON content before/after
+      const jsonStart = cleanedContent.indexOf('{');
+      const jsonEnd = cleanedContent.lastIndexOf('}') + 1;
+      if (jsonStart >= 0 && jsonEnd > jsonStart) {
+        cleanedContent = cleanedContent.substring(jsonStart, jsonEnd);
+        cleanedContent = cleanedContent.replace(/,(\s*[}\]])/g, '$1');
+        parsed = JSON.parse(cleanedContent);
+      } else {
+        throw parseError;
+      }
+    }
     
     // Handle if response is wrapped in an object
     if (parsed.variants) {
@@ -3081,24 +3109,9 @@ Return JSON array:
     })) as OneYearSimulationVariant[];
   } catch (error) {
     console.error('Simulation variants generation error:', error);
-    // Fallback variants (already in second person)
-    return [
-      {
-        variant: 1,
-        description: `Based on your current trajectory, this year could bring significant growth in your personal and professional life. You'll likely see progress in areas aligned with your core values, with opportunities for meaningful connections and experiences.`,
-        probability: 40
-      },
-      {
-        variant: 2,
-        description: `This year might involve some challenges that push you to grow in unexpected ways. You'll navigate changes in your relationships and career, finding new strengths and perspectives along the way.`,
-        probability: 35
-      },
-      {
-        variant: 3,
-        description: `A more stable year where you consolidate your current path and deepen existing connections. You'll focus on refining what's already working and building a stronger foundation for future growth.`,
-        probability: 25
-      }
-    ];
+    // Return empty array on error - don't show fallback variants
+    // The UI will handle empty array gracefully
+    return [];
   }
 }
 

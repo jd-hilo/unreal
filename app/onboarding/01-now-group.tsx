@@ -444,10 +444,13 @@ export default function LifeSituationGroupScreen() {
     }
     
     // If we were filling gaps for Dream Self, go back there
-    const profile = await getProfile(user!.id);
-    if (profile?.net_worth && profile?.current_health?.status?.length && profile?.relationship_details?.status) {
-      router.push('/onboarding/dream-self/01-net-worth');
-      return;
+    // Only redirect if we came FROM dream-self (checking the fromDreamSelf param)
+    if (fromDreamSelf) {
+      const profile = await getProfile(user!.id);
+      if (profile?.net_worth && profile?.current_health?.status?.length && profile?.relationship_details?.status) {
+        router.push('/onboarding/dream-self/01-net-worth');
+        return;
+      }
     }
 
     router.push('/onboarding/02-path-group');

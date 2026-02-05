@@ -8,6 +8,7 @@ import { ChevronRight, Sparkles, ChevronLeft } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
+import { LigatureFreeText } from './LigatureFreeText';
 
 interface OnboardingScreenProps {
   title: string | ReactNode;
@@ -178,7 +179,7 @@ export function OnboardingScreen({
         {/* Title Section */}
         <View style={styles.titleSection}>
           {typeof title === 'string' ? (
-            <Text style={styles.title}>{title}</Text>
+            <LigatureFreeText text={title} style={styles.title} />
           ) : (
             <View style={styles.title}>{title}</View>
           )}
@@ -293,10 +294,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: Colors.textPrimary,
-    lineHeight: 28,
+    lineHeight: 32,
     marginBottom: 6,
     fontFamily: Fonts.primary.regular,
   },

@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
   backButton: { padding: 8, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.05)' },
   headerTitle: { fontSize: 18, fontFamily: Fonts.primary.regular, fontWeight: '700', color: Colors.textPrimary },
   scrollView: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingBottom: 40 },
+  content: { paddingHorizontal: 20, paddingBottom: 120 },
   profileSection: { alignItems: 'center', marginVertical: 20 },
   avatarWrapper: { width: 140, height: 140, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   avatarContainer: { width: 120, height: 120, borderRadius: 60, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },

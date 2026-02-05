@@ -186,10 +186,26 @@ export default function TwinRevealScreen() {
           setLoadingDescription(true);
           generateTwinArchetype(profileData)
             .then(result => {
-              setArchetype(result);
+              if (result) {
+                setArchetype(result);
+              } else {
+                console.warn('Archetype generation returned null/undefined');
+                setLoadingDescription(false);
+              }
             })
             .catch(error => {
-              console.error('Failed to generate archetype:', error);
+              console.error('Failed to generate archetype/narrative:', error);
+              setLoadingDescription(false);
+              // Set a fallback archetype so the UI doesn't break
+              setArchetype({
+                title: 'Your Digital Twin',
+                description: 'Your unique decision-making profile is being finalized.',
+                traits: {
+                  logic: 50,
+                  intuition: 30,
+                  emotion: 20,
+                },
+              });
             })
             .finally(() => {
               setLoadingDescription(false);
@@ -200,10 +216,15 @@ export default function TwinRevealScreen() {
         setLoadingSimulations(true);
         generateOneYearSimulationVariants(profileData)
           .then(variants => {
-            setSimulationVariants(variants);
+            // Only set variants if we successfully got them (not fallback)
+            if (variants && variants.length > 0) {
+              setSimulationVariants(variants);
+            }
           })
           .catch(error => {
             console.error('Failed to generate simulations:', error);
+            // Don't set variants on error - leave empty array
+            setSimulationVariants([]);
           })
           .finally(() => {
             setLoadingSimulations(false);
@@ -249,6 +270,7 @@ export default function TwinRevealScreen() {
   const coreJson = profile?.core_json || {};
   const firstName = profile?.first_name || 'Friend';
   const hometown = profile?.hometown || profile?.current_location || 'Unknown';
+  const relationshipStatus = profile?.relationship_details?.status || 'Not set';
   
   // Try multiple possible locations and keys for birth year
   let birthYearStr = onboardingResponses['birth-year'] || 
@@ -498,10 +520,12 @@ export default function TwinRevealScreen() {
               
               {/* Statistics Tags Row */}
               <View style={styles.tagsRow}>
-                <HeaderTag 
-                  icon={<Heart size={10} color="#696969" />}
-                  text={status}
-                />
+                {relationshipStatus && relationshipStatus !== 'Not set' && (
+                  <HeaderTag 
+                    icon={<Heart size={10} color="#696969" />}
+                    text={relationshipStatus}
+                  />
+                )}
                 {age !== null && age !== undefined && (
                   <HeaderTag 
                     icon={<User size={10} color="#696969" />}

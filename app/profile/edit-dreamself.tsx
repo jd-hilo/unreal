@@ -96,7 +96,13 @@ export default function EditDreamSelfScreen() {
           >
             <View style={styles.introSection}>
               <Sparkles size={32} color="#A78BFA" />
-              <Text style={styles.introTitle}>Refine Your Vision</Text>
+              <View style={styles.titleContainer}>
+                {'Refine Your Vision'.split('').map((char, index) => (
+                  <Text key={index} style={styles.introTitle}>
+                    {char === ' ' ? '\u00A0' : char}
+                  </Text>
+                ))}
+              </View>
               <Text style={styles.introSubtitle}>Update your goals and aspirations. The Architect will adjust your path accordingly.</Text>
             </View>
 
@@ -218,7 +224,8 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   contentContainer: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
   introSection: { alignItems: 'center', marginBottom: 32 },
-  introTitle: { fontSize: 24, fontWeight: '800', color: Colors.textPrimary, fontFamily: Fonts.primary.regular, marginTop: 16, marginBottom: 8 },
+  titleContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 16, marginBottom: 8 },
+  introTitle: { fontSize: 24, fontWeight: '800', color: Colors.textPrimary, fontFamily: Fonts.primary.regular },
   introSubtitle: { fontSize: 15, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22, fontFamily: Fonts.secondary.regular },
   form: { gap: 20 },
   input: { marginBottom: 0 },

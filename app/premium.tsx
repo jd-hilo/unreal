@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Linking, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Alert, Image, Linking, Animated, Dimensions } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Check, Circle, Brain, Zap, Infinity, Sparkles } from 'lucide-react-native';
+import { ArrowLeft, Check, Circle, Brain, Zap, Infinity, Sparkles, MessageCircle, GitBranch, BarChart3 } from 'lucide-react-native';
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
@@ -166,7 +166,7 @@ export default function PremiumScreen() {
               Unlock mora+
             </Text>
             <Text style={styles.heroSubtitle}>
-              Get full access to biometrics and life trajectory simulations
+              Access unlimited simulations and insights
             </Text>
           </View>
 
@@ -264,20 +264,30 @@ export default function PremiumScreen() {
               { transform: [{ scale: pulseAnim }] }
             ]}
           >
-            <TouchableOpacity
-              style={[styles.purchaseButton, (purchasing || loading) && styles.purchaseButtonDisabled]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.purchaseButton,
+                (purchasing || loading) && styles.purchaseButtonDisabled,
+                !(purchasing || loading) && {
+                  shadowColor: '#8a98ea',
+                  transform: [{ translateY: pressed ? 4 : 0 }],
+                  shadowOffset: { width: 0, height: pressed ? 0 : 4 },
+                  shadowOpacity: 1,
+                  shadowRadius: 0,
+                  elevation: pressed ? 2 : 8,
+                }
+              ]}
               onPress={handlePurchase}
               disabled={purchasing || loading}
-              activeOpacity={0.9}
             >
               <LinearGradient
-                colors={Colors.gradients.purple}
+                colors={['#8a98ea', '#7468ec']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
               <Text style={styles.purchaseButtonText}>Continue</Text>
-            </TouchableOpacity>
+            </Pressable>
           </Animated.View>
 
           {/* Trial Text */}
@@ -297,32 +307,26 @@ export default function PremiumScreen() {
                 description: 'Create unlimited timelines and simulate unlimited years',
               },
               {
-                icon: Zap,
-                title: 'Simulate Decision Outcomes',
-                description: 'Long-term outcomes for every decision',
+                icon: MessageCircle,
+                title: 'Discuss Decisions',
+                description: 'Chat with your Architect about any decision',
               },
               {
-                icon: Brain,
-                title: 'Future Biometric Prediction',
-                description: 'Detailed biometric predictions for scenarios',
+                icon: BarChart3,
+                title: 'In-Depth Data in Simulations',
+                description: 'See detailed compensation, comparisons, and insights',
               },
               {
-                icon: Sparkles,
-                title: 'Best Case & Worst Case Scenarios',
-                description: 'Optimistic and challenging future predictions',
+                icon: GitBranch,
+                title: 'Simulation Branches',
+                description: 'Explore alternate timelines and decision points',
               },
             ].map((feature, index) => {
               const Icon = feature.icon;
               return (
                 <View key={index} style={styles.featureRow}>
-                  <View style={styles.featureIcon}>
-                    <LinearGradient
-                      colors={Colors.gradients.turquoise}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                    <Icon size={24} color="#FFFFFF" strokeWidth={2} />
+                  <View style={styles.featureIcon3D}>
+                    <Icon size={24} color={Colors.textPrimary} strokeWidth={2} />
                   </View>
                   <View style={styles.featureContent}>
                     <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -444,6 +448,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  featureIcon3D: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   featureContent: {
     flex: 1,

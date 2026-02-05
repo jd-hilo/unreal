@@ -1,9 +1,12 @@
 import React, { memo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
-import { GitBranch } from 'lucide-react-native';
+import { GitBranch, ChevronRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
 import type { AlternatePath } from '@/lib/career-sim/types';
+import { useCareerSimCooldown } from '@/hooks/useCareerSimCooldown';
+import { useTwin } from '@/store/useTwin';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75;
@@ -18,11 +21,12 @@ interface PathButtonProps {
   onPress: () => void;
 }
 
-const PathButton = memo(({ path, onPress }: PathButtonProps) => (
+const PathButton = memo(({ path, onPress, isDisabled, timerText, router }: PathButtonProps & { isDisabled?: boolean; timerText?: string | null; router?: { push: (path: any) => void } }) => (
   <TouchableOpacity
-    style={styles.pathButton}
+    style={[styles.pathButton, isDisabled && styles.pathButtonDisabled]}
     onPress={onPress}
     activeOpacity={0.7}
+    disabled={isDisabled}
   >
     <View style={styles.pathHeader}>
       <View style={styles.pathBranchBadge}>
@@ -32,17 +36,40 @@ const PathButton = memo(({ path, onPress }: PathButtonProps) => (
         </Text>
       </View>
     </View>
-    <Text style={styles.pathText}>{path.label}</Text>
+    <Text style={styles.pathText}>{path.label.replace(/\([^)]*\)/g, '').trim()}</Text>
+    {isDisabled && timerText && (
+      <View style={styles.timerContainer}>
+        <View style={styles.timerTextContainer}>
+          <Text style={styles.timerText}>{timerText}</Text>
+          <TouchableOpacity 
+            onPress={() => router?.push('/premium')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.timerSubtext}>
+              until next sim. Upgrade to mora+ for unlimited sims.
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <ChevronRight size={16} color={Colors.textTertiary} strokeWidth={2.5} />
+      </View>
+    )}
   </TouchableOpacity>
 ));
 
 PathButton.displayName = 'PathButton';
 
 function ComparePathsSectionComponent({ alternatePaths, onPathPress }: ComparePathsSectionProps) {
+  const router = useRouter();
+  const { isPremium } = useTwin();
+  const { isOnCooldown, formattedTime } = useCareerSimCooldown();
+  
   const handlePathPress = useCallback((path: AlternatePath) => {
+    if (!isPremium && isOnCooldown) {
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPathPress(path);
-  }, [onPathPress]);
+  }, [onPathPress, isPremium, isOnCooldown]);
 
   const safePaths = alternatePaths || [
     { id: 'stay-current', label: 'Stay at Current' },
@@ -70,6 +97,9 @@ function ComparePathsSectionComponent({ alternatePaths, onPathPress }: ComparePa
             key={path.id}
             path={path}
             onPress={() => handlePathPress(path)}
+            isDisabled={!isPremium && isOnCooldown}
+            timerText={!isPremium && isOnCooldown ? formattedTime : null}
+            router={router}
           />
         ))}
       </ScrollView>
@@ -148,5 +178,35 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.semibold,
     lineHeight: 24,
+  },
+  pathButtonDisabled: {
+    opacity: 0.6,
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  timerTextContainer: {
+    flex: 1,
+    marginRight: 8,
+  },
+  timerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+    marginBottom: 2,
+  },
+  timerSubtext: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.gradients.purple[1],
+    fontFamily: Fonts.secondary.regular,
+    lineHeight: 14,
   },
 });

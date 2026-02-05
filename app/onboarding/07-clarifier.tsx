@@ -6,7 +6,7 @@ import { useTwin } from '@/store/useTwin';
 import { useAuth } from '@/store/useAuth';
 import { completeOnboarding, getProfile, saveOnboardingResponse, updateProfileFields } from '@/lib/storage';
 import { trackEvent, MixpanelEvents, setUserProperty } from '@/lib/mixpanel';
-import { summarizeOnboardingGroup, type OnboardingSummaryData, generateTwinArchetype } from '@/lib/ai';
+import { summarizeOnboardingGroup, type OnboardingSummaryData, generateTwinArchetype, embedText } from '@/lib/ai';
 import { useTypewriter } from '@/hooks/useTypewriter';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';

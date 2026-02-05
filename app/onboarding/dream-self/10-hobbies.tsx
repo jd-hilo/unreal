@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { View, StyleSheet } from 'react-native';

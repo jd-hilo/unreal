@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Lock } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/Theme';
 import type { GlobalComparison as GlobalComparisonType } from '@/lib/career-sim/types';
 import { Trophy, TrendingUp, Clock, DollarSign } from 'lucide-react-native';
@@ -8,9 +9,10 @@ import { Trophy, TrendingUp, Clock, DollarSign } from 'lucide-react-native';
 interface GlobalComparisonProps {
   globalComparison: GlobalComparisonType;
   isPremium?: boolean;
+  router?: { push: (path: any) => void };
 }
 
-function GlobalComparisonComponent({ globalComparison, isPremium = true }: GlobalComparisonProps) {
+function GlobalComparisonComponent({ globalComparison, isPremium = true, router }: GlobalComparisonProps) {
   // Provide safe defaults
   const safeComparison = globalComparison || {
     income: {
@@ -80,7 +82,18 @@ function GlobalComparisonComponent({ globalComparison, isPremium = true }: Globa
             <View style={styles.compensationValueContainer}>
               <Text style={styles.mainStatValue}>{formatCurrency(safeComparison.income?.yourComp ?? 200000)}</Text>
               {!isPremium && (
-                <BlurView intensity={80} tint="light" style={styles.compensationBlur} />
+                <TouchableOpacity 
+                  style={styles.compensationBlur}
+                  onPress={() => router?.push('/premium')}
+                  activeOpacity={1}
+                >
+                  <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill}>
+                    <View style={styles.blurContent}>
+                      <Lock size={14} color={Colors.textSecondary} strokeWidth={2.5} />
+                      <Text style={styles.blurText}>Reveal with mora+</Text>
+                    </View>
+                  </BlurView>
+                </TouchableOpacity>
               )}
             </View>
           </View>
@@ -91,7 +104,10 @@ function GlobalComparisonComponent({ globalComparison, isPremium = true }: Globa
               <View style={styles.gridValueContainer}>
                 <Text style={styles.gridValue}>{formatCurrency(safeComparison.income?.globalAverage ?? 120000)}</Text>
                 {!isPremium && (
-                  <BlurView intensity={80} tint="light" style={styles.gridValueBlur} />
+                  <BlurView intensity={80} tint="light" style={styles.gridValueBlur}>
+                    <Lock size={10} color={Colors.textSecondary} strokeWidth={2.5} />
+                    <Text style={styles.smallBlurText}>mora+</Text>
+                  </BlurView>
                 )}
               </View>
             </View>
@@ -100,7 +116,10 @@ function GlobalComparisonComponent({ globalComparison, isPremium = true }: Globa
               <View style={styles.gridValueContainer}>
                 <Text style={styles.gridValue}>{formatCurrency(safeComparison.income?.usAverage ?? 195000)}</Text>
                 {!isPremium && (
-                  <BlurView intensity={80} tint="light" style={styles.gridValueBlur} />
+                  <BlurView intensity={80} tint="light" style={styles.gridValueBlur}>
+                    <Lock size={10} color={Colors.textSecondary} strokeWidth={2.5} />
+                    <Text style={styles.smallBlurText}>mora+</Text>
+                  </BlurView>
                 )}
               </View>
             </View>
@@ -109,7 +128,10 @@ function GlobalComparisonComponent({ globalComparison, isPremium = true }: Globa
               <View style={styles.gridValueContainer}>
                 <Text style={styles.gridValue}>{safeComparison.income?.topEarners?.range ?? '$450k - $650k'}</Text>
                 {!isPremium && (
-                  <BlurView intensity={80} tint="light" style={styles.gridValueBlur} />
+                  <BlurView intensity={80} tint="light" style={styles.gridValueBlur}>
+                    <Lock size={10} color={Colors.textSecondary} strokeWidth={2.5} />
+                    <Text style={styles.smallBlurText}>mora+</Text>
+                  </BlurView>
                 )}
               </View>
             </View>
@@ -177,7 +199,18 @@ function GlobalComparisonComponent({ globalComparison, isPremium = true }: Globa
             <View style={styles.compensationValueContainer}>
               <Text style={styles.mainStatValue}>{formatCurrency(safeComparison.equity?.yourEquity ?? 180000)}</Text>
               {!isPremium && (
-                <BlurView intensity={80} tint="light" style={styles.compensationBlur} />
+                <TouchableOpacity 
+                  style={styles.compensationBlur}
+                  onPress={() => router?.push('/premium')}
+                  activeOpacity={1}
+                >
+                  <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill}>
+                    <View style={styles.blurContent}>
+                      <Lock size={14} color={Colors.textSecondary} strokeWidth={2.5} />
+                      <Text style={styles.blurText}>Reveal with mora+</Text>
+                    </View>
+                  </BlurView>
+                </TouchableOpacity>
               )}
             </View>
           </View>
@@ -291,6 +324,8 @@ const styles = StyleSheet.create({
   },
   gridValueContainer: {
     position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 12,
   },
   gridValue: {
     fontSize: 13,
@@ -304,10 +339,16 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 4,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
   compensationValueContainer: {
     position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 16,
   },
   compensationBlur: {
     position: 'absolute',
@@ -315,7 +356,27 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 4,
+    borderRadius: 16,
+    zIndex: 10,
+  },
+  blurContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  blurText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  smallBlurText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
   },
   listContainer: {
     gap: 8,

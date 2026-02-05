@@ -339,7 +339,7 @@ export default function CareerSimResult() {
           <View style={styles.sectionsContainer}>
             {/* SECTION 1: Career Outcome Card */}
             <View style={styles.section}>
-              <CareerOutcomeCard outcome={simulation.outcome} isPremium={isPremium} />
+              <CareerOutcomeCard outcome={simulation.outcome} isPremium={isPremium} router={router} />
             </View>
 
             {/* SECTION 2: Zoom-Ins */}
@@ -359,7 +359,7 @@ export default function CareerSimResult() {
 
             {/* SECTION 4: Global Comparison */}
             <View style={styles.section}>
-              <GlobalComparison globalComparison={simulation.globalComparison} isPremium={isPremium} />
+              <GlobalComparison globalComparison={simulation.globalComparison} isPremium={isPremium} router={router} />
             </View>
 
             {/* SECTION 5: Regret Moments */}

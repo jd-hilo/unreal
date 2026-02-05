@@ -1014,7 +1014,7 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 24 },
   stageContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   stageTitle: { fontSize: 32, fontWeight: '800', color: Colors.textPrimary, fontFamily: Fonts.primary.regular, marginTop: 24, textAlign: 'center' },
-  stageSubtitle: { fontSize: 16, color: Colors.textSecondary, fontFamily: Fonts.secondary.regular, marginTop: 12, textAlign: 'center', marginBottom: 40, lineHeight: 22, letterSpacing: 1 },
+  stageSubtitle: { fontSize: 16, color: Colors.textSecondary, fontFamily: Fonts.secondary.regular, marginTop: 12, textAlign: 'center', marginBottom: 40, lineHeight: 22, letterSpacing: 0.3 },
   
   // Header Section (from twin-reveal)
   headerContainer: {
