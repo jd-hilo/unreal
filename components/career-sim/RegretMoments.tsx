@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   },
   momentHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 12,
     gap: 8,
   },
@@ -90,12 +90,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.gradients.purple[1],
     fontFamily: Fonts.secondary.bold,
+    flexShrink: 0,
   },
   momentTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   momentDescription: {
     fontSize: 14,

@@ -42,6 +42,9 @@ export default function CareerSimResult() {
     grade?: string;
     school?: string;
     studying?: string;
+    alternatePathLabel?: string;
+    alternatePathYear?: string;
+    alternatePathDecision?: string;
   }>();
 
   const { user } = useAuth();
@@ -79,13 +82,18 @@ export default function CareerSimResult() {
                       companyToSave = params.school || params.company;
                     }
                     
+                    // Include alternate path label in simulation data if this is a branch
+                    const simulationDataToSave = params.alternatePathLabel 
+                      ? { ...parsed, alternatePathLabel: params.alternatePathLabel }
+                      : parsed;
+                    
                     await saveCareerSimulation(user.id, {
                       timeHorizon: parseInt(params.timeHorizon || '10', 10),
                       pathType: (params.pathType || 'stay') as 'stay' | 'switch' | 'startup',
                       currentRole: currentRoleToSave || undefined,
                       company: companyToSave || undefined,
                       salary: params.salary || undefined,
-                      simulationData: parsed as any,
+                      simulationData: simulationDataToSave as any,
                     });
                     console.log('Career simulation automatically saved to database');
                   } catch (saveError) {
@@ -237,13 +245,18 @@ export default function CareerSimResult() {
         companyToSave = params.school || params.company;
       }
       
+      // Include alternate path label in simulation data if this is a branch
+      const simulationDataToSave = params.alternatePathLabel 
+        ? { ...simulation, alternatePathLabel: params.alternatePathLabel }
+        : simulation;
+      
       await saveCareerSimulation(user.id, {
         timeHorizon: parseInt(params.timeHorizon || '10', 10),
         pathType: pathType,
         currentRole: currentRoleToSave || undefined,
         company: companyToSave || undefined,
         salary: params.salary || undefined,
-        simulationData: simulation as any,
+        simulationData: simulationDataToSave as any,
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

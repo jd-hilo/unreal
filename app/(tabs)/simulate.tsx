@@ -191,19 +191,17 @@ export default function SimulateTab() {
   }, []);
 
   const getSimulationName = useCallback((sim: any) => {
-    // Try to get pathName from simulation_data
     const simData = sim.simulation_data || sim.simulationData;
-    if (simData && simData.pathName) {
-      return simData.pathName;
+    
+    // Check if this is a branch (alternate path) - look for alternate path metadata
+    // This could be stored in simulation_data metadata or as a separate field
+    if (simData?.alternatePathLabel || sim.alternate_path_label) {
+      const branchName = simData?.alternatePathLabel || sim.alternate_path_label;
+      return branchName;
     }
-    // Fallback to path type label
-    const pathType = sim.path_type || sim.pathType;
-    const labels: Record<string, string> = {
-      'stay': 'Stay',
-      'switch': 'Switch',
-      'startup': 'Startup',
-    };
-    return labels[pathType] || pathType || 'Career';
+    
+    // Regular simulation - return "Career Sim"
+    return 'Career Sim';
   }, []);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -352,7 +350,7 @@ export default function SimulateTab() {
                             >
                               <View style={styles.dropdownItemContent}>
                                 <Text style={styles.dropdownItemTitle}>
-                                  {getSimulationName(sim)} • {sim.time_horizon || sim.timeHorizon}yr
+                                  {getSimulationName(sim)} - {sim.time_horizon || sim.timeHorizon}yr
                                 </Text>
                                 <Text style={styles.dropdownItemSubtitle}>
                                   {sim.role_title || 'No role'} {sim.company ? `@ ${sim.company}` : ''}

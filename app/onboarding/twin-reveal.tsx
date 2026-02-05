@@ -453,9 +453,6 @@ export default function TwinRevealScreen() {
             <View style={styles.decisionDnaContainer}>
               <View style={styles.dnaHeaderRow}>
                 <Text style={styles.dnaLabel}>Decision DNA</Text>
-                <View style={styles.estDaysBadge}>
-                  <Text style={styles.estDaysBadgeText}>{profile?.est_days_remaining || '---'} Days</Text>
-                </View>
               </View>
               
               {/* Logic Bar */}
@@ -509,13 +506,10 @@ export default function TwinRevealScreen() {
                 <Text style={styles.headerName}>{firstName}</Text>
               </View>
               
-              {/* Location with Age and Icon */}
+              {/* Location with Icon */}
               <View style={styles.locationRow}>
                 <MapPin size={14} color={Colors.textSecondary} />
                 <Text style={styles.headerLocation}>{hometown}</Text>
-                {age && (
-                  <Text style={styles.headerAge}> • Age {age}</Text>
-                )}
               </View>
               
               {/* Statistics Tags Row */}

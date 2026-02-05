@@ -64,7 +64,20 @@ function CareerOutcomeCardComponent({ outcome, isPremium = true, router }: Caree
         <Text style={styles.label}>Career Outcome</Text>
       </View>
       
-      <Text style={styles.title}>{safeOutcome.title}</Text>
+      <View style={styles.titleContainer}>
+        {safeOutcome.title.split(' ').map((word, wordIndex) => (
+          <View key={wordIndex} style={styles.wordContainer}>
+            {word.split('').map((char, charIndex) => (
+              <Text key={charIndex} style={styles.title}>
+                {char}
+              </Text>
+            ))}
+            {wordIndex < safeOutcome.title.split(' ').length - 1 && (
+              <Text style={styles.title}>{'\u00A0'}</Text>
+            )}
+          </View>
+        ))}
+      </View>
       
       <View style={styles.companyRow}>
         <Building2 size={18} color={Colors.textSecondary} strokeWidth={2} />
@@ -149,12 +162,21 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.bold,
     letterSpacing: 0.5,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  wordContainer: {
+    flexDirection: 'row',
+    flexShrink: 0,
+  },
   title: {
     fontSize: 32,
     fontWeight: '800',
     color: Colors.textPrimary,
     fontFamily: Fonts.primary.regular,
-    marginBottom: 12,
     lineHeight: 38,
   },
   companyRow: {
