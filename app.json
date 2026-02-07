@@ -21,7 +21,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSMicrophoneUsageDescription": "This app needs microphone access to enable voice conversations with your AI twin builder, Sol.",
-        "NSLocationWhenInUseUsageDescription": "This app needs location access to provide personalized local recommendations for restaurants, bars, and things to do near you."
+        "NSLocationWhenInUseUsageDescription": "This app needs location access to provide personalized local recommendations for restaurants, bars, and things to do near you.",
+        "NSUserTrackingUsageDescription": "This allows us to provide you with personalized content and improve your experience with mora."
       }
     },
     "android": {

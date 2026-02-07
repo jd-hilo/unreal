@@ -11,6 +11,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import * as TrackingTransparency from 'expo-tracking-transparency';
 import { ChevronRight } from 'lucide-react-native';
 import { useTypewriter } from '@/hooks/useTypewriter';
 import { setHasSeenWelcome } from '@/lib/welcomeStorage';
@@ -128,6 +129,17 @@ export default function WelcomeScreen() {
   const handleGetStarted = async () => {
     // Impact haptic on button press
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Request ATT permission on iOS
+    if (Platform.OS === 'ios') {
+      try {
+        const { status } = await TrackingTransparency.requestTrackingPermissionsAsync();
+        console.log('ATT permission status:', status);
+      } catch (error) {
+        console.error('Error requesting ATT permission:', error);
+        // Continue even if ATT request fails
+      }
+    }
 
     // Mark welcome as seen
     await setHasSeenWelcome();
