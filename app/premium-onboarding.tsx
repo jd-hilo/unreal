@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Check, Circle, Brain, Zap, Infinity, Sparkles, MessageCircle, GitBranch, BarChart3 } from 'lucide-react-native';
+import { Check, Circle, Brain, Zap, Infinity, Sparkles, MessageCircle, GitBranch, BarChart3 } from 'lucide-react-native';
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
@@ -18,7 +18,7 @@ export default function PremiumOnboardingScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const { isPremium, packages, loading, purchasing, restoring, purchase, restore } = usePremium();
-  const [selectedOption, setSelectedOption] = useState<PurchaseOption>('lifetime'); // Default to lifetime/best value
+  const [selectedOption, setSelectedOption] = useState<PurchaseOption>('weekly'); // Default to weekly with free trial
   
   // Animation values for button effects
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -52,52 +52,57 @@ export default function PremiumOnboardingScreen() {
   }, []);
 
   async function handlePurchase() {
-    if (!packages || packages.length === 0) {
-      Alert.alert('Error', 'No packages available. Please try again later.');
-      return;
-    }
+    try {
+      if (!packages || packages.length === 0) {
+        Alert.alert('Error', 'No packages available. Please try again later.');
+        return;
+      }
 
-    // Find the appropriate package based on selected option
-    let pkg = selectedOption === 'weekly' 
-      ? packages.find(p => 
-          p.product.identifier === 'mora_weekly_sub' ||
-          p.packageType === 'WEEKLY' || 
-          p.identifier === '$rc_weekly' ||
-          p.identifier.includes('weekly') ||
-          p.identifier.includes('week')
-        )
-      : packages.find(p => 
-          p.product.identifier === 'mora_lifetime_v2' ||
-          p.packageType === 'CUSTOM' || 
-          p.packageType === 'LIFETIME' ||
-          p.identifier === '$rc_lifetime' ||
-          p.product.productType === 'NON_CONSUMABLE' ||
-          p.identifier.includes('lifetime')
-        );
+      // Find the appropriate package based on selected option
+      let pkg = selectedOption === 'weekly' 
+        ? packages.find(p => 
+            p.product.identifier === 'mora_weekly_sub' ||
+            p.packageType === 'WEEKLY' || 
+            p.identifier === '$rc_weekly' ||
+            p.identifier.includes('weekly') ||
+            p.identifier.includes('week')
+          )
+        : packages.find(p => 
+            p.product.identifier === 'mora_lifetime_v2' ||
+            p.packageType === 'CUSTOM' || 
+            p.packageType === 'LIFETIME' ||
+            p.identifier === '$rc_lifetime' ||
+            p.product.productType === 'NON_CONSUMABLE' ||
+            p.identifier.includes('lifetime')
+          );
 
-    if (!pkg) {
-      Alert.alert('Error', `Could not find ${selectedOption} package. Please try again.`);
-      return;
-    }
+      if (!pkg) {
+        Alert.alert('Error', `Could not find ${selectedOption} package. Please try again.`);
+        return;
+      }
 
-    // Track purchase started
-    trackEvent(MixpanelEvents.PREMIUM_PURCHASE_STARTED, {
-      plan_type: selectedOption,
-      product_id: pkg.product.identifier,
-      from_onboarding: true
-    });
+      // Track purchase started
+      trackEvent(MixpanelEvents.PREMIUM_PURCHASE_STARTED, {
+        plan_type: selectedOption,
+        product_id: pkg.product.identifier,
+        from_onboarding: true
+      });
 
-    const success = await purchase(pkg);
-    if (success) {
-      const message = selectedOption === 'lifetime' 
-        ? 'You now have lifetime access to all premium features!'
-        : 'You now have access to all premium features.';
-      Alert.alert('Welcome to mora+!', message, [
-        { 
-          text: 'Get Started', 
-          onPress: () => router.replace('/onboarding/07-clarifier')
-        }
-      ]);
+      const success = await purchase(pkg);
+      if (success) {
+        const message = selectedOption === 'lifetime' 
+          ? 'You now have lifetime access to all premium features!'
+          : 'You now have access to all premium features.';
+        Alert.alert('Welcome to mora+!', message, [
+          { 
+            text: 'Get Started', 
+            onPress: () => router.replace('/onboarding/07-clarifier')
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Purchase error:', error);
+      Alert.alert('Error', `Failed to process purchase: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -116,36 +121,28 @@ export default function PremiumOnboardingScreen() {
   }
 
   if (isPremium) {
-    return (
-      <View style={styles.container}>
-        <StatusBar style="dark" />
-        <SafeAreaView style={styles.safeArea} edges={['top']}>
-          <View style={styles.header}>
-            <View style={styles.headerRight}>
-              <TouchableOpacity 
-                onPress={() => router.replace('/onboarding/07-clarifier')} 
-                style={styles.closeButton}
-              >
-                <X size={24} color={Colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-          <View style={styles.alreadyPremiumContainer}>
-            <View style={styles.premiumBadgeContainer}>
-              <Image 
-                source={require('@/assets/images/premium.png')}
-                style={styles.premiumBadgeImage}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.alreadyPremiumTitle}>Welcome to mora+</Text>
-            <Text style={styles.alreadyPremiumText}>
-              You have access to all mora+ features including biometrics and simulations.
-            </Text>
-          </View>
-        </SafeAreaView>
-      </View>
-    );
+    // Already premium - redirect to next onboarding step
+    // router.replace('/onboarding/07-clarifier'); // Commented out for testing
+    // return (
+    //   <View style={styles.container}>
+    //     <StatusBar style="dark" />
+    //     <SafeAreaView style={styles.safeArea} edges={['top']}>
+    //       <View style={styles.alreadyPremiumContainer}>
+    //         <View style={styles.premiumBadgeContainer}>
+    //           <Image 
+    //             source={require('@/assets/images/premium.png')}
+    //             style={styles.premiumBadgeImage}
+    //             resizeMode="contain"
+    //           />
+    //         </View>
+    //         <Text style={styles.alreadyPremiumTitle}>Welcome to mora+</Text>
+    //         <Text style={styles.alreadyPremiumText}>
+    //           You have access to all mora+ features including biometrics and simulations.
+    //         </Text>
+    //       </View>
+    //     </SafeAreaView>
+    //   </View>
+    // );
   }
 
   return (
@@ -153,17 +150,6 @@ export default function PremiumOnboardingScreen() {
       <StatusBar style="dark" />
       
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.header}>
-          <View style={styles.headerRight}>
-            <TouchableOpacity 
-              onPress={() => router.replace('/onboarding/07-clarifier')} 
-              style={styles.closeButton}
-            >
-              <X size={24} color={Colors.textPrimary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
           {/* Hero Section */}
           <View style={styles.heroSection}>
@@ -181,7 +167,52 @@ export default function PremiumOnboardingScreen() {
 
           {/* Pricing Cards */}
           <View style={styles.pricingContainer}>
-            {/* Lifetime Card (Best Value) */}
+            {/* Weekly Card (Free Trial) */}
+            <View style={styles.pricingCardWrapper}>
+              <TouchableOpacity
+                style={[
+                  styles.pricingCard,
+                  selectedOption === 'weekly' && styles.pricingCardSelected
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedOption('weekly');
+                }}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={Colors.gradients.peach}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.saveBadge}
+                >
+                  <Text style={styles.saveBadgeText}>3 Days Free</Text>
+                </LinearGradient>
+
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>Weekly</Text>
+                  {selectedOption === 'weekly' ? (
+                    <LinearGradient
+                      colors={Colors.gradients.peach}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.checkCircle}
+                    >
+                      <Check size={12} color="#FFFFFF" strokeWidth={3} />
+                    </LinearGradient>
+                  ) : (
+                    <Circle size={20} color={Colors.textTertiary} />
+                  )}
+                </View>
+                
+                <View style={styles.cardPriceContainer}>
+                  <Text style={styles.cardPrice}>$4.99</Text>
+                  <Text style={styles.cardPeriod}>/ week after trial</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Lifetime Card */}
             <View style={styles.pricingCardWrapper}>
               <TouchableOpacity
                 style={[
@@ -194,15 +225,6 @@ export default function PremiumOnboardingScreen() {
                 }}
                 activeOpacity={0.9}
               >
-                <LinearGradient
-                  colors={Colors.gradients.peach}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.saveBadge}
-                >
-                  <Text style={styles.saveBadgeText}>Best Value</Text>
-                </LinearGradient>
-
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle}>Lifetime</Text>
                   {selectedOption === 'lifetime' ? (
@@ -225,42 +247,6 @@ export default function PremiumOnboardingScreen() {
                     <Text style={styles.cardPrice}>$29.99</Text>
                   </View>
                   <Text style={styles.cardPeriod}>one-time</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Weekly Card */}
-            <View style={styles.pricingCardWrapper}>
-              <TouchableOpacity
-                style={[
-                  styles.pricingCard,
-                  selectedOption === 'weekly' && styles.pricingCardSelected
-                ]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelectedOption('weekly');
-                }}
-                activeOpacity={0.9}
-              >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>Weekly</Text>
-                  {selectedOption === 'weekly' ? (
-                    <LinearGradient
-                      colors={Colors.gradients.peach}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.checkCircle}
-                    >
-                      <Check size={12} color="#FFFFFF" strokeWidth={3} />
-                    </LinearGradient>
-                  ) : (
-                    <Circle size={20} color={Colors.textTertiary} />
-                  )}
-                </View>
-                
-                <View style={styles.cardPriceContainer}>
-                  <Text style={styles.cardPrice}>$4.99</Text>
-                  <Text style={styles.cardPeriod}>/ week</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -295,15 +281,17 @@ export default function PremiumOnboardingScreen() {
                 end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
-              <Text style={styles.purchaseButtonText}>Continue</Text>
+              <Text style={styles.purchaseButtonText}>
+                {selectedOption === 'weekly' ? 'Start Free Trial' : 'Get Lifetime Access'}
+              </Text>
             </Pressable>
           </Animated.View>
 
           {/* Trial Text */}
           <Text style={styles.finePrint}>
             {selectedOption === 'weekly' 
-              ? 'First 3 days free, then $4.99/week'
-              : 'One-time payment. No recurring charges.'}
+              ? 'Free for 3 days, then $4.99/week. Cancel anytime.'
+              : 'One-time payment of $29.99. No recurring charges.'}
           </Text>
 
           {/* Features List */}
@@ -370,24 +358,6 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 8,
-    zIndex: 10,
-  },
-  headerRight: {
-    width: '100%',
-    alignItems: 'flex-end',
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 20,
   },
   content: {
     flex: 1,

@@ -131,6 +131,7 @@ export default function RootLayout() {
         <Stack.Screen name="journal" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="premium" />
+        <Stack.Screen name="premium-onboarding" />
         <Stack.Screen name="+not-found" />
       </Stack>
       {/* Must be outside Stack to avoid expo-router layout warning */}
