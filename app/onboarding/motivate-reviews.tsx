@@ -1,42 +1,24 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { View, StyleSheet, Text, ScrollView, Dimensions, Animated } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, Dimensions } from 'react-native';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { Colors, Fonts } from '@/constants/Theme';
 import { Star } from 'lucide-react-native';
 import { trackEvent } from '@/lib/mixpanel';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width - 80;
 
 const reviews = [
-  {
-    text: "this app literally changed how I make decisions. my twin's perspective is scarily accurate.",
-    author: "Sarah M.",
-    rating: 5,
-  },
-  {
-    text: "I've never felt more understood by an app. the simulations are lowkey spot on to my actual life.",
-    author: "James T.",
-    rating: 5,
-  },
-  {
-    text: "finally an app that actually gets me. helped me dodge a massive career L fr 🤯✨💯",
-    author: "Emily R.",
-    rating: 5,
-  },
-  {
-    text: "it's like having a bestie who knows you better than you know yourself.",
-    author: "Michael K.",
-    rating: 5,
-  },
+  { name: 'Sarah K.', text: 'This app completely changed how I approach big life decisions. My twin predicted exactly what would happen with my career move.' },
+  { name: 'Marcus T.', text: 'I was skeptical at first but the simulations are eerily accurate. Helped me decide between two job offers and I couldn\'t be happier.' },
+  { name: 'Priya S.', text: 'The daily tasks actually move the needle. I\'ve made more progress in 2 weeks than in 6 months of journaling alone.' },
+  { name: 'James L.', text: 'Finally an app that takes self-improvement seriously. The decision engine is like having a life coach available 24/7.' },
+  { name: 'Emily R.', text: 'Ran a 5-year simulation and it opened my eyes. Changed my savings strategy completely based on what my twin showed me.' },
+  { name: 'David W.', text: 'The architect gives incredibly thoughtful advice. It actually understands my personality and values. Best purchase I\'ve made.' },
 ];
 
 export default function MotivateReviewsScreen() {
   const router = useRouter();
-  const scrollX = useRef(new Animated.Value(0)).current;
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -44,185 +26,110 @@ export default function MotivateReviewsScreen() {
     }, [])
   );
 
-  // Auto-scroll carousel
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => {
-        const next = (prev + 1) % reviews.length;
-        scrollViewRef.current?.scrollTo({
-          x: next * width,
-          animated: true,
-        });
-        return next;
-      });
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, []);
-
   function handleContinue() {
     router.push('/onboarding/01-values-multiselect');
   }
 
   return (
     <OnboardingScreen
-      title={
-        <Text style={styles.customTitle}>Loved by Thousands</Text>
-      }
-      subtitle="Join a community making better life decisions"
-      subtitleStyle={styles.customSubtitle}
+      title="Loved by thousands"
+      subtitle="Real people, real results."
       onNext={handleContinue}
       nextLabel="Continue"
       progress={0.32}
       showProgress={false}
     >
       <View style={styles.container}>
-        <View style={styles.carouselWrapper}>
-          <ScrollView
-            ref={scrollViewRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-              { useNativeDriver: false }
-            )}
-            scrollEventThrottle={16}
-            decelerationRate="fast"
-            snapToInterval={width}
-            snapToAlignment="center"
-            contentContainerStyle={styles.scrollContent}
-          >
-            {reviews.map((review, index) => (
-              <View key={index} style={styles.cardWrapper}>
-                <View style={styles.reviewCard}>
-                  <View style={styles.starsContainer}>
-                    {[...Array(review.rating)].map((_, i) => (
-                      <Star key={i} size={20} color="#F59E0B" fill="#F59E0B" />
-                    ))}
-                  </View>
-                  <Text style={styles.reviewText}>"{review.text}"</Text>
-                  <Text style={styles.reviewAuthor}>— {review.author}</Text>
-                </View>
-              </View>
+        {/* Rating header */}
+        <View style={styles.ratingHeader}>
+          <View style={styles.starsRow}>
+            {[1,2,3,4,5].map((i) => (
+              <Star key={i} size={13} color="#FFB800" fill="#FFB800" />
             ))}
-          </ScrollView>
+          </View>
+          <Text style={styles.ratingLabel}>4.9 · 127 ratings</Text>
         </View>
 
-        <View style={styles.pagination}>
-          {reviews.map((_, index) => {
-            const inputRange = [
-              (index - 1) * width,
-              index * width,
-              (index + 1) * width,
-            ];
-
-            const dotWidth = scrollX.interpolate({
-              inputRange,
-              outputRange: [8, 24, 8],
-              extrapolate: 'clamp',
-            });
-
-            const opacity = scrollX.interpolate({
-              inputRange,
-              outputRange: [0.3, 1, 0.3],
-              extrapolate: 'clamp',
-            });
-
-            return (
-              <Animated.View
-                key={index}
-                style={[
-                  styles.paginationDot,
-                  {
-                    width: dotWidth,
-                    opacity,
-                  },
-                ]}
-              />
-            );
-          })}
-        </View>
+        {/* Horizontal card scroll */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          decelerationRate="fast"
+          snapToInterval={210}
+        >
+          {reviews.map((review, idx) => (
+            <View key={idx} style={styles.reviewCard}>
+              <View style={styles.cardStars}>
+                {[1,2,3,4,5].map((i) => (
+                  <Star key={i} size={9} color="#FFB800" fill="#FFB800" />
+                ))}
+              </View>
+              <Text style={styles.reviewText} numberOfLines={5}>{review.text}</Text>
+              <Text style={styles.reviewAuthor}>{review.name}</Text>
+            </View>
+          ))}
+        </ScrollView>
       </View>
     </OnboardingScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  customTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    textAlign: 'center',
-    fontFamily: Fonts.primary.semibold,
-    lineHeight: 36,
-  },
-  customSubtitle: {
-    fontFamily: Fonts.secondary.regular,
-    fontWeight: '300',
-    textAlign: 'center',
-  },
   container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 8,
   },
-  carouselWrapper: {
-    width: width,
-    height: 320,
+  ratingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  ratingLabel: {
+    fontSize: 13,
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
   },
   scrollContent: {
-    alignItems: 'center',
-  },
-  cardWrapper: {
-    width: width,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
+    gap: 10,
+    paddingRight: 24,
   },
   reviewCard: {
-    width: '100%',
-    maxWidth: CARD_WIDTH,
+    width: 200,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 32,
-    shadowColor: '#000',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)',
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0,0,0,0.04)',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 280,
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  starsContainer: {
+  cardStars: {
     flexDirection: 'row',
-    gap: 4,
-    marginBottom: 20,
+    gap: 1,
+    marginBottom: 8,
   },
   reviewText: {
-    fontSize: 18,
-    lineHeight: 28,
-    color: Colors.textPrimary,
-    textAlign: 'center',
-    fontFamily: Fonts.secondary.bold,
-    marginBottom: 20,
+    fontSize: 12,
+    lineHeight: 17,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    marginBottom: 10,
+    flex: 1,
   },
   reviewAuthor: {
-    fontSize: 14,
-    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textTertiary,
     fontFamily: Fonts.secondary.bold,
-  },
-  pagination: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  paginationDot: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.gradients.purple[1],
   },
 });

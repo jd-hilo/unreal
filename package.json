@@ -1,7 +1,7 @@
 {
   "name": "bolt-expo-starter",
   "main": "expo-router/entry",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "private": true,
   "scripts": {
     "dev": "EXPO_NO_TELEMETRY=1 expo start",
@@ -44,7 +44,7 @@
     "expo-linear-gradient": "~15.0.7",
     "expo-linking": "~8.0.9",
     "expo-location": "~19.0.7",
-    "expo-notifications": "~0.32.16",
+    "expo-notifications": "^0.32.16",
     "expo-router": "~6.0.15",
     "expo-sharing": "^14.0.7",
     "expo-splash-screen": "~31.0.11",

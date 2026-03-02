@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, Compass, Zap, User, Trophy } from 'lucide-react-native';
+import { Home, MessageSquare, Zap, User, Trophy } from 'lucide-react-native';
 import { HomeGradientIcon } from '@/components/GradientIcons';
 import { BlurView } from 'expo-blur';
 import { StyleSheet, Platform, View, TouchableOpacity, Text, Dimensions, Image } from 'react-native';
@@ -102,9 +102,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="decide"
         options={{
-          title: 'Decide',
+          title: 'Chat',
           tabBarIcon: ({ focused, color, size }) => (
-            <Compass size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <MessageSquare size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />

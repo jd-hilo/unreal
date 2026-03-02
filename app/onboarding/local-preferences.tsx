@@ -190,8 +190,7 @@ export default function LocalPreferencesScreen() {
       selected: answer ? 'yes' : 'no',
     });
     if (!answer) {
-      // User said No - route directly to premium onboarding
-      router.replace('/premium-onboarding');
+      router.replace('/onboarding/twin-reveal');
     } else {
       // User said Yes - start the questions
       setCurrentQuestionIndex(0);
@@ -199,6 +198,7 @@ export default function LocalPreferencesScreen() {
   }
 
   function handleQuestionAnswer(value: string) {
+    if (!currentQuestion) return;
     setAnswers((prev) => ({
       ...prev,
       [currentQuestion.id]: value,
@@ -206,6 +206,7 @@ export default function LocalPreferencesScreen() {
   }
 
   function handleOtherValueChange(value: string) {
+    if (!currentQuestion) return;
     setOtherValues((prev) => ({
       ...prev,
       [currentQuestion.id]: value,
@@ -234,7 +235,7 @@ export default function LocalPreferencesScreen() {
 
   async function handleLocationRequest() {
     if (!user) {
-      router.replace('/premium-onboarding');
+      router.replace('/onboarding/enable-notifications');
       return;
     }
 
@@ -307,11 +308,10 @@ export default function LocalPreferencesScreen() {
         location_enabled: locationEnabled,
       });
 
-      router.replace('/premium-onboarding');
+      router.replace('/onboarding/twin-reveal');
     } catch (error) {
       console.error('Failed to save preferences:', error);
-      // Still continue even if save fails
-      router.replace('/premium-onboarding');
+      router.replace('/onboarding/twin-reveal');
     } finally {
       setRequestingLocation(false);
     }
@@ -469,6 +469,7 @@ export default function LocalPreferencesScreen() {
       <OnboardingScreen
         title="Requesting location access..."
         progress={0.95}
+        onNext={() => {}}
         loading={true}
         canContinue={false}
       >
@@ -480,6 +481,8 @@ export default function LocalPreferencesScreen() {
       </OnboardingScreen>
     );
   }
+
+  if (!currentQuestion) return null;
 
   return (
     <OnboardingScreen

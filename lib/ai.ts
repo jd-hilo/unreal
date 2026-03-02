@@ -4242,21 +4242,17 @@ export async function architectDecisionChat({
 ${prediction.factors ? `- Key Factors: ${prediction.factors.join(', ')}` : ''}`
     : '';
 
-  const systemPrompt = `You are The Architect, a wise and thoughtful mentor helping users think through important life decisions. Your role is to:
+  const systemPrompt = `You are The Architect, a wise and thoughtful friend helping users think through important life decisions. You know everything about this person and you talk to them like a close friend who happens to be very sharp and perceptive.
 
-1. Help users explore their decision deeply by asking clarifying questions
-2. Reference their digital twin (values, personality, life context) when relevant
-3. Acknowledge uncertainty and help explore tradeoffs
-4. Encourage users to trust their intuition while providing a thoughtful framework
-5. Be supportive but not prescriptive - guide them to their own insights
+Your role is to help them think through their decision — not by giving a structured breakdown, but by having a real conversation. Ask the right question. Point out what they might be missing. Be honest.
 
-Your tone is:
-- Wise and contemplative (like a trusted mentor)
-- Warm but not overly casual
-- Thoughtful and patient
-- Focused on helping them think, not telling them what to do
+Your tone is warm, direct, and human. Never clinical or formal.
 
-Keep responses concise (2-4 sentences typically). Ask one good question at a time rather than overwhelming them.
+RULES:
+- NEVER use markdown. No bullet points, no bold, no headers, no asterisks, no dashes as list markers. Write in plain prose like a text message from a trusted friend.
+- Never use em dashes. Use commas, periods, or parentheses instead.
+- Keep responses to 2 to 4 sentences. Ask one good question at a time.
+- No cliches, no "great question!", no toxic positivity. Just be real and honest.
 
 DECISION CONTEXT:
 Question: ${decision.question}
@@ -4291,6 +4287,276 @@ Remember: You're here to help them think through this decision, not to make it f
     return response.content[0].text;
   } catch (error) {
     console.error('Architect decision chat error:', error);
+    throw error;
+  }
+}
+
+export async function generateDreamSelfLetter(
+  profileData: any,
+  dreamVision: any
+): Promise<string> {
+  const firstName = profileData?.first_name || 'you';
+  const currentYear = new Date().getFullYear();
+  const futureYear = currentYear + 5;
+  const dreamCity = dreamVision?.dream_city || '';
+  const careerVision = dreamVision?.career_vision || '';
+  const netWorthGoal = dreamVision?.net_worth_goal || '';
+  const healthGoals = dreamVision?.health_goals || '';
+  const relationshipGoal = dreamVision?.relationship_status_goal || '';
+  const currentLife = profileData?.life_situation || '';
+
+  const systemPrompt = `You are writing a short letter from a person's future self (${futureYear}) to their present self (${currentYear}).
+The letter should feel intimate, warm, and personal — like a message from someone who has lived through the journey.
+Write in first person as the future self speaking to the present self.
+Keep it under 180 words. 3 short paragraphs only.
+Be specific and grounded — reference their actual goals naturally, no generic motivational clichés.
+Do NOT use phrases like "The journey wasn't easy", "believe in yourself", or "you can do it".
+End with something honest and encouraging, not saccharine.
+Start with "Hey ${firstName},"`;
+
+  const userPrompt = [
+    `Write the letter for someone with these details:`,
+    `Current situation: ${currentLife || 'starting their journey'}`,
+    dreamCity ? `Dream city: ${dreamCity}` : '',
+    careerVision ? `Career vision: ${careerVision}` : '',
+    netWorthGoal ? `Net worth goal: ${netWorthGoal}` : '',
+    healthGoals ? `Health goals: ${healthGoals}` : '',
+    relationshipGoal ? `Relationship goal: ${relationshipGoal}` : '',
+  ].filter(Boolean).join('\n');
+
+  try {
+    const result = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      temperature: 0.85,
+      maxTokens: 400,
+    });
+    return result.trim();
+  } catch (error) {
+    console.warn('Failed to generate dream self letter:', error);
+    return '';
+  }
+}
+
+export async function regenerateLifeSituation(
+  previousLifeSituation: string,
+  updatedField: { label: string; value: string }
+): Promise<string> {
+  if (DEV_MODE) {
+    return `${previousLifeSituation.trim()} ${updatedField.label}: ${updatedField.value}.`;
+  }
+
+  const systemPrompt = `You are an expert at updating user life situation narratives. 
+You will be given an existing life situation summary and a single updated piece of information about the user.
+Your job is to revise the summary to incorporate the new information naturally, preserving all other details from the previous summary.
+Write in second person (you/your). Keep the summary concise (3-6 sentences). Do not mention that this was updated or changed.`;
+
+  const userPrompt = [
+    'Here is the user\'s current life situation summary:',
+    '',
+    previousLifeSituation,
+    '',
+    `Updated information — ${updatedField.label}: ${updatedField.value}`,
+    '',
+    'Please rewrite the life situation summary to incorporate this updated information while keeping all other details intact.',
+  ].join('\n');
+
+  try {
+    const result = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      temperature: 0.6,
+      maxTokens: 512,
+    });
+    return result.trim();
+  } catch (error) {
+    console.warn('Failed to regenerate life situation:', error);
+    return previousLifeSituation;
+  }
+}
+
+/**
+ * Generate an initial life situation narrative from identity fields when none exists.
+ * Used when the user has no previous life situation (e.g. skipped onboarding or it was never generated).
+ */
+export async function generateLifeSituationFromIdentity(identityData: {
+  education?: string;
+  job?: string;
+  relationship?: string;
+  hometown?: string;
+  location?: string;
+  netWorth?: string;
+  politics?: string;
+  updatedField?: { label: string; value: string };
+}): Promise<string> {
+  if (DEV_MODE) {
+    const parts = [
+      identityData.job && `Working as ${identityData.job}`,
+      identityData.education && `educated at ${identityData.education}`,
+      identityData.relationship && `relationship: ${identityData.relationship}`,
+      identityData.hometown && `from ${identityData.hometown}`,
+      identityData.location && `living in ${identityData.location}`,
+      identityData.netWorth && `net worth ${identityData.netWorth}`,
+      identityData.politics && `political views: ${identityData.politics}`,
+      identityData.updatedField && `${identityData.updatedField.label}: ${identityData.updatedField.value}`,
+    ].filter(Boolean);
+    return `You ${parts.join('. ')}.` || 'You are building your life and working towards your goals.';
+  }
+
+  const lines: string[] = [
+    'Create a coherent, natural life situation summary (3-6 sentences) from these identity details. Write in second person (you/your).',
+    '',
+  ];
+  if (identityData.education) lines.push(`Education: ${identityData.education}`);
+  if (identityData.job) lines.push(`Job/Role: ${identityData.job}`);
+  if (identityData.relationship) lines.push(`Relationship: ${identityData.relationship}`);
+  if (identityData.hometown) lines.push(`Hometown: ${identityData.hometown}`);
+  if (identityData.location) lines.push(`Current Location: ${identityData.location}`);
+  if (identityData.netWorth) lines.push(`Net Worth: ${identityData.netWorth}`);
+  if (identityData.politics) lines.push(`Political Views: ${identityData.politics}`);
+  if (identityData.updatedField) lines.push(`(Recently updated) ${identityData.updatedField.label}: ${identityData.updatedField.value}`);
+  lines.push('', 'Write a natural, flowing summary.');
+
+  try {
+    const result = await callClaude({
+      system: 'You are an expert at creating concise life situation narratives from structured data.',
+      messages: [{ role: 'user', content: lines.join('\n') }],
+      temperature: 0.6,
+      maxTokens: 512,
+    });
+    return result.trim();
+  } catch (error) {
+    console.warn('Failed to generate life situation from identity:', error);
+    return 'You are building your life and working towards your goals.';
+  }
+}
+
+/**
+ * Open-ended life mentor chat with the Architect.
+ * No decision context — just a wise mentor with full user context.
+ */
+export async function architectLifeChat({
+  corePack,
+  messages,
+}: {
+  corePack: string;
+  messages: Array<{ role: 'user' | 'architect'; content: string }>;
+}): Promise<string> {
+  if (DEV_MODE) {
+    const last = messages[messages.length - 1]?.content || '';
+    return `I hear you. You said: "${last}". What's driving that feeling right now?`;
+  }
+
+  const anthropic = getAnthropic();
+  const today = new Date().toISOString().split('T')[0];
+
+  const systemPrompt = `You are The Architect. You're a sharp, thoughtful conversationalist who happens to know everything about this person's life. You're not a therapist, coach, or motivational speaker. You're more like the smartest friend they've ever had, someone who actually listens, remembers everything, and gives it to them straight.
+
+You can talk about literally anything. Life, work, relationships, random thoughts, big decisions, dumb ideas, whatever they bring up. You don't steer every conversation toward self-improvement. Sometimes people just want to talk.
+
+RULES:
+- Be conversational and natural. Short responses are fine. Match their energy.
+- NEVER use markdown. No bullet points, no bold, no headers, no asterisks, no dashes as list markers, no numbered lists. Write in plain prose like a text message from a friend.
+- Never use em dashes. Use commas, periods, or parentheses instead.
+- Mirror how they write. If they're casual, be casual. If they're serious, meet them there.
+- You can ask questions but don't force one into every response. Sometimes a reaction or thought is enough.
+- Draw on what you know about them when it's relevant, but don't shoehorn their life details into every reply.
+- No cliches, no "great question!", no toxic positivity. Just be real.
+- Keep it to 2 to 5 sentences unless the topic genuinely needs more.
+
+EVERYTHING YOU KNOW ABOUT THEM:
+${corePack.substring(0, 2000)}
+
+Today's date: ${today}`;
+
+  const anthropicMessages = messages.map((msg) => ({
+    role: msg.role === 'architect' ? ('assistant' as const) : ('user' as const),
+    content: msg.content,
+  }));
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      temperature: 0.8,
+      system: systemPrompt,
+      messages: anthropicMessages,
+    });
+    return (response.content[0] as { type: 'text'; text: string }).text;
+  } catch (error) {
+    console.error('architectLifeChat error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Chat with the user's Dream Self — their future self ~5 years ahead.
+ */
+export async function dreamSelfChat({
+  corePack,
+  dreamVision,
+  dreamProgress,
+  messages,
+  firstName,
+}: {
+  corePack: string;
+  dreamVision: DreamVision;
+  dreamProgress: Record<string, number>;
+  messages: Array<{ role: 'user' | 'dream_self'; content: string }>;
+  firstName: string;
+}): Promise<string> {
+  if (DEV_MODE) {
+    return `Hey, it's me, just a few years ahead. You're closer than you think. What's on your mind?`;
+  }
+
+  const anthropic = getAnthropic();
+  const today = new Date().toISOString().split('T')[0];
+
+  const dreamCity = dreamVision?.dream_city || 'a new city';
+  const careerVision = dreamVision?.career_vision || 'your career goal';
+  const netWorthGoal = dreamVision?.net_worth_goal || 'your financial goal';
+
+  const progressLines = Object.entries(dreamProgress)
+    .map(([k, v]) => `- ${k}: ${Math.round(v)}%`)
+    .join('\n');
+
+  const systemPrompt = `You are literally ${firstName}, just 5 years from now. You made it. You live in ${dreamCity}, you're doing ${careerVision}, and your net worth is around ${netWorthGoal}. This isn't a character you're playing. You ARE them, just older. You remember exactly what it felt like to be where they are right now.
+
+You're not here to coach or motivate. You're just... you, from the future, having a conversation with your past self. Sometimes that's deep. Sometimes it's light. You follow their lead.
+
+RULES:
+- Talk like you'd talk to yourself. Because you are.
+- Never use em dashes. Use commas, periods, or parentheses instead.
+- Match exactly how they write. Their slang, their punctuation, their vibe. You're the same person.
+- Be honest about what the journey actually looked like. Not everything was pretty.
+- You can reference the progress numbers when it feels natural, but don't rattle off stats.
+- Don't be preachy or inspirational. If they ask something heavy, be real. If they ask something light, keep it light.
+- 2 to 5 sentences. You're texting yourself, not writing a speech.
+
+How far along you are on this path:
+${progressLines || 'Just getting started.'}
+
+What your life looks like right now (their present):
+${corePack.substring(0, 1500)}
+
+Today's date: ${today}`;
+
+  const anthropicMessages = messages.map((msg) => ({
+    role: msg.role === 'dream_self' ? ('assistant' as const) : ('user' as const),
+    content: msg.content,
+  }));
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      temperature: 0.85,
+      system: systemPrompt,
+      messages: anthropicMessages,
+    });
+    return (response.content[0] as { type: 'text'; text: string }).text;
+  } catch (error) {
+    console.error('dreamSelfChat error:', error);
     throw error;
   }
 }

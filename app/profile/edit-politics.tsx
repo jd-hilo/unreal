@@ -5,9 +5,10 @@ import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
-import { getProfile, updateProfileFields } from '@/lib/storage';
+import { getProfile, updateProfileFields, refreshLifeSituationAfterIdentityUpdate, refreshDreamProgressAfterIdentityUpdate } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
+import { TwinUpdatingOverlay } from '@/components/TwinUpdatingOverlay';
 
 export default function EditPoliticsScreen() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function EditPoliticsScreen() {
   const [politicalViews, setPoliticalViews] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [updatingTwin, setUpdatingTwin] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -40,9 +42,18 @@ export default function EditPoliticsScreen() {
 
     setLoading(true);
     try {
+      const profileBefore = await getProfile(user.id);
+      const trimmed = politicalViews.trim();
       await updateProfileFields(user.id, {
-        political_views: politicalViews.trim() || undefined,
+        political_views: trimmed || undefined,
       });
+      setUpdatingTwin(true);
+      try {
+        if (trimmed) await refreshLifeSituationAfterIdentityUpdate(user.id, 'Political Views', trimmed);
+        await refreshDreamProgressAfterIdentityUpdate(user.id, profileBefore);
+      } finally {
+        setUpdatingTwin(false);
+      }
       router.back();
     } catch (error) {
       console.error('Failed to save:', error);
@@ -67,6 +78,7 @@ export default function EditPoliticsScreen() {
 
   return (
     <View style={styles.gradientBackground}>
+      <TwinUpdatingOverlay visible={updatingTwin} />
       <StatusBar style="dark" />
       {/* Background gradient overlay */}
       <LinearGradient

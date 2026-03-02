@@ -5,9 +5,10 @@ import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
-import { getProfile, updateProfileFields } from '@/lib/storage';
+import { getProfile, updateProfileFields, refreshLifeSituationAfterIdentityUpdate, refreshDreamProgressAfterIdentityUpdate } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
+import { TwinUpdatingOverlay } from '@/components/TwinUpdatingOverlay';
 
 export default function EditNetWorthScreen() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function EditNetWorthScreen() {
   const [netWorth, setNetWorth] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [updatingTwin, setUpdatingTwin] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -41,9 +43,18 @@ export default function EditNetWorthScreen() {
 
     setLoading(true);
     try {
+      const profileBefore = await getProfile(user.id);
+      const trimmed = netWorth.trim();
       await updateProfileFields(user.id, {
-        net_worth: netWorth.trim() || undefined,
+        net_worth: trimmed || undefined,
       });
+      setUpdatingTwin(true);
+      try {
+        if (trimmed) await refreshLifeSituationAfterIdentityUpdate(user.id, 'Net Worth', trimmed);
+        await refreshDreamProgressAfterIdentityUpdate(user.id, profileBefore);
+      } finally {
+        setUpdatingTwin(false);
+      }
       if (params.next) {
         router.push(params.next as any);
       } else {
@@ -72,6 +83,7 @@ export default function EditNetWorthScreen() {
 
   return (
     <View style={styles.gradientBackground}>
+      <TwinUpdatingOverlay visible={updatingTwin} />
       <StatusBar style="dark" />
       {/* Background gradient overlay */}
       <LinearGradient

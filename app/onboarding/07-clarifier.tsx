@@ -50,6 +50,7 @@ export default function OnboardingStep7() {
   useFocusEffect(
     useCallback(() => {
       trackEvent('OB - clarifier');
+      handleComplete();
     }, [])
   );
   

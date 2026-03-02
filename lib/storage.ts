@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { embedText } from './ai';
+import { embedText, regenerateLifeSituation, generateLifeSituationFromIdentity, recalculateDreamProgress } from './ai';
 import type {
   CoreJsonData,
   RelationshipExtraction,
@@ -80,6 +80,8 @@ export async function updateProfileFields(
     narrative_summary?: string;
     narrative_embedding?: number[];
     est_days_remaining?: number | string;
+    birthday?: string;
+    gender?: string;
     total_points?: number;
     current_streak?: number;
   }
@@ -1988,4 +1990,226 @@ export async function checkAndCompleteOnboardingTasks(userId: string) {
   });
 
   if (error) throw error;
+}
+
+/**
+ * Refreshes the life situation narrative after an identity field is updated.
+ * Uses the previous life situation as a reference so only the changed info is incorporated.
+ * Runs in the background — callers should not await this in the UI save flow.
+ */
+export async function refreshLifeSituationAfterIdentityUpdate(
+  userId: string,
+  fieldLabel: string,
+  fieldValue: string
+): Promise<void> {
+  try {
+    const profile = await getProfile(userId);
+    const coreJson = profile?.core_json as CoreJsonData | undefined;
+    const previousLifeSituation =
+      profile?.life_situation ??
+      profile?.core_json?.onboarding_responses?.['02-now'] ??
+      profile?.core_json?.onboarding_responses?.['01-now'] ??
+      '';
+
+    let updated: string;
+
+    if (previousLifeSituation) {
+      updated = await regenerateLifeSituation(previousLifeSituation, {
+        label: fieldLabel,
+        value: fieldValue,
+      });
+      if (!updated || updated === previousLifeSituation) return;
+    } else {
+      const identityData = {
+        education: profile?.university || coreJson?.university,
+        job: coreJson?.primary_role || coreJson?.job,
+        relationship: profile?.relationship_details
+          ? (typeof profile.relationship_details === 'object' && 'status' in profile.relationship_details
+              ? profile.relationship_details.status
+              : String(profile.relationship_details))
+          : undefined,
+        hometown: profile?.hometown,
+        location: profile?.current_location || coreJson?.city,
+        netWorth: profile?.net_worth || coreJson?.net_worth,
+        politics: profile?.political_views || coreJson?.political_views,
+        updatedField: { label: fieldLabel, value: fieldValue },
+      };
+      updated = await generateLifeSituationFromIdentity(identityData);
+      if (!updated) return;
+    }
+
+    await saveOnboardingResponse(userId, '02-now', updated);
+    await saveOnboardingResponse(userId, '01-now', updated);
+    await updateProfileFields(userId, { life_situation: updated });
+  } catch (error) {
+    console.warn('refreshLifeSituationAfterIdentityUpdate failed silently:', error);
+  }
+}
+
+/**
+ * Recalculates dream self progress after identity fields are updated.
+ * Compares profile before vs after the update and adjusts progress % and est_days_remaining.
+ */
+export async function refreshDreamProgressAfterIdentityUpdate(
+  userId: string,
+  profileBeforeUpdate: { current_location?: string; net_worth?: string; core_json?: any; dream_vision?: any; dream_self_progress?: Record<string, number>; est_days_remaining?: number | string } | null
+): Promise<void> {
+  try {
+    const profileAfterUpdate = await getProfile(userId);
+    if (!profileAfterUpdate?.dream_vision || Object.keys(profileAfterUpdate.dream_vision).length === 0) return;
+
+    const oldProgress = profileBeforeUpdate?.dream_self_progress || {};
+    const oldEstDays = profileBeforeUpdate?.est_days_remaining ?? 365;
+
+    const { dream_self_progress, est_days_remaining } = await recalculateDreamProgress(
+      profileBeforeUpdate || {},
+      profileAfterUpdate,
+      oldProgress,
+      oldEstDays
+    );
+
+    await updateProfileFields(userId, { dream_self_progress, est_days_remaining });
+  } catch (error) {
+    console.warn('refreshDreamProgressAfterIdentityUpdate failed silently:', error);
+  }
+}
+
+// ─── Life Chats ───────────────────────────────────────────────────────────────
+
+export async function createLifeChat(userId: string, title: string = 'New conversation') {
+  const { data, error } = await supabase
+    .from('life_chats')
+    .insert({ user_id: userId, title, messages: [] })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getLifeChats(userId: string, limit = 15) {
+  const { data, error } = await supabase
+    .from('life_chats')
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getLifeChat(chatId: string, userId: string) {
+  const { data, error } = await supabase
+    .from('life_chats')
+    .select('*')
+    .eq('id', chatId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function saveLifeChatMessage(
+  chatId: string,
+  userId: string,
+  role: 'user' | 'architect',
+  content: string
+) {
+  const existingChat = await getLifeChat(chatId, userId);
+  if (!existingChat) throw new Error('Life chat not found');
+
+  const newMessage = { role, content, timestamp: Date.now() };
+  const messages = Array.isArray(existingChat.messages) ? existingChat.messages : [];
+  const updatedMessages = [...messages, newMessage];
+
+  const isFirstUserMessage =
+    role === 'user' &&
+    existingChat.title === 'New conversation' &&
+    messages.filter((m: any) => m.role === 'user').length === 0;
+
+  const updates: any = {
+    messages: updatedMessages,
+    updated_at: new Date().toISOString(),
+  };
+  if (isFirstUserMessage) {
+    updates.title = content.substring(0, 50);
+  }
+
+  const { data, error } = await supabase
+    .from('life_chats')
+    .update(updates)
+    .eq('id', chatId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// ─── Dream Self Chats ─────────────────────────────────────────────────────────
+
+export async function createDreamSelfChat(userId: string, title: string = 'New conversation') {
+  const { data, error } = await supabase
+    .from('dream_self_chats')
+    .insert({ user_id: userId, title, messages: [] })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getDreamSelfChats(userId: string, limit = 15) {
+  const { data, error } = await supabase
+    .from('dream_self_chats')
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getDreamSelfChat(chatId: string, userId: string) {
+  const { data, error } = await supabase
+    .from('dream_self_chats')
+    .select('*')
+    .eq('id', chatId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function saveDreamSelfChatMessage(
+  chatId: string,
+  userId: string,
+  role: 'user' | 'dream_self',
+  content: string
+) {
+  const existingChat = await getDreamSelfChat(chatId, userId);
+  if (!existingChat) throw new Error('Dream self chat not found');
+
+  const newMessage = { role, content, timestamp: Date.now() };
+  const messages = Array.isArray(existingChat.messages) ? existingChat.messages : [];
+  const updatedMessages = [...messages, newMessage];
+
+  const isFirstUserMessage =
+    role === 'user' &&
+    existingChat.title === 'New conversation' &&
+    messages.filter((m: any) => m.role === 'user').length === 0;
+
+  const updates: any = {
+    messages: updatedMessages,
+    updated_at: new Date().toISOString(),
+  };
+  if (isFirstUserMessage) {
+    updates.title = content.substring(0, 50);
+  }
+
+  const { data, error } = await supabase
+    .from('dream_self_chats')
+    .update(updates)
+    .eq('id', chatId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }

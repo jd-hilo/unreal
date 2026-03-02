@@ -31,6 +31,8 @@ export interface Database {
           current_health: any | null;
           relationship_details: any | null;
           est_days_remaining: number | string | null;
+          birthday: string | null;
+          gender: string | null;
           current_streak: number;
           total_points: number;
           created_at: string;
@@ -63,6 +65,8 @@ export interface Database {
           current_health?: any | null;
           relationship_details?: any | null;
           est_days_remaining?: number | string | null;
+          birthday?: string | null;
+          gender?: string | null;
           current_streak?: number;
           total_points?: number;
           created_at?: string;
@@ -95,6 +99,8 @@ export interface Database {
           current_health?: any | null;
           relationship_details?: any | null;
           est_days_remaining?: number | string | null;
+          birthday?: string | null;
+          gender?: string | null;
           current_streak?: number;
           total_points?: number;
           created_at?: string;

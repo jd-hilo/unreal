@@ -212,15 +212,6 @@ export default function LeaderboardTab() {
         title: 'Join me on Mora',
       });
       
-      // Complete onboarding task for inviting a friend
-      if (user?.id) {
-        try {
-          await completeOnboardingTask(user.id, 'invite_friend');
-        } catch (error) {
-          // Silently fail if onboarding task doesn't exist or is already complete
-          console.warn('Failed to complete onboarding task:', error);
-        }
-      }
     } catch (error) {
       console.error('Error sharing:', error);
     }

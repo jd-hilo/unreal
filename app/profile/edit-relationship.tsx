@@ -5,9 +5,10 @@ import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
-import { getProfile, updateProfileFields } from '@/lib/storage';
+import { getProfile, updateProfileFields, refreshLifeSituationAfterIdentityUpdate, refreshDreamProgressAfterIdentityUpdate } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
+import { TwinUpdatingOverlay } from '@/components/TwinUpdatingOverlay';
 import { ChoiceQuestion } from '@/components/ChoiceQuestion';
 import * as Haptics from 'expo-haptics';
 
@@ -21,6 +22,7 @@ export default function EditRelationshipScreen() {
   const [otherStatus, setOtherStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [updatingTwin, setUpdatingTwin] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -65,7 +67,7 @@ export default function EditRelationshipScreen() {
 
     setLoading(true);
     try {
-      // Determine the final status value
+      const profileBefore = await getProfile(user.id);
       const finalStatus = relationshipStatus === 'Other' && otherStatus.trim() 
         ? otherStatus.trim() 
         : relationshipStatus;
@@ -79,6 +81,17 @@ export default function EditRelationshipScreen() {
       await updateProfileFields(user.id, {
         relationship_details: relationshipDetails,
       });
+
+      const relationshipSummary = [finalStatus, partnerName.trim(), howLong.trim()]
+        .filter(Boolean)
+        .join(', ');
+      setUpdatingTwin(true);
+      try {
+        if (relationshipSummary) await refreshLifeSituationAfterIdentityUpdate(user.id, 'Relationship Status', relationshipSummary);
+        await refreshDreamProgressAfterIdentityUpdate(user.id, profileBefore);
+      } finally {
+        setUpdatingTwin(false);
+      }
 
       if (params.next) {
         router.push(params.next as any);
@@ -111,6 +124,7 @@ export default function EditRelationshipScreen() {
 
   return (
     <View style={styles.gradientBackground}>
+      <TwinUpdatingOverlay visible={updatingTwin} />
       <StatusBar style="dark" />
       {/* Background gradient overlay */}
       <LinearGradient

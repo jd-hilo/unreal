@@ -10,6 +10,7 @@ export default function OnboardingLayout() {
       <Stack.Screen name="choose-method" />
       <Stack.Screen name="00-name" />
       <Stack.Screen name="00-birth-year" />
+      <Stack.Screen name="00-gender" />
       <Stack.Screen name="motivate-reviews" />
       <Stack.Screen name="motivate-stats" />
       <Stack.Screen name="motivate-unique" />
@@ -24,6 +25,7 @@ export default function OnboardingLayout() {
       <Stack.Screen name="interests" />
       <Stack.Screen name="06-stress" />
       <Stack.Screen name="politics" />
+      <Stack.Screen name="enable-notifications" />
       <Stack.Screen name="07-clarifier" />
       <Stack.Screen name="local-preferences" />
       <Stack.Screen name="twin-reveal" />

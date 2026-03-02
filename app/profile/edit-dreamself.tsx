@@ -5,17 +5,19 @@ import { useAuth } from '@/store/useAuth';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ChevronRight, Sparkles } from 'lucide-react-native';
-import { getProfile, updateProfileFields } from '@/lib/storage';
+import { getProfile, updateProfileFields, refreshLifeSituationAfterIdentityUpdate, refreshDreamProgressAfterIdentityUpdate } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { TwinUpdatingOverlay } from '@/components/TwinUpdatingOverlay';
 
 export default function EditDreamSelfScreen() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [updatingTwin, setUpdatingTwin] = useState(false);
   
   const [dreamVision, setDreamVision] = useState({
     net_worth_goal: '',
@@ -59,9 +61,26 @@ export default function EditDreamSelfScreen() {
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
+      const profileBefore = await getProfile(user.id);
       await updateProfileFields(user.id, {
         dream_vision: dreamVision
       });
+
+      const dreamSummaryParts = [
+        dreamVision.career_vision && `career: ${dreamVision.career_vision}`,
+        dreamVision.net_worth_goal && `net worth goal: ${dreamVision.net_worth_goal}`,
+        dreamVision.dream_city && `dream city: ${dreamVision.dream_city}`,
+        dreamVision.relationship_status_goal && `relationship goal: ${dreamVision.relationship_status_goal}`,
+        dreamVision.health_goals && `health goals: ${dreamVision.health_goals}`,
+      ].filter(Boolean).join('; ');
+      setUpdatingTwin(true);
+      try {
+        if (dreamSummaryParts) await refreshLifeSituationAfterIdentityUpdate(user.id, 'Dream Self vision', dreamSummaryParts);
+        await refreshDreamProgressAfterIdentityUpdate(user.id, profileBefore);
+      } finally {
+        setUpdatingTwin(false);
+      }
+
       router.back();
     } catch (error) {
       console.error('Failed to save:', error);
@@ -75,6 +94,7 @@ export default function EditDreamSelfScreen() {
 
   return (
     <View style={styles.screen}>
+      <TwinUpdatingOverlay visible={updatingTwin} />
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <View style={styles.header}>

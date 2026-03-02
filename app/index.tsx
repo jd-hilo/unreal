@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getHasSeenWelcome } from '@/lib/welcomeStorage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Index() {
   console.log('📍 INDEX: Component rendering');
@@ -55,21 +56,31 @@ export default function Index() {
     hasRouted.current = true;
 
     // Check onboarding and route
-    checkOnboardingStatus(user.id).then(() => {
+    checkOnboardingStatus(user.id).then(async () => {
       const isComplete = useTwin.getState().onboardingComplete;
       console.log('📍 INDEX: Onboarding check complete', { isComplete });
-      
+
       if (!isComplete) {
-        console.log('📍 INDEX: Routing to /onboarding/00-name');
+        console.log('📍 INDEX: Routing to /onboarding/choose-method');
         router.replace('/onboarding/choose-method');
-       // router.replace('/onboarding/00-name');
+        return;
+      }
+
+      // Onboarding complete — check if user needs to see premium onboarding
+      const isPremium = useTwin.getState().isPremium;
+      const seenKey = `premium_onboarding_seen_${user.id}`;
+      const hasSeenPremiumOnboarding = await AsyncStorage.getItem(seenKey);
+
+      if (!isPremium && !hasSeenPremiumOnboarding) {
+        console.log('📍 INDEX: Routing to /premium-onboarding');
+        await AsyncStorage.setItem(seenKey, 'true');
+        router.replace({ pathname: '/premium-onboarding', params: { from: 'onboarding' } } as any);
       } else {
         console.log('📍 INDEX: Routing to /(tabs)/home');
         router.replace('/(tabs)/home');
       }
     }).catch((error) => {
       console.log('📍 INDEX: Onboarding check failed, routing to /(tabs)/home', error);
-      // If check fails, just go to home
       router.replace('/(tabs)/home');
     });
   }, [user, initialized, loading, hasCheckedWelcome]);

@@ -2,7 +2,7 @@
   "expo": {
     "name": "mora",
     "slug": "unreal",
-    "version": "1.9.2",
+    "version": "1.9.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "unreal",
@@ -52,6 +52,15 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "This app needs location access to provide personalized local recommendations for restaurants, bars, and things to do near you."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#25729f",
+          "sounds": [],
+          "iosDisplayInForeground": true
         }
       ]
     ],

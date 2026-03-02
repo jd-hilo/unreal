@@ -7,7 +7,8 @@ import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { CheckCircle2, Circle as CircleIcon, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut, Sparkles, Trash2, User, MapPin, GraduationCap, Briefcase, Heart, Brain, Zap, Clock, Shield, Flag, Banknote, Home, Users, ArrowUpRight, AlertTriangle } from 'lucide-react-native';
+import { CheckCircle2, Circle as CircleIcon, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut, Sparkles, Trash2, User, MapPin, GraduationCap, Briefcase, Heart, Brain, Zap, Clock, Shield, Flag, Banknote, Home, Users, ArrowUpRight, AlertTriangle, Bell } from 'lucide-react-native';
+import * as Notifications from 'expo-notifications';
 import { getProfile, getRelationships, deleteAccountData, ensureTwinCode, getInterestProgressNew, updateProfileFields, calculateOverallProgress } from '@/lib/storage';
 import { resetDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
@@ -102,6 +103,7 @@ export default function ProfileScreen() {
   const [showContent, setShowContent] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean | null>(null);
   
   // Animation refs for fade transitions
   const invitationOpacity = useRef(new Animated.Value(1)).current;
@@ -153,6 +155,9 @@ export default function ProfileScreen() {
       }
       AsyncStorage.getItem('previous_route_before_profile').then(route => {
         if (route) setPreviousRoute(route);
+      });
+      Notifications.getPermissionsAsync().then(({ status }) => {
+        setNotificationsEnabled(status === 'granted');
       });
     }, [user])
   );
@@ -324,6 +329,26 @@ export default function ProfileScreen() {
     );
   }
 
+  async function handleNotificationsPress() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status === 'granted') {
+      Alert.alert('Notifications Enabled', 'You\'re already receiving daily reminders at 8am.');
+      return;
+    }
+    if (status === 'denied') {
+      await Linking.openURL('app-settings:');
+      return;
+    }
+    // Undetermined — show native system prompt
+    if (user) {
+      const { registerForPushNotifications } = await import('@/lib/notifications');
+      await registerForPushNotifications(user.id);
+      const { status: newStatus } = await Notifications.getPermissionsAsync();
+      setNotificationsEnabled(newStatus === 'granted');
+    }
+  }
+
   async function handleSignOut() {
     try {
       await signOut();
@@ -345,8 +370,8 @@ export default function ProfileScreen() {
     }
 
     if (card.id === 'twin_society') {
-      setShowDiscordModal(true);
-      trackEvent(MixpanelEvents.TWIN_SOCIETY_MODAL_VIEWED, { source: 'profile' });
+      trackEvent(MixpanelEvents.TWIN_SOCIETY_JOIN_CLICKED);
+      Linking.openURL('https://discord.gg/yYKYZNfQ');
     } else if (card.onboardingStep) {
       router.push(card.onboardingStep as any);
     } else if (card.route) {
@@ -637,13 +662,24 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Account</Text>
             <View style={styles.cardContainer}>
-              {isPremium && (
-                <TouchableOpacity style={[styles.rowCard, styles.rowCardFirst, styles.rowCardBorder]} disabled>
-                  <View style={styles.rowIcon}><Sparkles size={20} color="#FFD700" /></View>
-                  <View style={styles.rowContent}><Text style={styles.rowTitle}>Premium</Text><Text style={styles.rowSubtitle}>Active</Text></View>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity onPress={handleSendFeedback} style={[styles.rowCard, !isPremium && styles.rowCardFirst, styles.rowCardBorder]}><View style={styles.rowIcon}><Mail size={20} color={Colors.textPrimary} /></View><View style={styles.rowContent}><Text style={styles.rowTitle}>Send Feedback</Text></View><ChevronRight size={20} color={Colors.textTertiary} /></TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/premium-onboarding')} style={[styles.rowCard, styles.rowCardFirst, styles.rowCardBorder]}>
+                <View style={styles.rowIcon}><Sparkles size={20} color={isPremium ? '#FFD700' : Colors.textPrimary} /></View>
+                <View style={styles.rowContent}><Text style={styles.rowTitle}>mora+</Text><Text style={styles.rowSubtitle}>{isPremium ? 'Active' : 'View plans'}</Text></View>
+                <ChevronRight size={20} color={Colors.textTertiary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleNotificationsPress} style={[styles.rowCard, styles.rowCardBorder]}>
+                <View style={styles.rowIcon}>
+                  <Bell size={20} color={notificationsEnabled ? '#25729f' : '#F59E0B'} />
+                </View>
+                <View style={styles.rowContent}>
+                  <Text style={styles.rowTitle}>Notifications</Text>
+                  <Text style={[styles.rowSubtitle, !notificationsEnabled && { color: '#F59E0B' }]}>
+                    {notificationsEnabled === null ? 'Checking...' : notificationsEnabled ? 'Enabled' : 'Tap to enable in Settings'}
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={Colors.textTertiary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSendFeedback} style={[styles.rowCard, styles.rowCardBorder]}><View style={styles.rowIcon}><Mail size={20} color={Colors.textPrimary} /></View><View style={styles.rowContent}><Text style={styles.rowTitle}>Send Feedback</Text></View><ChevronRight size={20} color={Colors.textTertiary} /></TouchableOpacity>
               <TouchableOpacity onPress={handleShowProductGuide} style={[styles.rowCard, styles.rowCardBorder]}><View style={styles.rowIcon}><Info size={20} color={Colors.textPrimary} /></View><View style={styles.rowContent}><Text style={styles.rowTitle}>Product Guide</Text></View><ChevronRight size={20} color={Colors.textTertiary} /></TouchableOpacity>
               <TouchableOpacity onPress={handleSignOut} style={[styles.rowCard, styles.rowCardBorder]}><View style={styles.rowIcon}><LogOut size={20} color={Colors.textPrimary} /></View><View style={styles.rowContent}><Text style={styles.rowTitle}>Sign Out</Text></View><ChevronRight size={20} color={Colors.textTertiary} /></TouchableOpacity>
               <TouchableOpacity onPress={handleDeleteAccount} style={[styles.rowCard, styles.rowCardLast]}><View style={styles.rowIcon}><Trash2 size={20} color="#EF4444" /></View><View style={styles.rowContent}><Text style={[styles.rowTitle, { color: '#EF4444' }]}>Delete Account</Text></View></TouchableOpacity>
@@ -976,3 +1012,4 @@ const styles = StyleSheet.create({
   confirmButton: { backgroundColor: '#F59E0B' },
   confirmButtonText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', fontFamily: Fonts.secondary.bold },
 });
+

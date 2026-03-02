@@ -5,11 +5,12 @@ import { useAuth } from '@/store/useAuth';
 import { Input } from '@/components/Input';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
-import { getProfile } from '@/lib/storage';
+import { getProfile, refreshLifeSituationAfterIdentityUpdate, refreshDreamProgressAfterIdentityUpdate } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
 import { CoreJsonData } from '@/types/database';
+import { TwinUpdatingOverlay } from '@/components/TwinUpdatingOverlay';
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function EditJobScreen() {
   const [job, setJob] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [updatingTwin, setUpdatingTwin] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -44,9 +46,8 @@ export default function EditJobScreen() {
 
     setLoading(true);
     try {
-      // Get existing profile to preserve core_json
-      const existingProfile = await getProfile(user.id);
-      const currentCoreJson = (existingProfile?.core_json as CoreJsonData) || {};
+      const profileBefore = await getProfile(user.id);
+      const currentCoreJson = (profileBefore?.core_json as CoreJsonData) || {};
       
       const updatedCoreJson: CoreJsonData = {
         ...currentCoreJson,
@@ -61,6 +62,15 @@ export default function EditJobScreen() {
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      const trimmedJob = job.trim();
+      setUpdatingTwin(true);
+      try {
+        if (trimmedJob) await refreshLifeSituationAfterIdentityUpdate(user.id, 'Job', trimmedJob);
+        await refreshDreamProgressAfterIdentityUpdate(user.id, profileBefore);
+      } finally {
+        setUpdatingTwin(false);
+      }
 
       if (params.next) {
         router.push(params.next as any);
@@ -90,6 +100,7 @@ export default function EditJobScreen() {
 
   return (
     <View style={styles.gradientBackground}>
+      <TwinUpdatingOverlay visible={updatingTwin} />
       <StatusBar style="dark" />
       {/* Background gradient overlay */}
       <LinearGradient

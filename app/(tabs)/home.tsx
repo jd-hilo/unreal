@@ -1,13 +1,13 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Image, Animated, Platform, Modal, Easing, Dimensions, Linking, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Image, Animated, Platform, Modal, Easing, Dimensions, Linking, KeyboardAvoidingView, Switch, Share } from 'react-native';
 import Svg, { Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks, getLocalDateString, getOnboardingTasks, initializeOnboardingTasks, checkAndCompleteOnboardingTasks } from '@/lib/storage';
-import { Compass, Sparkles, X, Trash2, ChevronRight, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check, Lock, Briefcase, Share2, Trophy } from 'lucide-react-native';
+import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks, getLocalDateString, getOnboardingTasks, initializeOnboardingTasks, checkAndCompleteOnboardingTasks, createDreamSelfChat, createLifeChat } from '@/lib/storage';
+import { Compass, Sparkles, X, Trash2, ChevronRight, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check, Lock, Briefcase, Share2, Trophy, Bell } from 'lucide-react-native';
 import { HomeGradientIcon, FlameGradientIcon } from '@/components/GradientIcons';
-import { generateArchitectPlan, calculateArchitectProgress, recalculateDreamProgress } from '@/lib/ai';
+import { generateArchitectPlan, calculateArchitectProgress, recalculateDreamProgress, generateDreamSelfLetter } from '@/lib/ai';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +23,8 @@ import { CircularProgress } from '@/components/CircularProgress';
 import { setHasSeenDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { Colors, Fonts } from '@/constants/Theme';
+import * as Notifications from 'expo-notifications';
+import { registerForPushNotifications } from '@/lib/notifications';
 import { useTypewriter } from '@/hooks/useTypewriter';
 
 const { width } = Dimensions.get('window');
@@ -113,6 +115,8 @@ export default function HomeScreen() {
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [isRefreshingTasks, setIsRefreshingTasks] = useState(false);
+  const [showDreamSelfLetterModal, setShowDreamSelfLetterModal] = useState(false);
+  const [dreamSelfLetterText, setDreamSelfLetterText] = useState('');
   const initialProfileRef = useRef<any>(null);
   const taskScrollViewRef = useRef<ScrollView>(null);
   const greetingFadeAnim = useRef(new Animated.Value(0)).current;
@@ -127,9 +131,17 @@ export default function HomeScreen() {
     }).start();
   }, []);
   
-  // Animation refs for fade transitions
+  // Animation refs for fade transitions (Twin Society modal)
   const invitationOpacity = useRef(new Animated.Value(1)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  // Animation refs for Dream Self letter modal
+  const letterInvitationOpacity = useRef(new Animated.Value(1)).current;
+  const letterContentOpacity = useRef(new Animated.Value(0)).current;
+  const [showLetterContent, setShowLetterContent] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [expandedSuggestion, setExpandedSuggestion] = useState<string | null>(null);
+  const [completedSuggestions, setCompletedSuggestions] = useState<Set<string>>(new Set());
 
   // Disable swipe-to-go-back gesture
   useFocusEffect(
@@ -162,6 +174,19 @@ export default function HomeScreen() {
         }
       };
     }, [navigation])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      Notifications.getPermissionsAsync().then(({ status }) => {
+        setNotificationsEnabled(status === 'granted');
+      });
+      const key = user?.id ? `completed_suggestions_${user.id}` : 'completed_suggestions';
+      AsyncStorage.getItem(key).then((val) => {
+        if (val) setCompletedSuggestions(new Set(JSON.parse(val)));
+        else setCompletedSuggestions(new Set());
+      });
+    }, [user?.id])
   );
 
   // Typewriter for invitation text
@@ -200,6 +225,42 @@ export default function HomeScreen() {
       setShowContent(false);
     }
   }, [showDiscordModal]);
+
+  // Typewriter for Dream Self letter intro
+  const { displayedLines: letterInvitationLines } = useTypewriter(
+    showDreamSelfLetterModal ? ['A letter from', 'your dream self.'] : [],
+    {
+      speed: 60,
+      onAllComplete: () => {
+        setTimeout(() => {
+          Animated.parallel([
+            Animated.timing(letterInvitationOpacity, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(letterContentOpacity, {
+              toValue: 1,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+          ]).start();
+          setShowLetterContent(true);
+        }, 1500);
+      },
+    }
+  );
+
+  // Reset letter modal state when it opens/closes
+  useEffect(() => {
+    if (showDreamSelfLetterModal) {
+      setShowLetterContent(false);
+      letterInvitationOpacity.setValue(1);
+      letterContentOpacity.setValue(0);
+    } else {
+      setShowLetterContent(false);
+    }
+  }, [showDreamSelfLetterModal]);
   
   // Layout refs for ProductGuide
   const simulateRef = useRef<View>(null);
@@ -338,8 +399,9 @@ export default function HomeScreen() {
         
         setOnboardingTasks(updatedOnboardingTasks || []);
         
-        // Check if all onboarding tasks are complete
-        const allComplete = (updatedOnboardingTasks || []).every((task: any) => task.is_completed);
+        // Check if all visible onboarding tasks are complete (excluding invite_friend)
+        const visibleTasks = (updatedOnboardingTasks || []).filter((task: any) => task.task_type !== 'invite_friend');
+        const allComplete = visibleTasks.length > 0 && visibleTasks.every((task: any) => task.is_completed);
         setOnboardingComplete(allComplete);
       } catch (error) {
         // Silently handle if onboarding_tasks table doesn't exist yet (migration not run)
@@ -573,6 +635,21 @@ export default function HomeScreen() {
         }
       }
 
+      // Show Dream Self letter on first visit to home screen
+      const letterKey = user?.id ? `dream_self_letter_shown_${user.id}` : 'dream_self_letter_shown';
+      const hasSeenLetter = await AsyncStorage.getItem(letterKey);
+      if (!hasSeenLetter && profile?.dream_vision) {
+        AsyncStorage.setItem(letterKey, 'true');
+        generateDreamSelfLetter(profile, profile.dream_vision)
+          .then((letter) => {
+            if (letter) {
+              setDreamSelfLetterText(letter);
+              setTimeout(() => setShowDreamSelfLetterModal(true), 500);
+            }
+          })
+          .catch(() => {});
+      }
+
       // Check for Discord modal (Twin Society) - Show only on 6th visit
       const hasSeenDiscordModal = await AsyncStorage.getItem('has_seen_discord_modal');
       if (!hasSeenDiscordModal) {
@@ -666,6 +743,64 @@ export default function HomeScreen() {
       alert('Failed to delete item. Please try again.');
     }
   };
+
+  async function handleNotificationsToggle(value: boolean) {
+    if (!value) {
+      // User turned off — route to settings to disable
+      await Linking.openURL('app-settings:');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status === 'granted') {
+      setNotificationsEnabled(true);
+      return;
+    }
+    if (status === 'denied') {
+      await Linking.openURL('app-settings:');
+      return;
+    }
+    if (user) {
+      await registerForPushNotifications(user.id);
+      const { status: newStatus } = await Notifications.getPermissionsAsync();
+      setNotificationsEnabled(newStatus === 'granted');
+    }
+  }
+
+  async function markSuggestionComplete(id: string) {
+    const updated = new Set(completedSuggestions).add(id);
+    setCompletedSuggestions(updated);
+    const key = user?.id ? `completed_suggestions_${user.id}` : 'completed_suggestions';
+    await AsyncStorage.setItem(key, JSON.stringify([...updated]));
+  }
+
+  async function handleSuggestedTaskNavigate(id: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await markSuggestionComplete(id);
+    if (id === 'architect') {
+      await AsyncStorage.setItem('decide_initial_tab', 'architect');
+      router.push('/(tabs)/decide');
+    } else if (id === 'decision') {
+      await AsyncStorage.setItem('decide_initial_tab', 'decide');
+      router.push('/(tabs)/decide');
+    } else if (id === 'future-self') {
+      if (!user?.id) return;
+      try {
+        const chat = await createDreamSelfChat(user.id, 'New conversation');
+        router.push({ pathname: '/chat/dream-self/[id]', params: { id: chat.id } });
+      } catch (e) {
+        router.push('/(tabs)/decide');
+      }
+    } else if (id === 'simulate') {
+      router.push('/(tabs)/simulate');
+    } else if (id === 'invite') {
+      try {
+        await Share.share({
+            message: `I've been using Mora and it's genuinely one of the most useful things I've put on my phone.\n\nIt builds a full picture of your life — where you are, where you want to be — and gives you a daily plan to close the gap. You can chat with an AI life coach, run simulations on big decisions before you make them, and even talk to your future self.\n\nThink less "self-help app," more "operating system for your life."\n\nDownload it here:\nhttps://apps.apple.com/us/app/mora-simulate-your-life/id6754901842`,
+          });
+      } catch (e) {}
+    }
+  }
 
   const handleToggleTask = async (task: any, event: any) => {
     try {
@@ -1036,116 +1171,24 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Onboarding Tasks Section */}
-            {!onboardingComplete && onboardingTasks.length > 0 && (
-              <View style={styles.onboardingSection}>
-                <View style={styles.sectionHeader}>
-                  <View>
-                    <Text style={styles.sectionTitle}>Let's get started</Text>
-                    <Text style={styles.sectionSubtitle}>Complete these tasks to reveal your daily path to achieve your dream self.</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.onboardingTaskCarouselContainer}>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.onboardingTaskCarouselContent}
-                    snapToInterval={width * 0.65 + 12}
-                    decelerationRate="fast"
-                  >
-                    {onboardingTasks.map((task: any, index: number) => {
-                      const taskInfoMap: Record<string, { title: string; description: string; IconComponent: any; iconColor: string; route: string }> = {
-                        ask_decision: {
-                          title: 'Ask a decision',
-                          description: "Get the architect's insights on your choices",
-                          IconComponent: Compass,
-                          iconColor: '#A78BFA',
-                          route: '/(tabs)/decide',
-                        },
-                        simulate_career: {
-                          title: 'Simulate your career',
-                          description: 'Explore your professional future',
-                          IconComponent: Zap,
-                          iconColor: '#FFD700',
-                          route: '/(tabs)/simulate',
-                        },
-                        invite_friend: {
-                          title: 'Invite a friend',
-                          description: 'Share your journey with others',
-                          IconComponent: Trophy,
-                          iconColor: '#FF9A9E',
-                          route: '/(tabs)/leaderboard',
-                        },
-                      };
-                      const taskInfo = taskInfoMap[task.task_type] || { title: task.task_type, description: '', IconComponent: Sparkles, iconColor: Colors.textSecondary, route: '/(tabs)/home' };
-
-                      const TaskIcon = taskInfo.IconComponent;
-
-                      return (
-                        <TouchableOpacity
-                          key={task.id}
-                          activeOpacity={0.7}
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                            // Track when user clicks simulate career from onboarding task
-                            if (task.task_type === 'simulate_career') {
-                              trackEvent('OB - simulate-career-clicked');
-                            }
-                            router.push(taskInfo.route as any);
-                          }}
-                          style={task.is_completed && { opacity: 0.6 }}
-                        >
-                          <View style={[
-                            styles.onboardingTaskCard,
-                            task.is_completed && styles.onboardingTaskCardCompleted
-                          ]}>
-                            <View style={styles.onboardingTaskCardContent}>
-                              <View style={styles.onboardingTaskCardHeader}>
-                                <View style={[styles.onboardingTaskIconContainer, { backgroundColor: task.is_completed ? `${taskInfo.iconColor}15` : 'rgba(0,0,0,0.05)' }]}>
-                                  {task.is_completed ? (
-                                    <TaskIcon size={20} color={taskInfo.iconColor} strokeWidth={2.5} />
-                                  ) : (
-                                    <Lock size={20} color={Colors.textTertiary} strokeWidth={2.5} />
-                                  )}
-                                </View>
-                              </View>
-                              <Text style={[
-                                styles.onboardingTaskCardTitle,
-                                task.is_completed && styles.onboardingTaskCardTitleCompleted
-                              ]}>
-                                {taskInfo.title}
-                              </Text>
-                              <Text style={styles.onboardingTaskCardDescription}>
-                                {taskInfo.description}
-                              </Text>
-                            </View>
-                            <View style={[
-                              styles.onboardingTaskCheckbox,
-                              task.is_completed && styles.onboardingTaskCheckboxCompleted
-                            ]}>
-                              {task.is_completed ? (
-                                <Check size={12} color="#FFFFFF" strokeWidth={4} />
-                              ) : (
-                                <View style={styles.onboardingTaskDot} />
-                              )}
-                            </View>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-              </View>
-            )}
-
             {/* Daily Tasks Section */}
             {dailyTasks.length > 0 ? (
-              onboardingComplete ? (
               <View style={styles.architectSection}>
                 <View style={styles.sectionHeader}>
                   <View>
-                    <Text style={styles.sectionTitle}>Daily Path</Text>
+                    <View style={styles.dailyPathTitleRow}>
+                      <Text style={styles.sectionTitle}>Daily Path</Text>
+                      <View style={styles.notifTag}>
+                        <Bell size={14} color={notificationsEnabled ? '#25729f' : Colors.textTertiary} strokeWidth={2} />
+                        <Switch
+                          value={notificationsEnabled}
+                          onValueChange={handleNotificationsToggle}
+                          trackColor={{ false: 'rgba(0,0,0,0.15)', true: 'rgba(37,114,159,0.4)' }}
+                          thumbColor={notificationsEnabled ? '#25729f' : '#f4f3f4'}
+                          style={styles.notifSwitch}
+                        />
+                      </View>
+                    </View>
                     <Text style={styles.sectionSubtitle}>Your micro-actions for today</Text>
                   </View>
                   <View style={styles.taskCountBadge}>
@@ -1154,11 +1197,11 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 </View>
-                
+
                 <View style={styles.taskCarouselContainer}>
-                  <ScrollView 
+                  <ScrollView
                     ref={taskScrollViewRef}
-                    horizontal 
+                    horizontal
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.pathList}
                     snapToInterval={width * 0.65 + 12}
@@ -1202,6 +1245,9 @@ export default function HomeScreen() {
                               {task.task_content}
                             </Text>
                           </View>
+                          {!task.is_completed && (
+                            <Text style={styles.tapToCompleteLabel}>tap to complete</Text>
+                          )}
                           <View style={[
                             styles.taskCheckbox,
                             task.is_completed && styles.taskCheckboxChecked
@@ -1218,27 +1264,6 @@ export default function HomeScreen() {
                   </ScrollView>
                 </View>
               </View>
-              ) : (
-                <View style={styles.lockedStateContainer}>
-                  <View style={styles.lockedIconContainer}>
-                    <Lock size={32} color={Colors.textTertiary} strokeWidth={2} />
-                  </View>
-                  <Text style={styles.lockedStateTitle}>Daily Path Locked</Text>
-                  <Text style={styles.lockedStateText}>
-                    Complete onboarding tasks above to unlock your curated micro actions for today
-                  </Text>
-                </View>
-              )
-            ) : !onboardingComplete ? (
-              <View style={styles.lockedStateContainer}>
-                <View style={styles.lockedIconContainer}>
-                  <Lock size={32} color={Colors.textTertiary} strokeWidth={2} />
-                </View>
-                <Text style={styles.lockedStateTitle}>Daily Path Locked</Text>
-                <Text style={styles.lockedStateText}>
-                  Complete onboarding tasks above to unlock your curated micro actions for today
-                </Text>
-              </View>
             ) : (
               <View style={styles.emptyStateContainer}>
                 <Text style={styles.emptyStateTitle}>No tasks yet</Text>
@@ -1246,6 +1271,75 @@ export default function HomeScreen() {
                   Complete your dream self setup to get personalized daily tasks from your Architect.
                 </Text>
               </View>
+            )}
+
+            {/* Suggested Tasks Section */}
+            {!(['architect','decision','future-self','simulate','invite'].every(id => completedSuggestions.has(id))) && (
+            <View style={styles.onboardingSection}>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Get started</Text>
+                  <Text style={styles.sectionSubtitle}>Helpful tips to get started on mora.</Text>
+                </View>
+              </View>
+
+              <View style={styles.suggestedTasksList}>
+                {[
+                  { id: 'architect', title: 'Chat with the Architect about your life', description: 'Have a deep conversation with your AI life coach about where you are and where you want to go.', iconColor: '#A78BFA', IconComponent: Compass, ctaLabel: 'Start chatting' },
+                  { id: 'decision', title: 'Make a decision', description: 'Get clear, structured analysis on any life choice — career, relationships, money, anything.', iconColor: '#25729f', IconComponent: Layers, ctaLabel: 'Analyze a decision' },
+                  { id: 'future-self', title: 'Chat with your future self', description: 'Have a conversation with the version of you that already achieved everything you\'re working toward.', iconColor: '#62edb9', IconComponent: User, ctaLabel: 'Meet your future self' },
+                  { id: 'simulate', title: 'Simulate your life', description: 'Run a realistic simulation of an aspect of your life — see how it plays out before you commit.', iconColor: '#FFD700', IconComponent: Zap, ctaLabel: 'Run a simulation' },
+                  { id: 'invite', title: 'Invite a friend', description: 'Share Mora with someone you think would benefit from having an Architect in their corner.', iconColor: '#FF9A9E', IconComponent: Share2, ctaLabel: 'Share with a friend' },
+                ].map((item) => {
+                  const isExpanded = expandedSuggestion === item.id;
+                  const isDone = completedSuggestions.has(item.id);
+                  const IconComp = item.IconComponent;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      activeOpacity={0.75}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setExpandedSuggestion(isExpanded ? null : item.id);
+                      }}
+                      style={isDone && { opacity: 0.6 }}
+                    >
+                      <View style={[styles.suggestedTaskCard, isDone && styles.suggestedTaskCardDone]}>
+                        {/* header row */}
+                        <View style={styles.suggestedTaskCardHeader}>
+                          <View style={[styles.suggestedTaskIconBadge, { backgroundColor: `${item.iconColor}18` }]}>
+                            <IconComp size={15} color={item.iconColor} strokeWidth={2} />
+                          </View>
+                          <Text style={[styles.suggestedTaskCardTitle, isDone && { color: Colors.textTertiary }]}>{item.title}</Text>
+                          <View style={[styles.suggestedTaskCheckbox, isDone && styles.suggestedTaskCheckboxDone]}>
+                            {isDone ? (
+                              <Check size={10} color="#FFFFFF" strokeWidth={4} />
+                            ) : (
+                              <View style={styles.suggestedTaskCheckboxDot} />
+                            )}
+                          </View>
+                        </View>
+
+                        {/* expanded body */}
+                        {isExpanded && !isDone && (
+                          <View style={styles.suggestedTaskCardBody}>
+                            <Text style={styles.suggestedTaskCardDescription}>{item.description}</Text>
+                            <TouchableOpacity
+                              style={styles.suggestedTaskCardCta}
+                              onPress={() => handleSuggestedTaskNavigate(item.id)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={styles.suggestedTaskCardCtaText}>{item.ctaLabel}</Text>
+                              <ArrowUpRight size={12} color="#25729f" strokeWidth={2.5} />
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
             )}
 
           </Animated.ScrollView>
@@ -1275,6 +1369,83 @@ export default function HomeScreen() {
           trainLayout={trainLayout}
         />
       )}
+
+      {/* Dream Self Letter Modal */}
+      <Modal
+        visible={showDreamSelfLetterModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDreamSelfLetterModal(false)}
+      >
+        <View style={styles.discordModalOverlay}>
+          <View style={styles.discordModalContent}>
+
+            {/* Typewriter intro — "A letter from / your future self." */}
+            <Animated.View
+              style={{
+                opacity: letterInvitationOpacity,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 10,
+                padding: 24,
+              }}
+              pointerEvents={showLetterContent ? 'none' : 'auto'}
+            >
+              <View style={styles.invitationTextContainer}>
+                {letterInvitationLines.map((line, index) => (
+                  <Text key={index} style={styles.invitationText}>
+                    {line || ''}
+                  </Text>
+                ))}
+              </View>
+            </Animated.View>
+
+            {/* Letter content — fades in after typewriter */}
+            {showLetterContent && (
+              <Animated.View style={[styles.discordContentContainer, { opacity: letterContentOpacity }]}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  style={{ maxHeight: 420, width: '100%' }}
+                  contentContainerStyle={{ paddingBottom: 8 }}
+                >
+                  <Text style={styles.letterBodyText}>{dreamSelfLetterText}</Text>
+                </ScrollView>
+
+                <Pressable
+                  onPress={() => setShowDreamSelfLetterModal(false)}
+                  style={({ pressed }) => [
+                    styles.discordButton,
+                    {
+                      shadowColor: '#25729f',
+                      transform: [{ translateY: pressed ? 2 : 0 }],
+                      shadowOffset: { width: 0, height: pressed ? 2 : 8 },
+                      shadowOpacity: pressed ? 0.3 : 0.5,
+                      shadowRadius: pressed ? 8 : 20,
+                      elevation: pressed ? 4 : 12,
+                    }
+                  ]}
+                >
+                  <LinearGradient
+                    colors={['#25729f', '#62edb9']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={styles.discordButtonGradient}
+                  >
+                    <Text style={styles.discordButtonText}>Start my path</Text>
+                  </LinearGradient>
+                </Pressable>
+
+              </Animated.View>
+            )}
+
+          </View>
+        </View>
+      </Modal>
 
       {/* Twin Society Modal */}
       <Modal
@@ -1809,6 +1980,23 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.regular,
     marginTop: 4,
   },
+  dailyPathTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  notifTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+  },
+  notifSwitch: {
+    transform: [{ scale: 0.7 }],
+  },
   taskCountBadge: {
     backgroundColor: 'rgba(0,0,0,0.05)',
     paddingHorizontal: 12,
@@ -1881,7 +2069,7 @@ const styles = StyleSheet.create({
   },
   taskCard: {
     width: width * 0.65,
-    height: 180,
+    height: 210,
     flexDirection: 'column',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -1929,6 +2117,15 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  tapToCompleteLabel: {
+    position: 'absolute',
+    bottom: 20,
+    right: 48,
+    fontSize: 10,
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.regular,
+    opacity: 0.7,
   },
   taskNumber: {
     fontSize: 14,
@@ -2048,18 +2245,98 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 4,
   },
-  onboardingTaskCarouselContainer: {
-    paddingTop: 16,
-    paddingBottom: 16,
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
+  suggestedTasksList: {
+    flexDirection: 'column',
+    gap: 10,
+    marginTop: 4,
   },
-  onboardingTaskCarouselContent: {
+  suggestedTaskCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)',
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  suggestedTaskCardHeader: {
     flexDirection: 'row',
-    paddingRight: 24,
-    paddingLeft: 4,
-    paddingVertical: 12,
-    gap: 12,
+    alignItems: 'center',
+    gap: 10,
+  },
+  suggestedTaskIconBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  suggestedTaskCardTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    lineHeight: 19,
+  },
+  suggestedTaskCardBody: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+  },
+  suggestedTaskCardDescription: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    lineHeight: 19,
+    marginBottom: 10,
+  },
+  suggestedTaskCardCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+  },
+  suggestedTaskCardCtaText: {
+    fontSize: 13,
+    color: '#25729f',
+    fontFamily: Fonts.secondary.semibold,
+    fontWeight: '600',
+  },
+  suggestedTaskCardDone: {
+    backgroundColor: '#F8F8F8',
+    borderColor: 'transparent',
+    borderBottomColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  suggestedTaskCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    flexShrink: 0,
+  },
+  suggestedTaskCheckboxDone: {
+    backgroundColor: '#4ADE80',
+    borderColor: '#4ADE80',
+  },
+  suggestedTaskCheckboxDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(0,0,0,0.1)',
   },
   onboardingTaskCard: {
     width: width * 0.65,
@@ -2123,6 +2400,12 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.regular,
     lineHeight: 18,
+  },
+  onboardingTaskCardCta: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.semibold,
+    marginTop: 6,
   },
   onboardingTaskCheckbox: {
     width: 24,
@@ -2634,7 +2917,7 @@ const styles = StyleSheet.create({
     maxWidth: 500,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 400,
+    minHeight: 520,
     shadowColor: 'rgba(0, 0, 0, 0.1)',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.2,
@@ -2735,5 +3018,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.primary.regular,
+  },
+  // Dream Self Letter body text
+  letterBodyText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    lineHeight: 24,
+    textAlign: 'left',
+    marginBottom: 24,
   },
 });
