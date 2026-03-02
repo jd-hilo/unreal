@@ -416,6 +416,11 @@ export default function HomeScreen() {
         .filter(task => task.scheduled_date === today)
         .slice(0, 3); // Limit to max 3 tasks
       setDailyTasks(todayTasks);
+      
+      // Check and track if today's tasks are all completed (on initial load)
+      if (user?.id && todayTasks.length > 0) {
+        await checkAndTrackCompletedDay(todayTasks);
+      }
 
       // Calculate streak (Duolingo-style) - same logic as streak screen
       // Group tasks by date and check if all tasks for each date are completed
@@ -622,11 +627,15 @@ export default function HomeScreen() {
       slideAnim.setValue(0);
       setIsInitialLoad(false);
 
-      // Check for store review
+      // Check for store review - after 3 days of completing all daily tasks
       const lastReview = await AsyncStorage.getItem('last_review_request');
       const now = Date.now();
       if (!lastReview || now - parseInt(lastReview) > 1000 * 60 * 60 * 24 * 30) {
-        if (decisions.length + whatifs.length >= 3) {
+        const completedDaysKey = user?.id ? `completed_days_${user.id}` : 'completed_days';
+        const completedDaysStr = await AsyncStorage.getItem(completedDaysKey);
+        const completedDays = completedDaysStr ? JSON.parse(completedDaysStr) : [];
+        
+        if (completedDays.length >= 3) {
           const isAvailable = await StoreReview.isAvailableAsync();
           if (isAvailable) {
             await StoreReview.requestReview();
@@ -802,6 +811,35 @@ export default function HomeScreen() {
     }
   }
 
+  // Track completed days for review request
+  async function checkAndTrackCompletedDay(tasks: any[]) {
+    if (!user?.id) return;
+    
+    const todayStr = getLocalDateString(new Date());
+    const todayTasks = tasks.filter(t => {
+      let date = t.scheduled_date;
+      if (date && date.includes('T')) {
+        date = date.split('T')[0];
+      }
+      return date === todayStr;
+    });
+    
+    // Check if all tasks for today are completed
+    const allCompleted = todayTasks.length > 0 && todayTasks.every(t => t.is_completed);
+    
+    if (allCompleted) {
+      const key = `completed_days_${user.id}`;
+      const completedDaysStr = await AsyncStorage.getItem(key);
+      const completedDays = completedDaysStr ? JSON.parse(completedDaysStr) : [];
+      
+      // Only add today if it's not already tracked
+      if (!completedDays.includes(todayStr)) {
+        completedDays.push(todayStr);
+        await AsyncStorage.setItem(key, JSON.stringify(completedDays));
+      }
+    }
+  }
+
   const handleToggleTask = async (task: any, event: any) => {
     try {
       if (task.is_completed) return; // Only animate on completion
@@ -824,6 +862,9 @@ export default function HomeScreen() {
       const updatedTask = await updateDailyTask(task.id, { is_completed: true });
       const newTasks = dailyTasks.map(t => t.id === task.id ? updatedTask : t);
       setDailyTasks(newTasks);
+      
+      // Check if all tasks for today are completed and track it
+      await checkAndTrackCompletedDay(newTasks);
       
       // Track task completion
       trackEvent('Daily Task - completed', {
