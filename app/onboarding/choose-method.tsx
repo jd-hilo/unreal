@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable, Modal } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,6 +33,7 @@ export default function ChooseOnboardingMethod() {
   const router = useRouter();
   const [showButton, setShowButton] = useState(false);
   const [isContinuing, setIsContinuing] = useState(false);
+  const [showAnthropicModal, setShowAnthropicModal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -100,14 +101,26 @@ export default function ChooseOnboardingMethod() {
   function handleContinue() {
     if (isContinuing) return; // Prevent double-clicks
     
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowAnthropicModal(true);
+  }
+
+  function handleModalContinue() {
     setIsContinuing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowAnthropicModal(false);
     console.log('🎯 CHOOSE METHOD: Navigating to /onboarding/00-name');
     
     // Small delay to show "Saving" state before navigation
     setTimeout(() => {
       router.push('/onboarding/00-name');
     }, 300);
+  }
+
+  function handleModalNoThanks() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowAnthropicModal(false);
+    // Modal closes, user stays on the same page (effectively restarts)
   }
 
   return (
@@ -158,6 +171,53 @@ export default function ChooseOnboardingMethod() {
           </Pressable>
         </Animated.View>
       )}
+
+      <Modal
+        visible={showAnthropicModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleModalNoThanks}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>AI-Powered Analysis</Text>
+            <Text style={styles.modalBody}>
+              We use Anthropic's AI to analyze your responses and build your personalized digital twin. Anthropic does not store or train on your data.
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <Pressable
+                onPress={handleModalNoThanks}
+                style={({ pressed }) => [
+                  styles.modalButton,
+                  styles.modalButtonSecondary,
+                  { opacity: pressed ? 0.7 : 1 }
+                ]}
+              >
+                <Text style={styles.modalButtonTextSecondary}>No Thanks</Text>
+              </Pressable>
+              
+              <Pressable
+                onPress={handleModalContinue}
+                style={({ pressed }) => [
+                  styles.modalButton,
+                  styles.modalButtonPrimary,
+                  { opacity: pressed ? 0.8 : 1 }
+                ]}
+              >
+                <LinearGradient
+                  colors={['#25729f', '#62edb9']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.modalButtonGradient}
+                >
+                  <Text style={styles.modalButtonTextPrimary}>Continue</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -240,6 +300,76 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: 'Inter_600SemiBold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalBody: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.regular,
+    lineHeight: 22,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  modalButtonSecondary: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonPrimary: {
+    borderRadius: 16,
+  },
+  modalButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonTextSecondary: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.semibold,
+  },
+  modalButtonTextPrimary: {
+    fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: Fonts.secondary.bold,
