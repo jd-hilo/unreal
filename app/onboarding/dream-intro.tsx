@@ -1,7 +1,6 @@
 import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
-import { trackEvent } from '@/lib/mixpanel';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -15,36 +14,32 @@ import { useTypewriter } from '@/hooks/useTypewriter';
 import { ChevronRight } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
-
-import { useAuth } from '@/store/useAuth';
-import { getProfile } from '@/lib/storage';
+import { trackEvent } from '@/lib/mixpanel';
 
 const TITLE_LINES = [
   "let's learn about who you want to become",
 ];
 
-const LINE_FONT_SIZES = [30];
+const LINE_FONT_SIZES = [26];
 
-export default function DreamSelfWelcome() {
+export default function DreamIntroScreen() {
   const router = useRouter();
-  const user = useAuth((state) => state.user);
   const [showButton, setShowButton] = useState(false);
   const [isContinuing, setIsContinuing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      trackEvent('OB - dream-self-welcome');
+      trackEvent('OB - dream-intro');
     }, [])
   );
 
-  // Create shared values for each line's opacity
-  const lineOpacities = TITLE_LINES.map(() => useSharedValue(0));
-  const buttonOpacity = useSharedValue(0);
-  const buttonScale = useSharedValue(0.96);
+  const lineOpacitiesReanimated = TITLE_LINES.map(() => useSharedValue(0));
+  const buttonOpacityReanimated = useSharedValue(0);
+  const buttonScaleReanimated = useSharedValue(0.96);
 
   const handleLineStart = (lineIndex: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    lineOpacities[lineIndex].value = withTiming(1, {
+    lineOpacitiesReanimated[lineIndex].value = withTiming(1, {
       duration: 250,
       easing: Easing.out(Easing.ease),
     });
@@ -58,8 +53,14 @@ export default function DreamSelfWelcome() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setTimeout(() => {
       setShowButton(true);
-      buttonOpacity.value = withTiming(1, { duration: 500 });
-      buttonScale.value = withSpring(1.0, { damping: 15, stiffness: 150 });
+      buttonOpacityReanimated.value = withTiming(1, {
+        duration: 500,
+        easing: Easing.out(Easing.ease),
+      });
+      buttonScaleReanimated.value = withSpring(1.0, {
+        damping: 15,
+        stiffness: 150,
+      });
     }, 1000);
   };
 
@@ -72,50 +73,30 @@ export default function DreamSelfWelcome() {
   });
 
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: buttonOpacity.value,
-    transform: [{ scale: buttonScale.value }]
+    opacity: buttonOpacityReanimated.value,
+    transform: [{ scale: buttonScaleReanimated.value }],
   }));
 
-  async function handleContinue() {
+  function handleContinue() {
     if (isContinuing) return;
-    setIsContinuing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    // Check if we have the necessary "Current Self" data
-    if (user) {
-      try {
-        const profile = await getProfile(user.id);
-        const hasNetWorth = !!profile?.net_worth;
-        const hasHealth = !!profile?.current_health?.status?.length;
-        const hasRelDetails = !!profile?.relationship_details?.status;
-
-        // Reset progress if it's still the old numeric format (though migration handles it)
-        const progress = profile?.dream_self_progress || {};
-        const isNewFormat = typeof progress === 'object' && !Array.isArray(progress);
-        
-        if (!hasNetWorth || !hasHealth || !hasRelDetails) {
-          // Missing data, route to onboarding to fill gaps
-          router.push('/onboarding/01-now-group?fromDreamSelf=true');
-          return;
-        }
-      } catch (error) {
-        console.error('Error checking profile for gaps:', error);
-      }
-    }
-
-    router.push('/onboarding/dream-self/01-net-worth');
+    setIsContinuing(true);
+    setTimeout(() => {
+      router.push('/onboarding/goals');
+    }, 300);
   }
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
+
       <View style={styles.content}>
         <View style={styles.textContainer}>
           {TITLE_LINES.map((_, index) => (
             <TypewriterLine
               key={index}
               index={index}
-              opacity={lineOpacities[index]}
+              opacity={lineOpacitiesReanimated[index]}
               text={displayedLines[index]}
             />
           ))}
@@ -157,7 +138,7 @@ export default function DreamSelfWelcome() {
   );
 }
 
-function TypewriterLine({ index, opacity, text }: { index: number, opacity: any, text: string }) {
+function TypewriterLine({ index, opacity, text }: { index: number; opacity: Animated.SharedValue<number>; text: string }) {
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
   }));
@@ -166,7 +147,13 @@ function TypewriterLine({ index, opacity, text }: { index: number, opacity: any,
   const lineHeight = fontSize * 1.15;
 
   return (
-    <Animated.View style={[styles.lineWrapper, animatedStyle, { marginBottom: 20 }]}>
+    <Animated.View
+      style={[
+        styles.lineWrapper,
+        animatedStyle,
+        { marginBottom: 20 },
+      ]}
+    >
       <Text
         style={[
           styles.lineText,
@@ -174,11 +161,11 @@ function TypewriterLine({ index, opacity, text }: { index: number, opacity: any,
             fontSize,
             lineHeight,
             fontFamily: Platform.select({
-              ios: index === 0 ? Fonts.primary.regular : Fonts.secondary.bold,
-              android: index === 0 ? Fonts.primary.regular : Fonts.secondary.bold,
-              default: index === 0 ? Fonts.fallback.primary : Fonts.fallback.secondary,
+              ios: Fonts.primary.regular,
+              android: Fonts.primary.regular,
+              default: Fonts.fallback.primary,
             }),
-            fontWeight: index === 0 ? '400' : '700',
+            fontWeight: '400',
           },
         ]}
       >
@@ -189,13 +176,49 @@ function TypewriterLine({ index, opacity, text }: { index: number, opacity: any,
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  content: { flex: 1, paddingHorizontal: 24, paddingTop: 120, justifyContent: 'flex-start' },
-  textContainer: { alignItems: 'flex-start' },
-  lineWrapper: { marginBottom: 0 },
-  lineText: { color: Colors.textPrimary, letterSpacing: -0.8, textAlign: 'left' },
-  footer: { padding: 24, paddingBottom: 40 },
-  buttonWrapper: { borderRadius: 24, overflow: 'hidden' },
-  buttonGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, paddingHorizontal: 32, gap: 10, borderRadius: 24 },
-  buttonText: { fontSize: 17, fontWeight: '700', color: '#FFFFFF', fontFamily: Fonts.secondary.bold },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 0,
+    justifyContent: 'center',
+  },
+  textContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lineWrapper: {
+    marginBottom: 0,
+  },
+  lineText: {
+    color: Colors.textPrimary,
+    letterSpacing: -0.8,
+    textAlign: 'center',
+  },
+  footer: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  buttonWrapper: {
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    gap: 10,
+    borderRadius: 24,
+  },
+  buttonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
 });

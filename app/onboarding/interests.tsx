@@ -149,7 +149,7 @@ export default function InterestsScreen() {
     }
     // Small delay to show "Continuing" state and prevent double-clicks
     await new Promise(resolve => setTimeout(resolve, 100));
-    router.push('/onboarding/06-stress');
+    router.push('/onboarding/career');
   }
 
   return (
@@ -193,8 +193,6 @@ export default function InterestsScreen() {
                     styles.interestLabel,
                     isSelected && styles.interestLabelSelected,
                   ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit={false}
                 >
                   {interest.label}
                 </Text>

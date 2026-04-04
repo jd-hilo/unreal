@@ -23,6 +23,12 @@ export default function OnboardingLayout() {
       <Stack.Screen name="03-values" />
       <Stack.Screen name="04-style" />
       <Stack.Screen name="interests" />
+      <Stack.Screen name="career" />
+      <Stack.Screen name="health" />
+      <Stack.Screen name="goals" />
+      <Stack.Screen name="journey-preview" />
+      <Stack.Screen name="signature" />
+      <Stack.Screen name="tool-teaser" />
       <Stack.Screen name="06-stress" />
       <Stack.Screen name="politics" />
       <Stack.Screen name="enable-notifications" />

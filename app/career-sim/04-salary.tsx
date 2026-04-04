@@ -22,17 +22,15 @@ export default function SalaryScreen() {
   }, [params.salary]);
 
   const handleNext = async () => {
-    if (!salary.trim()) return;
-    
     setLoading(true);
-    // Navigate to generating screen which will call the API and then navigate to result
+    const salaryVal = salary.trim() || '100000'; // Placeholder when skipped
     router.push({
       pathname: '/career-sim/generating',
       params: {
         timeHorizon: params.timeHorizon as string,
         currentRole: params.currentRole as string,
         company: params.company as string,
-        salary: salary.trim(),
+        salary: salaryVal,
         pathType: 'stay',
         isStudent: params.isStudent || 'false',
         ...(params.grade && { grade: params.grade }),
@@ -73,7 +71,7 @@ export default function SalaryScreen() {
             {/* Title Section */}
             <View style={styles.titleSection}>
               <Text style={styles.title}>Your Current Salary</Text>
-              <Text style={styles.subtitle}>What is your current annual salary?</Text>
+              <Text style={styles.subtitle}>What is your current annual salary? (optional)</Text>
             </View>
 
             {/* Input */}
@@ -82,7 +80,7 @@ export default function SalaryScreen() {
                 <DollarSign size={18} color={Colors.textSecondary} strokeWidth={2} />
               </View>
               <TextInput
-                placeholder="Current Salary (e.g., 150000)"
+                placeholder="Current Salary (e.g., 150000) — or skip"
                 value={salary}
                 onChangeText={setSalary}
                 keyboardType="number-pad"
@@ -94,7 +92,7 @@ export default function SalaryScreen() {
             
             <View style={styles.infoBox}>
               <Text style={styles.infoBoxText}>
-                We'll simulate your career trajectory based on industry data, typical progression patterns, and realistic assumptions.
+                We'll simulate your career trajectory based on industry data, typical progression patterns, and realistic assumptions. Skip if you prefer not to share.
               </Text>
             </View>
           </ScrollView>
@@ -102,13 +100,13 @@ export default function SalaryScreen() {
           {/* Footer Button */}
           <View style={styles.footer}>
             <TouchableOpacity 
-              style={[styles.nextButton, (!salary.trim() || loading) && styles.nextButtonDisabled]}
+              style={[styles.nextButton, loading && styles.nextButtonDisabled]}
               onPress={handleNext}
-              disabled={!salary.trim() || loading}
+              disabled={loading}
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={(!salary.trim() || loading) ? ['#999', '#AAA'] : ['#25729f', '#62edb9']}
+                colors={loading ? ['#999', '#AAA'] : ['#25729f', '#62edb9']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={styles.nextButtonGradient}

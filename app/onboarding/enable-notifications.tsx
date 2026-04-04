@@ -7,7 +7,6 @@ import {
   Image,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { useAuth } from '@/store/useAuth';
@@ -50,7 +49,7 @@ export default function EnableNotificationsScreen() {
       await registerForPushNotifications(user.id);
     }
     setIsProcessing(false);
-    router.replace('/(tabs)/home');
+    router.replace('/onboarding/tool-teaser');
   }
 
   return (
@@ -85,7 +84,7 @@ export default function EnableNotificationsScreen() {
           </View>
 
           <View style={styles.notificationBubble}>
-            <BlurView intensity={60} tint="light" style={styles.notificationBlur}>
+            <View style={styles.notificationInner}>
               <View style={styles.notificationRow}>
                 <View style={styles.appIconContainer}>
                   <Image
@@ -104,7 +103,7 @@ export default function EnableNotificationsScreen() {
                   </Text>
                 </View>
               </View>
-            </BlurView>
+            </View>
           </View>
         </View>
       </Animated.View>
@@ -157,7 +156,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
   },
-  notificationBlur: {
+  notificationInner: {
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
     paddingVertical: 12,
   },

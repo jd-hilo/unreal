@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Pressable, Animated, Keyboard } from 'react-native';
 import { ReactNode, useState, useRef, useEffect } from 'react';
 import { Button } from './Button';
 import { ProgressBar } from './ProgressBar';
@@ -51,6 +51,8 @@ export function OnboardingScreen({
 }: OnboardingScreenProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const isProcessingRef = useRef(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const contentHeightRef = useRef(0);
   
   // Animation values for bright animated button
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -116,6 +118,23 @@ export function OnboardingScreen({
     outputRange: [-300, 0, 300],
   });
 
+  useEffect(() => {
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardShowListener = Keyboard.addListener(keyboardShowEvent, () => {
+      setTimeout(() => {
+        if (contentHeightRef.current > 0) {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        } else {
+          scrollViewRef.current?.scrollTo({ y: 160, animated: true });
+        }
+      }, 120);
+    });
+
+    return () => {
+      keyboardShowListener.remove();
+    };
+  }, []);
+
   async function handleNext() {
     // Prevent double-clicks using both state and ref for immediate blocking
     if (isProcessingRef.current || isProcessing || !canContinue || loading) return;
@@ -169,12 +188,16 @@ export function OnboardingScreen({
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         scrollEventThrottle={16}
         bounces={false}
+        onContentSizeChange={(_, height) => {
+          contentHeightRef.current = height;
+        }}
       >
         {/* Title Section */}
         <View style={styles.titleSection}>

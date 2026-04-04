@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getHasSeenWelcome } from '@/lib/welcomeStorage';
+import { getProfile } from '@/lib/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Index() {
@@ -61,8 +62,17 @@ export default function Index() {
       console.log('📍 INDEX: Onboarding check complete', { isComplete });
 
       if (!isComplete) {
-        console.log('📍 INDEX: Routing to /onboarding/choose-method');
-        router.replace('/onboarding/choose-method');
+        const profile = await getProfile(user.id);
+        const responses = (profile?.core_json as any)?.onboarding_responses || {};
+        const hasJourney = !!responses['journey'];
+
+        if (hasJourney) {
+          console.log('📍 INDEX: Onboarding incomplete but journey exists, routing to /premium-onboarding');
+          router.replace({ pathname: '/premium-onboarding', params: { from: 'onboarding' } } as any);
+        } else {
+          console.log('📍 INDEX: Routing to /onboarding/choose-method');
+          router.replace('/onboarding/choose-method');
+        }
         return;
       }
 

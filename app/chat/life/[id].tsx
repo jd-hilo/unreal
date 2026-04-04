@@ -103,7 +103,6 @@ export default function LifeChatScreen() {
     if (!loading && initialMessage && typeof initialMessage === 'string' && !initialMessageSent.current && corePack) {
       initialMessageSent.current = true;
       setInput('');
-      // Simulate sending the initial message
       (async () => {
         setSending(true);
         const userMsg = appendMessage('user', initialMessage);
@@ -111,9 +110,9 @@ export default function LifeChatScreen() {
         try {
           const history = [userMsg];
           const chatMessages = history.map((m) => ({ role: m.role, content: m.content }));
+          const reply = await architectLifeChat({ corePack, messages: chatMessages });
           setIsStreaming(true);
           setStreamingMessage('');
-          const reply = await architectLifeChat({ corePack, messages: chatMessages });
           const words = reply.split(' ');
           let currentText = '';
           for (let i = 0; i < words.length; i++) {

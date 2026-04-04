@@ -18,15 +18,13 @@ import { setHasSeenWelcome } from '@/lib/welcomeStorage';
 import { Colors, Fonts } from '@/constants/Theme';
 
 const WELCOME_LINES = [
-  'welcome to mora',
-  'we help you achieve your dream self.',
-  'by building a digital twin of you and who you want to be.',
-  'and help you close the gap.',
-  'get answers to decisions, run simulations, track real progress.',
-  'ready to begin?',
+  'welcome to mora,',
+  'the number 1 app to achieve your dream self',
+  'we will learn more about you',
+  'and provide a structured plan to achieve who you want to become',
 ];
 
-const LINE_FONT_SIZES = [23, 20, 20, 20, 20, 18]; // Smaller for last line
+const LINE_FONT_SIZES = [24, 20, 20, 20];
 const LIFT_AMOUNT = 0; // Don't lift lines - keep all visible
 const LIFT_DURATION = 250; // ms
 

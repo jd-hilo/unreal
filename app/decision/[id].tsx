@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Alert, Image, Clipboard, Modal, Linking, Platform, Animated, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Alert, Image, Clipboard, Modal, Linking, Platform, Animated, Easing, Share } from 'react-native';
 import { LigatureFreeText } from '@/components/LigatureFreeText';
 import * as Haptics from 'expo-haptics';
 import { useState, useEffect, useRef } from 'react';
@@ -10,15 +10,22 @@ import { predictDecision } from '@/lib/ai';
 import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
 import { formatFactors } from '@/lib/factorFormatter';
 import { Button } from '@/components/Button';
-import { Home, Sparkles, Users, Lock, Zap, Share as ShareIcon, Instagram, Ghost, ChevronRight, ChevronLeft, MessageCircle, ChevronDown } from 'lucide-react-native';
+import { Home, Sparkles, Users, Share as ShareIcon, Instagram, Ghost, ChevronRight, ChevronLeft, ChevronDown } from 'lucide-react-native';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { useTwin } from '@/store/useTwin';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Fonts } from '@/constants/Theme';
+const DECISION_TWIN_LOADING_STEPS = [
+  'Creating your decision...',
+  'Analyzing your profile...',
+  'Building context...',
+  'Consulting your twin...',
+  'Calculating probabilities...',
+  'Finalizing recommendation...',
+];
 
 // Helper function to clean rationale text
 function cleanRationale(text: string): string {
@@ -40,7 +47,6 @@ export default function DecisionResultScreen() {
   const navigation = useNavigation();
   const { id } = useLocalSearchParams();
   const user = useAuth((state) => state.user);
-  const { isPremium } = useTwin();
   const [decision, setDecision] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [predicting, setPredicting] = useState(false);
@@ -52,7 +58,11 @@ export default function DecisionResultScreen() {
   const [showScrollHint, setShowScrollHint] = useState(true);
   const scrollY = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
-  
+  const predictionAutoStartForIdRef = useRef<string | null>(null);
+  const [twinLoadingStepIndex, setTwinLoadingStepIndex] = useState(0);
+  const twinPulseAnim = useRef(new Animated.Value(1)).current;
+  const twinRotateAnim = useRef(new Animated.Value(0)).current;
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -88,6 +98,10 @@ export default function DecisionResultScreen() {
   });
 
   useEffect(() => {
+    predictionAutoStartForIdRef.current = null;
+  }, [id]);
+
+  useEffect(() => {
     if (user) {
       loadDecision();
     }
@@ -120,6 +134,54 @@ export default function DecisionResultScreen() {
     }
   }, [decision?.id, decision?.prediction]);
 
+  useEffect(() => {
+    if (!predicting) return;
+
+    setTwinLoadingStepIndex(0);
+
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(twinPulseAnim, {
+          toValue: 1.1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(twinPulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulseLoop.start();
+
+    const rotateLoop = Animated.loop(
+      Animated.timing(twinRotateAnim, {
+        toValue: 1,
+        duration: 3000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    rotateLoop.start();
+
+    const interval = setInterval(() => {
+      setTwinLoadingStepIndex((prev) =>
+        prev < DECISION_TWIN_LOADING_STEPS.length - 1 ? prev + 1 : prev
+      );
+    }, 2000);
+
+    return () => {
+      clearInterval(interval);
+      pulseLoop.stop();
+      rotateLoop.stop();
+      twinPulseAnim.setValue(1);
+      twinRotateAnim.setValue(0);
+    };
+  }, [predicting, twinPulseAnim, twinRotateAnim]);
+
   async function loadDecision() {
     if (!id || typeof id !== 'string' || !user) return;
 
@@ -136,11 +198,15 @@ export default function DecisionResultScreen() {
 
       setDecision(decisionData);
       setParticipants(participantsData || []);
-      
-      // Always generate prediction on result screen if decision is not a draft
-      // This ensures AI is called when viewing the result
-      if (decisionData.status !== 'draft' && !decisionData.prediction) {
-        await generatePrediction(decisionData);
+
+      if (
+        decisionData &&
+        !decisionData.prediction &&
+        user &&
+        predictionAutoStartForIdRef.current !== decisionData.id
+      ) {
+        predictionAutoStartForIdRef.current = decisionData.id;
+        void generatePrediction(decisionData, participantsData || []);
       }
       
       // Trigger fade-in animation after data loads
@@ -164,7 +230,7 @@ export default function DecisionResultScreen() {
     }
   }
 
-  async function generatePrediction(decisionData: any) {
+  async function generatePrediction(decisionData: any, participantsOverride?: any[]) {
     if (!user || !decisionData) {
       console.warn('Cannot generate prediction: missing user or decision data');
       return;
@@ -176,8 +242,8 @@ export default function DecisionResultScreen() {
     try {
       console.log('Building core pack and relevance pack...');
       
-      // Get all participant user IDs
-      const allUserIds = [user.id, ...participants.map(p => p.participant_user_id)];
+      const participantRows = participantsOverride ?? participants;
+      const allUserIds = [user.id, ...participantRows.map((p: any) => p.participant_user_id)];
       
       const corePack = await buildCorePack(user.id, allUserIds);
       const relevancePack = await buildRelevancePack(user.id, decisionData.question);
@@ -197,6 +263,7 @@ export default function DecisionResultScreen() {
         question: decisionData.question,
         options,
         participantCount: allUserIds.length,
+        contextSummary: decisionData.context_summary || undefined,
       });
 
       console.log('AI prediction received:', {
@@ -269,26 +336,7 @@ export default function DecisionResultScreen() {
     trackEvent('Decision - discuss-clicked', {
       decision_id: decision.id,
       has_prediction: !!decision.prediction,
-      is_premium: isPremium
     });
-    
-    // Check premium status
-    if (!isPremium) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert(
-        'Premium Feature',
-        'Unlock the ability to discuss your decisions with your Architect by upgrading to mora+.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Upgrade', 
-            onPress: () => router.push('/premium' as any),
-            style: 'default'
-          },
-        ]
-      );
-      return;
-    }
     
     // Track chat opened
     trackEvent(MixpanelEvents.DECISION_CHAT_OPENED, {
@@ -353,7 +401,95 @@ export default function DecisionResultScreen() {
     shareDecision();
   }
 
-  if (loading || predicting) {
+  if (predicting) {
+    const rotateInterpolate = twinRotateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    return (
+      <View style={styles.twinLoadingScreen}>
+        <View style={styles.twinLoadingFill}>
+          <StatusBar style="dark" />
+          <SafeAreaView style={styles.twinLoadingSafeArea} edges={['top', 'left', 'right']}>
+            <View style={styles.topBar}>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconButton}>
+                <Home size={24} color={Colors.textPrimary} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.twinLoadingContent}>
+              <View style={styles.twinOrbContainer}>
+                <Animated.View
+                  style={[
+                    styles.twinOrbOuter,
+                    {
+                      transform: [{ scale: twinPulseAnim }, { rotate: rotateInterpolate }],
+                    },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={Colors.gradients.turquoise}
+                    style={styles.twinOrbGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                </Animated.View>
+                <View style={styles.twinOrbInner}>
+                  <View style={styles.twinCubeShadowWrapper}>
+                    <Image
+                      source={require('@/assets/images/cube.png')}
+                      style={styles.twinLoadingCubeIcon}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.twinTextContainer}>
+                <Text style={styles.twinLoadingHeadline}>Asking your twin...</Text>
+                <View style={styles.twinStatusContainer}>
+                  <View style={styles.twinStatusBlur}>
+                    <Text style={styles.twinStatusText}>
+                      {DECISION_TWIN_LOADING_STEPS[twinLoadingStepIndex] ||
+                        DECISION_TWIN_LOADING_STEPS[DECISION_TWIN_LOADING_STEPS.length - 1]}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.twinDotsContainer}>
+                {[0, 1, 2].map((index) => (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.twinDot,
+                      {
+                        backgroundColor: Colors.textSecondary,
+                        transform: [
+                          {
+                            scale: twinPulseAnim.interpolate({
+                              inputRange: [1, 1.1],
+                              outputRange: [1, 1.2],
+                            }),
+                          },
+                        ],
+                        opacity: twinPulseAnim.interpolate({
+                          inputRange: [1, 1.1],
+                          outputRange: [0.5, 1],
+                        }),
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+          </SafeAreaView>
+        </View>
+      </View>
+    );
+  }
+
+  if (loading) {
     return (
       <View style={styles.screen}>
         <View style={styles.backgroundGradient}>
@@ -366,9 +502,7 @@ export default function DecisionResultScreen() {
             </View>
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={Colors.textSecondary} />
-              <Text style={styles.loadingText}>
-                {predicting ? 'Generating prediction...' : 'Loading...'}
-              </Text>
+              <Text style={styles.loadingText}>Loading...</Text>
             </View>
           </SafeAreaView>
         </View>
@@ -911,6 +1045,63 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     paddingTop: 10,
   },
+  clarificationContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 10,
+  },
+  clarificationSection: {
+    marginTop: 16,
+    gap: 16,
+  },
+  clarificationTitle: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  clarificationQuestion: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 12,
+    fontFamily: Fonts.secondary.bold,
+  },
+  clarificationInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 16,
+    color: Colors.textPrimary,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  clarificationButton: {
+    backgroundColor: '#25729f',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clarificationButtonDisabled: {
+    opacity: 0.5,
+  },
+  clarificationButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Fonts.secondary.bold,
+  },
+  clarificationSkip: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  clarificationSkipText: {
+    fontSize: 14,
+    color: Colors.textTertiary,
+    fontWeight: '600',
+  },
   predictionCard: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -1146,6 +1337,118 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: Colors.textTertiary,
     fontFamily: Fonts.secondary.bold,
+  },
+  twinLoadingScreen: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  twinLoadingFill: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  twinLoadingSafeArea: {
+    flex: 1,
+  },
+  twinLoadingContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  twinOrbContainer: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 32,
+  },
+  twinOrbOuter: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'hidden',
+  },
+  twinOrbGradient: {
+    width: '100%',
+    height: '100%',
+  },
+  twinOrbInner: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  twinCubeShadowWrapper: {
+    shadowColor: 'rgba(0, 0, 0, 0.5)',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.8,
+    shadowRadius: 30,
+    elevation: 20,
+  },
+  twinLoadingCubeIcon: {
+    width: 60,
+    height: 60,
+    opacity: 0.9,
+  },
+  twinTextContainer: {
+    alignItems: 'center',
+    gap: 16,
+    width: '100%',
+  },
+  twinLoadingHeadline: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+    fontFamily: Fonts.secondary.bold,
+  },
+  twinStatusContainer: {
+    marginTop: 8,
+  },
+  twinStatusBlur: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  twinStatusText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    fontWeight: '500',
+    fontFamily: Fonts.secondary.bold,
+  },
+  twinDotsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  twinDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.textTertiary,
   },
   loadingContainer: {
     flex: 1,

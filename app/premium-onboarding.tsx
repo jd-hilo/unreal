@@ -7,9 +7,11 @@ import { Check, Circle, Star, X, Infinity, MessageCircle, BarChart3, GitBranch }
 import { usePremium } from '@/hooks/usePremium';
 import { StatusBar } from 'expo-status-bar';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { completeOnboarding } from '@/lib/storage';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
 import { useAuth } from '@/store/useAuth';
+import { useTwin } from '@/store/useTwin';
 
 type PurchaseOption = 'weekly' | 'lifetime';
 
@@ -33,7 +35,7 @@ export default function PremiumOnboardingScreen() {
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
   const isOnboarding = from === 'onboarding';
-  const exitRoute = isOnboarding ? '/onboarding/enable-notifications' : '/(tabs)/home';
+  const exitRoute = '/(tabs)/home';
   const user = useAuth((state) => state.user);
   const { isPremium, packages, loading, purchasing, restoring, purchase, restore } = usePremium();
   const [selectedOption, setSelectedOption] = useState<PurchaseOption>('weekly');
@@ -174,7 +176,7 @@ export default function PremiumOnboardingScreen() {
         Alert.alert('Welcome to mora+!', message, [
           { 
             text: 'Get Started', 
-            onPress: () => router.replace(exitRoute as any)
+            onPress: () => handleExit()
           }
         ]);
       }
@@ -190,7 +192,7 @@ export default function PremiumOnboardingScreen() {
       Alert.alert('Success!', 'Your premium subscription has been restored.', [
         { 
           text: 'Continue', 
-          onPress: () => router.replace(exitRoute as any)
+          onPress: () => handleExit()
         }
       ]);
     } else {
@@ -198,12 +200,24 @@ export default function PremiumOnboardingScreen() {
     }
   }
 
+  async function handleExit() {
+    if (isOnboarding && user) {
+      try {
+        await completeOnboarding(user.id, {});
+        useTwin.getState().setOnboardingComplete(true);
+      } catch (e) {
+        console.warn('Failed to mark onboarding complete:', e);
+      }
+    }
+    router.replace(exitRoute as any);
+  }
+
   function handleSkip() {
     trackEvent(MixpanelEvents.BUTTON_CLICKED, {
       button_name: 'Skip Premium',
       screen: 'Premium Onboarding',
     });
-    router.replace(exitRoute as any);
+    handleExit();
   }
 
   if (isPremium) {
@@ -224,7 +238,7 @@ export default function PremiumOnboardingScreen() {
             </View>
             <Text style={styles.heroTitle}>You're a mora+ member</Text>
             <Text style={[styles.heroTitle, { fontSize: 16, fontWeight: '400', marginBottom: 8 }]}>You have access to all premium features</Text>
-            <Pressable onPress={() => router.replace(exitRoute as any)} style={styles.goBackButton}>
+            <Pressable onPress={() => handleExit()} style={styles.goBackButton}>
               <Text style={styles.goBackButtonText}>Go Back</Text>
             </Pressable>
           </View>

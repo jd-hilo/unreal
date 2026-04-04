@@ -5,9 +5,9 @@ import { useAuth } from '@/store/useAuth';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { SwipeableOptionCard } from '@/components/SwipeableOptionCard';
 import { ArrowLeft, ChevronRight, X, UserPlus, Clock, Sparkles, Check, Plus, Share as ShareIcon, Info, Copy, ArrowUp } from 'lucide-react-native';
-import { insertDecision, updateDecisionPrediction, getUserByTwinCode, addDecisionParticipant, getProfile } from '@/lib/storage';
-import { predictDecision, generateInterestingDecisionQuestions } from '@/lib/ai';
-import { buildCorePack, buildRelevancePack } from '@/lib/relevance';
+import { insertDecision, getUserByTwinCode, addDecisionParticipant, getProfile } from '@/lib/storage';
+import { generateInterestingDecisionQuestions } from '@/lib/ai';
+import { buildCorePack } from '@/lib/relevance';
 import { isLocationSpecificQuestion } from '@/lib/decision';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -55,7 +55,10 @@ export default function NewDecisionScreen() {
     return [];
   });
   const [isDerivingOptions, setIsDerivingOptions] = useState(false);
+  /** Full-screen twin loader (autoSubmit flow only — not manual "Ask My Twin" submit). */
   const [loading, setLoading] = useState(autoSubmit); // Show loading immediately if autoSubmit
+  /** Saving decision + navigating; keeps user on review with button state, avoids duplicate twin screen. */
+  const [submittingDecision, setSubmittingDecision] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -192,38 +195,20 @@ export default function NewDecisionScreen() {
           }
 
           try {
-            const decision = await insertDecision(user.id, {
-              question: questionToUse.trim(),
-              options: options,
-              status: 'pending',
-            });
+      const decision = await insertDecision(user.id, {
+        question: questionToUse.trim(),
+        options: options,
+        status: 'pending',
+      });
 
-            trackEvent(MixpanelEvents.DECISION_CREATED, {
-              decision_id: decision.id,
-              num_options: options.length,
-              has_participants: false,
-              num_participants: 0
-            });
+      trackEvent(MixpanelEvents.DECISION_CREATED, {
+        decision_id: decision.id,
+        num_options: options.length,
+        has_participants: false,
+        num_participants: 0
+      });
 
-            const relevancePack = await buildRelevancePack(user.id, questionToUse);
-            const prediction = await predictDecision({
-              corePack,
-              relevancePack,
-              question: questionToUse.trim(),
-              options: options,
-              participantCount: 1,
-            });
-
-            await updateDecisionPrediction(decision.id, prediction);
-
-            trackEvent(MixpanelEvents.DECISION_ANALYZED, {
-              decision_id: decision.id,
-              predicted_option: prediction.prediction,
-              confidence: Math.max(...Object.values(prediction.probs)),
-              num_participants: 0
-            });
-
-            router.replace(`/decision/${decision.id}`);
+      router.replace(`/decision/${decision.id}`);
           } catch (error) {
             console.error('Failed to create decision:', error);
             setLoading(false);
@@ -597,7 +582,7 @@ export default function NewDecisionScreen() {
     Keyboard.dismiss();
     if (!user || !question.trim() || derivedOptions.length < 2) return;
 
-    setLoading(true);
+    setSubmittingDecision(true);
 
     try {
       console.log('Creating decision...');
@@ -623,43 +608,7 @@ export default function NewDecisionScreen() {
         }
       }
 
-      console.log('Building Core Pack and Relevance Pack...');
-      
-      const allUserIds = [user.id, ...addedTwins.map(t => t.userId)];
-      
-      const corePack = await buildCorePack(user.id, allUserIds);
-      const relevancePack = await buildRelevancePack(user.id, question);
-      
-      console.log('Core pack length:', corePack.length);
-      console.log('Relevance pack length:', relevancePack.length);
-      console.log('Number of twins involved:', allUserIds.length);
-      console.log('Calling AI predictDecision...');
-
-      const prediction = await predictDecision({
-        corePack,
-        relevancePack,
-        question: question.trim(),
-        options: derivedOptions,
-        participantCount: allUserIds.length,
-      });
-
-      console.log('AI prediction received:', {
-        prediction: prediction.prediction,
-        probs: prediction.probs,
-        uncertainty: prediction.uncertainty,
-      });
-
-      console.log('Saving prediction to database...');
-      await updateDecisionPrediction(decision.id, prediction);
-
-      trackEvent(MixpanelEvents.DECISION_ANALYZED, {
-        decision_id: decision.id,
-        predicted_option: prediction.prediction,
-        confidence: Math.max(...Object.values(prediction.probs)),
-        num_participants: addedTwins.length
-      });
-
-      console.log('Prediction saved. Navigating to result page...');
+      console.log('Navigating to result page (clarification then prediction)...');
       
       // Success haptic feedback
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -670,7 +619,7 @@ export default function NewDecisionScreen() {
       console.error('Error details:', JSON.stringify(error, null, 2));
       alert('Failed to process decision. Please try again.');
     } finally {
-      setLoading(false);
+      setSubmittingDecision(false);
     }
   }
 
@@ -940,7 +889,7 @@ export default function NewDecisionScreen() {
   const canProceedStep1 = question.trim().length > 10 && !isDerivingOptions;
   const canProceedStep2 = derivedOptions.length >= 2;
   const canProceedStep3 = true; // Optional step
-  const canSubmit = !loading;
+  const canSubmit = !loading && !submittingDecision;
 
   const canProceed = 
     (currentStep === 1 && canProceedStep1) ||
@@ -950,12 +899,16 @@ export default function NewDecisionScreen() {
 
   function getButtonLabel() {
     if (currentStep === 1) return isDerivingOptions ? 'Generating...' : 'Generate Options';
-    if (currentStep === 4) return loading ? 'Analyzing...' : 'Ask My Twin';
+    if (currentStep === 4) {
+      if (submittingDecision) return 'Saving...';
+      if (loading) return 'Analyzing...';
+      return 'Ask My Twin';
+    }
     return 'Continue';
   }
 
   function handleNextStep() {
-    if (!canProceed) return;
+    if (!canProceed || submittingDecision) return;
     
     if (currentStep === 1) {
       handleDeriveOptions();
@@ -1165,14 +1118,14 @@ export default function NewDecisionScreen() {
                 )}
                 <TouchableOpacity
                   onPress={handleNextStep}
-                  disabled={!canProceed || loading || isDerivingOptions}
+                  disabled={!canProceed || loading || isDerivingOptions || submittingDecision}
                   activeOpacity={0.9}
                   style={[
                     styles.floatingButtonWrapper,
-                    (!canProceed || loading || isDerivingOptions) && styles.floatingButtonDisabled
+                    (!canProceed || loading || isDerivingOptions || submittingDecision) && styles.floatingButtonDisabled
                   ]}
                 >
-                  {canProceed && !loading && !isDerivingOptions ? (
+                  {canProceed && !loading && !isDerivingOptions && !submittingDecision ? (
                     <LinearGradient
                       colors={['#FF9F43', '#FF6B6B']}
                       style={[
@@ -1215,9 +1168,9 @@ export default function NewDecisionScreen() {
                         styles.floatingButtonText,
                         styles.floatingButtonTextDisabled
                       ]}>
-                        {loading || isDerivingOptions ? 'Processing...' : getButtonLabel()}
+                        {loading || isDerivingOptions || submittingDecision ? 'Processing...' : getButtonLabel()}
                       </Text>
-                      {!loading && !isDerivingOptions && (
+                      {!loading && !isDerivingOptions && !submittingDecision && (
                         <ChevronRight 
                           size={20} 
                           color={Colors.textTertiary} 

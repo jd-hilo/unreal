@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState, useCallback, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
-import { getProfile } from '@/lib/storage';
+import { getCareerSimPrefill } from '@/lib/careerSimPrefill';
 import { ChevronLeft, ChevronRight, Clock, Briefcase, Building2, DollarSign, Target, Rocket, Sparkles } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -35,13 +35,10 @@ export default function CareerSimSetup() {
   const loadProfileData = useCallback(async () => {
     if (!user) return;
     try {
-      const profile = await getProfile(user.id);
-      if (profile?.core_json?.primary_role) {
-        setCurrentRole(profile.core_json.primary_role);
-      }
-      if (profile?.current_location) {
-        // Could pre-fill company if we had it
-      }
+      const prefill = await getCareerSimPrefill(user.id);
+      if (prefill.currentRole) setCurrentRole(prefill.currentRole);
+      if (prefill.company) setCompany(prefill.company);
+      if (prefill.salary) setSalary(prefill.salary);
     } catch (error) {
       console.error('Failed to load profile:', error);
     }
@@ -53,27 +50,25 @@ export default function CareerSimSetup() {
   }, []);
 
   const handleRunSimulation = useCallback(() => {
-    if (!currentRole.trim() || !company.trim() || !salary.trim()) {
-      return;
-    }
+    if (!currentRole.trim() || !company.trim()) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoading(true);
 
-    // Navigate to generating screen which will call the API and then navigate to result
+    const salaryVal = salary.trim() || '100000';
     router.push({
       pathname: '/career-sim/generating',
       params: {
         timeHorizon: timeHorizon.toString(),
         currentRole,
         company,
-        salary,
+        salary: salaryVal,
         pathType: 'stay',
       },
     });
   }, [currentRole, company, salary, timeHorizon, router]);
 
-  const isFormValid = currentRole.trim() && company.trim() && salary.trim();
+  const isFormValid = currentRole.trim() && company.trim();
 
   return (
     <View style={styles.screen}>

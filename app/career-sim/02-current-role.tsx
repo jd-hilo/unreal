@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/store/useAuth';
-import { getProfile } from '@/lib/storage';
+import { getCareerSimPrefill } from '@/lib/careerSimPrefill';
 import { Colors, Fonts } from '@/constants/Theme';
 import { ProgressBar } from '@/components/ProgressBar';
 import * as Haptics from 'expo-haptics';
@@ -29,9 +29,9 @@ export default function CurrentRoleScreen() {
   const loadProfileData = async () => {
     if (!user) return;
     try {
-      const profile = await getProfile(user.id);
-      if (profile?.core_json?.primary_role) {
-        setCurrentRole(profile.core_json.primary_role);
+      const prefill = await getCareerSimPrefill(user.id);
+      if (prefill.currentRole) {
+        setCurrentRole(prefill.currentRole);
       }
     } catch (error) {
       console.error('Failed to load profile:', error);

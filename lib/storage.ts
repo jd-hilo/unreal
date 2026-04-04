@@ -393,6 +393,21 @@ export async function saveDecisionResult(decisionId: string, result: DecisionPre
   return updateDecisionPrediction(decisionId, result);
 }
 
+/**
+ * Update decision context_summary (clarification responses) before prediction.
+ */
+export async function updateDecisionContextSummary(decisionId: string, contextSummary: string) {
+  const { data, error } = await supabase
+    .from('decisions')
+    .update({ context_summary: contextSummary })
+    .eq('id', decisionId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function getDecisions(userId: string, limit = 10) {
   const { data, error } = await supabase
     .from('decisions')

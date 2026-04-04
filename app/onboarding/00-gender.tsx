@@ -74,7 +74,7 @@ export default function GenderScreen() {
         console.error('Failed to save gender:', e);
       }
     }
-    router.push('/onboarding/motivate-reviews');
+    router.push('/onboarding/interests');
   }
 
   return (

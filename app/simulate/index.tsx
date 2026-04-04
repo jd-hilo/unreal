@@ -1,11 +1,10 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Modal, Animated, Dimensions, Easing } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Animated, Dimensions, Easing } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
-import { useTwin } from '@/store/useTwin';
-import { getTimelines, deleteTimeline, getProfile, checkSimulationCredits, getRelationships } from '@/lib/storage';
-import { ChevronRight, ChevronLeft, Plus, Lock, Zap, Play, Users, Home } from 'lucide-react-native';
+import { getTimelines, deleteTimeline, getProfile, checkSimulationCredits } from '@/lib/storage';
+import { ChevronLeft, Zap, Play, Users } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -19,7 +18,6 @@ const { width } = Dimensions.get('window');
 export default function SimulateDashboard() {
   const router = useRouter();
   const user = useAuth((state) => state.user);
-  const { isPremium } = useTwin();
   const [timelines, setTimelines] = useState<any[]>([]);
   const [userAge, setUserAge] = useState<number | null>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -27,7 +25,6 @@ export default function SimulateDashboard() {
   const [simulationCredits, setSimulationCredits] = useState<number | null>(null);
   const [userName, setUserName] = useState<string>('');
   const [profileData, setProfileData] = useState<any>(null);
-  const [checkingFields, setCheckingFields] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -85,49 +82,10 @@ export default function SimulateDashboard() {
   );
 
   async function handleCreatePress() {
-    if (!user || checkingFields) return;
-
-    // Check limits
-    const timelineCount = timelines.length;
-    const maxTimelines = isPremium ? Infinity : 1;
-
-    if (timelineCount >= maxTimelines) {
-      alert(
-        isPremium
-          ? 'Unable to create timeline'
-          : 'Free users can have up to 1 timeline. Upgrade to Premium for unlimited timelines.'
-      );
-      return;
-    }
+    if (!user) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setCheckingFields(true);
-
-    // Always fetch fresh data to check required fields
-    try {
-      // Fetch fresh profile and relationships data each time
-      const [profile, relationships] = await Promise.all([
-        getProfile(user.id),
-        getRelationships(user.id),
-      ]);
-
-      // Check what's missing and route to setup if needed
-      if (!profile?.net_worth || !profile?.current_location || !relationships || relationships.length === 0) {
-        setCheckingFields(false);
-        router.push('/simulate/setup');
-        return;
-      }
-
-      // All required fields are present, proceed to new simulation
-      setCheckingFields(false);
-      router.push('/simulate/new');
-    } catch (error) {
-      console.error('Failed to check required fields:', error);
-      setCheckingFields(false);
-      // On error, route to setup to ensure user completes required fields
-      alert('Please complete your profile setup before creating a simulation.');
-      router.push('/simulate/setup');
-    }
+    router.push('/simulate/new');
   }
 
   function handleLongPressTimeline(timelineId: string) {
@@ -193,9 +151,7 @@ export default function SimulateDashboard() {
               style={styles.resourceBadge}
             >
               <Zap size={14} color="#FCD34D" fill="#FCD34D" />
-              <Text style={styles.resourceText}>
-                {isPremium ? '1/1' : `${timelines.length}/1`}
-              </Text>
+              <Text style={styles.resourceText}>{timelines.length} timeline{timelines.length !== 1 ? 's' : ''}</Text>
             </LinearGradient>
           </View>
 
@@ -224,14 +180,8 @@ export default function SimulateDashboard() {
           {/* Featured Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>My Simulations</Text>
-            <TouchableOpacity 
-              onPress={handleCreatePress}
-              disabled={checkingFields}
-              style={{ opacity: checkingFields ? 0.5 : 1 }}
-            >
-              <Text style={styles.headerLink}>
-                {checkingFields ? 'Checking...' : 'New +'}
-              </Text>
+            <TouchableOpacity onPress={handleCreatePress}>
+              <Text style={styles.headerLink}>New +</Text>
             </TouchableOpacity>
           </View>
 
@@ -239,8 +189,7 @@ export default function SimulateDashboard() {
           <TouchableOpacity
             onPress={handleCreatePress}
             activeOpacity={0.9}
-            disabled={checkingFields}
-            style={[styles.newGameCard, { opacity: checkingFields ? 0.7 : 1 }]}
+            style={styles.newGameCard}
           >
             <LinearGradient
               colors={Colors.gradients.purple}
@@ -252,14 +201,7 @@ export default function SimulateDashboard() {
                 <Text style={styles.newGameTitle}>New Life Simulation</Text>
                 <Text style={styles.newGameSubtitle}>Create a new timeline and see where life takes you.</Text>
                 <View style={styles.playButton}>
-                  {checkingFields ? (
-                    <>
-                      <ActivityIndicator size="small" color="#000" />
-                      <Text style={styles.playButtonText}>Checking...</Text>
-                    </>
-                  ) : (
-                      <Text style={styles.playButtonText}>Start</Text>
-                  )}
+                  <Text style={styles.playButtonText}>Start</Text>
                 </View>
               </View>
               <Image 
@@ -321,25 +263,6 @@ export default function SimulateDashboard() {
               ))
             )}
           </View>
-
-          {/* Premium Banner */}
-          {!isPremium && (
-            <TouchableOpacity 
-              style={styles.premiumBanner}
-              onPress={() => router.push('/premium')}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['rgba(0, 188, 166, 0.06)', 'rgba(144, 140, 241, 0.06)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.premiumGradient}
-              >
-                <Text style={styles.premiumText}>Get mora+ for unlimited sims</Text>
-                <ChevronRight size={16} color={Colors.textSecondary} />
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
 
         </ScrollView>
       </SafeAreaView>

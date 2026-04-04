@@ -12,6 +12,8 @@ import type {
   DailyTask,
 } from '@/types/database';
 import type { CareerSimulation } from '@/lib/career-sim/types';
+import { normalizeJourneyDailyPreview } from '@/lib/journey';
+import { limitCorePackForArchitect } from '@/lib/architect-core-pack';
 
 // Anthropic API key (Claude 3.5)
 const anthropicApiKey = 
@@ -554,12 +556,14 @@ export async function predictDecision({
   question,
   options,
   participantCount = 1,
+  contextSummary,
 }: {
   corePack: string;
   relevancePack: string;
   question: string;
   options: string[];
   participantCount?: number;
+  contextSummary?: string;
 }): Promise<DecisionPrediction> {
   console.log('=== PREDICT DECISION CALLED ===');
   console.log('DEV_MODE:', DEV_MODE);
@@ -646,6 +650,7 @@ export async function predictDecision({
     '',
     question,
     '',
+    ...(contextSummary ? ['Clarification context (use this when relevant):', '', contextSummary, ''] : []),
     'Options:',
     '',
     JSON.stringify(options),
@@ -3220,6 +3225,147 @@ Example JSON:
   }
 }
 
+/** Journey generation output schema (matches REDESIGN_ONBOARDING_AND_APP_SPEC) */
+export interface JourneyGenerationResult {
+  phases: Array<{
+    id: string;
+    title: string;
+    description: string;
+    estimated_weeks: number;
+    order: number;
+  }>;
+  estimated_completion_weeks: number;
+  daily_task_preview: Array<{
+    day: number;
+    date: string;
+    task: string;
+    category: 'Career' | 'Health' | 'Growth' | 'Personal' | 'Lifestyle' | 'Financial';
+  }>;
+  milestones?: Array<{
+    emoji: string;
+    week: number;
+    title: string;
+  }>;
+}
+
+/**
+ * Generate a personalized journey from profile and goals (new short onboarding flow).
+ */
+export async function generateJourney(input: {
+  name: string;
+  gender: string;
+  age?: string;
+  birth_year?: string;
+  interests: string[];
+  career: string;
+  health: string;
+  career_goals: string[];
+  health_goals: string[];
+  custom_goals: string[];
+}): Promise<JourneyGenerationResult> {
+  try {
+    const systemPrompt = `You are an elite life coach creating a hyper-personalized journey. Be specific to THIS person—reference their name, career, health status, interests, and exact goals throughout. Never be generic.
+
+USER PROFILE:
+- Name: ${input.name}
+- Gender: ${input.gender}
+- Age: ${input.age || `Birth year: ${input.birth_year || 'Unknown'}`}
+- Interests: ${input.interests.join(', ') || 'Not specified'}
+- Current career: ${input.career}
+- Current health status: ${input.health}
+- Career goals: ${input.career_goals.join(', ') || 'None selected'}
+- Health goals: ${input.health_goals.join(', ') || 'None selected'}
+- Other goals: ${input.custom_goals.join(', ') || 'None selected'}
+
+OUTPUT REQUIREMENTS:
+- Write everything in second person (you/your). Example: "Your next step is..." not "Their next step is...".
+- Combine career, health, and other goals throughout—do NOT focus only on career. Mix tasks and milestones across all goal types.
+
+1. "phases": 4–6 phases. Each has id, title (2–4 words), description (2–3 sentences in second person referencing their career, health, and other goals), estimated_weeks, order. Phases must flow logically from current state → goals.
+2. "estimated_completion_weeks": realistic total.
+3. "daily_task_preview": Exactly 15 tasks for days 1–5 (3 tasks per day). Day 1 date = today; days 2–5 use consecutive calendar dates. You must plan this as EXACTLY 3 WEEKLY LANES that continue across all 5 days:
+   - Lane 1 = career/financial lane
+   - Lane 2 = health lane
+   - Lane 3 = personal/growth/lifestyle lane
+   For every single day, task 1 must continue Lane 1, task 2 must continue Lane 2, and task 3 must continue Lane 3. Do NOT swap lane order. Do NOT introduce a random new theme on day 3 or day 4.
+   Each lane must progress as a real sequence:
+   - Day 1: identify / set up / research
+   - Day 2: choose / organize / prepare
+   - Day 3: take first real action
+   - Day 4: follow up / deepen / repeat
+   - Day 5: commit / measure / lock in next step
+   CRITICAL — CUMULATIVE FLOW: Day 2 must obviously build on Day 1, Day 3 on Day 2, Day 4 on Day 3, Day 5 on Day 4. Example career lane: "List 10 target companies" → "Choose top 3 companies" → "Send one outreach email" → "Follow up with one contact" → "Book one intro call". Example health lane: "List 3 healthy lunches" → "Buy ingredients for 2 lunches" → "Prep 2 lunches" → "Eat your planned lunch" → "Repeat and log results". Example growth lane: "List 5 networking targets" → "Choose one person to message" → "Send one message" → "Reply with one follow-up" → "Schedule one conversation".
+   CRITICAL: Each task field must be 4–8 words max. Direct commands only. Use numbers. No fluff. Examples: "Research 3 target companies", "Walk 20 minutes outside", "List 5 meal prep ideas". Each task: day (1–5), date (YYYY-MM-DD), task (4–8 word command), category (Career|Health|Growth|Personal|Lifestyle|Financial).
+4. "milestones": Exactly 4 milestone markers in second person. MIX career, health, and other goals—e.g., "You land 3 informational interviews", "You complete your first 4-week workout block", "You hit your first savings milestone". Each has emoji, week (number), title (short, concrete, second-person).
+
+Return ONLY valid JSON. No markdown, no explanation.`;
+
+    const today = new Date();
+    const localDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+    const userPrompt = `Generate the journey. Today's date is ${localDate(today)}. For daily_task_preview, output exactly 15 tasks: 3 tasks each for days 1 through 5, with consecutive dates starting ${localDate(today)} for day 1.
+
+Build the 5-day preview as ONE coherent mini-plan with exactly 3 lanes:
+- Task 1 every day = career/financial lane
+- Task 2 every day = health lane
+- Task 3 every day = personal/growth/lifestyle lane
+
+Later days must be the natural next step after earlier days in the SAME lane. The week should feel like 3 parallel mini-stories that move forward, not 15 unrelated tasks.`;
+
+    const content = await callClaude({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      responseFormat: { type: 'json_object' },
+      temperature: 0.7,
+    });
+
+    let cleaned = content.replace(/,(\s*[}\]])/g, '$1').replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim();
+    const parsed = JSON.parse(cleaned) as JourneyGenerationResult & { Phases?: typeof parsed.phases };
+
+    // Normalize phases (AI may use "Phases" or different casing)
+    const phases = parsed.phases ?? (parsed as unknown as { Phases?: typeof parsed.phases }).Phases;
+    if (!phases || !Array.isArray(phases)) {
+      return {
+        phases: [
+          { id: 'phase-1', title: 'Foundation', description: 'Build the basics and establish your rhythm.', estimated_weeks: 4, order: 1 },
+          { id: 'phase-2', title: 'Momentum', description: 'Accelerate progress with consistent action.', estimated_weeks: 8, order: 2 },
+          { id: 'phase-3', title: 'Breakthrough', description: 'Push through plateaus and level up.', estimated_weeks: 12, order: 3 },
+          { id: 'phase-4', title: 'Integration', description: 'Make it part of who you are.', estimated_weeks: 24, order: 4 },
+        ],
+        estimated_completion_weeks: parsed.estimated_completion_weeks ?? 24,
+        daily_task_preview: normalizeJourneyDailyPreview(
+          parsed.daily_task_preview && Array.isArray(parsed.daily_task_preview)
+            ? parsed.daily_task_preview
+            : [],
+          today
+        ),
+      };
+    }
+    parsed.phases = phases;
+    if (parsed.estimated_completion_weeks == null) {
+      parsed.estimated_completion_weeks = 24;
+    }
+    if (!parsed.daily_task_preview || !Array.isArray(parsed.daily_task_preview)) {
+      parsed.daily_task_preview = [];
+    }
+    parsed.daily_task_preview = normalizeJourneyDailyPreview(parsed.daily_task_preview, today);
+
+    return parsed;
+  } catch (error) {
+    console.error('Journey generation error:', error);
+    return {
+      phases: [
+        { id: 'phase-1', title: 'Foundation', description: 'Build the basics and establish your rhythm.', estimated_weeks: 4, order: 1 },
+        { id: 'phase-2', title: 'Momentum', description: 'Accelerate progress with consistent action.', estimated_weeks: 8, order: 2 },
+        { id: 'phase-3', title: 'Breakthrough', description: 'Push through plateaus and level up.', estimated_weeks: 12, order: 3 },
+        { id: 'phase-4', title: 'Integration', description: 'Make it part of who you are.', estimated_weeks: 24, order: 4 },
+      ],
+      estimated_completion_weeks: 24,
+      daily_task_preview: normalizeJourneyDailyPreview([], new Date()),
+    };
+  }
+}
+
 /**
  * Generate a personalized plan from The Architect based on the user's dream self vision.
  */
@@ -3230,108 +3376,100 @@ export async function generateArchitectPlan(
   feedback?: string
 ): Promise<Partial<DailyTask>[]> {
   try {
+    const dv = dreamVision || {};
     const firstName = profileData?.first_name || 'User';
     const currentLife = profileData?.life_situation || '';
     const archetype = (profileData?.core_json as any)?.twin_archetype;
     const twinDescription = archetype ? `${archetype.title}: ${archetype.description}` : 'Not yet defined';
-    
-    // Get current relationship status from relationship_details (correct location)
     const currentRelationshipStatus = profileData?.relationship_details?.status || 'Not specified';
     const partnerName = profileData?.relationship_details?.partnerName || null;
-    
-    // Check progress to see which categories are completed
     const progress = profileData?.dream_self_progress || {};
     const completedCategories = Object.entries(progress)
       .filter(([_, value]) => (value as number) >= 100)
       .map(([key, _]) => key);
-
-    // Calculate average progress to determine progression stage
     const progressValues = Object.values(progress).filter(v => typeof v === 'number') as number[];
-    const avgProgress = progressValues.length > 0 
-      ? progressValues.reduce((sum, val) => sum + val, 0) / progressValues.length 
+    const avgProgress = progressValues.length > 0
+      ? progressValues.reduce((sum, val) => sum + val, 0) / progressValues.length
       : 0;
-    
-    // Determine progression stage based on average progress
-    let progressionStage = 'exploration';
-    let stageGuidance = '';
-    if (avgProgress >= 70) {
-      progressionStage = 'commitment';
-      stageGuidance = `COMMITMENT STAGE (70-100% progress): Generate decisive daily actions that represent commitment and execution. These aren't "harder" - they're more CONSEQUENTIAL and SPECIFIC. Examples: "Sign apartment lease", "Close first customer", "Book one-way ticket", "Quit current job". For relationships: if single, "Plan second date with [name]"; if in a relationship, "Discuss engagement timeline" or "Book couples counseling". Tasks should be completable in one day but represent making decisions and committing to a direction based on what they've already explored and built.`;
-    } else if (avgProgress >= 30) {
-      progressionStage = 'action';
-      stageGuidance = `ACTION STAGE (30-70% progress): Generate concrete daily actions that build on their exploration. These aren't "harder" - they're more SPECIFIC and ACTIVE. Examples: "Email one landlord", "Interview one customer", "Apply to 3 jobs", "Join one fitness class". For relationships: if single, "Go on one coffee date"; if in a relationship, "Plan one special date" or "Have one deep conversation". Tasks should be completable in one day and represent taking real steps based on what they've learned.`;
-    } else {
-      progressionStage = 'exploration';
-      stageGuidance = `EXPLORATION STAGE (0-30% progress): Generate exploratory daily actions that build awareness and discover options. Keep these LOW-STAKES and RESEARCH-ORIENTED. Examples: "Research 3 apartments in Austin", "List 5 business ideas", "Read one career article", "Walk 10 minutes". For relationships: if single, "Browse 3 dating apps" or "Ask friend for introduction"; if in a relationship, "Research one date idea" or "List 3 conversation topics". Tasks should be completable in one day and help them understand their options without commitment.`;
-    }
 
-    const systemPrompt = `You are The Architect, a master strategist and life designer. Your goal is to bridge the gap between a user's current digital twin and their "Dream Self". 
-    You provide exactly 3 actionable, daily tasks that are specific, measurable, and highly relevant to their aspirations.
-    You are direct, inspiring, and focused on systems rather than just motivation.
-    
-    CRITICAL RULES: 
-    1. Each task_content MUST be SHORT: 4-7 words ideal (never exceed 10 words). Think simple commands: "Research 3 apartments", "Email one landlord", "Sign lease", "List 5 ideas".
-    2. Tasks MUST be daily actions - completable within one day. They don't get "harder" as progress increases - they get more SPECIFIC, CONSEQUENTIAL, and COMMITTED.
-    3. Use simple, direct language. No fluff, no explanations, just the action.
-    4. Be specific with numbers when possible: "3 options", "one person", "$10".
-    5. Do NOT include time references in task_content (no "today", "right now", or minutes).
-    6. Rotate categories: prioritize categories where the user has the lowest progress.
-    7. IMPORTANT - Progression Stages: ${stageGuidance}
-    8. Return ONLY a JSON array of 3 tasks.
-    9. Do NOT generate tasks for the following completed categories: ${completedCategories.join(', ') || 'None'}.
-    10. CRITICAL - Respect Current Situation: ALWAYS read and respect the user's CURRENT relationship status before generating any relationship/personal tasks:
-        - If status is "Partnered", "Dating", or "Married": They are IN A RELATIONSHIP. NEVER suggest dating apps, meeting new people, or finding partners. Instead focus on: deepening connection, quality time, communication, planning future together, discussing marriage/commitment, meeting each other's needs.
-        - If status is "Single": They are single. Tasks about meeting new people, dating apps, or social activities are appropriate.
-        - The goal is to bridge from their CURRENT state to their DREAM state. You MUST acknowledge where they are now.`;
+    // Pull journey context (phases, goals) from profile for new-onboarding users
+    const coreJson = (profileData?.core_json as any) || {};
+    const onboardingResponses = coreJson.onboarding_responses || {};
+    let journeyContext = '';
+    let recentJourneyTasksBlock = '';
+    if (onboardingResponses['journey']) {
+      try {
+        const journey = JSON.parse(onboardingResponses['journey']);
+        const phaseNames = journey.phases?.map((p: any) => p.title).join(' → ') || '';
+        const currentPhase = journey.phases?.[0]?.title || '';
+        journeyContext = `Journey Path: ${phaseNames}\nCurrent Phase: ${currentPhase}\nEstimated Weeks: ${journey.estimated_completion_weeks || 'N/A'}`;
+        const preview = journey.daily_task_preview;
+        if (Array.isArray(preview) && preview.length > 0) {
+          const tail = preview.slice(-9);
+          const lines = tail.map(
+            (t: { day?: number; task?: string; category?: string }) =>
+              `Day ${t.day ?? '?'}: ${t.task ?? ''} (${t.category ?? ''})`
+          );
+          recentJourneyTasksBlock = `Their journey preview tasks (continue these threads—next logical steps, not new random themes):\n- ${lines.join('\n- ')}`;
+        }
+      } catch {}
+    }
+    const careerGoals = onboardingResponses['career_goals'] || '';
+    const healthGoals = onboardingResponses['health_goals'] || '';
+    const customGoals = onboardingResponses['custom_goals'] || '';
+    const career = onboardingResponses['career'] || '';
+    const health = onboardingResponses['health'] || '';
+
+    const hasDreamVision = Object.keys(dv).length > 0;
+
+    const systemPrompt = `You are The Architect — a direct, concise life coach. Write in second person (you/your).
+
+Generate EXACTLY 3 daily tasks. Rules:
+1. task_content: 4–8 words. Direct commands. e.g. "Research 3 target companies", "Walk 20 minutes outside", "Set up auto-savings transfer". Never exceed 10 words.
+2. Mix categories across career, health, and personal/growth goals. Prioritize lowest-progress areas.
+3. Build on what the user already completed AND on their journey preview plan—suggest the logical next step in the same storylines.
+4. Continue the SAME 3 lanes from the journey whenever possible:
+   - one career/financial lane
+   - one health lane
+   - one personal/growth/lifestyle lane
+   Do NOT reset with random new tasks if a lane can continue.
+5. Use numbers when possible: "3 companies", "one email", "$50".
+6. No fluff, no time references, no motivational filler.
+7. ${completedCategories.length > 0 ? `Skip completed categories: ${completedCategories.join(', ')}.` : ''}
+8. Return ONLY a JSON array of 3 objects.`;
+
+    const goalSection = hasDreamVision
+      ? `Dream Self Vision:
+- Net Worth Goal: ${dv.net_worth_goal || 'Not specified'}
+- Relationship Goal: ${dv.relationship_status_goal || 'Not specified'}
+- Career Vision: ${dv.career_vision || 'Not specified'}
+- Health Goals: ${dv.health_goals || 'Not specified'}
+- Hobbies/Interests: ${dv.hobbies_interests || 'Not specified'}`
+      : `Goals (from onboarding):
+- Career: ${career || 'Not specified'}
+- Career Goals: ${careerGoals || 'Not specified'}
+- Health: ${health || 'Not specified'}
+- Health Goals: ${healthGoals || 'Not specified'}
+- Other Goals: ${customGoals || 'Not specified'}`;
 
     const userPrompt = `User: ${firstName}
-Current Digital Twin: ${twinDescription}
-Current Life Situation: ${currentLife}
-CURRENT Relationship Status: ${currentRelationshipStatus}${partnerName ? ` (Partner: ${partnerName})` : ''}
+Current Situation: ${currentLife || twinDescription}
+Relationship: ${currentRelationshipStatus}${partnerName ? ` (${partnerName})` : ''}
 
-IMPORTANT: The user is currently ${currentRelationshipStatus}. ${
-  ['Partnered', 'Dating', 'Married'].includes(currentRelationshipStatus) 
-    ? `They are IN A RELATIONSHIP. Do NOT suggest tasks about finding a partner, dating apps, or meeting new people. Focus on strengthening their current relationship toward their goal.`
-    : currentRelationshipStatus === 'Single'
-    ? `They are single. Tasks about meeting new people, dating apps, or social activities are appropriate.`
-    : ''
-}
+${goalSection}
+${journeyContext ? `\n${journeyContext}` : ''}
+${recentJourneyTasksBlock ? `\n${recentJourneyTasksBlock}` : ''}
 
-Dream Self Vision:
-- Net Worth Goal: ${dreamVision.net_worth_goal || 'Not specified'}
-- Relationship Goal: ${dreamVision.relationship_status_goal || 'Not specified'}
-- Partner Details: ${dreamVision.partner_details || 'Not specified'}
-- Family Plans: ${dreamVision.family_plans || 'Not specified'}
-- Dream Home: ${dreamVision.dream_home || 'Not specified'}
-- Dream City: ${dreamVision.dream_city || 'Not specified'}
-- Career Vision: ${dreamVision.career_vision || 'Not specified'}
-- Health Goals: ${dreamVision.health_goals || 'Not specified'}
-- Hobbies/Interests: ${dreamVision.hobbies_interests || 'Not specified'}
-- Travel Plans: ${dreamVision.travel_plans || 'Not specified'}
+Progress: ${JSON.stringify(progress)} (avg ${avgProgress.toFixed(0)}%)
+${completedTasks.length > 0 ? `\nCompleted (recent):\n- ${completedTasks.slice(-12).join('\n- ')}` : ''}
+${feedback ? `\nFeedback: "${feedback}"` : ''}
 
-Current Progress: ${JSON.stringify(progress)}
-Average Progress: ${avgProgress.toFixed(1)}% (${progressionStage.toUpperCase()} stage)
+Each task: { "task_content": "...", "category": "Career|Health|Growth|Personal|Lifestyle|Financial", "scheduled_date": "${new Date().toISOString().split('T')[0]}", "points": 10-30 }
 
-${completedTasks.length > 0 ? `Recently Completed Tasks:\n- ${completedTasks.join('\n- ')}` : ''}
-${feedback ? `User Feedback on Previous Tasks: "${feedback}"` : ''}
-
-As The Architect, generate EXACTLY 3 daily tasks for this user to complete. 
-Match the progression stage appropriately (${progressionStage} stage - ${avgProgress.toFixed(1)}% average).
-
-IMPORTANT: Tasks should progress from EXPLORATION → ACTION → COMMITMENT as they complete more tasks. This isn't about making tasks "harder" - it's about moving from low-stakes research to concrete actions to decisive commitments. All tasks remain equally completable in one day.
-
-Each task must have:
-1. "task_content": Short action phrase (4-7 words ideal, 10 words MAX). Match the progression stage: exploration = research/discover, action = concrete steps, commitment = decisions/execution. Build on their completed tasks to suggest the logical next step.
-2. "category": One of: "Financial", "Personal", "Lifestyle", "Career", "Health", "Growth". (Note: Career tasks count towards Financial progress).
-3. "scheduled_date": Set this to today's date in YYYY-MM-DD format.
-4. "points": Award points based on difficulty and progression stage:
-   - EXPLORATION stage (0-30% progress): 10-20 points (easier, low-stakes tasks)
-   - ACTION stage (30-70% progress): 20-35 points (moderate difficulty, concrete actions)
-   - COMMITMENT stage (70-100% progress): 35-50 points (high stakes, decisive actions)
-   
-   Within each stage, vary points based on task complexity and impact. More consequential or challenging tasks get more points.
-
-Use simple, everyday language. Tasks should naturally progress based on what they've already done.
+Return 3 tasks that feel like the next day in the same plan, not a brand new plan. Prefer:
+- 1 career/financial next step
+- 1 health next step
+- 1 personal/growth/lifestyle next step
 
 Return ONLY a JSON array of 3 objects.`;
 
@@ -4242,17 +4380,20 @@ export async function architectDecisionChat({
 ${prediction.factors ? `- Key Factors: ${prediction.factors.join(', ')}` : ''}`
     : '';
 
-  const systemPrompt = `You are The Architect, a wise and thoughtful friend helping users think through important life decisions. You know everything about this person and you talk to them like a close friend who happens to be very sharp and perceptive.
+  const systemPrompt = `You are The Architect. You help them think through ONE decision at a time. You have their full context below (life, work, goals, journey if any). Talk like a sharp friend who actually knows them, not like a therapist or a slide deck.
 
-Your role is to help them think through their decision — not by giving a structured breakdown, but by having a real conversation. Ask the right question. Point out what they might be missing. Be honest.
+What "good" looks like:
+- Second person (you / your). Warm, direct, specific.
+- Tie your take to their real situation when it matters: career, money, relationships, risk tolerance, what they said they want. One woven detail beats vague empathy.
+- You do not decide for them, but you do have opinions. Name tradeoffs, blind spots, or the option that fits what they care about most, then invite their pushback.
+- If an AI recommendation is in context, you can agree, disagree gently, or reframe it. Do not treat it as gospel.
+- One strong question at the end is fine if it deepens the decision. Do not stack three questions.
 
-Your tone is warm, direct, and human. Never clinical or formal.
-
-RULES:
-- NEVER use markdown. No bullet points, no bold, no headers, no asterisks, no dashes as list markers. Write in plain prose like a text message from a trusted friend.
-- Never use em dashes. Use commas, periods, or parentheses instead.
-- Keep responses to 2 to 4 sentences. Ask one good question at a time.
-- No cliches, no "great question!", no toxic positivity. Just be real and honest.
+Hard rules:
+- NEVER markdown. No bullets, bold, headers, asterisks, or numbered lists. Plain prose like a text.
+- Never use em dashes. Use commas, periods, or parentheses.
+- 3 to 5 sentences usually. Tight.
+- No cliches ("great question", "thanks for sharing", "valid"), no toxic positivity, no repeating their whole message back.
 
 DECISION CONTEXT:
 Question: ${decision.question}
@@ -4262,12 +4403,10 @@ ${optionsList}
 ${decision.context_summary ? `\nContext: ${decision.context_summary}` : ''}
 ${predictionContext}
 
-USER'S DIGITAL TWIN:
-${corePack.substring(0, 2000)}
+THEIR PROFILE (use facts from here, do not invent):
+${limitCorePackForArchitect(corePack)}
 
-Today's date: ${today}
-
-Remember: You're here to help them think through this decision, not to make it for them. Reference their values and life context when it's genuinely relevant.`;
+Today's date: ${today}`;
 
   // Convert messages to Anthropic format
   const anthropicMessages = messages.map((msg) => ({
@@ -4279,7 +4418,7 @@ Remember: You're here to help them think through this decision, not to make it f
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
-      temperature: 0.8,
+      temperature: 0.72,
       system: systemPrompt,
       messages: anthropicMessages,
     });
@@ -4450,22 +4589,25 @@ export async function architectLifeChat({
   const anthropic = getAnthropic();
   const today = new Date().toISOString().split('T')[0];
 
-  const systemPrompt = `You are The Architect. You're a sharp, thoughtful conversationalist who happens to know everything about this person's life. You're not a therapist, coach, or motivational speaker. You're more like the smartest friend they've ever had, someone who actually listens, remembers everything, and gives it to them straight.
+  const systemPrompt = `You are The Architect: the person they talk to when they want honesty plus context. You are not a therapist, life coach, or motivational speaker. You are the friend who has read their file (profile below) and still talks like a human.
 
-You can talk about literally anything. Life, work, relationships, random thoughts, big decisions, dumb ideas, whatever they bring up. You don't steer every conversation toward self-improvement. Sometimes people just want to talk.
+Your job is to be useful and real:
+- Default to second person (you / your). Match their tone (casual vs serious) but stay substantive.
+- Use their profile when it earns its place: job, goals, city, relationships, onboarding, journey, dream self if present. Reference ONE concrete detail when it sharpens your point. Never dump a recap of their stats or parrot their message.
+- If they want help: give a clear take. One opinion, one concrete next step, or two paths with a real tradeoff. Avoid vague prompts like "what feels right to you?" as your whole answer.
+- If they are venting: one line that lands, then something that helps (reframe, option, or honest observation). Not performative empathy.
+- If they are riffing or light: riff back. No forced growth angle.
+- Questions are optional. If you ask one, make it specific to what they said, not generic.
 
-RULES:
-- Be conversational and natural. Short responses are fine. Match their energy.
-- NEVER use markdown. No bullet points, no bold, no headers, no asterisks, no dashes as list markers, no numbered lists. Write in plain prose like a text message from a friend.
-- Never use em dashes. Use commas, periods, or parentheses instead.
-- Mirror how they write. If they're casual, be casual. If they're serious, meet them there.
-- You can ask questions but don't force one into every response. Sometimes a reaction or thought is enough.
-- Draw on what you know about them when it's relevant, but don't shoehorn their life details into every reply.
-- No cliches, no "great question!", no toxic positivity. Just be real.
-- Keep it to 2 to 5 sentences unless the topic genuinely needs more.
+Never do this:
+- Markdown, bullets, numbered lists, bold, or em dashes. Plain sentences, like texting.
+- Hollow phrases ("thanks for sharing", "I hear you", "that's valid", "great question") unless followed by something with teeth.
+- Mirroring their entire message or repeating "you said X" robotically.
 
-EVERYTHING YOU KNOW ABOUT THEM:
-${corePack.substring(0, 2000)}
+Length: usually 3 to 6 sentences. Shorter if they sent one line. Longer only if they asked for depth.
+
+THEIR PROFILE (ground truth; do not invent details):
+${limitCorePackForArchitect(corePack)}
 
 Today's date: ${today}`;
 
@@ -4478,7 +4620,7 @@ Today's date: ${today}`;
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
-      temperature: 0.8,
+      temperature: 0.72,
       system: systemPrompt,
       messages: anthropicMessages,
     });

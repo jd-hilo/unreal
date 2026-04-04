@@ -5,6 +5,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks, getLocalDateString, getOnboardingTasks, initializeOnboardingTasks, checkAndCompleteOnboardingTasks, createDreamSelfChat, createLifeChat } from '@/lib/storage';
+
 import { Compass, Sparkles, X, Trash2, ChevronRight, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check, Lock, Briefcase, Share2, Trophy, Bell } from 'lucide-react-native';
 import { HomeGradientIcon, FlameGradientIcon } from '@/components/GradientIcons';
 import { generateArchitectPlan, calculateArchitectProgress, recalculateDreamProgress, generateDreamSelfLetter } from '@/lib/ai';
@@ -350,12 +351,6 @@ export default function HomeScreen() {
         setUserName(profile.first_name);
       }
 
-      // Redirect to dream self onboarding if not completed
-      if (profile && (!profile.dream_vision || Object.keys(profile.dream_vision).length === 0)) {
-        router.replace('/onboarding/dream-self/welcome');
-        return;
-      }
-
       setProfileData(profile);
       initialProfileRef.current = profile;
       setRecentDecisions(decisions || []);
@@ -547,55 +542,48 @@ export default function HomeScreen() {
         }
       }
 
-      // Generate daily tasks if they don't exist for today and user has completed dream self
-      if ((!todayTasks || todayTasks.length === 0) && profile?.dream_vision) {
+      // Generate daily tasks if none exist for today
+      const hasJourneyOrDreamVision = profile?.dream_vision || (profile?.core_json as any)?.onboarding_responses?.['journey'];
+      if ((!todayTasks || todayTasks.length === 0) && hasJourneyOrDreamVision) {
         try {
           const today = getLocalDateString();
-          
-          // Get completed tasks from previous days to inform new task generation
+
           let completedTasks: string[] = [];
           try {
-            const allTasks = await getDailyTasks(user.id, null); // Get all tasks to find completed ones
+            const allTasks = await getDailyTasks(user.id, null);
             completedTasks = allTasks
-              .filter(t => t.is_completed && t.scheduled_date !== today) // Only previous days' completed tasks
+              .filter(t => t.is_completed && t.scheduled_date !== today)
               .map(t => t.task_content);
           } catch (error) {
-            // Table might not exist yet, that's okay - just proceed without completed tasks context
-            console.warn('Could not fetch previous tasks (table may not exist):', error);
+            console.warn('Could not fetch previous tasks:', error);
           }
-          
-          // Get latest feedback if available (gracefully handle if table doesn't exist yet)
+
           let latestFeedback = null;
           try {
             latestFeedback = await getLatestArchitectFeedback(user.id);
           } catch (error) {
-            // Table might not exist yet, that's okay
-            console.warn('Could not fetch architect feedback (table may not exist):', error);
+            console.warn('Could not fetch architect feedback:', error);
           }
-          
-          // Generate new tasks for today
+
           const newTasks = await generateArchitectPlan(
             profile,
-            profile.dream_vision,
+            profile.dream_vision || {},
             completedTasks,
             latestFeedback?.feedback
           );
-          
-          // Save tasks with today's date
+
           const tasksWithDate = newTasks.map(task => ({
             ...task,
             scheduled_date: today
           }));
-          
+
           const savedTasks = await saveDailyTasks(user.id, tasksWithDate);
-          // Ensure we only show today's tasks - filter and limit to max 3
           const savedTodayTasks = (savedTasks || [])
             .filter(task => task.scheduled_date === today)
-            .slice(0, 3); // Limit to max 3 tasks
+            .slice(0, 3);
           setDailyTasks(savedTodayTasks);
         } catch (error) {
           console.error('Error generating daily tasks:', error);
-          // Don't block the UI if task generation fails
         }
       }
 
@@ -940,10 +928,10 @@ export default function HomeScreen() {
         .map(t => t.task_content)
         .slice(-10); // Last 10 completed tasks
       
-      // Generate new tasks
+      // Generate new tasks (uses journey context if no dream_vision)
       const newTasks = await generateArchitectPlan(
         profileData,
-        profileData.dream_vision,
+        profileData.dream_vision || {},
         completedTasks
       );
       
@@ -1157,7 +1145,7 @@ export default function HomeScreen() {
                 style={styles.dreamSelfCard}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push('/gap-analysis');
+                  router.push('/journey');
                 }}
                 activeOpacity={0.9}
               >
@@ -1934,6 +1922,31 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     fontWeight: '700',
     marginTop: 4,
+  },
+  journeyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    marginBottom: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(37, 114, 159, 0.08)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(37, 114, 159, 0.2)',
+  },
+  journeyCtaContent: {},
+  journeyCtaLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  journeyCtaSubtext: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
   // Dream Self Card
   dreamSelfCard: {

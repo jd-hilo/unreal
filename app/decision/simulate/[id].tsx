@@ -2,7 +2,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
-import { useTwin } from '@/store/useTwin';
 import { getDecision, getDecisionParticipants } from '@/lib/storage';
 import { generateTimelineSimulation } from '@/lib/ai';
 import { buildCorePack } from '@/lib/relevance';
@@ -21,7 +20,6 @@ export default function SimulationScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const user = useAuth((state) => state.user);
-  const { isPremium } = useTwin();
   const [decision, setDecision] = useState<any>(null);
   const [timeline, setTimeline] = useState<TimelineSimulation | null>(null);
   const [simulations, setSimulations] = useState<Record<string, TimelineSimulation>>({});

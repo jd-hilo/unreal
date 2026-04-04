@@ -2,6 +2,88 @@ import { supabase } from './supabase';
 import { getProfile, getRelationships, getCareerEntries, getJournals } from './storage';
 import { embedText } from './ai';
 
+/** Labels for onboarding goal chip ids (aligned with journey / onboarding flows). */
+const ONBOARDING_GOAL_LABELS: Record<string, string> = {
+  cg1: 'Get promoted',
+  cg2: 'Switch industries',
+  cg3: 'Start my own thing',
+  cg4: 'Land my dream role',
+  cg5: 'Build expertise',
+  hg1: 'Lose weight',
+  hg2: 'Get stronger',
+  hg3: 'Sleep better',
+  hg4: 'Manage stress',
+  hg5: 'Build a routine',
+  xg1: 'Improve relationships',
+  xg2: 'Save more money',
+  xg3: 'Travel more',
+  xg4: 'Learn something new',
+  xg5: 'Move to a new place',
+};
+
+/** Free-text fields saved as JSON `{ content: "..." }` or plain string (onboarding career / health). */
+function onboardingRichTextField(value: unknown): string {
+  if (value == null || value === '') return '';
+  if (typeof value === 'string') {
+    const t = value.trim();
+    if (!t) return '';
+    try {
+      const parsed = JSON.parse(t) as { content?: string };
+      if (parsed && typeof parsed.content === 'string' && parsed.content.trim()) {
+        return parsed.content.trim();
+      }
+    } catch {
+      return t;
+    }
+    return t;
+  }
+  if (typeof value === 'object' && value !== null && 'content' in value) {
+    const c = (value as { content?: unknown }).content;
+    return typeof c === 'string' ? c.trim() : '';
+  }
+  return '';
+}
+
+function formatOnboardingGoalsBlock(raw: unknown): string {
+  let obj: { career?: string[]; health?: string[]; custom?: string[] } | null = null;
+  if (raw == null) return '';
+  if (typeof raw === 'string') {
+    try {
+      obj = JSON.parse(raw) as { career?: string[]; health?: string[]; custom?: string[] };
+    } catch {
+      return '';
+    }
+  } else if (typeof raw === 'object') {
+    obj = raw as { career?: string[]; health?: string[]; custom?: string[] };
+  }
+  if (!obj) return '';
+  const parts: string[] = [];
+  if (obj.career?.length) {
+    parts.push(`Career goals: ${obj.career.map((id) => ONBOARDING_GOAL_LABELS[id] || id).join(', ')}`);
+  }
+  if (obj.health?.length) {
+    parts.push(`Health goals: ${obj.health.map((id) => ONBOARDING_GOAL_LABELS[id] || id).join(', ')}`);
+  }
+  if (obj.custom?.length) {
+    parts.push(`Other goals: ${obj.custom.map((id) => ONBOARDING_GOAL_LABELS[id] || id).join(', ')}`);
+  }
+  return parts.join('\n');
+}
+
+function parseInterestsList(raw: unknown): string {
+  if (raw == null) return '';
+  if (Array.isArray(raw)) return raw.filter(Boolean).map(String).join(', ');
+  if (typeof raw === 'string') {
+    try {
+      const a = JSON.parse(raw);
+      if (Array.isArray(a)) return a.filter(Boolean).map(String).join(', ');
+    } catch {
+      return raw.trim();
+    }
+  }
+  return '';
+}
+
 export async function buildCorePack(primaryUserId: string, allUserIds?: string[]): Promise<string> {
   const buildStartTime = performance.now();
   console.log('[CorePack] Starting buildCorePack at', new Date().toISOString());
@@ -67,6 +149,7 @@ async function buildSingleUserCorePack(userId: string): Promise<string> {
   if (profile.current_location) sections.push(`Current Location: ${profile.current_location}`);
   if (profile.core_json?.city) sections.push(`Location: ${profile.core_json.city}, ${profile.core_json.country || ''}`);
   if (profile.core_json?.primary_role) sections.push(`Role: ${profile.core_json.primary_role}`);
+  if (profile.career_entrypoint) sections.push(`Career entrypoint: ${profile.career_entrypoint}`);
   if (profile.core_json?.employment_type) sections.push(`Employment: ${profile.core_json.employment_type}`);
   if (profile.hometown) sections.push(`Hometown: ${profile.hometown}`);
   if (profile.university) sections.push(`University: ${profile.university}`);
@@ -74,16 +157,106 @@ async function buildSingleUserCorePack(userId: string): Promise<string> {
   if (profile.net_worth) sections.push(`Net Worth: ${profile.net_worth}`);
   if (profile.political_views) sections.push(`Political Views: ${profile.political_views}`);
 
-  // Include onboarding responses if available
-  if (profile.core_json?.onboarding_responses) {
-    sections.push('\nONBOARDING CONTEXT');
-    const responses = profile.core_json.onboarding_responses;
-    if (responses['01-now']) sections.push(`Current situation: ${responses['01-now']}`);
-    if (responses['02-path']) sections.push(`Life path: ${responses['02-path']}`);
-    if (responses['03-values']) sections.push(`Core values: ${responses['03-values']}`);
-    if (responses['04-style']) sections.push(`Decision style: ${responses['04-style']}`);
-    if (responses['05-day']) sections.push(`Typical day: ${responses['05-day']}`);
-    if (responses['06-stress']) sections.push(`Stress response: ${responses['06-stress']}`);
+  if (profile.life_situation?.trim()) {
+    sections.push('\nLIFE SITUATION (summary)');
+    sections.push(profile.life_situation.trim());
+  }
+
+  const responses = profile.core_json?.onboarding_responses as Record<string, unknown> | undefined;
+  if (responses) {
+    const careerOnb = onboardingRichTextField(responses['career']);
+    if (careerOnb) {
+      sections.push('\nCAREER & WORK (onboarding, full description)');
+      sections.push(careerOnb);
+    }
+    const healthOnb = onboardingRichTextField(responses['health']);
+    if (healthOnb) {
+      sections.push('\nHEALTH & FITNESS (onboarding, full description)');
+      sections.push(healthOnb);
+    }
+    const goalsBlock = formatOnboardingGoalsBlock(responses['goals']);
+    if (goalsBlock) {
+      sections.push('\nGOALS (selected in onboarding)');
+      sections.push(goalsBlock);
+    }
+    if (responses['gender'] != null && String(responses['gender']).trim()) {
+      sections.push(`Gender: ${String(responses['gender']).trim()}`);
+    }
+    const interestsStr = parseInterestsList(responses['interests']);
+    if (interestsStr) sections.push(`Interests: ${interestsStr}`);
+    const birthYearVal = responses['00-birth-year'] ?? responses['birth-year'];
+    if (birthYearVal != null && String(birthYearVal).trim()) {
+      sections.push(`Birth year: ${String(birthYearVal).trim()}`);
+    }
+
+    const legacyLines: string[] = [];
+    if (responses['01-now']) legacyLines.push(`Current situation: ${responses['01-now']}`);
+    if (responses['02-path']) legacyLines.push(`Life path: ${responses['02-path']}`);
+    if (responses['03-values']) legacyLines.push(`Core values: ${responses['03-values']}`);
+    if (responses['04-style']) legacyLines.push(`Decision style: ${responses['04-style']}`);
+    if (responses['05-day']) legacyLines.push(`Typical day: ${responses['05-day']}`);
+    if (responses['06-stress']) legacyLines.push(`Stress response: ${responses['06-stress']}`);
+    if (legacyLines.length) {
+      sections.push('\nONBOARDING (legacy long-form answers)');
+      sections.push(legacyLines.join('\n'));
+    }
+  }
+
+  if (profile.current_health && typeof profile.current_health === 'object') {
+    const ch = profile.current_health as { status?: unknown; goals?: unknown };
+    const bits: string[] = [];
+    if (Array.isArray(ch.status) && ch.status.length) {
+      bits.push(`Health status tags: ${ch.status.map(String).join(', ')}`);
+    }
+    if (Array.isArray(ch.goals) && ch.goals.length) {
+      bits.push(`Health goals (profile): ${ch.goals.map(String).join(', ')}`);
+    }
+    if (bits.length) {
+      sections.push('\nHEALTH (profile fields)');
+      sections.push(bits.join('\n'));
+    }
+  }
+
+  if (profile.relationship_details && typeof profile.relationship_details === 'object') {
+    try {
+      const rd = profile.relationship_details as Record<string, unknown>;
+      const relBits: string[] = [];
+      if (rd.status != null && String(rd.status).trim()) relBits.push(`Relationship status: ${String(rd.status).trim()}`);
+      if (rd.partnerName != null && String(rd.partnerName).trim()) {
+        relBits.push(`Partner: ${String(rd.partnerName).trim()}`);
+      }
+      if (relBits.length) {
+        sections.push('\nRELATIONSHIP');
+        sections.push(relBits.join('\n'));
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (profile.dream_vision && typeof profile.dream_vision === 'object') {
+    const dv = profile.dream_vision as Record<string, unknown>;
+    const visionKeys = [
+      'career_vision',
+      'health_goals',
+      'net_worth_goal',
+      'dream_city',
+      'dream_home',
+      'relationship_status_goal',
+      'partner_details',
+      'family_plans',
+      'hobbies_interests',
+      'travel_plans',
+    ];
+    const visionLines: string[] = [];
+    for (const k of visionKeys) {
+      const v = dv[k];
+      if (v != null && String(v).trim()) visionLines.push(`${k.replace(/_/g, ' ')}: ${String(v).trim()}`);
+    }
+    if (visionLines.length) {
+      sections.push('\nDREAM SELF / VISION');
+      sections.push(visionLines.join('\n'));
+    }
   }
 
   if (profile.values_json && profile.values_json.length > 0) {
@@ -124,6 +297,20 @@ async function buildSingleUserCorePack(userId: string): Promise<string> {
   if (profile.core_json?.motivation) {
     sections.push('\nMOTIVATION');
     sections.push(profile.core_json.motivation);
+  }
+
+  if (profile.core_json?.onboarding_responses?.['journey']) {
+    try {
+      const journey = JSON.parse(profile.core_json.onboarding_responses['journey']);
+      sections.push('\nJOURNEY');
+      sections.push(`Phases: ${journey.phases?.map((p: { title: string }) => p.title).join(' → ') || 'N/A'}`);
+      sections.push(`Est. completion: ${journey.estimated_completion_weeks ?? 'N/A'} weeks`);
+      if (journey.daily_task_preview?.length) {
+        sections.push(`Preview tasks: ${journey.daily_task_preview.map((t: { task: string }) => t.task).join('; ')}`);
+      }
+    } catch {
+      // ignore parse errors
+    }
   }
 
   // Add food and activity preferences if available (from core_json.onboarding_responses)

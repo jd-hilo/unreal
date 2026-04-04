@@ -6,6 +6,8 @@ import { Building2, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useAuth } from '@/store/useAuth';
+import { getCareerSimPrefill } from '@/lib/careerSimPrefill';
 import { Colors, Fonts } from '@/constants/Theme';
 import { ProgressBar } from '@/components/ProgressBar';
 import * as Haptics from 'expo-haptics';
@@ -13,13 +15,18 @@ import * as Haptics from 'expo-haptics';
 export default function CompanyScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const user = useAuth((state) => state.user);
   const [company, setCompany] = useState('');
 
   useEffect(() => {
     if (params.company) {
       setCompany(params.company as string);
+    } else if (user?.id) {
+      getCareerSimPrefill(user.id).then((prefill) => {
+        if (prefill.company) setCompany(prefill.company);
+      }).catch(console.error);
     }
-  }, [params.company]);
+  }, [params.company, user?.id]);
 
   const handleNext = () => {
     router.push({

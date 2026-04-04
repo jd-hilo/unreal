@@ -13,8 +13,6 @@ import { getCareerSimulations } from '@/lib/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CareerSimulation } from '@/lib/career-sim/types';
 import { trackEvent } from '@/lib/mixpanel';
-import { useCareerSimCooldown } from '@/hooks/useCareerSimCooldown';
-import { useTwin } from '@/store/useTwin';
 
 
 const { width } = Dimensions.get('window');
@@ -57,8 +55,6 @@ export default function SimulateTab() {
   const router = useRouter();
   const navigation = useNavigation();
   const user = useAuth((state) => state.user);
-  const { isPremium } = useTwin();
-  const { isOnCooldown, formattedTime } = useCareerSimCooldown();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentSims, setRecentSims] = useState<any[]>([]);
@@ -103,11 +99,6 @@ export default function SimulateTab() {
   );
 
   const handleCardPress = useCallback((card: typeof CARDS[0]) => {
-    if (card.id === 'career' && !isPremium && isOnCooldown) {
-      // Don't allow navigation if on cooldown
-      return;
-    }
-    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (card.type === 'active' && card.action) {
       // Track which card was clicked
@@ -128,7 +119,7 @@ export default function SimulateTab() {
         trackEvent('Simulate - decisions-clicked');
       }
     }
-  }, [router, isPremium, isOnCooldown]);
+  }, [router]);
 
   const handleLoadSimulation = useCallback(async (sim: any) => {
     try {
@@ -216,8 +207,7 @@ export default function SimulateTab() {
 
   const renderCard = (card: typeof CARDS[0], index: number) => {
     const Icon = card.icon;
-    const isCareerCard = card.id === 'career';
-    const isDisabled = card.type === 'coming_soon' || (isCareerCard && !isPremium && isOnCooldown);
+    const isDisabled = card.type === 'coming_soon';
     
     return (
       <View key={card.id} style={styles.cardWrapper}>
@@ -258,20 +248,8 @@ export default function SimulateTab() {
               <View style={styles.actionRow}>
                 <View style={styles.actionTextContainer}>
                   <Text style={[styles.actionText, isDisabled && styles.disabledText]}>
-                    {isCareerCard && !isPremium && isOnCooldown && formattedTime 
-                      ? formattedTime 
-                      : card.buttonText}
+                    {card.buttonText}
                   </Text>
-                  {isCareerCard && !isPremium && isOnCooldown && formattedTime && (
-                    <TouchableOpacity 
-                      onPress={() => router.push('/premium')}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.cooldownSubtext}>
-                        until next sim. Upgrade to mora+ for unlimited sims.
-                      </Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
                 <View style={[styles.actionButton, isDisabled && styles.disabledButton]}>
                   <ChevronRight size={20} color={isDisabled ? Colors.textTertiary : "#FFFFFF"} strokeWidth={3} />

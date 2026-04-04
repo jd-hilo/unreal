@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
-import { Input } from '@/components/Input';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text, TextInput } from 'react-native';
 import { useAuth } from '@/store/useAuth';
-import { updateProfileFields, getProfile, saveOnboardingResponse } from '@/lib/storage';
+import { updateProfileFields, getProfile } from '@/lib/storage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { supabase } from '@/lib/supabase';
-import { Colors } from '@/constants/Theme';
+import { Colors, Fonts } from '@/constants/Theme';
 
 export default function OnboardingStep0() {
   const router = useRouter();
@@ -134,19 +133,21 @@ export default function OnboardingStep0() {
       canContinue={firstName.trim().length > 0}
     >
       <View style={styles.inputWrapper}>
-        <Input
-          placeholder="Enter name"
-          value={firstName}
-          onChangeText={setFirstName}
-          autoCapitalize="words"
-          autoCorrect={false}
-          autoFocus={true}
-          returnKeyType="next"
-          onSubmitEditing={handleNext}
-          style={styles.input}
-          containerStyle={styles.inputContainer}
-          placeholderTextColor={Colors.textTertiary}
-        />
+        <View style={styles.inputCard}>
+          <Text style={styles.inputLabel}>First name</Text>
+          <TextInput
+            placeholder="Enter name"
+            value={firstName}
+            onChangeText={setFirstName}
+            autoCapitalize="words"
+            autoCorrect={false}
+            autoFocus
+            returnKeyType="next"
+            onSubmitEditing={handleNext}
+            style={styles.input}
+            placeholderTextColor={Colors.textTertiary}
+          />
+        </View>
       </View>
       
         <Text style={styles.helperText}>
@@ -160,17 +161,36 @@ const styles = StyleSheet.create({
   inputWrapper: {
     marginTop: 8,
   },
-  inputContainer: {
-    marginBottom: 0,
-    padding: 0,
+  inputCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+    fontFamily: Fonts.secondary.bold,
   },
   input: {
-    fontSize: 24,
-    fontWeight: '500',
+    fontSize: 22,
     letterSpacing: -0.3,
-    color: '#FFFFFF',
-    paddingVertical: 12,
+    color: Colors.textPrimary,
+    paddingVertical: 4,
     paddingHorizontal: 0,
+    fontFamily: Fonts.secondary.regular,
   },
   helperText: {
     fontSize: 15,

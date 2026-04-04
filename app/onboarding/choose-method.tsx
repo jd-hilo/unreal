@@ -17,15 +17,10 @@ import { StatusBar } from 'expo-status-bar';
 import { trackEvent } from '@/lib/mixpanel';
 
 const TITLE_LINES = [
-  "let's build your digital twin",
-  "we'll ask you questions to understand who you are",
-  "so we can create an accurate digital version of you",
-  "then we will understand your dream self",
-  "to help you become that version of you",
-  "please answer truthfully",
+  "let's learn more about you",
 ];
 
-const LINE_FONT_SIZES = [32, 20, 20, 20, 20, 18];
+const LINE_FONT_SIZES = [26];
 const LIFT_AMOUNT = 0; // Don't lift lines - keep all visible
 const LIFT_DURATION = 250; // ms
 
@@ -267,11 +262,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 120,
-    justifyContent: 'flex-start',
+    paddingTop: 0,
+    justifyContent: 'center',
   },
   textContainer: {
-    alignItems: 'flex-start', // Left-aligned for consistency
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   lineWrapper: {
     marginBottom: 0,
@@ -279,7 +275,7 @@ const styles = StyleSheet.create({
   lineText: {
     color: Colors.textPrimary,
     letterSpacing: -0.8,
-    textAlign: 'left',
+    textAlign: 'center',
   },
   footer: {
     padding: 24,
