@@ -8,22 +8,26 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  SafeAreaView,
   Animated,
   TextInput,
   Pressable,
   Keyboard,
+  Image,
 } from 'react-native';
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, ArrowUp, MessageSquare } from 'lucide-react-native';
+import { ArrowLeft, ArrowUp } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { architectLifeChat } from '@/lib/ai';
 import { buildCorePack } from '@/lib/relevance';
 import { getLifeChat, saveLifeChatMessage } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
+
+/** Matches onboarding primary actions (e.g. choose-method, twin-reveal). */
+const TEAL_GRADIENT = ['#25729f', '#62edb9'] as const;
+const TEAL_SHADOW = '#25729f';
 
 type Message = {
   id: string;
@@ -34,7 +38,9 @@ type Message = {
 
 export default function LifeChatScreen() {
   const router = useRouter();
-  const { id, initialMessage } = useLocalSearchParams();
+  const { id, initialMessage, chatTitle } = useLocalSearchParams();
+  const headerTitle =
+    typeof chatTitle === 'string' && chatTitle.trim().length > 0 ? chatTitle.trim() : 'Architect';
   const user = useAuth((s) => s.user);
   const [loading, setLoading] = useState(true);
   const initialMessageSent = useRef(false);
@@ -106,7 +112,9 @@ export default function LifeChatScreen() {
       (async () => {
         setSending(true);
         const userMsg = appendMessage('user', initialMessage);
-        try { await saveLifeChatMessage(id as string, user!.id, 'user', initialMessage); } catch (e) {}
+        try {
+          await saveLifeChatMessage(id as string, user!.id, 'user', initialMessage);
+        } catch (e) {}
         try {
           const history = [userMsg];
           const chatMessages = history.map((m) => ({ role: m.role, content: m.content }));
@@ -123,7 +131,9 @@ export default function LifeChatScreen() {
           setIsStreaming(false);
           setStreamingMessage('');
           appendMessage('architect', reply);
-          try { await saveLifeChatMessage(id as string, user!.id, 'architect', reply); } catch (e) {}
+          try {
+            await saveLifeChatMessage(id as string, user!.id, 'architect', reply);
+          } catch (e) {}
         } catch (e) {
           setIsStreaming(false);
           setStreamingMessage('');
@@ -140,7 +150,11 @@ export default function LifeChatScreen() {
     const message: Message = { id: messageId, role, content: content.trim(), timestamp: Date.now() };
     const animValue = new Animated.Value(0);
     messageAnimations.current.set(messageId, animValue);
-    Animated.timing(animValue, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    Animated.timing(animValue, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
     setMessages((prev) => [...prev, message]);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 350);
     return message;
@@ -207,13 +221,20 @@ export default function LifeChatScreen() {
               <ArrowLeft size={24} color={Colors.textPrimary} strokeWidth={2} />
             </TouchableOpacity>
             <View style={styles.titleContainer}>
-              <MessageSquare size={22} color={Colors.textPrimary} strokeWidth={2} />
-              <Text style={styles.title}>Architect</Text>
+              <Image
+                source={require('@/assets/images/cube.png')}
+                style={styles.cubeIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.title} numberOfLines={1}>
+                {headerTitle}
+              </Text>
             </View>
           </View>
         </RNSafeAreaView>
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={Colors.textSecondary} />
+          <Text style={styles.loadingText}>Loading chat...</Text>
         </View>
       </View>
     );
@@ -223,6 +244,7 @@ export default function LifeChatScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <StatusBar style="dark" />
       <RNSafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -231,8 +253,14 @@ export default function LifeChatScreen() {
             <ArrowLeft size={24} color={Colors.textPrimary} strokeWidth={2} />
           </TouchableOpacity>
           <View style={styles.titleContainer}>
-            <MessageSquare size={20} color={Colors.textPrimary} strokeWidth={2} />
-            <Text style={styles.title}>Architect</Text>
+            <Image
+              source={require('@/assets/images/cube.png')}
+              style={styles.cubeIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.title} numberOfLines={1}>
+              {headerTitle}
+            </Text>
           </View>
         </View>
       </RNSafeAreaView>
@@ -245,7 +273,7 @@ export default function LifeChatScreen() {
       >
         {!messages.length && !isStreaming && (
           <View style={styles.introCard}>
-            <Text style={styles.introTitle}>Tell me what's on your mind. I've got your full context.</Text>
+            <Text style={styles.introTitle}>{"Let's talk through this together..."}</Text>
           </View>
         )}
 
@@ -259,13 +287,20 @@ export default function LifeChatScreen() {
                 m.role === 'user' ? styles.bubbleRight : styles.bubbleLeft,
                 {
                   opacity: animValue,
-                  transform: [{ translateY: animValue.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+                  transform: [
+                    {
+                      translateY: animValue.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [20, 0],
+                      }),
+                    },
+                  ],
                 },
               ]}
             >
               {m.role === 'user' ? (
                 <LinearGradient
-                  colors={['#25729f', '#62edb9']}
+                  colors={[...TEAL_GRADIENT]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={[styles.bubble, styles.userBubble]}
@@ -292,7 +327,7 @@ export default function LifeChatScreen() {
           </View>
         )}
 
-        {sending && !streamingMessage && (
+        {(sending || (isStreaming && !streamingMessage)) && (
           <View style={[styles.bubbleWrap, styles.bubbleLeft]}>
             <View style={[styles.bubble, styles.architectBubble, styles.typingBubble]}>
               <View style={styles.typingDots}>
@@ -336,7 +371,7 @@ export default function LifeChatScreen() {
               styles.submitButtonWrapper,
               (!input.trim() || sending) && styles.submitButtonDisabled,
               {
-                shadowColor: '#25729f',
+                shadowColor: TEAL_SHADOW,
                 transform: [{ translateY: pressed ? 2 : 0 }],
                 shadowOffset: { width: 0, height: pressed ? 2 : 4 },
                 shadowOpacity: pressed ? 0.3 : 0.5,
@@ -347,7 +382,7 @@ export default function LifeChatScreen() {
           >
             {sending ? (
               <LinearGradient
-                colors={['#25729f', '#62edb9']}
+                colors={[...TEAL_GRADIENT]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.submitButtonGradient}
@@ -356,7 +391,7 @@ export default function LifeChatScreen() {
               </LinearGradient>
             ) : input.trim() ? (
               <LinearGradient
-                colors={['#25729f', '#62edb9']}
+                colors={[...TEAL_GRADIENT]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.submitButtonGradient}
@@ -404,16 +439,27 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 1,
   },
+  cubeIcon: {
+    width: 24,
+    height: 24,
+  },
   title: {
     fontSize: 20,
     fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.primary.regular,
+    flex: 1,
   },
   loadingWrap: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 40,
+    gap: 10,
+  },
+  loadingText: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+    fontSize: 14,
   },
   chat: {
     flex: 1,
@@ -435,7 +481,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: Fonts.primary.regular,
     letterSpacing: -0.3,
-    lineHeight: 32,
+    lineHeight: 28,
     textAlign: 'center',
   },
   bubbleWrap: {
@@ -471,6 +517,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.secondary.regular,
     fontWeight: '300',
   },
+  /** Onboarding-style teal buttons use white label text. */
   userBubbleText: {
     color: '#FFFFFF',
   },

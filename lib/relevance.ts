@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 import { getProfile, getRelationships, getCareerEntries, getJournals } from './storage';
+import { getTwinBriefingFromCoreJson } from './twinInsights';
 import { embedText } from './ai';
+import type { CoreJsonData, TwinBriefing } from '@/types/database';
 
 /** Labels for onboarding goal chip ids (aligned with journey / onboarding flows). */
 const ONBOARDING_GOAL_LABELS: Record<string, string> = {
@@ -144,6 +146,55 @@ async function buildSingleUserCorePack(userId: string): Promise<string> {
 
   const sections: string[] = [];
 
+  const twinBriefing = getTwinBriefingFromCoreJson(profile.core_json as CoreJsonData | undefined);
+
+  function appendTwinBriefingBlock(b: TwinBriefing) {
+    sections.push('\nTWIN BRIEFING (structured context)');
+    const id = b.identity;
+    const idParts: string[] = [];
+    if (id.name) idParts.push(`Name: ${id.name}`);
+    if (id.age) idParts.push(`Age: ${id.age}`);
+    if (id.location) idParts.push(`Location: ${id.location}`);
+    if (id.work) idParts.push(`Work: ${id.work}`);
+    if (id.education) idParts.push(`Education: ${id.education}`);
+    if (idParts.length) sections.push(idParts.join('\n'));
+
+    const activeThreads = b.threads.filter((t) => t.status !== 'resolved');
+    if (activeThreads.length) {
+      sections.push('\nActive life threads:');
+      activeThreads.forEach((t) => {
+        sections.push(
+          `- [${t.domain}] ${t.summary} (status: ${t.status})${t.stakes ? ` | Stakes: ${t.stakes}` : ''}`
+        );
+      });
+    }
+    const resolvedThreads = b.threads.filter((t) => t.status === 'resolved');
+    if (resolvedThreads.length) {
+      sections.push('\nResolved threads (recent context):');
+      resolvedThreads.slice(0, 8).forEach((t) => {
+        sections.push(`- [${t.domain}] ${t.summary}`);
+      });
+    }
+
+    const L = b.lens;
+    if (L.whats_important || L.how_they_decide || L.whats_draining || L.support_system) {
+      sections.push('\nLens (how they think):');
+      if (L.whats_important) sections.push(`What matters: ${L.whats_important}`);
+      if (L.how_they_decide) sections.push(`How they decide: ${L.how_they_decide}`);
+      if (L.whats_draining) sections.push(`What drains them: ${L.whats_draining}`);
+      if (L.support_system) sections.push(`Support: ${L.support_system}`);
+    }
+    if (b.direction.near_term || b.direction.horizon) {
+      sections.push('\nDirection:');
+      if (b.direction.near_term) sections.push(`Near term: ${b.direction.near_term}`);
+      if (b.direction.horizon) sections.push(`Horizon: ${b.direction.horizon}`);
+    }
+  }
+
+  if (twinBriefing) {
+    appendTwinBriefingBlock(twinBriefing);
+  }
+
   sections.push('IDENTITY SNAPSHOT');
   if (profile.core_json?.age_range) sections.push(`Age: ${profile.core_json.age_range}`);
   if (profile.current_location) sections.push(`Current Location: ${profile.current_location}`);
@@ -196,7 +247,7 @@ async function buildSingleUserCorePack(userId: string): Promise<string> {
     if (responses['04-style']) legacyLines.push(`Decision style: ${responses['04-style']}`);
     if (responses['05-day']) legacyLines.push(`Typical day: ${responses['05-day']}`);
     if (responses['06-stress']) legacyLines.push(`Stress response: ${responses['06-stress']}`);
-    if (legacyLines.length) {
+    if (legacyLines.length && !twinBriefing) {
       sections.push('\nONBOARDING (legacy long-form answers)');
       sections.push(legacyLines.join('\n'));
     }

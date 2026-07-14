@@ -165,7 +165,7 @@ export const useAuth = create<AuthState>((set) => ({
             
             // Use the updated user from the response if available
             if (updateData?.user) {
-              set({ session: updateData.session || session, user: updateData.user });
+              set({ session, user: updateData.user });
             } else {
               // Refresh session to get updated user metadata
               const { data: refreshData } = await supabase.auth.refreshSession();
@@ -178,8 +178,7 @@ export const useAuth = create<AuthState>((set) => ({
           } else {
             set({ session: session, user: user });
           }
-          // For new sign ups, go to choose-method screen (AI call or manual)
-   // User is signed in.
+          // Navigation: app entry (e.g. index) routes by onboarding state; email sign-up goes to architect-chat.
         }
       } else {
         throw new Error('No identityToken.');

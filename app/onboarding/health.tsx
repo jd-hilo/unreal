@@ -167,7 +167,7 @@ export default function HealthScreen() {
     } catch (error) {
       console.error('Failed to save health:', error);
     }
-    router.push('/onboarding/dream-intro');
+    router.push('/onboarding/decision-style');
   }
 
   return (

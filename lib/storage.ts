@@ -14,8 +14,17 @@ import type {
   DailyTask,
   ArchitectFeedback,
   OnboardingTask,
+  TwinBriefing,
+  TwinBriefingPatch,
+  LifeThread,
+  ThreadDomain,
+  ThreadStatus,
 } from '@/types/database';
 import { trackEvent } from './mixpanel';
+import type { ArchitectInsightEntry } from './twinInsights';
+import { getTwinBriefingFromCoreJson } from './twinInsights';
+
+export { getTwinBriefingFromCoreJson } from './twinInsights';
 
 /**
  * Get today's date string in local timezone (YYYY-MM-DD)
@@ -116,6 +125,353 @@ export async function getProfile(userId: string) {
 
   if (error) throw error;
   return data;
+}
+
+const LENS_KEYS = ['whats_important', 'how_they_decide', 'whats_draining', 'support_system'] as const;
+const DIR_KEYS = ['near_term', 'horizon'] as const;
+
+/** Min stakes length on at least one active thread for onboarding "Enter Mora". */
+export const BRIEFING_ONBOARDING_MIN_STAKES_LEN = 16;
+
+function isThreadDomain(d: string): d is ThreadDomain {
+  return ['career', 'relationships', 'health', 'money', 'personal'].includes(d);
+}
+
+function isThreadStatus(s: string): s is ThreadStatus {
+  return ['deciding', 'active', 'stalled', 'resolved'].includes(s);
+}
+
+function normalizeThread(t: unknown): LifeThread | null {
+  if (!t || typeof t !== 'object') return null;
+  const o = t as Record<string, unknown>;
+  const id = typeof o.id === 'string' && o.id.trim() ? o.id.trim() : '';
+  const summary = typeof o.summary === 'string' ? o.summary.trim() : '';
+  if (!id || !summary) return null;
+  const domain = typeof o.domain === 'string' && isThreadDomain(o.domain) ? o.domain : 'personal';
+  const stakes = typeof o.stakes === 'string' ? o.stakes.trim() : '';
+  const status =
+    typeof o.status === 'string' && isThreadStatus(o.status) ? o.status : 'active';
+  const mentioned_at =
+    typeof o.mentioned_at === 'string' && o.mentioned_at.trim()
+      ? o.mentioned_at.trim()
+      : new Date().toISOString();
+  return { id, domain, summary, stakes, status, mentioned_at };
+}
+
+export function emptyTwinBriefing(firstName: string): TwinBriefing {
+  const now = new Date().toISOString();
+  return {
+    version: 1,
+    identity: { name: firstName || '' },
+    threads: [],
+    lens: {
+      whats_important: '',
+      how_they_decide: '',
+      whats_draining: '',
+      support_system: '',
+    },
+    direction: { near_term: '', horizon: '' },
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+/** Merge patch into base briefing (threads by id; lens/direction field-wise). */
+export function mergeTwinBriefingPatch(base: TwinBriefing, patch: TwinBriefingPatch): TwinBriefing {
+  const updated_at = new Date().toISOString();
+  let threads = [...base.threads];
+
+  if (patch.threads && Array.isArray(patch.threads)) {
+    for (const raw of patch.threads) {
+      const nt = normalizeThread(raw);
+      if (!nt) continue;
+      const idx = threads.findIndex((x) => x.id === nt.id);
+      if (idx >= 0) {
+        threads[idx] = { ...threads[idx], ...nt };
+      } else {
+        threads.push(nt);
+      }
+    }
+  }
+
+  const lens = { ...base.lens };
+  const pLens = patch.lens;
+  if (pLens && typeof pLens === 'object') {
+    for (const k of LENS_KEYS) {
+      const v = pLens[k];
+      if (typeof v === 'string' && v.trim()) lens[k] = v.trim();
+    }
+  }
+
+  const direction = { ...base.direction };
+  const pDir = patch.direction;
+  if (pDir && typeof pDir === 'object') {
+    for (const k of DIR_KEYS) {
+      const v = pDir[k];
+      if (typeof v === 'string' && v.trim()) direction[k] = v.trim();
+    }
+  }
+
+  const identity = { ...base.identity };
+  const pId = patch.identity;
+  if (pId && typeof pId === 'object') {
+    for (const [k, v] of Object.entries(pId)) {
+      if (typeof v === 'string' && v.trim()) {
+        (identity as Record<string, string>)[k] = v.trim();
+      }
+    }
+  }
+
+  return {
+    version: 1,
+    identity,
+    threads,
+    lens,
+    direction,
+    created_at: base.created_at,
+    updated_at,
+  };
+}
+
+export async function getTwinBriefing(userId: string): Promise<TwinBriefing | null> {
+  const profile = await getProfile(userId);
+  return getTwinBriefingFromCoreJson(profile?.core_json as CoreJsonData | undefined);
+}
+
+export async function saveTwinBriefing(userId: string, briefing: TwinBriefing): Promise<void> {
+  const profile = await getProfile(userId);
+  const currentCore = { ...((profile?.core_json as CoreJsonData) || {}) } as CoreJsonData;
+  currentCore.twin_briefing = {
+    ...briefing,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ core_json: currentCore as any } as any)
+    .eq('user_id', userId);
+
+  if (error) throw error;
+}
+
+export async function patchTwinBriefing(userId: string, patch: TwinBriefingPatch): Promise<TwinBriefing> {
+  const profile = await getProfile(userId);
+  const currentCore = { ...((profile?.core_json as CoreJsonData) || {}) } as CoreJsonData;
+  let base = getTwinBriefingFromCoreJson(currentCore);
+  const name = profile?.first_name?.trim() || '';
+  if (!base) {
+    base = emptyTwinBriefing(name);
+    base.identity.name = name || base.identity.name;
+  }
+  const merged = mergeTwinBriefingPatch(base, patch);
+  currentCore.twin_briefing = merged;
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ core_json: currentCore as any } as any)
+    .eq('user_id', userId);
+
+  if (error) throw error;
+  return merged;
+}
+
+/**
+ * One-time best-effort TwinBriefing from legacy onboarding_responses + profile columns.
+ */
+export async function seedBriefingFromLegacy(userId: string): Promise<TwinBriefing | null> {
+  const profile = await getProfile(userId);
+  if (!profile) return null;
+
+  const currentCore = (profile.core_json as CoreJsonData) || {};
+  if (currentCore.twin_briefing) {
+    return getTwinBriefingFromCoreJson(currentCore) ?? null;
+  }
+
+  const responses = (currentCore.onboarding_responses || {}) as Record<string, unknown>;
+  const nowText =
+    (typeof responses['02-now'] === 'string' && responses['02-now']) ||
+    (typeof responses['01-now'] === 'string' && responses['01-now']) ||
+    profile.life_situation?.trim() ||
+    '';
+
+  const pathText =
+    (typeof responses['02-path'] === 'string' && responses['02-path']) ||
+    profile.life_journey?.trim() ||
+    '';
+
+  const valuesText =
+    (typeof responses['01-values'] === 'string' && responses['01-values']) ||
+    (typeof responses['03-values'] === 'string' && responses['03-values']) ||
+    profile.core_value?.trim() ||
+    '';
+
+  const stressText =
+    (typeof responses['06-stress'] === 'string' && responses['06-stress']) || '';
+
+  const styleText =
+    (typeof responses['04-style'] === 'string' && responses['04-style']) || '';
+
+  const threads: LifeThread[] = [];
+  const iso = new Date().toISOString();
+  if (nowText.trim()) {
+    threads.push({
+      id: 'legacy-situation',
+      domain: 'personal',
+      summary: nowText.trim().slice(0, 500),
+      stakes: '',
+      status: 'active',
+      mentioned_at: iso,
+    });
+  }
+  if (pathText.trim() && pathText.trim() !== nowText.trim()) {
+    threads.push({
+      id: 'legacy-path',
+      domain: 'personal',
+      summary: pathText.trim().slice(0, 500),
+      stakes: '',
+      status: 'active',
+      mentioned_at: iso,
+    });
+  }
+
+  const briefing: TwinBriefing = {
+    version: 1,
+    identity: {
+      name: profile.first_name?.trim() || '',
+      location: profile.current_location?.trim() || undefined,
+      work:
+        (typeof currentCore.primary_role === 'string' && currentCore.primary_role.trim()
+          ? currentCore.primary_role.trim()
+          : undefined) ||
+        profile.career_entrypoint?.trim() ||
+        undefined,
+      education: profile.university?.trim() || undefined,
+    },
+    threads,
+    lens: {
+      whats_important: valuesText.trim(),
+      how_they_decide: styleText.trim(),
+      whats_draining: stressText.trim(),
+      support_system: '',
+    },
+    direction: {
+      near_term: pathText.trim().slice(0, 300),
+      horizon: pathText.trim().slice(0, 300),
+    },
+    created_at: iso,
+    updated_at: iso,
+  };
+
+  if (
+    threads.length === 0 &&
+    !valuesText.trim() &&
+    !stressText.trim() &&
+    !styleText.trim() &&
+    !pathText.trim()
+  ) {
+    return null;
+  }
+
+  currentCore.twin_briefing = briefing;
+  const { error } = await supabase
+    .from('profiles')
+    .update({ core_json: currentCore as any } as any)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.warn('seedBriefingFromLegacy:', error);
+    return null;
+  }
+  return briefing;
+}
+
+/** If onboarding is complete but twin_briefing is missing, seed from legacy fields once. */
+export async function ensureTwinBriefingSeeded(userId: string): Promise<void> {
+  const profile = await getProfile(userId);
+  if (!profile) return;
+  const cj = (profile.core_json as CoreJsonData) || {};
+  if (cj.twin_briefing) return;
+  if (!cj.onboarding_complete) return;
+  await seedBriefingFromLegacy(userId);
+}
+
+/** Enough briefing to finish Architect onboarding: full twin snapshot (thread + stakes, all lens, both directions). */
+export function isBriefingOnboardingReady(b: TwinBriefing | null): boolean {
+  if (!b) return false;
+  const active = b.threads.filter((t) => t.summary.trim() && t.status !== 'resolved');
+  const hasQualifiedThread = active.some(
+    (t) => t.stakes.trim().length >= BRIEFING_ONBOARDING_MIN_STAKES_LEN
+  );
+  const fullLens = LENS_KEYS.every((k) => (b.lens[k] || '').trim().length > 0);
+  const fullDir =
+    b.direction.near_term.trim().length > 0 && b.direction.horizon.trim().length > 0;
+  return hasQualifiedThread && fullLens && fullDir;
+}
+
+/**
+ * Compact checklist for Architect onboarding AI: what is already persisted vs missing.
+ * Helps the model self-judge gaps before each reply.
+ */
+export function describeTwinBriefingChecklistForAi(b: TwinBriefing | null): string {
+  if (!b) {
+    return [
+      'PERSISTED TWIN CHECKLIST (before this turn; nothing saved yet):',
+      `- A At least 1 active thread with summary + stakes (>=${BRIEFING_ONBOARDING_MIN_STAKES_LEN} chars): NOT MET`,
+      '- B Lens — ALL required: whats_important, how_they_decide, whats_draining, support_system: NOT MET',
+      '- C Direction — BOTH required: near_term AND horizon: NOT MET',
+    ].join('\n');
+  }
+  const active = b.threads.filter((t) => t.summary.trim() && t.status !== 'resolved');
+  const hasQualifiedThread = active.some(
+    (t) => t.stakes.trim().length >= BRIEFING_ONBOARDING_MIN_STAKES_LEN
+  );
+  const lensMet = (k: (typeof LENS_KEYS)[number]) => ((b.lens[k] || '').trim().length > 0 ? 'MET' : 'NOT MET');
+  const nearMet = b.direction.near_term.trim().length > 0;
+  const horizonMet = b.direction.horizon.trim().length > 0;
+  const thinLens = LENS_KEYS.some(
+    (k) => (b.lens[k] || '').trim().length > 0 && (b.lens[k] || '').trim().length < 12
+  );
+  const lines = [
+    'PERSISTED TWIN CHECKLIST (before this turn; merge your patch into this mentally):',
+    `- A Thread+stakes (>=${BRIEFING_ONBOARDING_MIN_STAKES_LEN} char stakes on an active thread): ${hasQualifiedThread ? 'MET' : 'NOT MET'} (${active.length} active)`,
+    `- B whats_important: ${lensMet('whats_important')}`,
+    `- B how_they_decide: ${lensMet('how_they_decide')}`,
+    `- B whats_draining: ${lensMet('whats_draining')}`,
+    `- B support_system: ${lensMet('support_system')}`,
+    `- C near_term: ${nearMet ? 'MET' : 'NOT MET'}`,
+    `- C horizon: ${horizonMet ? 'MET' : 'NOT MET'}`,
+  ];
+  if (active.length > 0 && !hasQualifiedThread) {
+    lines.push(
+      `- Quality: stakes too short or missing; need >=${BRIEFING_ONBOARDING_MIN_STAKES_LEN} characters describing tradeoff or cost.`
+    );
+  }
+  if (thinLens) {
+    lines.push('- Quality: some lens lines are very short; deepen with one targeted question.');
+  }
+  return lines.join('\n');
+}
+
+/**
+ * 0-100 progress toward full onboarding twin (matches {@link isBriefingOnboardingReady}).
+ * Weights: thread+stakes 30, four lens fields 40, near_term+horizon 30.
+ */
+export function getTwinBuildProgress(b: TwinBriefing | null): number {
+  if (!b) return 0;
+  if (isBriefingOnboardingReady(b)) return 100;
+
+  let score = 0;
+  const active = b.threads.filter((t) => t.summary.trim() && t.status !== 'resolved');
+  if (active.length > 0) score += 12;
+  if (active.some((t) => t.stakes.trim().length >= BRIEFING_ONBOARDING_MIN_STAKES_LEN)) score += 18;
+
+  const filledLens = LENS_KEYS.filter((k) => (b.lens[k] || '').trim().length > 0).length;
+  score += filledLens * 10;
+
+  if (b.direction.near_term.trim()) score += 15;
+  if (b.direction.horizon.trim()) score += 15;
+
+  return Math.min(100, Math.round(score));
 }
 
 export async function assignABTestGroup(userId: string): Promise<'A' | 'B'> {
@@ -1855,6 +2211,43 @@ export async function getLatestArchitectFeedback(userId: string) {
 
   if (error) throw error;
   return data;
+}
+
+/**
+ * Append a short snippet from an Architect reply for Twin Insights (profile).
+ * Keeps the most recent entries in core_json.architect_insight_log.
+ */
+export async function appendArchitectInsight(
+  userId: string,
+  assistantReply: string,
+  source: 'life' | 'decision' = 'life'
+) {
+  const text = assistantReply.trim().slice(0, 420);
+  if (!text) return;
+
+  try {
+    const profile = await getProfile(userId);
+    const currentCore = { ...((profile?.core_json as CoreJsonData) || {}) } as CoreJsonData;
+    const prev = Array.isArray(currentCore.architect_insight_log)
+      ? (currentCore.architect_insight_log as ArchitectInsightEntry[])
+      : [];
+    const entry: ArchitectInsightEntry = {
+      text,
+      at: new Date().toISOString(),
+      source,
+    };
+    const next = [entry, ...prev].slice(0, 12);
+    currentCore.architect_insight_log = next;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ core_json: currentCore as any } as any)
+      .eq('user_id', userId);
+
+    if (error) console.warn('appendArchitectInsight:', error);
+  } catch (e) {
+    console.warn('appendArchitectInsight failed:', e);
+  }
 }
 
 /**

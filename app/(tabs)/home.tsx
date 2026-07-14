@@ -1,19 +1,20 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Image, Animated, Platform, Modal, Easing, Dimensions, Linking, KeyboardAvoidingView, Switch, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Image, Animated, Platform, Modal, Easing, Dimensions, Linking, KeyboardAvoidingView, Switch, ActivityIndicator } from 'react-native';
 import Svg, { Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
-import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks, getLocalDateString, getOnboardingTasks, initializeOnboardingTasks, checkAndCompleteOnboardingTasks, createDreamSelfChat, createLifeChat } from '@/lib/storage';
+import { getDecisions, getProfile, getWhatIfs, getRelationships, deleteDecision, deleteWhatIf, calculateOverallProgress, getTodayJournal, getAllYearPredictions, updateProfileFields, getDailyTasks, updateDailyTask, saveArchitectFeedback, getLatestArchitectFeedback, saveDailyTasks, deleteDailyTasks, getLocalDateString, getOnboardingTasks, initializeOnboardingTasks, checkAndCompleteOnboardingTasks, ensureTwinBriefingSeeded, createLifeChat } from '@/lib/storage';
+import { getTwinBriefingFromCoreJson } from '@/lib/twinInsights';
+import type { LifeThread } from '@/types/database';
 
-import { Compass, Sparkles, X, Trash2, ChevronRight, Book, User, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check, Lock, Briefcase, Share2, Trophy, Bell } from 'lucide-react-native';
-import { HomeGradientIcon, FlameGradientIcon } from '@/components/GradientIcons';
+import { Sparkles, X, Trash2, ChevronRight, Book, Settings, Info, Layers, ArrowUpRight, CheckCircle, Zap, Clipboard, Check, Lock, Trophy, Bell, TrendingUp, Phone, PenLine } from 'lucide-react-native';
 import { generateArchitectPlan, calculateArchitectProgress, recalculateDreamProgress, generateDreamSelfLetter } from '@/lib/ai';
 import { FloatingLabelInput } from '@/components/FloatingLabelInput';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { formatDistanceToNow } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as StoreReview from 'expo-store-review';
 import * as Haptics from 'expo-haptics';
@@ -23,12 +24,115 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { CircularProgress } from '@/components/CircularProgress';
 import { setHasSeenDecisionGuide } from '@/lib/guideStorage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
+import { isHomeDecisionFirst } from '@/lib/featureFlags';
 import { Colors, Fonts } from '@/constants/Theme';
 import * as Notifications from 'expo-notifications';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { useTypewriter } from '@/hooks/useTypewriter';
 
 const { width } = Dimensions.get('window');
+/** Scroll 20+20 + hubSection 4+4; matches width of one Update Twin button (row gap 12). */
+const HUB_CONTENT_INNER_W = width - 48;
+const HUB_UPDATE_TWIN_CELL_W = (HUB_CONTENT_INNER_W - 12) / 2;
+
+function hubThreadDomainLabel(domain: LifeThread['domain']): string {
+  const m: Record<string, string> = {
+    career: 'Career',
+    relationships: 'Relationships',
+    health: 'Health',
+    money: 'Money',
+    personal: 'Personal',
+  };
+  return m[domain] || String(domain).charAt(0).toUpperCase() + String(domain).slice(1);
+}
+
+const HUB_CARD_GRADIENT = {
+  decide: ['#FFF8F0', '#FFD4A3'] as const,
+  simulate: ['#F0FDFC', '#9EE6D8'] as const,
+  chat: ['#F3FDF6', '#A7E9B8'] as const,
+  insights: ['#FAFAFA', '#E4E5E7'] as const,
+} as const;
+
+/** Hero mini-cards + accents (overlapping UI on hub tiles) */
+const HUB_UI = {
+  decide: {
+    back: ['#FFB86C', '#FF6B2C'] as const,
+    front: ['#FFFFFF', '#FFEAD5'] as const,
+    accent: '#E8590C',
+    letterB: '#C2410C',
+  },
+  simulate: {
+    back: ['#5EEAD4', '#0D9488'] as const,
+    front: ['#FFFFFF', '#E6FFFA'] as const,
+    accent: '#0F7668',
+    bar: ['#FFFFFF', '#CCFBF1'] as const,
+  },
+  chat: {
+    back: ['#86EFAC', '#16A34A'] as const,
+    front: ['#FFFFFF', '#DCFCE7'] as const,
+    accent: '#15803D',
+    dot: '#22C55E',
+  },
+  insights: {
+    back: ['#D1D5DB', '#6B7280'] as const,
+    front: ['#FFFFFF', '#F3F4F6'] as const,
+    accent: '#4B5563',
+    spark: ['#F9FAFB', '#E5E7EB'] as const,
+    cell: ['#CBD5E1', '#64748B'] as const,
+  },
+} as const;
+
+type HubBlurTone = 'decide' | 'simulate' | 'chat' | 'insights';
+
+const HUB_BLUR_FADE: Record<
+  HubBlurTone,
+  { colors: readonly string[]; locations: readonly number[] }
+> = {
+  decide: {
+    colors: [
+      'rgba(255, 248, 240, 0.88)',
+      'rgba(255, 230, 200, 0.42)',
+      'rgba(255, 212, 163, 0.1)',
+      'rgba(255, 212, 163, 0.06)',
+      'rgba(255, 228, 195, 0.28)',
+      'rgba(255, 245, 230, 0.55)',
+    ],
+    locations: [0, 0.2, 0.42, 0.58, 0.8, 1],
+  },
+  simulate: {
+    colors: [
+      'rgba(240, 253, 252, 0.88)',
+      'rgba(190, 235, 225, 0.4)',
+      'rgba(158, 230, 216, 0.1)',
+      'rgba(158, 230, 216, 0.06)',
+      'rgba(180, 236, 224, 0.26)',
+      'rgba(236, 252, 249, 0.52)',
+    ],
+    locations: [0, 0.2, 0.42, 0.58, 0.8, 1],
+  },
+  chat: {
+    colors: [
+      'rgba(243, 253, 246, 0.88)',
+      'rgba(200, 241, 216, 0.38)',
+      'rgba(167, 233, 184, 0.1)',
+      'rgba(167, 233, 184, 0.06)',
+      'rgba(195, 240, 210, 0.26)',
+      'rgba(238, 252, 242, 0.52)',
+    ],
+    locations: [0, 0.2, 0.42, 0.58, 0.8, 1],
+  },
+  insights: {
+    colors: [
+      'rgba(250, 250, 250, 0.9)',
+      'rgba(236, 236, 238, 0.4)',
+      'rgba(228, 229, 231, 0.12)',
+      'rgba(228, 229, 231, 0.06)',
+      'rgba(235, 235, 237, 0.28)',
+      'rgba(248, 248, 249, 0.52)',
+    ],
+    locations: [0, 0.2, 0.42, 0.58, 0.8, 1],
+  },
+};
 
 // Helper function to get emoji for task category
 const getCategoryEmoji = (category: string | null | undefined): string => {
@@ -88,12 +192,58 @@ function FloatingPoint({ x, y, value }: { x: number; y: number; value: string })
   );
 }
 
+function HubSquareBottomBlur({ tone }: { tone: HubBlurTone }) {
+  const fade = HUB_BLUR_FADE[tone];
+  return (
+    <View style={styles.hubCardBottomBlurWrap} pointerEvents="none">
+      <BlurView intensity={9} tint="light" style={StyleSheet.absoluteFillObject} />
+      <LinearGradient
+        colors={fade.colors as readonly [string, string, string, string, string, string]}
+        locations={fade.locations as readonly [number, number, number, number, number, number]}
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      />
+    </View>
+  );
+}
+
+function HubTypewriterCursor() {
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.12,
+          duration: 500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return (
+    <Animated.Text style={[styles.hubTypewriterCursor, { opacity }]} accessibilityLabel="Typing cursor">
+      I
+    </Animated.Text>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const user = useAuth((state) => state.user);
   const { checkOnboardingStatus, isPremium } = useTwin();
   const [userName, setUserName] = useState('');
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [hubButtonsReady, setHubButtonsReady] = useState(false);
   const [profileData, setProfileData] = useState<any>(null);
   const [recentDecisions, setRecentDecisions] = useState<any[]>([]);
   const [recentWhatIfs, setRecentWhatIfs] = useState<any[]>([]);
@@ -106,7 +256,6 @@ export default function HomeScreen() {
   const [showDiscordModal, setShowDiscordModal] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [dailyTasks, setDailyTasks] = useState<any[]>([]);
-  const [streakCount, setStreakCount] = useState<number>(0);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [onboardingTasks, setOnboardingTasks] = useState<any[]>([]);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
@@ -120,17 +269,55 @@ export default function HomeScreen() {
   const [dreamSelfLetterText, setDreamSelfLetterText] = useState('');
   const initialProfileRef = useRef<any>(null);
   const taskScrollViewRef = useRef<ScrollView>(null);
-  const greetingFadeAnim = useRef(new Animated.Value(0)).current;
+  const hubIntroTextOpacity = useRef(new Animated.Value(1)).current;
+  const hubButtonsOpacity = useRef(new Animated.Value(0)).current;
+
+  const homeDecisionFirst = isHomeDecisionFirst();
+  const hubFirstName = (userName?.trim() || profileData?.first_name || 'Friend').trim();
+  const hubIntroPrefix = `Hi ${hubFirstName}, `;
+  const hubIntroLines =
+    homeDecisionFirst && !isInitialLoad ? [`${hubIntroPrefix}let's navigate`] : [];
+
+  const onHubIntroComplete = useCallback(() => {
+    setTimeout(() => {
+      Animated.sequence([
+        Animated.timing(hubIntroTextOpacity, {
+          toValue: 0,
+          duration: 340,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(hubButtonsOpacity, {
+          toValue: 1,
+          duration: 480,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start((finished) => {
+        if (finished) setHubButtonsReady(true);
+      });
+    }, 420);
+  }, [hubIntroTextOpacity, hubButtonsOpacity]);
+
+  const { displayedLines: hubIntroDisplayedLines, isComplete: hubIntroTypewriterComplete } =
+    useTypewriter(hubIntroLines, {
+      speed: 34,
+      pauseBetweenLines: 0,
+      onAllComplete: onHubIntroComplete,
+    });
+
+  const rawHubIntro = hubIntroDisplayedLines[0] || '';
+  const hubIntroPrefixLen = hubIntroPrefix.length;
+  const hubIntroNamePart = rawHubIntro.slice(0, Math.min(rawHubIntro.length, hubIntroPrefixLen));
+  const hubIntroNavigatePart =
+    rawHubIntro.length > hubIntroPrefixLen ? rawHubIntro.slice(hubIntroPrefixLen) : '';
 
   useEffect(() => {
-    // Fade in the greeting when component mounts
-    Animated.timing(greetingFadeAnim, {
-      toValue: 1,
-      duration: 800,
-      delay: 200,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+    if (!homeDecisionFirst || isInitialLoad) return;
+    hubIntroTextOpacity.setValue(1);
+    hubButtonsOpacity.setValue(0);
+    setHubButtonsReady(false);
+  }, [homeDecisionFirst, isInitialLoad, hubIntroTextOpacity, hubButtonsOpacity]);
   
   // Animation refs for fade transitions (Twin Society modal)
   const invitationOpacity = useRef(new Animated.Value(1)).current;
@@ -141,8 +328,6 @@ export default function HomeScreen() {
   const letterContentOpacity = useRef(new Animated.Value(0)).current;
   const [showLetterContent, setShowLetterContent] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [expandedSuggestion, setExpandedSuggestion] = useState<string | null>(null);
-  const [completedSuggestions, setCompletedSuggestions] = useState<Set<string>>(new Set());
 
   // Disable swipe-to-go-back gesture
   useFocusEffect(
@@ -182,12 +367,7 @@ export default function HomeScreen() {
       Notifications.getPermissionsAsync().then(({ status }) => {
         setNotificationsEnabled(status === 'granted');
       });
-      const key = user?.id ? `completed_suggestions_${user.id}` : 'completed_suggestions';
-      AsyncStorage.getItem(key).then((val) => {
-        if (val) setCompletedSuggestions(new Set(JSON.parse(val)));
-        else setCompletedSuggestions(new Set());
-      });
-    }, [user?.id])
+    }, [])
   );
 
   // Typewriter for invitation text
@@ -296,7 +476,6 @@ export default function HomeScreen() {
   // Animation values - start with visible opacity
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -353,6 +532,20 @@ export default function HomeScreen() {
 
       setProfileData(profile);
       initialProfileRef.current = profile;
+
+      try {
+        await ensureTwinBriefingSeeded(user.id);
+        const refreshed = await getProfile(user.id);
+        if (refreshed) {
+          setProfileData(refreshed);
+          initialProfileRef.current = refreshed;
+          if (refreshed.first_name) {
+            setUserName(refreshed.first_name);
+          }
+        }
+      } catch (e) {
+        console.warn('ensureTwinBriefingSeeded', e);
+      }
       setRecentDecisions(decisions || []);
       setRecentWhatIfs(whatifs || []);
       setProfileProgress(progress || 0);
@@ -527,8 +720,6 @@ export default function HomeScreen() {
         }
       }
       
-      setStreakCount(streak);
-      
       // Save streak to database
       if (user && streak !== (profile?.current_streak || 0)) {
         try {
@@ -542,9 +733,9 @@ export default function HomeScreen() {
         }
       }
 
-      // Generate daily tasks if none exist for today
+      // Generate daily tasks if none exist for today (skip when decision-first hides Daily Path on Home)
       const hasJourneyOrDreamVision = profile?.dream_vision || (profile?.core_json as any)?.onboarding_responses?.['journey'];
-      if ((!todayTasks || todayTasks.length === 0) && hasJourneyOrDreamVision) {
+      if ((!todayTasks || todayTasks.length === 0) && hasJourneyOrDreamVision && !isHomeDecisionFirst()) {
         try {
           const today = getLocalDateString();
 
@@ -632,19 +823,21 @@ export default function HomeScreen() {
         }
       }
 
-      // Show Dream Self letter on first visit to home screen
-      const letterKey = user?.id ? `dream_self_letter_shown_${user.id}` : 'dream_self_letter_shown';
-      const hasSeenLetter = await AsyncStorage.getItem(letterKey);
-      if (!hasSeenLetter && profile?.dream_vision) {
-        AsyncStorage.setItem(letterKey, 'true');
-        generateDreamSelfLetter(profile, profile.dream_vision)
-          .then((letter) => {
-            if (letter) {
-              setDreamSelfLetterText(letter);
-              setTimeout(() => setShowDreamSelfLetterModal(true), 500);
-            }
-          })
-          .catch(() => {});
+      // Show Dream Self letter on first visit to home screen (not when decision-first Home omits dream-self hero)
+      if (!isHomeDecisionFirst()) {
+        const letterKey = user?.id ? `dream_self_letter_shown_${user.id}` : 'dream_self_letter_shown';
+        const hasSeenLetter = await AsyncStorage.getItem(letterKey);
+        if (!hasSeenLetter && profile?.dream_vision) {
+          AsyncStorage.setItem(letterKey, 'true');
+          generateDreamSelfLetter(profile, profile.dream_vision)
+            .then((letter) => {
+              if (letter) {
+                setDreamSelfLetterText(letter);
+                setTimeout(() => setShowDreamSelfLetterModal(true), 500);
+              }
+            })
+            .catch(() => {});
+        }
       }
 
       // Check for Discord modal (Twin Society) - Show only on 6th visit
@@ -686,7 +879,7 @@ export default function HomeScreen() {
       .then(() => {
         const isComplete = useTwin.getState().onboardingComplete;
         if (!isComplete) {
-          router.replace('/onboarding/00-name');
+          router.replace('/onboarding/architect-chat');
           return;
         }
         // Load data immediately
@@ -761,41 +954,6 @@ export default function HomeScreen() {
       await registerForPushNotifications(user.id);
       const { status: newStatus } = await Notifications.getPermissionsAsync();
       setNotificationsEnabled(newStatus === 'granted');
-    }
-  }
-
-  async function markSuggestionComplete(id: string) {
-    const updated = new Set(completedSuggestions).add(id);
-    setCompletedSuggestions(updated);
-    const key = user?.id ? `completed_suggestions_${user.id}` : 'completed_suggestions';
-    await AsyncStorage.setItem(key, JSON.stringify([...updated]));
-  }
-
-  async function handleSuggestedTaskNavigate(id: string) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await markSuggestionComplete(id);
-    if (id === 'architect') {
-      await AsyncStorage.setItem('decide_initial_tab', 'architect');
-      router.push('/(tabs)/decide');
-    } else if (id === 'decision') {
-      await AsyncStorage.setItem('decide_initial_tab', 'decide');
-      router.push('/(tabs)/decide');
-    } else if (id === 'future-self') {
-      if (!user?.id) return;
-      try {
-        const chat = await createDreamSelfChat(user.id, 'New conversation');
-        router.push({ pathname: '/chat/dream-self/[id]', params: { id: chat.id } });
-      } catch (e) {
-        router.push('/(tabs)/decide');
-      }
-    } else if (id === 'simulate') {
-      router.push('/(tabs)/simulate');
-    } else if (id === 'invite') {
-      try {
-        await Share.share({
-            message: `I've been using Mora and it's genuinely one of the most useful things I've put on my phone.\n\nIt builds a full picture of your life — where you are, where you want to be — and gives you a daily plan to close the gap. You can chat with an AI life coach, run simulations on big decisions before you make them, and even talk to your future self.\n\nThink less "self-help app," more "operating system for your life."\n\nDownload it here:\nhttps://apps.apple.com/us/app/mora-simulate-your-life/id6754901842`,
-          });
-      } catch (e) {}
     }
   }
 
@@ -1062,6 +1220,40 @@ export default function HomeScreen() {
   // Display actual profile progress
   const displayedProgress = profileProgress;
 
+  const activeThreadsHome = useMemo(() => {
+    if (!profileData?.core_json) return [];
+    const b = getTwinBriefingFromCoreJson(profileData.core_json);
+    if (!b?.threads?.length) return [];
+    return b.threads
+      .filter((t) => t.status !== 'resolved')
+      .sort(
+        (a, b) =>
+          new Date(b.mentioned_at || 0).getTime() - new Date(a.mentioned_at || 0).getTime()
+      );
+  }, [profileData]);
+
+  const openThreadInArchitectChat = useCallback(
+    async (thread: LifeThread) => {
+      if (!user?.id) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      try {
+        const title = thread.summary.slice(0, 48) || 'Thread';
+        const initialMessage = `I want to talk through this: ${thread.summary}${
+          thread.stakes ? `. What's at stake: ${thread.stakes}` : ''
+        }`;
+        const chat = await createLifeChat(user.id, title);
+        await AsyncStorage.setItem('decide_initial_tab', 'architect');
+        router.push({
+          pathname: '/chat/life/[id]',
+          params: { id: chat.id, initialMessage, chatTitle: title },
+        } as any);
+      } catch (e) {
+        console.error('openThreadInArchitectChat', e);
+      }
+    },
+    [user?.id, router]
+  );
+
   return (
     <View style={styles.screen}>
       <View style={styles.backgroundGradient}>
@@ -1077,11 +1269,6 @@ export default function HomeScreen() {
               />
             </View>
             <View style={styles.topBarIcons}>
-              <View style={styles.streakContainer}>
-                <FlameGradientIcon size={20} />
-                <Text style={styles.streakText}>{streakCount}</Text>
-              </View>
-
               <TouchableOpacity
                 style={styles.moraTag}
                 onPress={() => {
@@ -1107,12 +1294,11 @@ export default function HomeScreen() {
                 </LinearGradient>
               </TouchableOpacity>
               
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.iconButton}
-                onPress={async () => {
+                onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/home');
-                  router.push('/(tabs)/profile');
+                  router.push('/account-settings');
                 }}
               >
                 <Settings size={24} color={Colors.textPrimary} strokeWidth={2} />
@@ -1139,8 +1325,343 @@ export default function HomeScreen() {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
         >
+            {/* Decision-first hub */}
+            {homeDecisionFirst && (
+              <View style={styles.hubSection}>
+                {isInitialLoad ? (
+                  <View style={styles.hubLoadingWrap}>
+                    <ActivityIndicator size="small" color="#25729f" />
+                  </View>
+                ) : (
+                  <View style={styles.hubStage}>
+                    <Animated.View
+                      style={[styles.hubIntroLayer, { opacity: hubIntroTextOpacity }]}
+                      pointerEvents="none"
+                    >
+                      <View style={styles.hubTypewriterRow}>
+                        <Text style={styles.hubTypewriterName}>{hubIntroNamePart}</Text>
+                        <Text style={styles.hubTypewriterNavigate}>{hubIntroNavigatePart}</Text>
+                        {!hubIntroTypewriterComplete && <HubTypewriterCursor />}
+                      </View>
+                    </Animated.View>
+                    <Animated.View
+                      style={[styles.hubActionsBlock, { opacity: hubButtonsOpacity }]}
+                      pointerEvents={hubButtonsReady ? 'auto' : 'none'}
+                    >
+                      <Text style={styles.hubActionsTitle}>Actions</Text>
+                      <View style={styles.hubGrid}>
+                      <TouchableOpacity
+                        style={styles.hubSquareCard}
+                        activeOpacity={0.9}
+                        onPress={async () => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          await AsyncStorage.setItem('decide_initial_tab', 'decide');
+                          router.push({ pathname: '/(tabs)/decide', params: { tab: 'decide' } });
+                        }}
+                      >
+                        <View style={styles.hubSquareCardInner} collapsable={false}>
+                          <LinearGradient
+                            colors={HUB_CARD_GRADIENT.decide}
+                            style={[StyleSheet.absoluteFillObject, { zIndex: 0 }]}
+                          />
+                          <View ref={decideRef} collapsable={false} style={styles.hubSquareGraphic}>
+                            <View style={styles.hubOverlapHeroContainer}>
+                              <View style={[styles.hubOverlapCard, styles.decideOptionBack, styles.hubUiCardClip]}>
+                                <LinearGradient
+                                  colors={HUB_UI.decide.back}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={styles.hubUiGradientFill}
+                                />
+                                <Text style={styles.decideOptionLetterOnSolid}>A</Text>
+                              </View>
+                              <View style={[styles.hubOverlapCard, styles.decideOptionFront, styles.hubUiCardClip]}>
+                                <LinearGradient
+                                  colors={HUB_UI.decide.front}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={styles.hubUiGradientFill}
+                                />
+                                <Text style={[styles.decideOptionLetterOutlined, { color: HUB_UI.decide.letterB }]}>
+                                  B
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                          <HubSquareBottomBlur tone="decide" />
+                          <View style={styles.hubSquarePill}>
+                            <Text style={styles.hubSquarePillText}>Decide</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.hubSquareCard}
+                        activeOpacity={0.9}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          router.push('/(tabs)/simulate');
+                        }}
+                      >
+                        <View style={styles.hubSquareCardInner} collapsable={false}>
+                          <LinearGradient
+                            colors={HUB_CARD_GRADIENT.simulate}
+                            style={[StyleSheet.absoluteFillObject, { zIndex: 0 }]}
+                          />
+                          <View ref={simulateRef} collapsable={false} style={styles.hubSquareGraphic}>
+                            <View style={styles.hubOverlapHeroContainer}>
+                              <View style={[styles.hubOverlapCard, styles.simulateHeroBack, styles.hubUiCardClip]}>
+                                <LinearGradient
+                                  colors={HUB_UI.simulate.back}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={styles.hubUiGradientFill}
+                                />
+                                <View style={styles.simulateBars}>
+                                  {[20, 34, 26].map((h, i) => (
+                                    <LinearGradient
+                                      key={i}
+                                      colors={HUB_UI.simulate.bar}
+                                      start={{ x: 0, y: 1 }}
+                                      end={{ x: 0, y: 0 }}
+                                      style={[styles.simulateBar, { height: h }]}
+                                    />
+                                  ))}
+                                </View>
+                              </View>
+                              <View style={[styles.hubOverlapCard, styles.simulateHeroFront, styles.hubUiCardClip]}>
+                                <LinearGradient
+                                  colors={HUB_UI.simulate.front}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={styles.hubUiGradientFill}
+                                />
+                                <TrendingUp size={30} color={HUB_UI.simulate.accent} strokeWidth={2.5} />
+                              </View>
+                            </View>
+                          </View>
+                          <HubSquareBottomBlur tone="simulate" />
+                          <View style={styles.hubSquarePill}>
+                            <Text style={styles.hubSquarePillText}>Simulate</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.hubSquareCard}
+                        activeOpacity={0.9}
+                        onPress={async () => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          await AsyncStorage.setItem('decide_initial_tab', 'architect');
+                          router.push({ pathname: '/(tabs)/decide', params: { tab: 'architect' } });
+                        }}
+                      >
+                        <View style={styles.hubSquareCardInner} collapsable={false}>
+                          <LinearGradient
+                            colors={HUB_CARD_GRADIENT.chat}
+                            style={[StyleSheet.absoluteFillObject, { zIndex: 0 }]}
+                          />
+                          <View style={styles.hubSquareGraphic}>
+                            <View style={styles.hubOverlapHeroContainer}>
+                              <View style={[styles.hubOverlapCard, styles.chatHeroBack, styles.hubUiCardClip]}>
+                                <LinearGradient
+                                  colors={HUB_UI.chat.back}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={styles.hubUiGradientFill}
+                                />
+                                <View style={styles.chatBubbleBackTail} />
+                                <View style={styles.chatBubbleBackMain} />
+                              </View>
+                              <View style={[styles.hubOverlapCard, styles.chatHeroFront, styles.hubUiCardClip]}>
+                                <LinearGradient
+                                  colors={HUB_UI.chat.front}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={styles.hubUiGradientFill}
+                                />
+                                <View style={styles.chatDotsRow}>
+                                  <LinearGradient
+                                    colors={[HUB_UI.chat.dot, HUB_UI.chat.accent] as const}
+                                    style={styles.chatDot}
+                                  />
+                                  <LinearGradient
+                                    colors={[HUB_UI.chat.dot, HUB_UI.chat.accent] as const}
+                                    style={styles.chatDot}
+                                  />
+                                  <LinearGradient
+                                    colors={[HUB_UI.chat.dot, HUB_UI.chat.accent] as const}
+                                    style={styles.chatDot}
+                                  />
+                                </View>
+                              </View>
+                            </View>
+                          </View>
+                          <HubSquareBottomBlur tone="chat" />
+                          <View style={styles.hubSquarePill}>
+                            <Text style={styles.hubSquarePillText}>Chat</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.hubSquareCard}
+                        activeOpacity={0.9}
+                        onPress={async () => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          await AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/home');
+                          router.push('/twin-insights');
+                        }}
+                      >
+                        <View style={styles.hubSquareCardInner} collapsable={false}>
+                          <LinearGradient
+                            colors={HUB_CARD_GRADIENT.insights}
+                            style={[StyleSheet.absoluteFillObject, { zIndex: 0 }]}
+                          />
+                          <View ref={trainRef} collapsable={false} style={styles.hubSquareGraphic}>
+                            <View style={styles.hubOverlapHeroContainer}>
+                              <View style={[styles.hubOverlapCard, styles.insightsHeroBack, styles.hubUiCardClip]}>
+                                <LinearGradient
+                                  colors={HUB_UI.insights.back}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={styles.hubUiGradientFill}
+                                />
+                                <View style={styles.insightsSparkRow}>
+                                  <LinearGradient
+                                    colors={HUB_UI.insights.spark}
+                                    start={{ x: 0, y: 1 }}
+                                    end={{ x: 0, y: 0 }}
+                                    style={styles.insightsSpark}
+                                  />
+                                  <LinearGradient
+                                    colors={HUB_UI.insights.spark}
+                                    start={{ x: 0, y: 1 }}
+                                    end={{ x: 0, y: 0 }}
+                                    style={[styles.insightsSpark, styles.insightsSparkTall]}
+                                  />
+                                  <LinearGradient
+                                    colors={HUB_UI.insights.spark}
+                                    start={{ x: 0, y: 1 }}
+                                    end={{ x: 0, y: 0 }}
+                                    style={styles.insightsSpark}
+                                  />
+                                </View>
+                              </View>
+                              <View style={[styles.hubOverlapCard, styles.insightsHeroFront, styles.hubUiCardClip]}>
+                                <LinearGradient
+                                  colors={HUB_UI.insights.front}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={styles.hubUiGradientFill}
+                                />
+                                <View style={styles.insightsMiniGrid}>
+                                  {[0, 1, 2, 3].map((i) => (
+                                    <LinearGradient
+                                      key={i}
+                                      colors={HUB_UI.insights.cell}
+                                      start={{ x: 0, y: 0 }}
+                                      end={{ x: 1, y: 1 }}
+                                      style={styles.insightsMiniCell}
+                                    />
+                                  ))}
+                                </View>
+                              </View>
+                            </View>
+                          </View>
+                          <HubSquareBottomBlur tone="insights" />
+                          <View style={styles.hubSquarePill}>
+                            <Text style={styles.hubSquarePillText}>Twin</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.hubUpdateTwinSection}>
+                        <Text style={styles.hubUpdateTwinTitle}>Update Twin</Text>
+                        <View style={styles.hubUpdateTwinOptions}>
+                          <TouchableOpacity
+                            style={styles.hubUpdateTwinOption}
+                            activeOpacity={0.88}
+                            disabled={!user?.id}
+                            onPress={() => {
+                              if (!user?.id) return;
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                              router.push('/twin-update');
+                            }}
+                          >
+                            <PenLine size={22} color="#25729f" strokeWidth={2} />
+                            <Text style={styles.hubUpdateTwinOptionLabel}>Write</Text>
+                          </TouchableOpacity>
+                          <View style={[styles.hubUpdateTwinOption, styles.hubUpdateTwinOptionSoon]}>
+                            <Phone size={22} color={Colors.textTertiary} strokeWidth={2} />
+                            <Text style={styles.hubUpdateTwinOptionLabelMuted}>Call</Text>
+                            <Text style={styles.hubUpdateTwinComingSoon}>Coming soon</Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {activeThreadsHome.length > 0 && (
+                        <View style={styles.hubMindSection}>
+                          <Text style={styles.hubUpdateTwinTitle}>On your mind</Text>
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={styles.hubMindCarousel}
+                            contentContainerStyle={styles.hubMindCarouselContent}
+                          >
+                            {activeThreadsHome.map((thread) => (
+                              <TouchableOpacity
+                                key={thread.id}
+                                style={styles.hubMindCard}
+                                activeOpacity={0.88}
+                                onPress={() => openThreadInArchitectChat(thread)}
+                              >
+                                <View style={styles.hubMindCardContent}>
+                                  <View style={styles.hubMindCardBadge}>
+                                    <Text style={styles.hubMindCardBadgeText}>
+                                      {hubThreadDomainLabel(thread.domain)}
+                                    </Text>
+                                  </View>
+                                  <Text style={styles.hubMindCardText} numberOfLines={3}>
+                                    {thread.summary}
+                                  </Text>
+                                </View>
+                              </TouchableOpacity>
+                            ))}
+                            {activeThreadsHome.length > 3 && (
+                              <TouchableOpacity
+                                style={[styles.hubMindCard, styles.hubMindCardMore]}
+                                activeOpacity={0.88}
+                                onPress={() => {
+                                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                  AsyncStorage.setItem('previous_route_before_profile', '/(tabs)/home');
+                                  router.push('/twin-insights');
+                                }}
+                              >
+                                <View style={styles.hubMindCardMoreInner}>
+                                  <Text style={styles.hubMindCardMoreTitle}>Your twin</Text>
+                                  <Text style={styles.hubMindCardMoreSub}>View all threads</Text>
+                                  <ChevronRight
+                                    size={22}
+                                    color={Colors.textTertiary}
+                                    strokeWidth={2}
+                                    style={styles.hubMindCardMoreChevron}
+                                  />
+                                </View>
+                              </TouchableOpacity>
+                            )}
+                          </ScrollView>
+                        </View>
+                      )}
+                    </Animated.View>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Distance to Dream Self Card */}
-            {profileData?.dream_vision && (
+            {!homeDecisionFirst && profileData?.dream_vision && (
               <TouchableOpacity 
                 style={styles.dreamSelfCard}
                 onPress={() => {
@@ -1201,7 +1722,7 @@ export default function HomeScreen() {
             )}
 
             {/* Daily Tasks Section */}
-            {dailyTasks.length > 0 ? (
+            {!homeDecisionFirst && dailyTasks.length > 0 ? (
               <View style={styles.architectSection}>
                 <View style={styles.sectionHeader}>
                   <View>
@@ -1293,83 +1814,14 @@ export default function HomeScreen() {
                   </ScrollView>
                 </View>
               </View>
-            ) : (
+            ) : !homeDecisionFirst ? (
               <View style={styles.emptyStateContainer}>
                 <Text style={styles.emptyStateTitle}>No tasks yet</Text>
                 <Text style={styles.emptyStateText}>
                   Complete your dream self setup to get personalized daily tasks from your Architect.
                 </Text>
               </View>
-            )}
-
-            {/* Suggested Tasks Section */}
-            {!(['architect','decision','future-self','simulate','invite'].every(id => completedSuggestions.has(id))) && (
-            <View style={styles.onboardingSection}>
-              <View style={styles.sectionHeader}>
-                <View>
-                  <Text style={styles.sectionTitle}>Get started</Text>
-                  <Text style={styles.sectionSubtitle}>Helpful tips to get started on mora.</Text>
-                </View>
-              </View>
-
-              <View style={styles.suggestedTasksList}>
-                {[
-                  { id: 'architect', title: 'Chat with the Architect about your life', description: 'Have a deep conversation with your AI life coach about where you are and where you want to go.', iconColor: '#A78BFA', IconComponent: Compass, ctaLabel: 'Start chatting' },
-                  { id: 'decision', title: 'Make a decision', description: 'Get clear, structured analysis on any life choice — career, relationships, money, anything.', iconColor: '#25729f', IconComponent: Layers, ctaLabel: 'Analyze a decision' },
-                  { id: 'future-self', title: 'Chat with your future self', description: 'Have a conversation with the version of you that already achieved everything you\'re working toward.', iconColor: '#62edb9', IconComponent: User, ctaLabel: 'Meet your future self' },
-                  { id: 'simulate', title: 'Simulate your life', description: 'Run a realistic simulation of an aspect of your life — see how it plays out before you commit.', iconColor: '#FFD700', IconComponent: Zap, ctaLabel: 'Run a simulation' },
-                  { id: 'invite', title: 'Invite a friend', description: 'Share Mora with someone you think would benefit from having an Architect in their corner.', iconColor: '#FF9A9E', IconComponent: Share2, ctaLabel: 'Share with a friend' },
-                ].map((item) => {
-                  const isExpanded = expandedSuggestion === item.id;
-                  const isDone = completedSuggestions.has(item.id);
-                  const IconComp = item.IconComponent;
-                  return (
-                    <TouchableOpacity
-                      key={item.id}
-                      activeOpacity={0.75}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setExpandedSuggestion(isExpanded ? null : item.id);
-                      }}
-                      style={isDone && { opacity: 0.6 }}
-                    >
-                      <View style={[styles.suggestedTaskCard, isDone && styles.suggestedTaskCardDone]}>
-                        {/* header row */}
-                        <View style={styles.suggestedTaskCardHeader}>
-                          <View style={[styles.suggestedTaskIconBadge, { backgroundColor: `${item.iconColor}18` }]}>
-                            <IconComp size={15} color={item.iconColor} strokeWidth={2} />
-                          </View>
-                          <Text style={[styles.suggestedTaskCardTitle, isDone && { color: Colors.textTertiary }]}>{item.title}</Text>
-                          <View style={[styles.suggestedTaskCheckbox, isDone && styles.suggestedTaskCheckboxDone]}>
-                            {isDone ? (
-                              <Check size={10} color="#FFFFFF" strokeWidth={4} />
-                            ) : (
-                              <View style={styles.suggestedTaskCheckboxDot} />
-                            )}
-                          </View>
-                        </View>
-
-                        {/* expanded body */}
-                        {isExpanded && !isDone && (
-                          <View style={styles.suggestedTaskCardBody}>
-                            <Text style={styles.suggestedTaskCardDescription}>{item.description}</Text>
-                            <TouchableOpacity
-                              style={styles.suggestedTaskCardCta}
-                              onPress={() => handleSuggestedTaskNavigate(item.id)}
-                              activeOpacity={0.7}
-                            >
-                              <Text style={styles.suggestedTaskCardCtaText}>{item.ctaLabel}</Text>
-                              <ArrowUpRight size={12} color="#25729f" strokeWidth={2.5} />
-                            </TouchableOpacity>
-                          </View>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-            )}
+            ) : null}
 
           </Animated.ScrollView>
         </SafeAreaView>
@@ -1621,7 +2073,7 @@ export default function HomeScreen() {
               style={styles.accuracyActionButton}
               onPress={() => {
                 setShowAccuracyInfo(false);
-                router.push('/(tabs)/profile');
+                router.push('/twin-insights');
               }}
             >
               <Text style={styles.accuracyActionText}>Train My Mora</Text>
@@ -1766,23 +2218,6 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'center',
   },
-  streakContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 154, 158, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 154, 158, 0.2)',
-  },
-  streakText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FF9A9E',
-    fontFamily: Fonts.secondary.bold,
-  },
   moraTag: {
     borderRadius: 56,
     overflow: 'hidden',
@@ -1862,13 +2297,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   compatibilityBannerTitle: {
-    fontSize: 15,
+    fontSize: 11,
     fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
   },
   compatibilityBannerSubtitle: {
-    fontSize: 12,
+    fontSize: 9,
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.regular,
     fontWeight: '300',
@@ -1907,18 +2342,18 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   greetingText: {
-    fontSize: 20,
+    fontSize: 15,
     fontFamily: Fonts.primary.semibold,
     color: Colors.textPrimary,
-    lineHeight: 28,
+    lineHeight: 21,
     textAlign: 'left',
     fontWeight: '600',
   },
   greetingSubtext: {
-    fontSize: 22,
+    fontSize: 17,
     fontFamily: Fonts.secondary.bold,
     color: Colors.textPrimary,
-    lineHeight: 30,
+    lineHeight: 23,
     textAlign: 'left',
     fontWeight: '700',
     marginTop: 4,
@@ -1938,7 +2373,7 @@ const styles = StyleSheet.create({
   },
   journeyCtaContent: {},
   journeyCtaLabel: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
@@ -1977,11 +2412,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dreamSelfWidgetValue: {
-    fontSize: 42,
+    fontSize: 32,
     fontWeight: '800',
     color: Colors.textPrimary,
     fontFamily: Fonts.secondary.bold,
-    lineHeight: 48,
+    lineHeight: 36,
   },
   dreamSelfWidgetLabelRow: {
     flexDirection: 'row',
@@ -1990,7 +2425,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dreamSelfWidgetLabel: {
-    fontSize: 14,
+    fontSize: 11,
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.regular,
   },
@@ -2029,7 +2464,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: 11,
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.regular,
     marginTop: 4,
@@ -2058,7 +2493,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   taskCountText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '700',
     fontFamily: Fonts.secondary.bold,
     color: Colors.textPrimary,
@@ -2255,6 +2690,475 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginTop: 4,
   },
+  hubSection: {
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  hubLoadingWrap: {
+    minHeight: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  hubStage: {
+    position: 'relative',
+    width: '100%',
+    minHeight: 420,
+  },
+  hubIntroLayer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingRight: 8,
+    zIndex: 2,
+  },
+  hubTypewriterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    maxWidth: '100%',
+  },
+  hubTypewriterName: {
+    fontSize: 24,
+    fontFamily: Fonts.primary.regular,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    lineHeight: 30,
+    letterSpacing: -0.3,
+  },
+  hubTypewriterNavigate: {
+    fontSize: 24,
+    fontFamily: Fonts.primary.regular,
+    fontWeight: '700',
+    color: '#25729f',
+    lineHeight: 30,
+    letterSpacing: -0.3,
+  },
+  hubTypewriterCursor: {
+    fontSize: 24,
+    fontFamily: Fonts.primary.regular,
+    fontWeight: '300',
+    color: '#25729f',
+    lineHeight: 30,
+    marginLeft: 2,
+    marginTop: -2,
+  },
+  hubActionsBlock: {
+    width: '100%',
+    paddingTop: 8,
+  },
+  hubMindSection: {
+    width: '100%',
+    marginTop: 22,
+  },
+  hubMindCarousel: {
+    overflow: 'visible',
+    marginHorizontal: -20,
+  },
+  hubMindCarouselContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 0,
+    gap: 12,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  hubMindCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    width: HUB_UPDATE_TWIN_CELL_W,
+    minWidth: HUB_UPDATE_TWIN_CELL_W,
+    maxWidth: HUB_UPDATE_TWIN_CELL_W,
+    minHeight: 96,
+    justifyContent: 'center',
+  },
+  hubMindCardContent: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  hubMindCardBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  hubMindCardBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontFamily: Fonts.secondary.bold,
+  },
+  hubMindCardText: {
+    fontSize: 12,
+    fontFamily: Fonts.secondary.regular,
+    color: Colors.textPrimary,
+    lineHeight: 16,
+  },
+  hubMindCardMore: {
+    width: HUB_UPDATE_TWIN_CELL_W,
+    minWidth: HUB_UPDATE_TWIN_CELL_W,
+    maxWidth: HUB_UPDATE_TWIN_CELL_W,
+    minHeight: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hubMindCardMoreInner: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  hubMindCardMoreTitle: {
+    fontSize: 11,
+    fontFamily: Fonts.secondary.bold,
+    color: '#25729f',
+    textAlign: 'center',
+  },
+  hubMindCardMoreSub: {
+    fontSize: 9,
+    fontFamily: Fonts.secondary.regular,
+    color: Colors.textTertiary,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  hubMindCardMoreChevron: {
+    marginTop: 6,
+  },
+  hubActionsTitle: {
+    fontSize: 20,
+    fontFamily: Fonts.primary.semibold,
+    color: Colors.textPrimary,
+    letterSpacing: -0.4,
+    marginBottom: 11,
+  },
+  hubGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 16,
+    width: '100%',
+  },
+  hubUpdateTwinSection: {
+    marginTop: 22,
+    width: '100%',
+  },
+  hubUpdateTwinTitle: {
+    fontSize: 17,
+    fontFamily: Fonts.primary.semibold,
+    color: Colors.textPrimary,
+    letterSpacing: -0.35,
+    marginBottom: 11,
+  },
+  hubUpdateTwinOptions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  hubUpdateTwinOption: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  hubUpdateTwinOptionLabel: {
+    fontSize: 15,
+    fontFamily: Fonts.secondary.semibold,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    letterSpacing: -0.15,
+  },
+  hubUpdateTwinOptionSoon: {
+    opacity: 0.85,
+    backgroundColor: '#F8F9FA',
+    borderColor: 'rgba(0,0,0,0.04)',
+    shadowOpacity: 0.02,
+    elevation: 0,
+  },
+  hubUpdateTwinOptionLabelMuted: {
+    fontSize: 15,
+    fontFamily: Fonts.secondary.semibold,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    letterSpacing: -0.15,
+  },
+  hubUpdateTwinComingSoon: {
+    fontSize: 11,
+    fontFamily: Fonts.secondary.semibold,
+    fontWeight: '600',
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 2,
+  },
+  hubSquareCard: {
+    width: '48%',
+    height: (width - 48) * 0.48,
+    borderRadius: 28,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  hubSquareCardInner: {
+    flex: 1,
+    width: '100%',
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 28,
+  },
+  hubSquareGraphic: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 16,
+    zIndex: 0,
+    elevation: 0,
+  },
+  hubCardBottomBlurWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '36%',
+    zIndex: 2,
+    overflow: 'hidden',
+    borderBottomLeftRadius: 27,
+    borderBottomRightRadius: 27,
+    ...(Platform.OS === 'android' ? { elevation: 2 } : {}),
+  },
+  hubSquarePill: {
+    position: 'absolute',
+    bottom: 14,
+    left: 12,
+    zIndex: 10,
+    ...(Platform.OS === 'android' ? { elevation: 12 } : {}),
+  },
+  hubSquarePillText: {
+    fontSize: 12,
+    fontFamily: Fonts.secondary.semibold,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    letterSpacing: -0.15,
+  },
+  hubOverlapHeroContainer: {
+    width: 100,
+    height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hubOverlapCard: {
+    position: 'absolute',
+    width: 56,
+    height: 72,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hubUiCardClip: {
+    overflow: 'hidden',
+  },
+  hubUiGradientFill: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 10,
+  },
+  simulateHeroBack: {
+    right: 10,
+    top: 6,
+    transform: [{ rotate: '8deg' }],
+    shadowColor: '#0D9488',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  simulateHeroFront: {
+    borderColor: '#0F7668',
+    borderWidth: 2.5,
+    left: 10,
+    bottom: 10,
+    transform: [{ rotate: '-6deg' }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  simulateBars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 5,
+    height: 40,
+  },
+  simulateBar: {
+    width: 9,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  chatHeroBack: {
+    right: 10,
+    top: 6,
+    transform: [{ rotate: '8deg' }],
+    shadowColor: '#16A34A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  chatHeroFront: {
+    borderColor: '#15803D',
+    borderWidth: 2.5,
+    left: 10,
+    bottom: 10,
+    transform: [{ rotate: '-6deg' }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  chatBubbleBackMain: {
+    position: 'absolute',
+    width: 38,
+    height: 26,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    top: 10,
+    right: 6,
+  },
+  chatBubbleBackTail: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    bottom: 14,
+    left: 10,
+  },
+  chatDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  chatDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  insightsHeroBack: {
+    right: 10,
+    top: 6,
+    transform: [{ rotate: '8deg' }],
+    shadowColor: '#6B7280',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  insightsHeroFront: {
+    borderColor: '#4B5563',
+    borderWidth: 2.5,
+    left: 10,
+    bottom: 10,
+    transform: [{ rotate: '-6deg' }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  insightsSparkRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 4,
+    height: 36,
+  },
+  insightsSpark: {
+    width: 5,
+    height: 12,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  insightsSparkTall: {
+    height: 22,
+  },
+  insightsMiniGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: 28,
+    gap: 4,
+    justifyContent: 'center',
+  },
+  insightsMiniCell: {
+    width: 11,
+    height: 11,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  decideOptionBack: {
+    right: 10,
+    top: 6,
+    transform: [{ rotate: '8deg' }],
+    shadowColor: '#FF6B2C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  decideOptionFront: {
+    borderColor: '#E8590C',
+    borderWidth: 2.5,
+    left: 10,
+    bottom: 10,
+    transform: [{ rotate: '-6deg' }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  decideOptionLetterOnSolid: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '800',
+    fontFamily: Fonts.secondary.bold,
+  },
+  decideOptionLetterOutlined: {
+    fontSize: 28,
+    fontWeight: '800',
+    fontFamily: Fonts.secondary.bold,
+  },
   emptyStateContainer: {
     marginTop: 24,
     marginBottom: 32,
@@ -2271,126 +3175,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyStateTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
     fontFamily: Fonts.primary.regular,
     color: Colors.textPrimary,
     marginBottom: 8,
   },
   emptyStateText: {
-    fontSize: 14,
+    fontSize: 11,
     color: Colors.textSecondary,
     fontFamily: Fonts.secondary.regular,
     textAlign: 'center',
     lineHeight: 20,
-  },
-  // Onboarding Section
-  onboardingSection: {
-    marginTop: 16,
-    marginBottom: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 32,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: 'rgba(0,0,0,0.05)',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 1,
-    shadowRadius: 20,
-    elevation: 4,
-  },
-  suggestedTasksList: {
-    flexDirection: 'column',
-    gap: 10,
-    marginTop: 4,
-  },
-  suggestedTaskCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.04)',
-    borderBottomWidth: 4,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  suggestedTaskCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  suggestedTaskIconBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  suggestedTaskCardTitle: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    fontFamily: Fonts.secondary.bold,
-    lineHeight: 19,
-  },
-  suggestedTaskCardBody: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.06)',
-  },
-  suggestedTaskCardDescription: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.secondary.regular,
-    lineHeight: 19,
-    marginBottom: 10,
-  },
-  suggestedTaskCardCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-  },
-  suggestedTaskCardCtaText: {
-    fontSize: 13,
-    color: '#25729f',
-    fontFamily: Fonts.secondary.semibold,
-    fontWeight: '600',
-  },
-  suggestedTaskCardDone: {
-    backgroundColor: '#F8F8F8',
-    borderColor: 'transparent',
-    borderBottomColor: 'transparent',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  suggestedTaskCheckbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: 'rgba(0,0,0,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    flexShrink: 0,
-  },
-  suggestedTaskCheckboxDone: {
-    backgroundColor: '#4ADE80',
-    borderColor: '#4ADE80',
-  },
-  suggestedTaskCheckboxDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: 'rgba(0,0,0,0.1)',
   },
   onboardingTaskCard: {
     width: width * 0.65,
@@ -2760,7 +3556,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
     fontFamily: Fonts.primary.regular,
     color: Colors.textPrimary,

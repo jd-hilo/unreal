@@ -25,7 +25,7 @@ const REVIEWS = [
 ];
 
 const FEATURES = [
-  { icon: BarChart3, title: 'Curated Path', description: 'Daily tasks personalized to move you toward your dream self' },
+  { icon: BarChart3, title: 'Curated Path', description: 'Daily moves tuned to your twin so progress stays grounded' },
   { icon: Infinity, title: 'Unlimited Simulations', description: 'Create unlimited timelines and simulate unlimited years' },
   { icon: MessageCircle, title: 'Discuss Decisions', description: 'Chat with your Architect about any decision' },
   { icon: GitBranch, title: 'Simulation Branches', description: 'Explore alternate timelines and decision points' },

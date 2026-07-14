@@ -610,6 +610,62 @@ export interface OnboardingTask {
   created_at: string;
 }
 
+/** Life situation thread domain for Twin Briefing */
+export type ThreadDomain = 'career' | 'relationships' | 'health' | 'money' | 'personal';
+
+/** Status of an active life thread */
+export type ThreadStatus = 'deciding' | 'active' | 'stalled' | 'resolved';
+
+/** Single ongoing situation the twin tracks */
+export interface LifeThread {
+  id: string;
+  domain: ThreadDomain;
+  summary: string;
+  stakes: string;
+  status: ThreadStatus;
+  mentioned_at: string;
+}
+
+/** How the person thinks and copes (stable lens, not personality scores) */
+export interface TwinLens {
+  whats_important: string;
+  how_they_decide: string;
+  whats_draining: string;
+  support_system: string;
+}
+
+/** Near and longer horizon direction */
+export interface TwinDirection {
+  near_term: string;
+  horizon: string;
+}
+
+export interface TwinBriefingIdentity {
+  name: string;
+  age?: string;
+  location?: string;
+  work?: string;
+  education?: string;
+}
+
+/** Structured twin context: threads + lens + direction (stored in core_json.twin_briefing) */
+export interface TwinBriefing {
+  version: 1;
+  identity: TwinBriefingIdentity;
+  threads: LifeThread[];
+  lens: TwinLens;
+  direction: TwinDirection;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Partial update merged into TwinBriefing (AI onboarding / chat extraction) */
+export type TwinBriefingPatch = Partial<TwinBriefing> & {
+  lens?: Partial<TwinLens>;
+  direction?: Partial<TwinDirection>;
+  identity?: Partial<TwinBriefingIdentity>;
+};
+
 export interface CoreJsonData {
   age_range?: string;
   city?: string;
@@ -619,6 +675,8 @@ export interface CoreJsonData {
   employment_type?: string;
   side_projects?: string;
   motivation?: string;
+  /** Structured twin briefing (threads, lens, direction) */
+  twin_briefing?: TwinBriefing;
   [key: string]: any;
 }
 

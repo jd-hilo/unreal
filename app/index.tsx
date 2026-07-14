@@ -70,8 +70,8 @@ export default function Index() {
           console.log('📍 INDEX: Onboarding incomplete but journey exists, routing to /premium-onboarding');
           router.replace({ pathname: '/premium-onboarding', params: { from: 'onboarding' } } as any);
         } else {
-          console.log('📍 INDEX: Routing to /onboarding/choose-method');
-          router.replace('/onboarding/choose-method');
+          console.log('📍 INDEX: Routing to /onboarding/architect-chat');
+          router.replace('/onboarding/architect-chat');
         }
         return;
       }

@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowUp } from 'lucide-react-native';
 import { useAuth } from '@/store/useAuth';
 import { architectDecisionChat } from '@/lib/ai';
 import { buildCorePack } from '@/lib/relevance';
-import { getDecision, getDecisionChat, saveDecisionChatMessage } from '@/lib/storage';
+import { getDecision, getDecisionChat, saveDecisionChatMessage, appendArchitectInsight } from '@/lib/storage';
 import { Colors, Fonts } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -190,6 +190,7 @@ export default function DecisionChatScreen() {
       } catch (e) {
         console.error('Failed to save architect message:', e);
       }
+      void appendArchitectInsight(user.id, reply, 'decision');
     } catch (e) {
       console.error('Send chat error:', e);
       setIsStreaming(false);

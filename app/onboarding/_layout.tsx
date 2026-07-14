@@ -7,6 +7,7 @@ export default function OnboardingLayout() {
       gestureEnabled: false,
       fullScreenGestureEnabled: false,
     }}>
+      <Stack.Screen name="architect-chat" />
       <Stack.Screen name="choose-method" />
       <Stack.Screen name="00-name" />
       <Stack.Screen name="00-birth-year" />
@@ -25,6 +26,8 @@ export default function OnboardingLayout() {
       <Stack.Screen name="interests" />
       <Stack.Screen name="career" />
       <Stack.Screen name="health" />
+      <Stack.Screen name="decision-style" />
+      <Stack.Screen name="dream-intro" />
       <Stack.Screen name="goals" />
       <Stack.Screen name="journey-preview" />
       <Stack.Screen name="signature" />

@@ -10,6 +10,7 @@ import type {
   YearPredictionData,
   DreamVision,
   DailyTask,
+  TwinBriefingPatch,
 } from '@/types/database';
 import type { CareerSimulation } from '@/lib/career-sim/types';
 import { normalizeJourneyDailyPreview } from '@/lib/journey';
@@ -40,6 +41,20 @@ const DEV_MODE = !anthropicApiKey && !openaiApiKey;
 
 if (DEV_MODE) {
   console.warn('⚠️ API keys not found. Set ANTHROPIC_API_KEY and/or OPENAI_API_KEY in .env file');
+}
+
+/** Default Claude model for sims, decisions, architect chat, etc. */
+const CLAUDE_MODEL = 'claude-sonnet-5';
+
+function modelSupportsSamplingParams(model: string): boolean {
+  // Sonnet 5+ and recent Opus/Fable models reject explicit sampling params.
+  return !/^claude-(sonnet-5|opus-4-[78]|fable-5)/.test(model);
+}
+
+function extractClaudeTextContent(content: Array<{ type: string; text?: string }>): string {
+  const text = content.find((block) => block.type === 'text')?.text;
+  if (!text) throw new Error('No response from Claude');
+  return text;
 }
 
 let anthropicInstance: any = null;
@@ -76,7 +91,7 @@ function getOpenAI() {
   return openaiInstance;
 }
 
-// Helper function to call Claude Sonnet 4
+// Helper function to call Claude Sonnet 5
 async function callClaude(options: {
   system?: string;
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -86,7 +101,7 @@ async function callClaude(options: {
   responseFormat?: { type: 'json_object' };
 }): Promise<string> {
   const anthropic = getAnthropic();
-  const model = options.model || 'claude-sonnet-4-20250514';
+  const model = options.model || CLAUDE_MODEL;
   
   // Convert messages format for Anthropic
   const anthropicMessages = options.messages.map(msg => ({
@@ -97,9 +112,12 @@ async function callClaude(options: {
   const params: any = {
     model,
     max_tokens: options.maxTokens || 4096,
-    temperature: options.temperature ?? 0.7,
     messages: anthropicMessages,
   };
+
+  if (modelSupportsSamplingParams(model)) {
+    params.temperature = options.temperature ?? 0.7;
+  }
 
   // Add system message if provided
   if (options.system) {
@@ -123,9 +141,8 @@ async function callClaude(options: {
     try {
       const response = await anthropic.messages.create(params);
       
-      // Extract text content from response
-      let content = response.content.find((block: any) => block.type === 'text')?.text;
-      if (!content) throw new Error('No response from Claude');
+      // Extract text content from response (skip thinking blocks on Sonnet 5)
+      let content = extractClaudeTextContent(response.content);
       
       // Clean up JSON if response format is JSON (remove markdown code blocks)
       if (options.responseFormat?.type === 'json_object') {
@@ -4416,14 +4433,13 @@ Today's date: ${today}`;
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: CLAUDE_MODEL,
       max_tokens: 1024,
-      temperature: 0.72,
       system: systemPrompt,
       messages: anthropicMessages,
     });
 
-    return response.content[0].text;
+    return extractClaudeTextContent(response.content);
   } catch (error) {
     console.error('Architect decision chat error:', error);
     throw error;
@@ -4618,18 +4634,132 @@ Today's date: ${today}`;
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: CLAUDE_MODEL,
       max_tokens: 1024,
-      temperature: 0.72,
       system: systemPrompt,
       messages: anthropicMessages,
     });
-    return (response.content[0] as { type: 'text'; text: string }).text;
+    return extractClaudeTextContent(response.content);
   } catch (error) {
     console.error('architectLifeChat error:', error);
     throw error;
   }
 }
+
+/** Patches after life / Architect chat: Twin Briefing + optional profile columns. */
+export type LifeChatTwinUpdateResult = {
+  briefing_patch?: TwinBriefingPatch;
+  profile?: Partial<{
+    first_name: string;
+    hometown: string;
+    university: string;
+    current_location: string;
+    net_worth: string;
+    political_views: string;
+    life_situation: string;
+    life_journey: string;
+    core_value: string;
+  }>;
+};
+
+function parseBriefingChatResultJson(raw: string): LifeChatTwinUpdateResult {
+  let t = raw.trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) t = fence[1].trim();
+  const obj = JSON.parse(t) as Record<string, unknown>;
+  const out: LifeChatTwinUpdateResult = {};
+  if (obj.profile && typeof obj.profile === 'object' && obj.profile !== null) {
+    out.profile = obj.profile as LifeChatTwinUpdateResult['profile'];
+  }
+  if (obj.briefing_patch && typeof obj.briefing_patch === 'object' && obj.briefing_patch !== null) {
+    out.briefing_patch = obj.briefing_patch as TwinBriefingPatch;
+  }
+  return out;
+}
+
+/**
+ * Reads the life-chat transcript and current twin context; returns Twin Briefing patches + optional profile fields.
+ */
+export async function extractBriefingPatchFromChat({
+  corePack,
+  messages,
+}: {
+  corePack: string;
+  messages: Array<{ role: 'user' | 'architect'; content: string }>;
+}): Promise<LifeChatTwinUpdateResult> {
+  if (DEV_MODE) {
+    return {};
+  }
+
+  const transcript = messages
+    .map((m) => `${m.role === 'user' ? 'User' : 'Architect'}: ${m.content}`)
+    .join('\n\n');
+
+  const systemPrompt = `You are a precise data steward for a "digital twin" app. The user chatted with the Architect. Output ONLY a JSON object describing what should change in their Twin Briefing (life threads + lens + direction) and optional profile columns.
+
+RULES:
+- Output a single JSON object only. No markdown outside JSON.
+- "briefing_patch" is optional. Include it only when the user clearly stated or strongly implied NEW or CHANGED situational facts.
+- If nothing warrants an update, return {}.
+- NEVER invent facts. If unsure, omit.
+- Compare to CURRENT TWIN CONTEXT; do not repeat unchanged data.
+- Threads: each has id (stable string, use existing id from context when updating same situation), domain (career|relationships|health|money|personal), summary, stakes, status (deciding|active|stalled|resolved), mentioned_at (ISO 8601).
+- When a situation is resolved or no longer active, set status to "resolved" on that thread id.
+- lens: whats_important, how_they_decide, whats_draining, support_system — only non-empty strings when the chat updated that theme.
+- direction: near_term, horizon — short strings for what they want next.
+- profile: optional — only when they stated concrete facts (name, city, school, etc.).
+
+ALLOWED JSON SHAPE (all keys optional):
+{
+  "briefing_patch": {
+    "threads": [ { "id": "string", "domain": "career", "summary": "string", "stakes": "string", "status": "active", "mentioned_at": "ISO" } ],
+    "lens": { "whats_important": "string", "how_they_decide": "string", "whats_draining": "string", "support_system": "string" },
+    "direction": { "near_term": "string", "horizon": "string" },
+    "identity": { "name": "string", "location": "string", "work": "string", "education": "string", "age": "string" }
+  },
+  "profile": {
+    "first_name": "string",
+    "hometown": "string",
+    "university": "string",
+    "current_location": "string",
+    "net_worth": "string",
+    "political_views": "string",
+    "life_situation": "string",
+    "life_journey": "string",
+    "core_value": "string"
+  }
+}
+
+CURRENT TWIN CONTEXT:
+${limitCorePackForArchitect(corePack)}
+
+CONVERSATION:
+${transcript.slice(0, 12000)}`;
+
+  const anthropic = getAnthropic();
+
+  try {
+    const response = await anthropic.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: 'Return only the JSON object.' }],
+    });
+    const text = extractClaudeTextContent(response.content);
+    try {
+      return parseBriefingChatResultJson(text);
+    } catch (parseErr) {
+      console.warn('extractBriefingPatchFromChat parse fallback:', parseErr);
+      return {};
+    }
+  } catch (error) {
+    console.error('extractBriefingPatchFromChat error:', error);
+    throw error;
+  }
+}
+
+/** @deprecated Use {@link extractBriefingPatchFromChat} */
+export const extractTwinUpdatesFromLifeChat = extractBriefingPatchFromChat;
 
 /**
  * Chat with the user's Dream Self — their future self ~5 years ahead.
@@ -4690,15 +4820,295 @@ Today's date: ${today}`;
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: CLAUDE_MODEL,
       max_tokens: 1024,
-      temperature: 0.85,
       system: systemPrompt,
       messages: anthropicMessages,
     });
-    return (response.content[0] as { type: 'text'; text: string }).text;
+    return extractClaudeTextContent(response.content);
   } catch (error) {
     console.error('dreamSelfChat error:', error);
     throw error;
+  }
+}
+
+export type ArchitectOnboardingSaveKey =
+  | '02-now'
+  | '02-path'
+  | '01-values'
+  | '06-stress'
+  | '04-style';
+
+/**
+ * Guided onboarding chat (legacy key-based saves).
+ * @deprecated Prefer {@link runBriefingOnboardingTurn} for Twin Briefing extraction.
+ */
+export async function runArchitectOnboardingTurn({
+  messages,
+  profileSummary,
+  assistantTurnsSoFar,
+}: {
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  profileSummary: string;
+  assistantTurnsSoFar: number;
+}): Promise<{
+  reply: string;
+  saves?: Partial<Record<ArchitectOnboardingSaveKey, string>>;
+  first_name?: string;
+}> {
+  if (DEV_MODE) {
+    const last = messages.filter((m) => m.role === 'user').pop()?.content || '';
+    return {
+      reply:
+        assistantTurnsSoFar >= 8
+          ? "That's a solid start. You can tune the rest in Twin Insights whenever you're ready."
+          : `Thanks — I heard: ${last.slice(0, 120)}${last.length > 120 ? '…' : ''} What's the next concrete detail that would help your twin?`,
+      saves: {},
+    };
+  }
+
+  const system = `You are The Architect onboarding a new user for the Mora app. Your job is to quickly build enough context for a useful digital twin focused on decisions and clarity — not therapy, not long essays.
+
+Rules:
+- Ask ONE focused question at a time (or give one short prompt). Keep replies under 6 sentences.
+- Tone: direct, warm, no corporate filler, no markdown bullets.
+- This is turn ${assistantTurnsSoFar + 1} of the conversation. If you have enough for a minimal twin (rough life situation, direction, values or stress/decision style hints), you may say you're ready to continue in the app.
+- Only include "saves" when the user clearly provided new information you are confident about. Use these keys only: 02-now (where they are in life), 02-path (how they got here / trajectory), 01-values (what matters), 06-stress (stress and coping), 04-style (how they decide). Values must be plain text strings.
+- Optionally set "first_name" if they clearly state their first name and it is new.
+- Always respond with a single JSON object ONLY, no other text. Shape:
+{"reply":"string","saves":{"02-now":"optional"},"first_name":"optional"}
+
+Known profile context (may be empty):
+${profileSummary}`;
+
+  const claudeMessages = messages.map((m) => ({
+    role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+    content: m.content,
+  }));
+
+  const raw = await callClaude({
+    system,
+    messages: claudeMessages,
+    temperature: 0.65,
+    maxTokens: 900,
+    responseFormat: { type: 'json_object' },
+  });
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      reply?: string;
+      saves?: Partial<Record<ArchitectOnboardingSaveKey, string>>;
+      first_name?: string;
+    };
+    const reply = (parsed.reply || '').trim() || 'Tell me a bit more about what you want clarity on.';
+    const saves = parsed.saves && typeof parsed.saves === 'object' ? parsed.saves : undefined;
+    const first_name =
+      typeof parsed.first_name === 'string' && parsed.first_name.trim()
+        ? parsed.first_name.trim()
+        : undefined;
+    return { reply, saves, first_name };
+  } catch {
+    return {
+      reply: raw.slice(0, 800),
+      saves: {},
+    };
+  }
+}
+
+export type BriefingOnboardingStateAssessment = {
+  what_user_added_this_turn?: string;
+  a_ok_after_patch?: boolean;
+  b_ok_after_patch?: boolean;
+  c_ok_after_patch?: boolean;
+  weakest_remaining_signal?: string;
+  next_question_strategy?: string;
+};
+
+export type BriefingOnboardingTurnResult = {
+  reply: string;
+  patch?: TwinBriefingPatch;
+  first_name?: string;
+  /** Model self-check (not shown in UI); used to force gap analysis before reply. */
+  state_assessment?: BriefingOnboardingStateAssessment;
+};
+
+/**
+ * Onboarding Architect chat. Model: **Claude Sonnet 5** (`claude-sonnet-5`) via {@link callClaude}.
+ * Each turn the model must assess persisted checklist + new data, patch the briefing, then one subtle follow-up.
+ */
+export async function runBriefingOnboardingTurn({
+  messages,
+  profileSummary,
+  assistantTurnsSoFar,
+}: {
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  profileSummary: string;
+  assistantTurnsSoFar: number;
+}): Promise<BriefingOnboardingTurnResult> {
+  if (DEV_MODE) {
+    const last = messages.filter((m) => m.role === 'user').pop()?.content || '';
+    const devStakes =
+      'Dev-mode stakes line long enough for onboarding gate: real tradeoff or cost the user cares about.';
+    if (assistantTurnsSoFar >= 5) {
+      return {
+        reply:
+          "Your twin has a solid foundation now. Enter Mora whenever you're ready, you can always refine it later.",
+        patch: {
+          threads: [
+            {
+              id: 'dev-thread-complete',
+              domain: 'personal' as const,
+              summary: last.slice(0, 120) || 'Main situation from chat',
+              stakes: devStakes,
+              status: 'active' as const,
+              mentioned_at: new Date().toISOString(),
+            },
+          ],
+          lens: {
+            whats_important: last.slice(0, 80) || 'What matters from the conversation.',
+            how_they_decide: 'How this user tends to decide; dev-mode fill.',
+            whats_draining: 'What costs them energy; dev-mode fill.',
+            support_system: 'Who they lean on; dev-mode fill.',
+          },
+          direction: {
+            near_term: 'Near-term direction from chat; dev-mode fill.',
+            horizon: 'Longer horizon; dev-mode fill.',
+          },
+        },
+        state_assessment: {
+          a_ok_after_patch: true,
+          b_ok_after_patch: true,
+          c_ok_after_patch: true,
+          weakest_remaining_signal: 'n/a',
+          next_question_strategy: 'close',
+        },
+      };
+    }
+    const phaseMid = assistantTurnsSoFar >= 3;
+    return {
+      reply: phaseMid
+        ? `Locking in more twin fields from what you said. What is one thing you want to be true a year from now?`
+        : assistantTurnsSoFar < 2
+          ? `Got it. What do you want life to feel like in the next month or two? Even a rough answer helps your twin.`
+          : `When something big is on the line, do you go with your gut, research it, or talk it out with someone?`,
+      state_assessment: {
+        what_user_added_this_turn: last.slice(0, 80),
+        a_ok_after_patch: false,
+        b_ok_after_patch: false,
+        c_ok_after_patch: false,
+        weakest_remaining_signal: 'dev partial',
+        next_question_strategy: 'dev placeholder',
+      },
+      patch:
+        assistantTurnsSoFar >= 2
+          ? ({
+              threads: [
+                {
+                  id: `dev-thread-${assistantTurnsSoFar}`,
+                  domain: 'personal' as const,
+                  summary: last.slice(0, 120) || 'Main stressor from chat',
+                  stakes: devStakes,
+                  status: 'active' as const,
+                  mentioned_at: new Date().toISOString(),
+                },
+              ],
+              lens: {
+                whats_important: last.slice(0, 80) || 'TBD from chat',
+                how_they_decide: 'Still gathering decision style.',
+              },
+            } as TwinBriefingPatch)
+          : ({ lens: { whats_important: last.slice(0, 80) || 'TBD' } } as TwinBriefingPatch),
+    };
+  }
+
+  const now = new Date().toISOString();
+
+  const system = `You are The Architect. You run onboarding so Mora can build an accurate digital twin. This is assistant turn ${assistantTurnsSoFar + 1}.
+
+You run a two-step process inside this single response (user never sees step 1):
+STEP 1 — SELF-REVIEW: Read "Known profile context" including the PERSISTED TWIN CHECKLIST. Parse what the user's latest message actually added or changed (facts, tone, situations). Decide what will be true AFTER you apply "patch" for A/B/C below. Judge whether stored signals are thin (vague, one-word, stakes too short) even if partially filled.
+STEP 2 — ACT: Write "patch" and "reply". "reply" must follow from your self-review: one natural follow-up that fills the highest-priority missing slot. Sound curious, not like a form.
+
+Tone: direct, warm, confident. Not a therapist. No em dashes. No markdown. No bullet lists. No filler ("I hear you", "thanks for sharing"). Do not mention JSON, checklist, or "twin model" to the user.
+
+COMPLETION (app unlocks "Enter Mora" only when ALL of the following are satisfied AFTER your patch is merged):
+  A. At least 1 active THREAD (not resolved): concrete summary PLUS stakes at least ~16 characters describing a real tradeoff, cost, or what is on the line.
+  B. ALL FOUR lens fields non-empty: whats_important, how_they_decide, whats_draining, support_system (infer from chat where needed).
+  C. BOTH direction fields non-empty: near_term AND horizon, each specific to this person.
+
+In state_assessment: a_ok_after_patch = A satisfied; b_ok_after_patch = all four lens lines present; c_ok_after_patch = both near_term and horizon present.
+
+OPTIMIZATION (every turn):
+- One question that fills the next missing checklist line (see PERSISTED TWIN CHECKLIST in context).
+- If stakes exist but are too short, deepen stakes before unrelated fields.
+- Only when A, B, and C are all fully satisfied after this patch may you close with no question.
+
+EXTRACTION — put only structured updates in "patch" (merge mentally with context; do not repeat unchanged blobs):
+- THREADS: id slug, domain career|relationships|health|money|personal, summary, stakes (required when thread present), status, mentioned_at "${now}".
+- lens, direction, identity, first_name when stated or clearly implied.
+
+ONE QUESTION in "reply" (strict):
+- If after patch ANY part of A, B, or C is still missing or stakes too short, include exactly ONE question (one "?" in the whole message). Optional 1-2 short setup sentences before it.
+- Forbidden in "reply": multiple "?", "or" choice questions, numbered multi-part asks.
+- If and only if A, B, and C are ALL fully satisfied after this patch, no question; short closing line to enter Mora.
+
+Return ONLY a JSON object with this shape (state_assessment is mandatory; the app does not show it to the user):
+{
+  "state_assessment": {
+    "what_user_added_this_turn": "1 short sentence",
+    "a_ok_after_patch": true or false,
+    "b_ok_after_patch": true or false,
+    "c_ok_after_patch": true or false,
+    "weakest_remaining_signal": "what still needs depth or is missing",
+    "next_question_strategy": "half-line internal: how your one question will fix that"
+  },
+  "reply": "string",
+  "patch": { "threads": [], "lens": {}, "direction": {}, "identity": {} },
+  "first_name": "optional"
+}
+
+EXAMPLE (incomplete B and C; one question):
+{"state_assessment":{"what_user_added_this_turn":"Promotion tension and partner view","a_ok_after_patch":true,"b_ok_after_patch":false,"c_ok_after_patch":false,"weakest_remaining_signal":"need all lens + both directions","next_question_strategy":"ask what drains them most day to day"},"reply":"That is a real fork. What part of that choice drains you the most day to day?","patch":{"threads":[{"id":"mgmt-promotion","domain":"career","summary":"Lead engineer promotion, uneasy about managing","stakes":"Builder identity vs management track; partner wants yes","status":"deciding","mentioned_at":"${now}"}],"lens":{"support_system":"Partner involved in career decisions","whats_important":"Doing meaningful work without losing craft"},"direction":{},"identity":{"name":"Marcus","location":"Austin","work":"Lead engineer"}},"first_name":"Marcus"}
+
+Known profile context (includes persisted checklist; trust it):
+${profileSummary}`;
+
+  const claudeMessages = messages.map((m) => ({
+    role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+    content: m.content,
+  }));
+
+  const raw = await callClaude({
+    system,
+    messages: claudeMessages,
+    model: CLAUDE_MODEL,
+    temperature: 0.52,
+    maxTokens: 1400,
+    responseFormat: { type: 'json_object' },
+  });
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      reply?: string;
+      patch?: TwinBriefingPatch;
+      first_name?: string;
+      state_assessment?: BriefingOnboardingStateAssessment;
+    };
+    const reply = (parsed.reply || '').trim() || 'Tell me a bit more about what you want clarity on.';
+    const patch = parsed.patch && typeof parsed.patch === 'object' ? parsed.patch : undefined;
+    const first_name =
+      typeof parsed.first_name === 'string' && parsed.first_name.trim()
+        ? parsed.first_name.trim()
+        : undefined;
+    const state_assessment =
+      parsed.state_assessment && typeof parsed.state_assessment === 'object'
+        ? parsed.state_assessment
+        : undefined;
+    return { reply, patch, first_name, state_assessment };
+  } catch {
+    return {
+      reply: raw.slice(0, 800),
+      patch: {},
+    };
   }
 }

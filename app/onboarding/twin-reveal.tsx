@@ -19,7 +19,6 @@ import {
   User,
   Flag,
   Activity,
-  Clock,
   CheckCircle2,
   Circle as CircleIcon,
   Copy
@@ -31,6 +30,12 @@ import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { LigatureFreeText } from '@/components/LigatureFreeText';
+import {
+  getLifeSituationDisplay,
+  getCoreValuesDisplay,
+  getHealthWellnessSummary,
+  getHealthStressSummary,
+} from '@/lib/twinInsights';
 
 const { width } = Dimensions.get('window');
 const RELATIONSHIP_GRAPH_HEIGHT = 220;
@@ -308,10 +313,12 @@ export default function TwinRevealScreen() {
     });
   }
 
-  const lifeSituationResp = profile?.life_situation ?? onboardingResponses['02-now'] ?? onboardingResponses['01-now'];
+  const lifeSituationResp = getLifeSituationDisplay(profile || {});
   const lifeJourneyResp = profile?.life_journey ?? onboardingResponses['02-path'];
-  const coreValuesResp = profile?.core_value ?? onboardingResponses['01-values'] ?? onboardingResponses['03-values'];
-  
+  const coreValuesResp = getCoreValuesDisplay(profile || {});
+  const healthWellness = getHealthWellnessSummary(onboardingResponses as Record<string, unknown>);
+  const healthStress = getHealthStressSummary(onboardingResponses as Record<string, unknown>);
+
   // Build mindset cards exactly like profile page
   const mindsetCards = [
     { 
@@ -347,19 +354,19 @@ export default function TwinRevealScreen() {
       icon: Brain 
     },
     { 
-      id: '05-day', 
-      title: 'Typical Day', 
-      subtitle: onboardingResponses['05-day'] ? truncateText(onboardingResponses['05-day'], 80) : 'Walk through a day', 
-      route: '/profile/edit-typicalday' as any,
-      completed: !!onboardingResponses['05-day'], 
-      icon: Clock 
+      id: 'health-wellness', 
+      title: 'Health & energy', 
+      subtitle: healthWellness.text ? truncateText(healthWellness.text, 80) : 'Activity, sleep, diet, energy', 
+      route: '/profile/edit-health-wellbeing' as any,
+      completed: healthWellness.completed, 
+      icon: Activity 
     },
     { 
-      id: '06-stress', 
-      title: 'Stress Response', 
-      subtitle: onboardingResponses['06-stress'] ? truncateText(onboardingResponses['06-stress'], 80) : 'Reaction to stress', 
-      route: '/profile/edit-stress' as any,
-      completed: !!onboardingResponses['06-stress'], 
+      id: 'health-stress', 
+      title: 'Stress level', 
+      subtitle: healthStress.text ? truncateText(healthStress.text, 80) : 'How stress shows up for you', 
+      route: '/profile/edit-health-wellbeing' as any,
+      completed: healthStress.completed, 
       icon: Zap 
     },
   ];

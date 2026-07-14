@@ -225,7 +225,7 @@ export default function GapAnalysisScreen() {
                   <View style={[styles.dot, { backgroundColor: Colors.textTertiary }]} />
                   <Text style={styles.comparisonTitle}>Current Digital Twin</Text>
                 </View>
-                <TouchableOpacity onPress={() => handleEditPress('/(tabs)/profile')} style={styles.editButton}>
+                <TouchableOpacity onPress={() => handleEditPress('/full-profile')} style={styles.editButton}>
                   <Edit2 size={14} color={Colors.textTertiary} />
                   <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>

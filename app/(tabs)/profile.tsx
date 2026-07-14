@@ -1,16 +1,22 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Image, Alert, Platform, Clipboard, Linking, Modal, Animated, Dimensions, Easing } from 'react-native';
-import Svg, { Circle, Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { CheckCircle2, Circle as CircleIcon, ChevronRight, BookOpen, Copy, Info, X, ArrowLeft, Settings, Mail, LogOut, Sparkles, Trash2, User, MapPin, GraduationCap, Briefcase, Heart, Brain, Zap, Clock, Shield, Flag, Banknote, Home, Users, ArrowUpRight, AlertTriangle, Bell } from 'lucide-react-native';
-import * as Notifications from 'expo-notifications';
-import { getProfile, getRelationships, deleteAccountData, ensureTwinCode, getInterestProgressNew, updateProfileFields, calculateOverallProgress } from '@/lib/storage';
-import { resetDecisionGuide } from '@/lib/guideStorage';
+import { CheckCircle2, Circle as CircleIcon, ChevronRight, ChevronDown, BookOpen, Copy, X, ArrowLeft, Settings, Sparkles, User, MapPin, GraduationCap, Briefcase, Heart, Brain, Zap, Activity, Shield, Flag, Banknote, Home, Users, ArrowUpRight, AlertTriangle, MessageCircle } from 'lucide-react-native';
+import {
+  getProfile,
+  getRelationships,
+  ensureTwinCode,
+  getInterestProgressNew,
+  updateProfileFields,
+  calculateOverallProgress,
+  ensureTwinBriefingSeeded,
+} from '@/lib/storage';
 import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +26,18 @@ import * as Haptics from 'expo-haptics';
 import { Avatar } from '@/components/Avatar';
 import { Colors, Fonts } from '@/constants/Theme';
 import { useTypewriter } from '@/hooks/useTypewriter';
+import {
+  getLifeSituationDisplay,
+  getCoreValuesDisplay,
+  getHealthWellnessSummary,
+  getHealthStressSummary,
+  getArchitectInsightLog,
+  getTwinBriefingFromCoreJson,
+  getLifeJourneyDisplay,
+  getDecisionStyleDisplay,
+} from '@/lib/twinInsights';
+import type { TwinArchetypeResult } from '@/lib/ai';
+import { LigatureFreeText } from '@/components/LigatureFreeText';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -38,53 +56,57 @@ interface ProfileCard {
   icon?: any;
 }
 
-// Animated Progress Arc Component
-function AnimatedProgressArc({ progress }: { progress: number }) {
-  const radius = 64;
-  const centerX = 70;
-  const centerY = 70;
-  
-  if (progress >= 1) {
-    return (
-      <Circle
-        cx={centerX}
-        cy={centerY}
-        r={radius}
-        stroke="url(#progressGradient)"
-        strokeWidth={6}
-        fill="none"
-        strokeLinecap="round"
-      />
-    );
-  }
-  
-  const angle = progress * 2 * Math.PI - Math.PI / 2;
-  const x = centerX + radius * Math.cos(angle);
-  const y = centerY + radius * Math.sin(angle);
-  const largeArcFlag = progress > 0.5 ? 1 : 0;
-  
-  const pathData = `M ${centerX} ${centerY - radius} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x} ${y}`;
-  
+function TwinHeaderTag({ icon, text }: { icon: ReactNode; text: string }) {
   return (
-    <Path
-      d={pathData}
-      stroke="url(#progressGradient)"
-      strokeWidth={6}
-      fill="none"
-      strokeLinecap="round"
-    />
+    <LinearGradient
+      colors={['rgba(0, 188, 166, 0.06)', 'rgba(144, 140, 241, 0.06)']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.twinRevealTag}
+    >
+      {icon}
+      <Text style={styles.twinRevealTagText}>{text}</Text>
+    </LinearGradient>
   );
 }
 
-// Animated Percentage Text Component
-function AnimatedPercentageText({ progress }: { progress: number }) {
-  return <Text style={styles.percentageText}>{Math.round(progress)}%</Text>;
+function friendlyThreadDomain(domain: string): string {
+  const map: Record<string, string> = {
+    career: 'Work',
+    relationships: 'People',
+    health: 'Health',
+    money: 'Money',
+    personal: 'Life',
+  };
+  return map[domain] || domain;
 }
 
-export default function ProfileScreen() {
+function friendlyThreadStatus(status: string): string {
+  const map: Record<string, string> = {
+    deciding: 'Thinking it over',
+    active: 'Active',
+    stalled: 'On hold',
+    resolved: 'Done',
+  };
+  return map[status] || status;
+}
+
+export type ProfileShellMode = 'twin_insights' | 'full';
+
+/**
+ * Twin tab + `/twin-insights` use `twin_insights` (easy-to-read twin view).
+ * `/full-profile` uses `full` (long form: facts, premium).
+ */
+export function ProfileShell({
+  mode,
+  isTab = false,
+}: {
+  mode: ProfileShellMode;
+  /** True when rendered as the tab bar screen (no back — use settings or Home). */
+  isTab?: boolean;
+}) {
   const router = useRouter();
   const user = useAuth((state) => state.user);
-  const signOut = useAuth((state) => state.signOut);
   const { isPremium } = useTwin();
   const [profileData, setProfileData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -104,6 +126,8 @@ export default function ProfileScreen() {
   const [showWarning, setShowWarning] = useState(false);
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean | null>(null);
+  const [resolvedThreadsExpanded, setResolvedThreadsExpanded] = useState(false);
+  const contentFade = useRef(new Animated.Value(0)).current;
   
   // Animation refs for fade transitions
   const invitationOpacity = useRef(new Animated.Value(1)).current;
@@ -146,6 +170,17 @@ export default function ProfileScreen() {
     }
   }, [showDiscordModal]);
 
+  useEffect(() => {
+    if (profileData) {
+      Animated.timing(contentFade, {
+        toValue: 1,
+        duration: 480,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [profileData, contentFade]);
+
   useFocusEffect(
     useCallback(() => {
       loadProfileData();
@@ -153,11 +188,8 @@ export default function ProfileScreen() {
         const { checkPremiumStatus } = useTwin.getState();
         checkPremiumStatus(user.id);
       }
-      AsyncStorage.getItem('previous_route_before_profile').then(route => {
+      AsyncStorage.getItem('previous_route_before_profile').then((route) => {
         if (route) setPreviousRoute(route);
-      });
-      Notifications.getPermissionsAsync().then(({ status }) => {
-        setNotificationsEnabled(status === 'granted');
       });
     }, [user])
   );
@@ -166,10 +198,11 @@ export default function ProfileScreen() {
     if (!profileData) return;
     
     const onboardingResponses = profileData?.core_json?.onboarding_responses || {};
-    // Pull from dedicated columns first, then fall back to core_json
-    const lifeSituationResp = profileData?.life_situation ?? onboardingResponses['02-now'] ?? onboardingResponses['01-now'];
-    const lifeJourneyResp = profileData?.life_journey ?? onboardingResponses['02-path'];
-    const coreValuesResp = profileData?.core_value ?? onboardingResponses['01-values'] ?? onboardingResponses['03-values'];
+    const lifeSituationDisp = getLifeSituationDisplay(profileData);
+    const lifeJourneyResp = getLifeJourneyDisplay(profileData);
+    const coreValuesDisp = getCoreValuesDisplay(profileData);
+    const hw = getHealthWellnessSummary(onboardingResponses as Record<string, unknown>);
+    const hs = getHealthStressSummary(onboardingResponses as Record<string, unknown>);
     const university = profileData?.university || onboardingResponses.university;
     const hometown = profileData?.hometown || onboardingResponses.hometown;
     const currentLocation = profileData?.current_location;
@@ -177,12 +210,12 @@ export default function ProfileScreen() {
     const politicalViews = profileData?.political_views;
     
     const tempCards: ProfileCard[] = [
-      { id: '02-now', title: '', subtitle: '', completed: !!lifeSituationResp },
+      { id: '02-now', title: '', subtitle: '', completed: !!lifeSituationDisp },
       { id: '02-path', title: '', subtitle: '', completed: !!lifeJourneyResp },
-      { id: '01-values', title: '', subtitle: '', completed: !!coreValuesResp },
+      { id: '01-values', title: '', subtitle: '', completed: !!coreValuesDisp },
       { id: '04-style', title: '', subtitle: '', completed: !!onboardingResponses['04-style'] },
-      { id: '05-day', title: '', subtitle: '', completed: !!onboardingResponses['05-day'] },
-      { id: '06-stress', title: '', subtitle: '', completed: !!onboardingResponses['06-stress'] },
+      { id: 'health-wellness', title: '', subtitle: '', completed: hw.completed },
+      { id: 'health-stress', title: '', subtitle: '', completed: hs.completed },
       { id: 'university', title: '', subtitle: '', completed: !!university },
       { id: 'hometown', title: '', subtitle: '', completed: !!hometown },
       { id: 'current_location', title: '', subtitle: '', completed: !!currentLocation },
@@ -236,6 +269,11 @@ export default function ProfileScreen() {
         calculateOverallProgress(user.id).catch(() => 0)
       ]);
       setProfileData(profile);
+      if (user?.id) {
+        await ensureTwinBriefingSeeded(user.id);
+        const refreshed = await getProfile(user.id);
+        if (refreshed) setProfileData(refreshed);
+      }
       setRelationships(rels || []);
       setTwinCode(code);
       setInterestProgress(progress);
@@ -282,82 +320,6 @@ export default function ProfileScreen() {
     }
   }
 
-  async function handleSendFeedback() {
-    try {
-      const url = 'mailto:jd@hilo.media?subject=mora App Feedback';
-      const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) await Linking.openURL(url);
-      else Alert.alert('Error', 'Unable to open email app');
-    } catch (error) {
-      console.error('Failed to open email:', error);
-      Alert.alert('Error', 'Unable to open email app');
-    }
-  }
-
-  async function handleShowProductGuide() {
-    try {
-      await resetDecisionGuide();
-      trackEvent('Product Guide Replayed');
-      router.replace('/(tabs)/home');
-    } catch (error) {
-      console.error('Failed to reset product guide:', error);
-    }
-  }
-
-  async function handleDeleteAccount() {
-    if (!user) return;
-    Alert.alert(
-      'Delete Account',
-      'This will permanently remove your data. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAccountData(user.id);
-              await signOut();
-              router.replace('/auth');
-            } catch (error) {
-              console.error('Delete account error:', error);
-              Alert.alert('Error', 'Failed to delete account. Please try again.');
-            }
-          },
-        },
-      ]
-    );
-  }
-
-  async function handleNotificationsPress() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status === 'granted') {
-      Alert.alert('Notifications Enabled', 'You\'re already receiving daily reminders at 8am.');
-      return;
-    }
-    if (status === 'denied') {
-      await Linking.openURL('app-settings:');
-      return;
-    }
-    // Undetermined — show native system prompt
-    if (user) {
-      const { registerForPushNotifications } = await import('@/lib/notifications');
-      await registerForPushNotifications(user.id);
-      const { status: newStatus } = await Notifications.getPermissionsAsync();
-      setNotificationsEnabled(newStatus === 'granted');
-    }
-  }
-
-  async function handleSignOut() {
-    try {
-      await signOut();
-      router.replace('/auth');
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
-  }
-
   function handleCardPress(card: ProfileCard) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
@@ -380,10 +342,14 @@ export default function ProfileScreen() {
   }
 
   const onboardingResponses = profileData?.core_json?.onboarding_responses || {};
-  // Pull from dedicated columns first, then fall back to core_json
-  const lifeSituationResp = profileData?.life_situation ?? onboardingResponses['02-now'] ?? onboardingResponses['01-now'];
-  const lifeJourneyResp = profileData?.life_journey ?? onboardingResponses['02-path'];
-  const coreValuesResp = profileData?.core_value ?? onboardingResponses['01-values'] ?? onboardingResponses['03-values'];
+  const twinBriefing = profileData ? getTwinBriefingFromCoreJson(profileData.core_json) : null;
+  const lifeSituationResp = getLifeSituationDisplay(profileData);
+  const lifeJourneyResp = getLifeJourneyDisplay(profileData);
+  const coreValuesResp = getCoreValuesDisplay(profileData);
+  const decisionStyleResp = getDecisionStyleDisplay(profileData);
+  const healthWellness = getHealthWellnessSummary(onboardingResponses as Record<string, unknown>);
+  const healthStress = getHealthStressSummary(onboardingResponses as Record<string, unknown>);
+  const architectInsightEntries = getArchitectInsightLog(profileData?.core_json as any);
   const university = profileData?.university || onboardingResponses.university;
   const hometown = profileData?.hometown || onboardingResponses.hometown;
   const currentLocation = profileData?.current_location;
@@ -414,7 +380,7 @@ export default function ProfileScreen() {
     { id: 'current_location', title: 'Location', subtitle: currentLocation || profileData?.core_json?.current_location || profileData?.core_json?.city || 'Not set', route: '/profile/edit-location' as any, completed: !!(currentLocation || profileData?.core_json?.current_location || profileData?.core_json?.city), icon: MapPin },
     { id: 'net_worth', title: 'Net Worth', subtitle: netWorth || profileData?.core_json?.net_worth || 'Not set', route: '/profile/edit-networth' as any, completed: !!(netWorth || profileData?.core_json?.net_worth), icon: Banknote },
     { id: 'political_views', title: 'Politics', subtitle: politicalViews || profileData?.core_json?.political_views || 'Not set', route: '/profile/edit-politics' as any, completed: !!(politicalViews || profileData?.core_json?.political_views), icon: Flag },
-    { id: 'dream_self', title: 'Dream Self', subtitle: profileData?.dream_vision?.net_worth_goal ? 'View your vision' : 'Complete your dream self', route: '/profile/edit-dreamself' as any, completed: !!profileData?.dream_vision?.net_worth_goal, icon: Sparkles },
+    { id: 'dream_self', title: 'Dream life', subtitle: profileData?.dream_vision?.net_worth_goal ? 'Tap to view or edit' : 'Optional big goal', route: '/profile/edit-dreamself' as any, completed: !!profileData?.dream_vision?.net_worth_goal, icon: Sparkles },
     { id: 'twin_society', title: 'Twin Society', subtitle: 'Join our Discord community', route: null as any, completed: true, icon: Users },
   ];
 
@@ -425,56 +391,103 @@ export default function ProfileScreen() {
     return text.substring(0, maxLength).trim() + '...';
   };
 
-  const mindsetCards: ProfileCard[] = [
-    { 
-      id: '02-now', 
-      title: 'Life Situation', 
-      subtitle: lifeSituationResp ? truncateText(lifeSituationResp, 80) : 'Where are you now?', 
-      route: '/profile/edit-lifesituation' as any, 
-      completed: !!lifeSituationResp, 
-      icon: User 
+  const lensWhatsDraining =
+    twinBriefing?.lens?.whats_draining?.trim() || healthStress.text || '';
+  const lensSupport = twinBriefing?.lens?.support_system?.trim() || '';
+
+  const lensRows: ProfileCard[] = [
+    {
+      id: 'whats_important',
+      title: 'What matters to you',
+      subtitle: coreValuesResp ? truncateText(coreValuesResp, 72) : 'Tap to add',
+      route: '/profile/edit-values' as any,
+      completed: !!coreValuesResp,
+      icon: Heart,
     },
-    { 
-      id: '02-path', 
-      title: 'Life Journey', 
-      subtitle: lifeJourneyResp ? truncateText(lifeJourneyResp, 80) : 'How did you get here?', 
-      route: '/profile/edit-lifejourney' as any, 
-      completed: !!lifeJourneyResp, 
-      icon: Briefcase 
+    {
+      id: 'how_they_decide',
+      title: 'How you choose',
+      subtitle: decisionStyleResp ? truncateText(decisionStyleResp, 72) : 'Tap to add',
+      route: '/profile/edit-decisionstyle' as any,
+      completed: !!decisionStyleResp,
+      icon: Brain,
     },
-    { 
-      id: '01-values', 
-      title: 'Core Values', 
-      subtitle: coreValuesResp ? truncateText(coreValuesResp, 80) : 'What matters most?', 
-      route: '/profile/edit-values' as any, 
-      completed: !!coreValuesResp, 
-      icon: Heart 
+    {
+      id: 'whats_draining',
+      title: 'What wears you out',
+      subtitle: lensWhatsDraining ? truncateText(lensWhatsDraining, 72) : 'Tap to add',
+      route: '/profile/edit-stress' as any,
+      completed: !!lensWhatsDraining || healthStress.completed,
+      icon: Zap,
     },
-    { 
-      id: '04-style', 
-      title: 'Decision Style', 
-      subtitle: onboardingResponses['04-style'] ? truncateText(onboardingResponses['04-style'], 80) : 'How do you decide?', 
-      route: '/profile/edit-decisionstyle' as any, 
-      completed: !!onboardingResponses['04-style'], 
-      icon: Brain 
-    },
-    { 
-      id: '05-day', 
-      title: 'Typical Day', 
-      subtitle: onboardingResponses['05-day'] ? truncateText(onboardingResponses['05-day'], 80) : 'Walk through a day', 
-      route: '/profile/edit-typicalday' as any, 
-      completed: !!onboardingResponses['05-day'], 
-      icon: Clock 
-    },
-    { 
-      id: '06-stress', 
-      title: 'Stress Response', 
-      subtitle: onboardingResponses['06-stress'] ? truncateText(onboardingResponses['06-stress'], 80) : 'Reaction to stress', 
-      route: '/profile/edit-stress' as any, 
-      completed: !!onboardingResponses['06-stress'], 
-      icon: Zap 
+    {
+      id: 'support_system',
+      title: 'Who helps you',
+      subtitle: lensSupport ? truncateText(lensSupport, 72) : 'Tap to add',
+      route: '/profile/edit-context' as any,
+      completed: !!lensSupport,
+      icon: Users,
     },
   ];
+
+  const nearTermDisplay =
+    twinBriefing?.direction?.near_term?.trim() ||
+    (typeof onboardingResponses['02-path'] === 'string' ? onboardingResponses['02-path'].trim().slice(0, 200) : '') ||
+    '';
+  const horizonDisplay =
+    twinBriefing?.direction?.horizon?.trim() ||
+    lifeJourneyResp?.trim() ||
+    '';
+
+  const resolvedThreads = twinBriefing?.threads.filter((t) => t.status === 'resolved') ?? [];
+  const activeThreadsForTwin =
+    twinBriefing?.threads.filter((t) => t.status !== 'resolved' && t.summary.trim()) ?? [];
+  const storedArchetype = (profileData?.core_json as { twin_archetype?: TwinArchetypeResult } | undefined)
+    ?.twin_archetype;
+  const twinDisplayName = twinBriefing?.identity?.name?.trim() || firstName || 'Friend';
+  const twinLocationLine =
+    twinBriefing?.identity?.location?.trim() ||
+    currentLocation ||
+    hometown ||
+    (typeof profileData?.core_json?.city === 'string' ? String(profileData.core_json.city).trim() : '') ||
+    '';
+  const twinAgeLine = twinBriefing?.identity?.age?.trim();
+  const twinWorkLine = twinBriefing?.identity?.work?.trim();
+
+  const briefingTwinTitle = useMemo(() => {
+    const first = activeThreadsForTwin[0];
+    if (first?.summary?.trim()) {
+      const s = first.summary.trim();
+      return s.length > 88 ? `${s.slice(0, 88)}…` : s;
+    }
+    if (nearTermDisplay.trim()) {
+      const s = nearTermDisplay.trim();
+      return s.length > 80 ? `${s.slice(0, 80)}…` : s;
+    }
+    return 'Your twin';
+  }, [activeThreadsForTwin, nearTermDisplay]);
+
+  const briefingTwinBody = useMemo(() => {
+    const parts: string[] = [];
+    activeThreadsForTwin.slice(0, 3).forEach((t) => {
+      const sum = t.summary?.trim();
+      const st = t.stakes?.trim();
+      if (sum && st) parts.push(`${sum} ${st}`);
+      else if (sum) parts.push(sum);
+    });
+    const L = twinBriefing?.lens;
+    if (L?.whats_important?.trim()) parts.push(L.whats_important.trim());
+    if (L?.how_they_decide?.trim()) parts.push(L.how_they_decide.trim());
+    if (L?.whats_draining?.trim()) parts.push(L.whats_draining.trim());
+    if (L?.support_system?.trim()) parts.push(L.support_system.trim());
+    if (horizonDisplay.trim()) parts.push(`Big picture: ${horizonDisplay.trim()}`);
+    if (nearTermDisplay.trim() && !activeThreadsForTwin[0]) parts.push(`Soon: ${nearTermDisplay.trim()}`);
+    const joined = parts.join(' ');
+    if (!joined.trim()) {
+      return 'Use Update twin or chat in Decide to fill this in.';
+    }
+    return joined.length > 280 ? `${joined.slice(0, 280)}…` : joined;
+  }, [activeThreadsForTwin, twinBriefing, horizonDisplay, nearTermDisplay]);
 
   const getRelationshipEmoji = (relationshipType: string): string => {
     const type = relationshipType?.toLowerCase() || '';
@@ -502,81 +515,305 @@ export default function ProfileScreen() {
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color={Colors.textPrimary} />
+          {isTab ? (
+            <View style={[styles.backButton, { opacity: 0 }]} pointerEvents="none" />
+          ) : (
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <ArrowLeft size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.headerTitle}>
+            {mode === 'full' ? 'All your facts' : 'Twin insights'}
+          </Text>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push('/account-settings' as any);
+            }}
+            style={styles.backButton}
+            hitSlop={12}
+          >
+            <Settings size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Mora</Text>
-          <View style={{ width: 40 }} />
         </View>
         
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.profileSection}>
-            <View style={styles.avatarWrapper}>
-              <Svg width={140} height={140} style={styles.progressRing}>
-                <Defs>
-                  <SvgLinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#84FAB0" />
-                    <Stop offset="50%" stopColor="#8FD3F4" />
-                    <Stop offset="100%" stopColor="#A1C4FD" />
-                  </SvgLinearGradient>
-                </Defs>
-                <Circle cx={70} cy={70} r={64} stroke="rgba(0,0,0,0.05)" strokeWidth={6} fill="none" />
-                <AnimatedProgressArc progress={animatedProgress / 100} />
-              </Svg>
-              <View style={styles.avatarContainer}>
-                <Avatar 
-                  name={firstName || user?.email || 'Friend'} 
-                  size={80} 
-                  variant={(profileData?.avatar_variant as any) || 'beam'} 
-                  colors={profileData?.avatar_colors || undefined}
-                />
+        <Animated.ScrollView
+          style={[styles.scrollView, { opacity: contentFade }]}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          {mode === 'twin_insights' && (
+          <View style={styles.twinRevealHeader}>
+            <View style={styles.twinRevealHeaderLeft}>
+              <View style={styles.twinRevealNameRow}>
+                <Text style={styles.twinRevealHeaderName}>{twinDisplayName}</Text>
               </View>
-              <View style={styles.percentageBadgeWrapper}>
-                <View style={styles.percentageBadge}><AnimatedPercentageText progress={animatedProgress} /></View>
+              {twinLocationLine.trim() !== '' && (
+                <View style={styles.twinRevealLocationRow}>
+                  <MapPin size={14} color={Colors.textSecondary} />
+                  <Text style={styles.twinRevealHeaderLocation}>{twinLocationLine}</Text>
+                </View>
+              )}
+              <View style={styles.twinRevealTagsRow}>
+                {relationshipStatus && relationshipStatus !== 'Not set' && (
+                  <TwinHeaderTag
+                    icon={<Heart size={10} color="#696969" />}
+                    text={relationshipStatus}
+                  />
+                )}
+                {twinAgeLine ? (
+                  <TwinHeaderTag icon={<User size={10} color="#696969" />} text={`Age ${twinAgeLine}`} />
+                ) : null}
+                {twinWorkLine ? (
+                  <TwinHeaderTag
+                    icon={<Briefcase size={10} color="#696969" />}
+                    text={truncateText(twinWorkLine, 28)}
+                  />
+                ) : null}
               </View>
             </View>
-            <View style={styles.usernameContainer}>
-              <Text style={styles.username}>{firstName || 'Friend'}</Text>
-              <View style={styles.twinCodeContainer}>
-                <Text style={styles.twinCode}>mora#{animatedTwinCode || '------'}</Text>
-                {twinCode && (
-                  <TouchableOpacity onPress={handleCopyTwinCode} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Copy size={14} color={Colors.textTertiary} />
+            <View style={styles.twinRevealHeaderRight} pointerEvents="box-none">
+              <View style={styles.twinRevealCodeRow}>
+                <Text style={styles.twinRevealCodeText}>mora#: {animatedTwinCode || '------'}</Text>
+                {twinCode ? (
+                  <TouchableOpacity
+                    onPress={handleCopyTwinCode}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Copy size={14} color="rgba(0,0,0,0.15)" />
                   </TouchableOpacity>
-                )}
+                ) : null}
               </View>
+              <Image
+                source={require('@/assets/images/manwhite.png')}
+                style={[styles.twinRevealManImage, { transform: [{ scaleX: -1 }] }]}
+                resizeMode="contain"
+              />
             </View>
           </View>
+          )}
 
-          {!isPremium && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Premium</Text>
-              <View style={styles.cardContainer}>
-                <TouchableOpacity onPress={() => router.push('/premium' as any)} style={[styles.rowCard, styles.rowCardFirst, styles.rowCardLast]}>
-                  <View style={styles.rowIcon}><Sparkles size={20} color="#FFD700" /></View>
-                  <View style={styles.rowContent}><Text style={styles.rowTitle}>Unlock mora+</Text><Text style={styles.rowSubtitle}>Upgrade</Text></View>
-                  <ChevronRight size={20} color={Colors.textTertiary} />
-                </TouchableOpacity>
+          {mode === 'twin_insights' && (
+          <View style={styles.twinSnapshotCard}>
+            {storedArchetype ? (
+              <>
+                <View style={styles.twinArchetypeHeader}>
+                  <View style={styles.twinArchetypeIconWrap}>
+                    <Image
+                      source={require('@/assets/images/icon.png')}
+                      style={styles.twinArchetypeIconImg}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <Text style={styles.twinArchetypeLabel}>YOUR STYLE</Text>
+                </View>
+                <Text style={styles.twinArchetypeTitle}>{storedArchetype.title}</Text>
+                <LigatureFreeText text={storedArchetype.description} style={styles.twinArchetypeDescription} />
+                <View style={styles.twinDnaBox}>
+                  <Text style={styles.twinDnaLabel}>HEAD, GUT, HEART</Text>
+                  <View style={styles.twinDnaRow}>
+                    <Text style={styles.twinDnaRowLabel}>Logic</Text>
+                    <View style={styles.twinDnaBarTrack}>
+                      <View
+                        style={[
+                          styles.twinDnaBarFill,
+                          { width: `${storedArchetype.traits.logic}%`, backgroundColor: '#8EC5FC' },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.twinDnaValue}>{storedArchetype.traits.logic}%</Text>
+                  </View>
+                  <View style={styles.twinDnaRow}>
+                    <Text style={styles.twinDnaRowLabel}>Intuition</Text>
+                    <View style={styles.twinDnaBarTrack}>
+                      <View
+                        style={[
+                          styles.twinDnaBarFill,
+                          { width: `${storedArchetype.traits.intuition}%`, backgroundColor: '#6BCA9A' },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.twinDnaValue}>{storedArchetype.traits.intuition}%</Text>
+                  </View>
+                  <View style={styles.twinDnaRow}>
+                    <Text style={styles.twinDnaRowLabel}>Emotion</Text>
+                    <View style={styles.twinDnaBarTrack}>
+                      <View
+                        style={[
+                          styles.twinDnaBarFill,
+                          { width: `${storedArchetype.traits.emotion}%`, backgroundColor: '#E87A7F' },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.twinDnaValue}>{storedArchetype.traits.emotion}%</Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.twinArchetypeHeader}>
+                  <View style={styles.twinArchetypeIconWrap}>
+                    <Image
+                      source={require('@/assets/images/icon.png')}
+                      style={styles.twinArchetypeIconImg}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <Text style={styles.twinArchetypeLabel}>YOUR TWIN</Text>
+                </View>
+                <Text style={styles.twinArchetypeTitle}>{briefingTwinTitle}</Text>
+                <Text style={styles.twinArchetypeDescription}>{briefingTwinBody}</Text>
+              </>
+            )}
+            <TouchableOpacity
+              onPress={() => router.push('/twin-update' as any)}
+              activeOpacity={0.85}
+              style={styles.twinRefineCta}
+            >
+              <Sparkles size={18} color="#25729f" />
+              <Text style={styles.twinRefineCtaText}>Add or fix info</Text>
+              <ChevronRight size={18} color={Colors.textTertiary} />
+            </TouchableOpacity>
+          </View>
+          )}
+
+          {mode === 'twin_insights' && activeThreadsForTwin.length > 0 && (
+            <View style={styles.twinThreadsSection}>
+              <Text style={styles.twinThreadsSectionTitle}>What’s on your mind</Text>
+              <Text style={styles.twinThreadsSectionSub}>From your chats and updates.</Text>
+              <View style={styles.twinThreadsList}>
+                {activeThreadsForTwin.map((t) => (
+                  <View key={t.id} style={styles.twinThreadCard}>
+                    <View style={styles.twinThreadCardTop}>
+                      <Text style={styles.twinThreadDomain}>{friendlyThreadDomain(t.domain)}</Text>
+                      <Text style={styles.twinThreadStatus}>{friendlyThreadStatus(t.status)}</Text>
+                    </View>
+                    <Text style={styles.twinThreadSummary} numberOfLines={3}>
+                      {t.summary}
+                    </Text>
+                    {t.stakes?.trim() ? (
+                      <Text style={styles.twinThreadStakes} numberOfLines={2}>
+                        {t.stakes}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))}
               </View>
             </View>
           )}
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Identity</Text>
-            <View style={styles.cardContainer}>
-              {identityCards.map((card, index) => (
-                <TouchableOpacity key={card.id} style={[styles.rowCard, index === 0 && styles.rowCardFirst, index === identityCards.length - 1 && styles.rowCardLast, index !== identityCards.length - 1 && styles.rowCardBorder]} onPress={() => handleCardPress(card)} activeOpacity={0.7}>
-                  <View style={styles.rowIcon}>{card.icon && <card.icon size={20} color={card.completed ? Colors.textPrimary : Colors.textTertiary} />}</View>
-                  <View style={styles.rowContent}><Text style={styles.rowTitle}>{card.title}</Text><Text style={styles.rowSubtitle} numberOfLines={1}>{card.subtitle}</Text></View>
-                  <ChevronRight size={20} color={Colors.textTertiary} />
-                </TouchableOpacity>
-              ))}
+          {mode === 'twin_insights' && (
+          <View style={styles.twinCompletenessCard}>
+            <View style={styles.twinCompletenessTop}>
+              <Avatar
+                name={firstName || user?.email || 'Friend'}
+                size={44}
+                variant={(profileData?.avatar_variant as any) || 'beam'}
+                colors={profileData?.avatar_colors || undefined}
+              />
+              <View style={styles.twinCompletenessCopy}>
+                <Text style={styles.twinCompletenessTitle}>How well we know you</Text>
+                <Text style={styles.twinCompletenessSub}>More detail means answers that fit you.</Text>
+              </View>
+              <View style={styles.twinCompletenessPctWrap}>
+                <Text style={styles.twinCompletenessPct}>{Math.round(animatedProgress)}%</Text>
+              </View>
+            </View>
+            <View style={styles.twinCompletenessTrack}>
+              <View style={[styles.twinCompletenessFill, { width: `${Math.min(100, animatedProgress)}%` }]} />
             </View>
           </View>
+          )}
+
+          {mode === 'twin_insights' && (
+            <TouchableOpacity
+              style={styles.fullProfileEntry}
+              activeOpacity={0.88}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/full-profile' as any);
+              }}
+            >
+              <View style={styles.fullProfileEntryTextCol}>
+                <Text style={styles.fullProfileEntryTitle}>School, work, money, and more</Text>
+                <Text style={styles.fullProfileEntrySub}>Tap to edit all fact fields in one list.</Text>
+              </View>
+              <ChevronRight size={22} color={Colors.textTertiary} />
+            </TouchableOpacity>
+          )}
+
+          {mode === 'full' && (
+            <>
+              <View style={styles.editorialBlock}>
+                <Text style={styles.editorialKicker}>Profile</Text>
+                <Text style={styles.editorialHeadline}>Your details</Text>
+                <Text style={styles.editorialLead}>Tap a row to change it.</Text>
+              </View>
+
+              {!isPremium && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Premium</Text>
+                  <View style={styles.cardContainer}>
+                    <TouchableOpacity
+                      onPress={() => router.push('/premium' as any)}
+                      style={[styles.rowCard, styles.rowCardFirst, styles.rowCardLast]}
+                    >
+                      <View style={styles.rowIcon}>
+                        <Sparkles size={20} color="#FFD700" />
+                      </View>
+                      <View style={styles.rowContent}>
+                        <Text style={styles.rowTitle}>Unlock mora+</Text>
+                        <Text style={styles.rowSubtitle}>Upgrade</Text>
+                      </View>
+                      <ChevronRight size={20} color={Colors.textTertiary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.section}>
+                <View style={styles.editorialBlockTight}>
+                  <Text style={styles.editorialKicker}>You</Text>
+                  <Text style={styles.editorialHeadline}>About you</Text>
+                </View>
+                <View style={styles.cardContainer}>
+                  {identityCards.map((card, index) => (
+                    <TouchableOpacity
+                      key={card.id}
+                      style={[
+                        styles.rowCard,
+                        index === 0 && styles.rowCardFirst,
+                        index === identityCards.length - 1 && styles.rowCardLast,
+                        index !== identityCards.length - 1 && styles.rowCardBorder,
+                      ]}
+                      onPress={() => handleCardPress(card)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.rowIcon}>
+                        {card.icon && <card.icon size={20} color={card.completed ? Colors.textPrimary : Colors.textTertiary} />}
+                      </View>
+                      <View style={styles.rowContent}>
+                        <Text style={styles.rowTitle}>{card.title}</Text>
+                        <Text style={styles.rowSubtitle} numberOfLines={1}>
+                          {card.subtitle}
+                        </Text>
+                      </View>
+                      <ChevronRight size={20} color={Colors.textTertiary} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </>
+          )}
 
           <View style={styles.section}>
+            <View style={[styles.editorialBlockTight, { paddingHorizontal: 4 }]}>
+              <Text style={styles.editorialKicker}>People</Text>
+              <Text style={styles.editorialHeadline}>People in your life</Text>
+              <Text style={styles.editorialLead}>Folks who show up in your choices.</Text>
+            </View>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Relationships</Text>
+              <View style={{ flex: 1 }} />
               <TouchableOpacity onPress={() => router.push('/relationships')} style={styles.manageLink}>
                 <Text style={styles.manageLinkText}>Manage</Text>
                 <Users size={16} color={Colors.textPrimary} />
@@ -591,7 +828,7 @@ export default function ProfileScreen() {
               >
                 <Users size={32} color={Colors.textTertiary} />
                 <Text style={styles.emptyRelationshipText}>Add relationships</Text>
-                <Text style={styles.emptyRelationshipSubtext}>Connect with people in your life</Text>
+                <Text style={styles.emptyRelationshipSubtext}>Tap to add people you care about.</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.relationshipCard}>
@@ -644,48 +881,175 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Mindset</Text>
-            <View style={styles.gridContainer}>
-              {mindsetCards.map((card) => (
-                <TouchableOpacity key={card.id} style={styles.gridCard} onPress={() => handleCardPress(card)} activeOpacity={0.8}>
-                  <View style={styles.gridIcon}>{card.icon && <card.icon size={24} color={card.completed ? '#4ADE80' : Colors.textTertiary} />}</View>
-                  <Text style={styles.gridTitle}>{card.title}</Text>
-                  {card.subtitle && (
-                    <Text style={styles.gridSubtitle} numberOfLines={2}>{card.subtitle}</Text>
-                  )}
-                  <View style={styles.gridStatus}>{card.completed ? <CheckCircle2 size={16} color="#4ADE80" /> : <CircleIcon size={16} color={Colors.textTertiary} />}</View>
+            <View style={styles.editorialBlockTight}>
+              <Text style={styles.editorialKicker}>Choices</Text>
+              <Text style={styles.editorialHeadline}>How you decide</Text>
+            </View>
+            <View style={styles.cardContainer}>
+              {lensRows.map((card, index) => (
+                <TouchableOpacity
+                  key={card.id}
+                  style={[
+                    styles.rowCard,
+                    index === 0 && styles.rowCardFirst,
+                    index === lensRows.length - 1 && styles.rowCardLast,
+                    index !== lensRows.length - 1 && styles.rowCardBorder,
+                  ]}
+                  onPress={() => handleCardPress(card)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.rowIcon}>
+                    {card.icon && <card.icon size={20} color={card.completed ? Colors.textPrimary : Colors.textTertiary} />}
+                  </View>
+                  <View style={styles.rowContent}>
+                    <Text style={styles.rowTitle}>{card.title}</Text>
+                    <Text style={styles.rowSubtitle} numberOfLines={2}>
+                      {card.subtitle}
+                    </Text>
+                  </View>
+                  <ChevronRight size={20} color={Colors.textTertiary} />
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account</Text>
+            <View style={[styles.editorialBlockTight, { marginTop: 20 }]}>
+              <Text style={styles.editorialKicker}>Plans</Text>
+              <Text style={styles.editorialHeadline}>Where you’re headed</Text>
+              <Text style={styles.editorialLead}>Soon, then the bigger picture.</Text>
+            </View>
             <View style={styles.cardContainer}>
-              <TouchableOpacity onPress={() => router.push('/premium-onboarding')} style={[styles.rowCard, styles.rowCardFirst, styles.rowCardBorder]}>
-                <View style={styles.rowIcon}><Sparkles size={20} color={isPremium ? '#FFD700' : Colors.textPrimary} /></View>
-                <View style={styles.rowContent}><Text style={styles.rowTitle}>mora+</Text><Text style={styles.rowSubtitle}>{isPremium ? 'Active' : 'View plans'}</Text></View>
-                <ChevronRight size={20} color={Colors.textTertiary} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleNotificationsPress} style={[styles.rowCard, styles.rowCardBorder]}>
+              <TouchableOpacity
+                style={[styles.rowCard, styles.rowCardFirst, styles.rowCardBorder]}
+                onPress={() => router.push('/profile/edit-lifejourney' as any)}
+                activeOpacity={0.7}
+              >
                 <View style={styles.rowIcon}>
-                  <Bell size={20} color={notificationsEnabled ? '#25729f' : '#F59E0B'} />
+                  <Briefcase size={20} color={nearTermDisplay ? Colors.textPrimary : Colors.textTertiary} />
                 </View>
                 <View style={styles.rowContent}>
-                  <Text style={styles.rowTitle}>Notifications</Text>
-                  <Text style={[styles.rowSubtitle, !notificationsEnabled && { color: '#F59E0B' }]}>
-                    {notificationsEnabled === null ? 'Checking...' : notificationsEnabled ? 'Enabled' : 'Tap to enable in Settings'}
+                  <Text style={styles.rowTitle}>Soon</Text>
+                  <Text style={styles.rowSubtitle} numberOfLines={3}>
+                    {nearTermDisplay || 'What you’re working on next'}
                   </Text>
                 </View>
                 <ChevronRight size={20} color={Colors.textTertiary} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleSendFeedback} style={[styles.rowCard, styles.rowCardBorder]}><View style={styles.rowIcon}><Mail size={20} color={Colors.textPrimary} /></View><View style={styles.rowContent}><Text style={styles.rowTitle}>Send Feedback</Text></View><ChevronRight size={20} color={Colors.textTertiary} /></TouchableOpacity>
-              <TouchableOpacity onPress={handleShowProductGuide} style={[styles.rowCard, styles.rowCardBorder]}><View style={styles.rowIcon}><Info size={20} color={Colors.textPrimary} /></View><View style={styles.rowContent}><Text style={styles.rowTitle}>Product Guide</Text></View><ChevronRight size={20} color={Colors.textTertiary} /></TouchableOpacity>
-              <TouchableOpacity onPress={handleSignOut} style={[styles.rowCard, styles.rowCardBorder]}><View style={styles.rowIcon}><LogOut size={20} color={Colors.textPrimary} /></View><View style={styles.rowContent}><Text style={styles.rowTitle}>Sign Out</Text></View><ChevronRight size={20} color={Colors.textTertiary} /></TouchableOpacity>
-              <TouchableOpacity onPress={handleDeleteAccount} style={[styles.rowCard, styles.rowCardLast]}><View style={styles.rowIcon}><Trash2 size={20} color="#EF4444" /></View><View style={styles.rowContent}><Text style={[styles.rowTitle, { color: '#EF4444' }]}>Delete Account</Text></View></TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.rowCard, styles.rowCardLast]}
+                onPress={() => router.push('/profile/edit-lifejourney' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.rowIcon}>
+                  <Flag size={20} color={horizonDisplay ? Colors.textPrimary : Colors.textTertiary} />
+                </View>
+                <View style={styles.rowContent}>
+                  <Text style={styles.rowTitle}>Big picture</Text>
+                  <Text style={styles.rowSubtitle} numberOfLines={3}>
+                    {horizonDisplay || 'Where you want life to go'}
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={Colors.textTertiary} />
+              </TouchableOpacity>
             </View>
+
+            <View style={[styles.editorialBlockTight, { marginTop: 20 }]}>
+              <Text style={styles.editorialKicker}>Body</Text>
+              <Text style={styles.editorialHeadline}>Health & energy</Text>
+              <Text style={styles.editorialLead}>Sleep, food, movement, mood.</Text>
+            </View>
+            <View style={styles.mindsetVertical}>
+              <TouchableOpacity
+                style={styles.mindsetChapterCard}
+                onPress={() => router.push('/profile/edit-health-wellbeing' as any)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.mindsetChapterTop}>
+                  <View style={styles.gridIcon}>
+                    <Activity size={24} color={healthWellness.completed ? '#4ADE80' : Colors.textTertiary} />
+                  </View>
+                  <View style={styles.gridStatus}>
+                    {healthWellness.completed ? (
+                      <CheckCircle2 size={16} color="#4ADE80" />
+                    ) : (
+                      <CircleIcon size={16} color={Colors.textTertiary} />
+                    )}
+                  </View>
+                </View>
+                <Text style={styles.gridTitle}>Day-to-day</Text>
+                <Text style={styles.gridSubtitle} numberOfLines={3}>
+                  {healthWellness.text ? truncateText(healthWellness.text, 72) : 'Tap to add how you feel'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {resolvedThreads.length > 0 && (
+              <View style={{ marginTop: 16 }}>
+                <TouchableOpacity
+                  style={styles.sectionHeader}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setResolvedThreadsExpanded(!resolvedThreadsExpanded);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.editorialBlockTight}>
+                    <Text style={styles.editorialKicker}>Past</Text>
+                    <Text style={styles.editorialHeadline}>Old topics</Text>
+                    <Text style={styles.editorialLead}>Stuff you’re not focused on now.</Text>
+                  </View>
+                  <ChevronDown
+                    size={22}
+                    color={Colors.textTertiary}
+                    style={{ transform: [{ rotate: resolvedThreadsExpanded ? '180deg' : '0deg' }] }}
+                  />
+                </TouchableOpacity>
+                {resolvedThreadsExpanded && (
+                  <View style={styles.insightsList}>
+                    {resolvedThreads.map((t) => (
+                      <View key={t.id} style={styles.insightCard}>
+                        <Text style={styles.insightMeta}>{friendlyThreadDomain(t.domain)}</Text>
+                        <Text style={styles.insightText} numberOfLines={4}>
+                          {t.summary}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
           </View>
-        </ScrollView>
+
+          <View style={styles.section}>
+            <View style={styles.editorialBlockTight}>
+              <Text style={styles.editorialKicker}>Chats</Text>
+              <Text style={styles.editorialHeadline}>Saved lines</Text>
+              <Text style={styles.editorialLead}>Short notes from when you talked in the app.</Text>
+            </View>
+            {architectInsightEntries.length === 0 ? (
+              <View style={styles.insightsEmpty}>
+                <MessageCircle size={22} color={Colors.textTertiary} />
+                <Text style={styles.insightsEmptyText}>
+                  Chat in Decide. Good lines from those talks can show up here.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.insightsList}>
+                {architectInsightEntries.slice(0, 6).map((entry, idx) => (
+                  <View key={`${entry.at}-${idx}`} style={styles.insightCard}>
+                    <Text style={styles.insightMeta}>
+                      {entry.source === 'decision' ? 'Decide' : 'Life'}
+                      {entry.at ? ` · ${new Date(entry.at).toLocaleDateString()}` : ''}
+                    </Text>
+                    <Text style={styles.insightText} numberOfLines={5}>
+                      {truncateText(entry.text, 220)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+        </Animated.ScrollView>
       </SafeAreaView>
       <Modal visible={infoModalVisible} transparent animationType="fade" onRequestClose={() => setInfoModalVisible(false)}>
         <View style={styles.infoModalOverlay}><View style={styles.infoModalContent}><TouchableOpacity onPress={() => setInfoModalVisible(false)} style={styles.infoModalCloseButton}><X size={24} color={Colors.textTertiary} /></TouchableOpacity><View style={styles.infoModalHeader}><Text style={styles.infoModalTitle}>Your mora#</Text><Text style={styles.infoModalCode}>{twinCode}</Text></View><Text style={styles.infoModalText}>This is your unique twin identifier. Share it with friends to let them include your twin in their decisions.</Text></View></View>
@@ -836,6 +1200,10 @@ export default function ProfileScreen() {
   );
 }
 
+export default function ProfileTabScreen() {
+  return <ProfileShell mode="twin_insights" isTab />;
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   safeArea: { flex: 1 },
@@ -844,19 +1212,332 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontFamily: Fonts.primary.regular, fontWeight: '700', color: Colors.textPrimary },
   scrollView: { flex: 1 },
   content: { paddingHorizontal: 20, paddingBottom: 120 },
-  profileSection: { alignItems: 'center', marginVertical: 20 },
-  avatarWrapper: { width: 140, height: 140, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  avatarContainer: { width: 120, height: 120, borderRadius: 60, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  avatarImage: { width: '100%', height: '100%' },
-  progressRing: { position: 'absolute', top: 0, left: 0 },
-  percentageBadgeWrapper: { position: 'absolute', bottom: 0, right: 0 },
-  percentageBadge: { backgroundColor: Colors.textPrimary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  percentageText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700', fontFamily: Fonts.secondary.bold },
-  usernameContainer: { alignItems: 'center', marginTop: 16 },
-  username: { fontSize: 24, fontFamily: Fonts.primary.regular, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
+  twinRevealTag: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 6,
+    borderRadius: 56,
+    borderWidth: 0.5,
+    borderColor: '#DFDFDF',
+  },
+  twinRevealTagText: {
+    fontFamily: Fonts.secondary.bold,
+    fontWeight: '500',
+    fontSize: 12,
+    lineHeight: 15,
+    color: '#696969',
+  },
+  twinRevealHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    paddingTop: 8,
+    marginBottom: 20,
+    minHeight: 168,
+    position: 'relative',
+  },
+  twinRevealHeaderLeft: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    paddingTop: 12,
+    zIndex: 2,
+    maxWidth: '62%',
+  },
+  twinRevealNameRow: { marginBottom: 8 },
+  twinRevealHeaderName: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: -0.5,
+  },
+  twinRevealLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  twinRevealHeaderLocation: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.primary.regular,
+  },
+  twinRevealTagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  twinRevealHeaderRight: {
+    width: 200,
+    position: 'absolute',
+    right: -28,
+    bottom: -48,
+    height: 220,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    zIndex: 0,
+  },
+  twinRevealCodeRow: {
+    position: 'absolute',
+    top: 8,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 10,
+  },
+  twinRevealCodeText: {
+    fontSize: 14,
+    color: 'rgba(0,0,0,0.15)',
+    fontWeight: '700',
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 1,
+  },
+  twinRevealManImage: { width: '100%', height: '100%' },
+  twinSnapshotCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    padding: 24,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  twinArchetypeHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 8 },
+  twinArchetypeIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  twinArchetypeIconImg: { width: 20, height: 20 },
+  twinArchetypeLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  twinArchetypeTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.primary.regular,
+    marginBottom: 12,
+    lineHeight: 34,
+  },
+  twinArchetypeDescription: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.primary.regular,
+    lineHeight: 24,
+    marginBottom: 20,
+    letterSpacing: 0.3,
+  },
+  twinDnaBox: {
+    backgroundColor: '#FAFAFA',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 8,
+  },
+  twinDnaLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textTertiary,
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 14,
+  },
+  twinDnaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
+  twinDnaRowLabel: {
+    width: 72,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  twinDnaBarTrack: {
+    flex: 1,
+    height: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  twinDnaBarFill: { height: '100%', borderRadius: 4 },
+  twinDnaValue: {
+    width: 40,
+    textAlign: 'right',
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    fontFamily: Fonts.secondary.bold,
+  },
+  twinRefineCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  twinRefineCtaText: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: Fonts.secondary.bold,
+    fontWeight: '600',
+    color: '#25729f',
+  },
+  twinThreadsSection: { marginBottom: 28 },
+  twinThreadsSectionTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.primary.regular,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 6,
+  },
+  twinThreadsSectionSub: {
+    fontSize: 14,
+    fontFamily: Fonts.secondary.regular,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  twinThreadsList: { gap: 12 },
+  twinThreadCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    shadowColor: 'rgba(0,0,0,0.04)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  twinThreadCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  twinThreadDomain: {
+    fontSize: 11,
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  twinThreadStatus: {
+    fontSize: 11,
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textSecondary,
+    textTransform: 'capitalize',
+  },
+  twinThreadSummary: {
+    fontSize: 16,
+    fontFamily: Fonts.secondary.regular,
+    color: Colors.textPrimary,
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  twinThreadStakes: {
+    fontSize: 14,
+    fontFamily: Fonts.secondary.regular,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  twinCompletenessCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  twinCompletenessTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14 },
+  twinCompletenessCopy: { flex: 1 },
+  twinCompletenessTitle: {
+    fontSize: 16,
+    fontFamily: Fonts.secondary.bold,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  twinCompletenessSub: {
+    fontSize: 13,
+    fontFamily: Fonts.secondary.regular,
+    color: Colors.textTertiary,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  twinCompletenessPctWrap: { paddingRight: 4 },
+  twinCompletenessPct: {
+    fontSize: 20,
+    fontWeight: '800',
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textPrimary,
+  },
+  twinCompletenessTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    overflow: 'hidden',
+  },
+  twinCompletenessFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: '#25729f',
+  },
+  fullProfileEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    gap: 12,
+  },
+  fullProfileEntryTextCol: { flex: 1 },
+  fullProfileEntryTitle: {
+    fontSize: 16,
+    fontFamily: Fonts.secondary.bold,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  fullProfileEntrySub: {
+    fontSize: 13,
+    fontFamily: Fonts.secondary.regular,
+    color: Colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 18,
+  },
   twinCodeContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   twinCode: { fontSize: 14, fontFamily: Fonts.secondary.bold, color: Colors.textTertiary },
-  section: { marginBottom: 24 },
+  section: { marginBottom: 28 },
+  editorialBlock: { marginBottom: 28, paddingHorizontal: 4 },
+  editorialBlockTight: { marginBottom: 14, paddingHorizontal: 4 },
+  editorialKicker: {
+    fontSize: 11,
+    fontFamily: Fonts.secondary.bold,
+    letterSpacing: 1.2,
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  editorialHeadline: {
+    fontSize: 26,
+    fontFamily: Fonts.primary.regular,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    lineHeight: 32,
+    marginBottom: 10,
+  },
+  editorialLead: {
+    fontSize: 15,
+    fontFamily: Fonts.secondary.regular,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+  },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12, paddingHorizontal: 4 },
   sectionTitle: { fontSize: 18, fontFamily: Fonts.primary.regular, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4 },
   manageLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2 },
@@ -883,11 +1564,69 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 16, fontFamily: Fonts.secondary.bold, fontWeight: '600', color: Colors.textPrimary },
   rowSubtitle: { fontSize: 13, fontFamily: Fonts.secondary.regular, fontWeight: '300', color: Colors.textTertiary, marginTop: 2 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  mindsetVertical: { gap: 14 },
+  mindsetChapterCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 18,
+    shadowColor: 'rgba(0,0,0,0.06)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 14,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  mindsetChapterTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
   gridCard: { width: (width - 40 - 12) / 2, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 3, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', justifyContent: 'space-between', minHeight: 100 },
   gridIcon: { marginBottom: 12 },
   gridTitle: { fontSize: 15, fontFamily: Fonts.secondary.bold, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4 },
   gridSubtitle: { fontSize: 12, fontFamily: Fonts.secondary.regular, fontWeight: '300', color: Colors.textTertiary, lineHeight: 16, marginBottom: 8, flex: 1 },
   gridStatus: { alignSelf: 'flex-end' },
+  insightsEmpty: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    gap: 10,
+  },
+  insightsEmptyText: {
+    fontSize: 14,
+    fontFamily: Fonts.secondary.regular,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  insightsList: { gap: 12 },
+  insightCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+  },
+  insightMeta: {
+    fontSize: 11,
+    fontFamily: Fonts.secondary.bold,
+    color: Colors.textTertiary,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  insightText: {
+    fontSize: 14,
+    fontFamily: Fonts.secondary.regular,
+    color: Colors.textPrimary,
+    lineHeight: 20,
+  },
   infoModalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   infoModalContent: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
   infoModalCloseButton: { position: 'absolute', top: 16, right: 16, padding: 4 },

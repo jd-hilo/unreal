@@ -1,21 +1,13 @@
 import { Tabs } from 'expo-router';
-import { Home, MessageSquare, Zap, User, Trophy } from 'lucide-react-native';
-import { HomeGradientIcon } from '@/components/GradientIcons';
+import { Home, MessageSquare, Zap, Trophy, Sparkles } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
-import { StyleSheet, Platform, View, TouchableOpacity, Text, Dimensions, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth } from '@/store/useAuth';
-import { getProfile } from '@/lib/storage';
-import { useState, useEffect } from 'react';
+import { StyleSheet, Platform, View, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { Colors, Fonts } from '@/constants/Theme';
 import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
 
-// Man White Icon Component for Tab Bar (turns black when focused)
 const ManWhiteIcon = ({ size = 24, color }: { size?: number; color?: string }) => {
-  // When focused, color is black (#000000), when unfocused it's gray
-  // Use tintColor to make manwhite.png turn black when focused
   return (
     <Image
       source={require('@/assets/images/manwhite.png')}
@@ -63,12 +55,14 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                 activeOpacity={0.7}
               >
                 <View style={[styles.iconWrapper, isFocused && styles.iconWrapperFocused]}>
-                  {Icon && <Icon 
-                    focused={isFocused} 
-                    color={isFocused ? '#000000' : Colors.textTertiary} 
-                    size={24} 
-                    fill={isFocused ? '#000000' : 'none'} // Fill icon when focused
-                  />}
+                  {Icon && (
+                    <Icon
+                      focused={isFocused}
+                      color={isFocused ? '#25729f' : Colors.textTertiary}
+                      size={24}
+                      fill={isFocused ? '#25729f' : 'none'}
+                    />
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -102,7 +96,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="decide"
         options={{
-          title: 'Chat',
+          title: 'Decide',
           tabBarIcon: ({ focused, color, size }) => (
             <MessageSquare size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
@@ -121,6 +115,7 @@ export default function TabLayout() {
         name="leaderboard"
         options={{
           title: 'Leaderboard',
+          href: null,
           tabBarIcon: ({ focused, color, size }) => (
             <Trophy size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
@@ -139,7 +134,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          href: null,
+          title: 'Twin',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Sparkles size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
         }}
       />
     </Tabs>
@@ -200,7 +198,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconWrapperFocused: {
-    // No background color
+    backgroundColor: 'rgba(37, 114, 159, 0.14)',
   },
   activeDot: {
     display: 'none', // Remove the dot

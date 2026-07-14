@@ -104,11 +104,9 @@ export default function ChooseOnboardingMethod() {
     setIsContinuing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setShowAnthropicModal(false);
-    console.log('🎯 CHOOSE METHOD: Navigating to /onboarding/00-name');
-    
-    // Small delay to show "Saving" state before navigation
+    // Same path as email sign-up: conversational twin setup (not classic screens)
     setTimeout(() => {
-      router.push('/onboarding/00-name');
+      router.replace('/onboarding/architect-chat');
     }, 300);
   }
 

@@ -159,7 +159,7 @@ export default function SimulateDashboard() {
             style={styles.profileBadge}
             onPress={async () => {
               await AsyncStorage.setItem('previous_route_before_profile', '/simulate');
-              router.push('/(tabs)/profile');
+              router.push('/twin-insights');
             }}
             activeOpacity={0.7}
           >

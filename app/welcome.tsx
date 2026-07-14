@@ -19,9 +19,9 @@ import { Colors, Fonts } from '@/constants/Theme';
 
 const WELCOME_LINES = [
   'welcome to mora,',
-  'the number 1 app to achieve your dream self',
-  'we will learn more about you',
-  'and provide a structured plan to achieve who you want to become',
+  'make sharper decisions with your digital twin',
+  'we learn how you think and what you want',
+  'so you can decide clearly and simulate what comes next',
 ];
 
 const LINE_FONT_SIZES = [24, 20, 20, 20];

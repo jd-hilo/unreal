@@ -155,6 +155,7 @@ export default function AuthScreen() {
           setPassword('');
           setStep('email');
 
+          setLoading(false);
           // For sign in, navigate to index - it will handle routing based on onboarding status
           router.replace('/');
           return;
@@ -185,8 +186,9 @@ export default function AuthScreen() {
             setIsSigningUp(false);
             setStep('email');
 
-            // For new sign ups, go to choose-method screen (AI call or manual)
-            router.replace('/onboarding/choose-method');
+            // New sign-ups: Architect chat onboarding (twin briefing), same as index routing
+            setLoading(false);
+            router.replace('/onboarding/architect-chat');
             return;
           } else {
             setIsSigningUp(false);

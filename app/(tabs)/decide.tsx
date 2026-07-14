@@ -14,7 +14,7 @@ import {
   TouchableWithoutFeedback,
   Image,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -38,6 +38,7 @@ export default function ChatTab() {
   const router = useRouter();
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
 
   // Active tab
   const [activeTab, setActiveTab] = useState<ActiveTab>('architect');
@@ -81,12 +82,20 @@ export default function ChatTab() {
         loadDreamSelfData();
       }
 
-      AsyncStorage.getItem('decide_initial_tab').then((tab) => {
-        if (tab && (tab === 'architect' || tab === 'decide' || tab === 'future-self')) {
-          setActiveTab(tab as ActiveTab);
-          AsyncStorage.removeItem('decide_initial_tab');
-        }
-      });
+      const fromQuery =
+        tabParam && (tabParam === 'architect' || tabParam === 'decide' || tabParam === 'future-self')
+          ? tabParam
+          : null;
+      if (fromQuery) {
+        setActiveTab(fromQuery as ActiveTab);
+      } else {
+        AsyncStorage.getItem('decide_initial_tab').then((tab) => {
+          if (tab && (tab === 'architect' || tab === 'decide' || tab === 'future-self')) {
+            setActiveTab(tab as ActiveTab);
+            AsyncStorage.removeItem('decide_initial_tab');
+          }
+        });
+      }
 
       setIsNavigating(false);
       fadeAnim.setValue(0);
@@ -96,7 +105,7 @@ export default function ChatTab() {
         navigation.setOptions({ gestureEnabled: true, fullScreenGestureEnabled: true });
         if (parent) parent.setOptions({ gestureEnabled: true, fullScreenGestureEnabled: true });
       };
-    }, [user, navigation])
+    }, [user, navigation, tabParam])
   );
 
   useEffect(() => {
