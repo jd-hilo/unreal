@@ -13,6 +13,7 @@ import {
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { trackEvent, MixpanelEvents, setUserProperty } from '@/lib/mixpanel';
+import adjustService from '@/adjustService';
 
 export function usePremium() {
   const user = useAuth((state) => state.user);
@@ -75,6 +76,18 @@ export function usePremium() {
           plan_type: pkg.packageType
         });
         setUserProperty('is_premium', isPremium);
+
+        try {
+          const price = pkg.product.price;
+          const currency = pkg.product.currencyCode || 'USD';
+          adjustService.trackPurchase(
+            pkg.product.identifier,
+            typeof price === 'number' ? price : undefined,
+            currency
+          );
+        } catch (adjustError) {
+          console.error('Adjust purchase tracking failed:', adjustError);
+        }
         
         return isPremium; // Return actual premium status
       }

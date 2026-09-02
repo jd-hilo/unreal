@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getHasSeenWelcome } from '@/lib/welcomeStorage';
+import { getIncompleteOnboardingRoute } from '@/lib/onboardingResume';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Index() {
@@ -61,8 +62,9 @@ export default function Index() {
       console.log('📍 INDEX: Onboarding check complete', { isComplete });
 
       if (!isComplete) {
-        console.log('📍 INDEX: Routing to /onboarding/choose-method');
-        router.replace('/onboarding/choose-method');
+        const resumeRoute = getIncompleteOnboardingRoute();
+        console.log('📍 INDEX: Routing to incomplete onboarding resume', resumeRoute);
+        router.replace(resumeRoute);
         return;
       }
 

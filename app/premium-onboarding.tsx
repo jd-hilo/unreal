@@ -10,6 +10,7 @@ import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/Theme';
 import { useAuth } from '@/store/useAuth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type PurchaseOption = 'weekly' | 'lifetime';
 
@@ -101,7 +102,12 @@ export default function PremiumOnboardingScreen() {
       is_premium: isPremium,
       from_onboarding: true
     });
-  }, []);
+
+    // Mark first-run paywall as seen so cold start does not re-show it
+    if (user?.id) {
+      AsyncStorage.setItem(`premium_onboarding_seen_${user.id}`, 'true').catch(() => {});
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -203,6 +209,9 @@ export default function PremiumOnboardingScreen() {
       button_name: 'Skip Premium',
       screen: 'Premium Onboarding',
     });
+    if (user?.id) {
+      AsyncStorage.setItem(`premium_onboarding_seen_${user.id}`, 'true').catch(() => {});
+    }
     router.replace(exitRoute as any);
   }
 

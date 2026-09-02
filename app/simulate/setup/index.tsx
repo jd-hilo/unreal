@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/useAuth';
 import { getProfile, getRelationships } from '@/lib/storage';
+import { resolveSimulationReady } from '@/lib/simulationReady';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/Theme';
 import { StatusBar } from 'expo-status-bar';
@@ -23,23 +24,30 @@ export default function SetupIndexScreen() {
         getRelationships(user.id),
       ]);
 
-      // Check what's missing and route to the first missing step
-      if (!profile?.net_worth) {
+      const simReady = resolveSimulationReady(profile, relationships);
+
+      // Prefill path: onboarding already collected what we need
+      if (simReady.ready) {
+        router.replace('/simulate/new?auto=true');
+        return;
+      }
+
+      // Only prompt for fields that are truly missing
+      if (simReady.missing.includes('net_worth')) {
         router.replace('/simulate/setup/networth');
         return;
       }
 
-      if (!profile?.current_location) {
+      if (simReady.missing.includes('location')) {
         router.replace('/simulate/setup/location');
         return;
       }
 
-      if (!relationships || relationships.length === 0) {
+      if (simReady.missing.includes('relationship')) {
         router.replace('/simulate/setup/relationships');
         return;
       }
 
-      // All values are present, go back to simulation create
       router.replace('/simulate/new?auto=true');
     } catch (error) {
       console.error('Failed to check missing values:', error);
@@ -68,4 +76,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
-

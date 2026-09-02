@@ -20,12 +20,13 @@ Deno.serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // Fetch all users who have a push token and have completed onboarding
+  // Onboarding completion lives in core_json.onboarding_complete (no profiles.onboarding_complete column).
+  // PK is user_id.
   const { data: profiles, error } = await supabase
     .from('profiles')
-    .select('id, push_token, push_token_tz')
+    .select('user_id, push_token, push_token_tz, core_json')
     .not('push_token', 'is', null)
-    .eq('onboarding_complete', true);
+    .filter('core_json->>onboarding_complete', 'eq', 'true');
 
   if (error) {
     console.error('Failed to fetch profiles:', error);

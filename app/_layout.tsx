@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
@@ -14,14 +14,19 @@ import { getProfile } from '@/lib/storage';
 import adjustService from '@/adjustService';
 import { Inter_700Bold, Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { Colors } from '@/constants/Theme';
+import * as Notifications from 'expo-notifications';
 
 export default function RootLayout() {
   useFrameworkReady();
+  const router = useRouter();
   const initialize = useAuth((state) => state.initialize);
   const user = useAuth((state) => state.user);
   const checkPremiumStatus = useTwin((state) => state.checkPremiumStatus);
   const onboardingComplete = useTwin((state) => state.onboardingComplete);
   const mixpanelInitPromiseRef = useRef<Promise<void> | null>(null);
+  const notificationResponseSub = useRef<ReturnType<
+    typeof Notifications.addNotificationResponseReceivedListener
+  > | null>(null);
 
   // Load fonts
   const [fontsLoaded] = useFonts({
@@ -44,6 +49,38 @@ export default function RootLayout() {
   useEffect(() => {
     initialize();
   }, []);
+
+  // Notification tap → Home / tasks
+  useEffect(() => {
+    function handleNotificationNavigation(
+      response: Notifications.NotificationResponse
+    ) {
+      const data = response.notification.request.content.data as
+        | { screen?: string }
+        | undefined;
+      // Daily push uses data.screen = 'tasks'; tasks live on Home
+      if (data?.screen === 'tasks' || data?.screen === 'home' || !data?.screen) {
+        router.push('/(tabs)/home');
+      }
+    }
+
+    notificationResponseSub.current =
+      Notifications.addNotificationResponseReceivedListener(
+        handleNotificationNavigation
+      );
+
+    // Cold start from a notification tap
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        handleNotificationNavigation(response);
+      }
+    });
+
+    return () => {
+      notificationResponseSub.current?.remove();
+      notificationResponseSub.current = null;
+    };
+  }, [router]);
 
   // Initialize Mixpanel
   useEffect(() => {

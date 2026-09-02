@@ -190,7 +190,8 @@ export default function LocalPreferencesScreen() {
       selected: answer ? 'yes' : 'no',
     });
     if (!answer) {
-      router.replace('/onboarding/twin-reveal');
+      // Twin summarization (07-clarifier) before twin-reveal
+      router.replace('/onboarding/07-clarifier');
     } else {
       // User said Yes - start the questions
       setCurrentQuestionIndex(0);
@@ -308,10 +309,10 @@ export default function LocalPreferencesScreen() {
         location_enabled: locationEnabled,
       });
 
-      router.replace('/onboarding/twin-reveal');
+      router.replace('/onboarding/07-clarifier');
     } catch (error) {
       console.error('Failed to save preferences:', error);
-      router.replace('/onboarding/twin-reveal');
+      router.replace('/onboarding/07-clarifier');
     } finally {
       setRequestingLocation(false);
     }
