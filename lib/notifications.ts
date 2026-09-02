@@ -49,10 +49,11 @@ export async function registerForPushNotifications(userId: string): Promise<stri
   const token = tokenData.data;
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+  // profiles PK is user_id (not id)
   await supabase
     .from('profiles')
     .update({ push_token: token, push_token_tz: timezone })
-    .eq('id', userId);
+    .eq('user_id', userId);
 
   return token;
 }

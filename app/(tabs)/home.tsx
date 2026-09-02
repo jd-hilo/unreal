@@ -25,6 +25,7 @@ import { trackEvent, MixpanelEvents } from '@/lib/mixpanel';
 import { Colors, Fonts } from '@/constants/Theme';
 import * as Notifications from 'expo-notifications';
 import { registerForPushNotifications } from '@/lib/notifications';
+import { getIncompleteOnboardingRoute } from '@/lib/onboardingResume';
 import { useTypewriter } from '@/hooks/useTypewriter';
 
 const { width } = Dimensions.get('window');
@@ -693,12 +694,12 @@ export default function HomeScreen() {
       return;
     }
 
-    // Check onboarding status from database
+    // Check onboarding status from database (same resume path as app/index)
     checkOnboardingStatus(user.id)
       .then(() => {
         const isComplete = useTwin.getState().onboardingComplete;
         if (!isComplete) {
-          router.replace('/onboarding/00-name');
+          router.replace(getIncompleteOnboardingRoute());
           return;
         }
         // Load data immediately

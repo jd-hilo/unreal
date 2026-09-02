@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { getTimelines, deleteTimeline, getProfile, checkSimulationCredits, getRelationships } from '@/lib/storage';
+import { resolveSimulationReady } from '@/lib/simulationReady';
 import { ChevronRight, ChevronLeft, Plus, Lock, Zap, Play, Users, Home } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -111,14 +112,15 @@ export default function SimulateDashboard() {
         getRelationships(user.id),
       ]);
 
-      // Check what's missing and route to setup if needed
-      if (!profile?.net_worth || !profile?.current_location || !relationships || relationships.length === 0) {
+      // Prefill from onboarding twin data; only route to setup if truly missing
+      const simReady = resolveSimulationReady(profile, relationships);
+      if (!simReady.ready) {
         setCheckingFields(false);
         router.push('/simulate/setup');
         return;
       }
 
-      // All required fields are present, proceed to new simulation
+      // All required fields are present (or prefilled), proceed to new simulation
       setCheckingFields(false);
       router.push('/simulate/new');
     } catch (error) {

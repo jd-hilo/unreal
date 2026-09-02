@@ -118,9 +118,15 @@ export default function ChooseOnboardingMethod() {
   }
 
   function handleModalNoThanks() {
+    // Skip AI/voice onboarding — continue into the questionnaire so users are never stuck
+    if (isContinuing) return;
+    setIsContinuing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowAnthropicModal(false);
-    // Modal closes, user stays on the same page (effectively restarts)
+    trackEvent('OB - choose-method-skip-ai');
+    setTimeout(() => {
+      router.push('/onboarding/00-name');
+    }, 300);
   }
 
   return (

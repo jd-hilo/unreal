@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/store/useAuth';
 import { useTwin } from '@/store/useTwin';
 import { createTimeline, getProfile, getRelationships } from '@/lib/storage';
+import { resolveSimulationReady } from '@/lib/simulationReady';
 import { ChevronRight, ChevronLeft, Sparkles } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -48,16 +49,11 @@ export default function NewSimulationScreen() {
     try {
       // Get profile for age and current life state
       const profile = await getProfile(user.id);
-      
-      // Check Net Worth (Required for B Users/Simulations)
-      if (!profile?.net_worth) {
-        setLoading(false);
-        router.replace('/simulate/setup');
-        return;
-      }
+      const relationships = await getRelationships(user.id);
+      const simReady = resolveSimulationReady(profile, relationships);
 
-      // Check Current Location (Required for B Users/Simulations)
-      if (!profile?.current_location) {
+      // Only hard-block when onboarding did not already collect net worth / city / relationship
+      if (!simReady.ready) {
         setLoading(false);
         router.replace('/simulate/setup');
         return;
@@ -76,29 +72,17 @@ export default function NewSimulationScreen() {
         }
       }
 
-      // Get user's current relationships
-      const relationships = await getRelationships(user.id);
+      const initialRelationships = simReady.relationships;
 
-      // Check Relationships (Required for B Users/Simulations)
-      if (!relationships || relationships.length === 0) {
-        setLoading(false);
-        router.replace('/simulate/setup');
-        return;
-      }
-
-      const initialRelationships = relationships.map((rel: any) => ({
-        name: rel.name,
-        type: rel.relationship_type || 'friend',
-        status: 'good', // Default status
-        description: `Known for ${rel.years_known || 0} years`,
-      }));
-
-      // Initialize timeline with user's current life state
+      // Initialize timeline with user's current life state (prefilled from twin/onboarding)
       const initialProfile = {
-        location: profile?.current_location || profile?.hometown || 'Unknown',
+        location: simReady.location || 'Unknown',
         job: profile?.core_json?.primary_role || profile?.career_entrypoint || 'Not specified',
-        netWorth: profile?.net_worth || '$0',
-        relationshipStatus: relationships.length > 0 ? 'In relationships' : 'Single',
+        netWorth: simReady.netWorth || '$0',
+        relationshipStatus:
+          relationships.length > 0
+            ? 'In relationships'
+            : profile?.relationship_details?.status || 'Single',
       };
 
       // Create timeline with custom settings and current life state
