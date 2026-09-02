@@ -1,10 +1,22 @@
 import { Adjust, AdjustConfig, AdjustEvent } from 'react-native-adjust';
 
 /**
- * Adjust event tokens for app 9xs312sd0t8g.
+ * Mora Adjust app token (12-char app_token). Set intentionally in
+ * commit 05356d6 ("set Adjust app token") by J.D. Sullivan — do not replace
+ * with ad click/link tokens.
+ *
+ * Reddit Unreal/Mora ads currently use Adjust *tracker* token `1vos7l0d`
+ * (8 chars = link/tracker token, NOT an app token). That tracker must be
+ * recreated/reattached under this app in the Adjust dashboard / ad platforms
+ * so click → install → session land on the same app. Updating ad trackers is
+ * out of scope for the retention PR (do not spend / unpause campaigns here).
+ *
+ * Event tokens below must exist under this app in Adjust to attribute.
  * Sessions are also recorded automatically by the SDK on init.
- * These tokens must exist in the Adjust dashboard to attribute correctly.
  */
+const ADJUST_APP_TOKEN = '9xs312sd0t8g';
+/** Documented Reddit click tracker — NOT for AdjustConfig; ads ops only. */
+export const REDDIT_ADJUST_TRACKER_TOKEN = '1vos7l0d';
 const EVENT_SESSION = 'session';
 const EVENT_PURCHASE = 'purchase';
 
@@ -21,7 +33,7 @@ class AdjustService {
     if (this.isInitialized) return;
 
     const adjustConfig = new AdjustConfig(
-      '9xs312sd0t8g',
+      ADJUST_APP_TOKEN,
       __DEV__
         ? AdjustConfig.EnvironmentSandbox
         : AdjustConfig.EnvironmentProduction
